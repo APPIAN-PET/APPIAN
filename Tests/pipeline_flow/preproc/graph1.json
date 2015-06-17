@@ -1,0 +1,34 @@
+{
+    "groups": [
+        {
+            "name": "Group_00001", 
+            "procs": [
+                0, 
+                1
+            ], 
+            "total": 2
+        }
+    ], 
+    "links": [
+        {
+            "source": 0, 
+            "target": 1, 
+            "value": 1
+        }
+    ], 
+    "maxN": 2, 
+    "nodes": [
+        {
+            "group": 1, 
+            "name": "0_node1", 
+            "report": "/node1/_report/report.rst", 
+            "result": "/node1/result_node1.pklz"
+        }, 
+        {
+            "group": 1, 
+            "name": "1_node2", 
+            "report": "/node2/_report/report.rst", 
+            "result": "/node2/result_node2.pklz"
+        }
+    ]
+}

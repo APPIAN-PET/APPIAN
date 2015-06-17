@@ -1,0 +1,1 @@
+mincmath /home/tfunck/.local/lib/python2.7/site-packages/nipype/interfaces/minc/tests/output/brain_mask_2.mnc -add -const 1.00000000 /home/tfunck/.local/lib/python2.7/site-packages/nipype/interfaces/minc/tests/output/brain_mask_3.mnc

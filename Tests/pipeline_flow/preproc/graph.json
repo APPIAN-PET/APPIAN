@@ -1,0 +1,16 @@
+[
+    {
+        "group": 1, 
+        "imports": [], 
+        "name": "0_node1", 
+        "size": 1
+    }, 
+    {
+        "group": 1, 
+        "imports": [
+            "0_node1"
+        ], 
+        "name": "1_node2", 
+        "size": 1
+    }
+]

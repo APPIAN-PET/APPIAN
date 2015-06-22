@@ -14,7 +14,9 @@ from nipype.interfaces.base import (CommandLine, traits, File, CommandLineInputS
 #         return 'MINC_GZ'
 
 class MINCCommandInputSpec(CommandLineInputSpec):
-    input_file = File(desc='input File', exists = True, mandatory = True, argstr="%s")
+#    input_file = File(desc='input File', exists = True, mandatory = True, argstr="%s")
+    input_file = File(desc='input File',  mandatory = True, argstr="%s")
+
 
 
 class MINCCommandOutputSpec(CommandLineInputSpec):

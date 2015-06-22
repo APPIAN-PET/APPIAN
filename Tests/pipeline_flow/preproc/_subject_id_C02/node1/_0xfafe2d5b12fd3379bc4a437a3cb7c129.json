@@ -1,0 +1,13 @@
+{
+    "input_file": [
+        "/home/t/repos/tka_nipype/Tests/pipeline_flow/data/PET/test_C02_pet.mnc", 
+        "6cac6268efebaef7c4c617cc6b633dc0"
+    ], 
+    "needed_outputs": [
+        "out_file"
+    ], 
+    "operand_value": "2.0000000000", 
+    "operation": "mult", 
+    "opt_constant": "-const", 
+    "out_file": "brain_mask_2.mnc"
+}

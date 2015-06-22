@@ -1,0 +1,15 @@
+{
+    "_outputs": {
+        "temp1": [
+            "/home/t/repos/tka_nipype/Tests/pipeline_flow/preproc/_subject_id_C02/node1/brain_mask_2.mnc", 
+            "a30afd8602f3ce15a9719bde83debdfb"
+        ], 
+        "temp2": [
+            "/home/t/repos/tka_nipype/Tests/pipeline_flow/preproc/_subject_id_C02/node2/brain_mask_3.mnc", 
+            "be03cebed2ea9a1c68c9fb8961812727"
+        ]
+    }, 
+    "base_directory": "/home/t/repos/tka_nipype/Tests/pipeline_flow//output", 
+    "parameterization": true, 
+    "remove_dest_dir": false
+}

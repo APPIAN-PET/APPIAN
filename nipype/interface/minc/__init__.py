@@ -2,5 +2,5 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 
 
-from .base import (MINCCommand, Info)
-#from .maths import (OperationsMaths, ConstantMaths, Constant2Maths)
+from .base import (MINCCommand, MINCCommandInputSpec, MINCCommandOutputSpec)
+from .maths import (MathsCommand, ConstantMathsCommand, Constant2MathsCommand)

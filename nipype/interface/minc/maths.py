@@ -2,20 +2,20 @@ import os
 import numpy as np
 
 #from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from mincbase import MINCCommand, MINCCommandInputSpec
+from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     isdefined)
 
 
 
 class MathsOutput(TraitedSpec):
-    out_file = File(exists=True, desc="image to write after calculations")
+    out_file = File( desc="image to write after calculations")
 
 
 class MathsInput(MINCCommandInputSpec):
 
-    input_file = File(position=2, argstr="%s", exists=True, mandatory=True,
-                   desc="image to operate on")
+    #input_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    input_file = File(position=2, argstr="%s", mandatory=True, desc="image to operate on")
 
     out_file = File(position=-1, argstr="%s", mandatory=True,
                    desc="image to operate on")
@@ -29,7 +29,7 @@ class MathsInput(MINCCommandInputSpec):
 
 
 class MathsCommand(MINCCommand):
-    _cmd = "mincmath"
+    _cmd = "mincmath -clob"
     _suffix = "_maths"
     input_spec = MathsInput
     output_spec = MathsOutput
@@ -49,13 +49,9 @@ class MathsCommand(MINCCommand):
 
 
 
-
-
-
-
 class ConstantMathsInput(MINCCommandInputSpec):
-    input_file = File(position=2, argstr="%s", exists=True, mandatory=True,
-                   desc="image to operate on")
+    input_file = File(position=2, argstr="%s", mandatory=True, desc="image to operate on")
+    #input_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
 
     out_file = File(position=-1, argstr="%s", mandatory=True,
                    desc="image to operate on")
@@ -87,14 +83,6 @@ class ConstantMathsCommand(MINCCommand):
         return None
 
 
-
-
-
-
-
-
-
-
 class Constant2MathsInput(MINCCommandInputSpec):
     input_file = File(position=2, argstr="%s", exists=True, mandatory=True,
                    desc="image to operate on")
@@ -103,7 +91,7 @@ class Constant2MathsInput(MINCCommandInputSpec):
                    desc="image to operate on")
 
 
-    _opmaths = ["add", "sub", "mult", "div"]
+    _opmaths = ["add", "sub", "mult", "div", "exp", "log"]
     operation = traits.Enum(*_opmaths, mandatory=True, argstr="-%s",
                            position=3,desc="math operations to perform")
     opt_constant = traits.Str(argstr="%s", position=4, desc="-const2")

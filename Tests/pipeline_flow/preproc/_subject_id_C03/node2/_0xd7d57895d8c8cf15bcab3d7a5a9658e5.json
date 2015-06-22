@@ -1,0 +1,13 @@
+{
+    "input_file": [
+        "/home/t/repos/tka_nipype/Tests/pipeline_flow/preproc/_subject_id_C03/node1/brain_mask_2.mnc", 
+        "f8c57bc261456dc7c6bdd76b5627b7d7"
+    ], 
+    "needed_outputs": [
+        "out_file"
+    ], 
+    "operand_value": "1.0000000000", 
+    "operation": "add", 
+    "opt_constant": "-const", 
+    "out_file": "brain_mask_3.mnc"
+}

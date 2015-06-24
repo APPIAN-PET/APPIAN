@@ -1,1 +1,0 @@
-mincmath /home/tfunck/.local/lib/python2.7/site-packages/nipype/interfaces/minc/tests/data/brain_mask.mnc -mult -const 2.00000000 /home/tfunck/.local/lib/python2.7/site-packages/nipype/interfaces/minc/tests/output/brain_mask_2.mnc

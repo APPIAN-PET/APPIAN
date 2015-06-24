@@ -1,1 +1,1 @@
-mincmath /home/t/repos/tka_nipype/Tests/pipeline_flow/preproc/_subject_id_C03/node1/brain_mask_2.mnc -add -const 1.00000000 brain_mask_3.mnc
+mincmath /data1/projects/nipype/tf/tka_nipype/Tests/pipeline_flow/preproc/_subject_id_C03/node1/brain_mask_2.mnc -add -const 1.00000000 brain_mask_3.mnc

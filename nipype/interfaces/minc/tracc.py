@@ -9,26 +9,33 @@ from ...utils.filemanip import (load_json, save_json, split_filename, fname_pres
 
  
 class TraccInput(MINCCommandInputSpec):
-    # input_source_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="source volume")
     input_source_file = File(position=0, argstr="%s", mandatory=True, desc="source volume")
-    # input_target_file = File(position=1, argstr="%s", exists=True, mandatory=True, desc="target volume")
     input_target_file = File(position=1, argstr="%s", mandatory=True, desc="target volume")
     out_file_xfm = traits.Str(position=2, argstr="%s", exists=True, mandatory=True, desc="transformation matrix")
 
     input_source_mask = File(position=3, argstr="-source_mask %s", exists=True, desc="Binary source mask file")
     input_target_mask = File(position=4, argstr="-model_mask %s", exists=True, desc="Binary target mask file")
 
-    # transformation = File(position=5, argstr="-transformation %s", exists=True, desc="Initial world transformation")
     transformation = File(argstr="-transformation %s", desc="Initial world transformation")
-    _objfunc = ["xcorr", "zscore", "ssc", "vr", "mi", "nmi"]
-    objective_func = traits.Enum(*_objfunc, mandatory=True, argstr="-%s", usedefault=True, desc="Linear optimization objective functions")
-    step = traits.Str(position=-6, argstr="-step %s", usedefault=True, default_value='4 4 4', desc="Step size along each dimension (X, Y, Z)")
-    simplex = traits.Int(position=-5, argstr="-simplex %d", usedefault=True, default_value=20, desc="Radius of simplex volume")
-    tolerance = traits.Float(position=-4, argstr="-tol %.3f", usedefault=True, default_value=0.005, desc="Stopping criteria tolerance")
     _objest = ["", "-est_center", "-est_scales", "-est_translations"]
     est = traits.Enum(*_objest, argstr="%s", desc="Estimation from Principal axis trans")
+    _objfuncNlin = ["xcorr", "diff", "sqdiff", "label", "chamfer", "corrcoeff", "opticalflow"]
+    nonlinear = traits.Enum(*_objfuncNlin, mandatory=True, argstr="-nonlinear %s", usedefault=True, desc="Recover nonlinear deformation field")
+    _objfunc = ["xcorr", "zscore", "ssc", "vr", "mi", "nmi"]
+    objective_func = traits.Enum(*_objfunc, mandatory=True, argstr="-%s", usedefault=True, desc="Linear optimization objective functions")
+    _transfParam = ["lsq7", "lsq3", "lsq6", "lsq9", "lsq10", "lsq12"]
+    lsq = traits.Enum(*_transfParam, mandatory=True, argstr="-%s", usedefault=True, desc="N parameters transformation")
+
+    steps = traits.Str(argstr="-step %s", usedefault=True, default_value='4 4 4', desc="Step size along each dimension (X, Y, Z)")
+    tolerance = traits.Float(argstr="-tol %.3f", usedefault=True, default_value=0.005, desc="Stopping criteria tolerance")
+    simplex = traits.Int(argstr="-simplex %d", usedefault=True, default_value=20, desc="Radius of simplex volume")
+    sub_lattice = traits.Float(argstr="-sub_lattice: %d", usedefault=True, default_value=5, desc="Number of nodes along diameter of local sub-lattice")
+    iterations = traits.Int(argstr="-iterations %d", usedefault=True, default_value=4, desc="Number of iterations for non-linear optimization")
+    weight = traits.Float(argstr="-weight %.1f", usedefault=True, default_value=0.6, desc="Weighting factor for each iteration in nl optimization")
+    stiffness = traits.Float(argstr="-tol %.1f", usedefault=True, default_value=0.005, desc="Weighting factor for smoothing between nl iterations")
+    similarity = traits.Float(argstr="-similarity_cost_ratio %.1f", usedefault=True, default_value=0.5, desc="Weighting factor for  r=similarity*w + cost(1*w)")
     
-    # verbose = traits.Bool(position=-2, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    verbose = traits.Bool(position=-2, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
     clobber = traits.Bool(position=-1, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
 
 class TraccOutput(TraitedSpec):

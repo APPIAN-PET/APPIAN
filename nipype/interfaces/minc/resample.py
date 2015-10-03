@@ -18,9 +18,9 @@ class ResampleInput(MINCCommandInputSpec):
     out_file = File(position=1, argstr="%s", mandatory=True, desc="resampled image")
     model_file = File(position=2, argstr="-like %s", mandatory=True, desc="model image")
     
-    # transformation = File(position=4, argstr="-transformation %s", exists=True, mandatory=False, desc="image to resample")
-    transformation = File(position=4, argstr="-transformation %s", mandatory=False, desc="image to resample")
-    interpolation = traits.Enum('trilinear', 'tricubic', 'nearest_neighbour', 'sinc', argstr="-%s", position=3, desc="interpolation type", mandatory=False,default='trilinear')
+    transformation = File(argstr="-transformation %s", desc="image to resample")
+    interpolation = traits.Enum('trilinear', 'tricubic', 'nearest_neighbour', 'sinc', argstr="-%s", desc="interpolation type", default='trilinear')
+    
     clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 

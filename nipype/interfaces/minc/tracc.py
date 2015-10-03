@@ -16,27 +16,28 @@ class TraccInput(MINCCommandInputSpec):
     input_source_mask = File(position=3, argstr="-source_mask %s", exists=True, desc="Binary source mask file")
     input_target_mask = File(position=4, argstr="-model_mask %s", exists=True, desc="Binary target mask file")
 
+    identity = traits.Bool(argstr="-identity", desc="Use identity transformation for starting point")
     transformation = File(argstr="-transformation %s", desc="Initial world transformation")
     _objest = ["", "-est_center", "-est_scales", "-est_translations"]
     est = traits.Enum(*_objest, argstr="%s", desc="Estimation from Principal axis trans")
     _objfuncNlin = ["xcorr", "diff", "sqdiff", "label", "chamfer", "corrcoeff", "opticalflow"]
-    nonlinear = traits.Enum(*_objfuncNlin, mandatory=True, argstr="-nonlinear %s", usedefault=True, desc="Recover nonlinear deformation field")
+    nonlinear = traits.Enum(*_objfuncNlin, argstr="-nonlinear %s", desc="Recover nonlinear deformation field")
     _objfunc = ["xcorr", "zscore", "ssc", "vr", "mi", "nmi"]
-    objective_func = traits.Enum(*_objfunc, mandatory=True, argstr="-%s", usedefault=True, desc="Linear optimization objective functions")
+    objective_func = traits.Enum(*_objfunc, argstr="-%s", desc="Linear optimization objective functions")
     _transfParam = ["lsq7", "lsq3", "lsq6", "lsq9", "lsq10", "lsq12"]
-    lsq = traits.Enum(*_transfParam, mandatory=True, argstr="-%s", usedefault=True, desc="N parameters transformation")
+    lsq = traits.Enum(*_transfParam, argstr="-%s", desc="N parameters transformation")
 
-    steps = traits.Str(argstr="-step %s", usedefault=True, default_value='4 4 4', desc="Step size along each dimension (X, Y, Z)")
-    tolerance = traits.Float(argstr="-tol %.3f", usedefault=True, default_value=0.005, desc="Stopping criteria tolerance")
-    simplex = traits.Int(argstr="-simplex %d", usedefault=True, default_value=20, desc="Radius of simplex volume")
-    sub_lattice = traits.Float(argstr="-sub_lattice: %d", usedefault=True, default_value=5, desc="Number of nodes along diameter of local sub-lattice")
-    iterations = traits.Int(argstr="-iterations %d", usedefault=True, default_value=4, desc="Number of iterations for non-linear optimization")
-    weight = traits.Float(argstr="-weight %.1f", usedefault=True, default_value=0.6, desc="Weighting factor for each iteration in nl optimization")
-    stiffness = traits.Float(argstr="-tol %.1f", usedefault=True, default_value=0.005, desc="Weighting factor for smoothing between nl iterations")
-    similarity = traits.Float(argstr="-similarity_cost_ratio %.1f", usedefault=True, default_value=0.5, desc="Weighting factor for  r=similarity*w + cost(1*w)")
+    steps = traits.Str(argstr="-step %s", default_value='4 4 4', desc="Step size along each dimension (X, Y, Z)")
+    sub_lattice = traits.Int(argstr="-sub_lattice %d", default_value=5, desc="Number of nodes along diameter of local sub-lattice")
+    lattice = traits.Str(argstr="-lattice_diameter %s", default_value='24 24 24', desc="Widths of sub-lattice along each dimension (X, Y, Z)")
+    tolerance = traits.Float(argstr="-tol %.3f", default_value=0.005, desc="Stopping criteria tolerance")
+    simplex = traits.Int(argstr="-simplex %d", default_value=20, desc="Radius of simplex volume")
+    iterations = traits.Int(argstr="-iterations %d", default_value=4, desc="Number of iterations for non-linear optimization")
+    weight = traits.Float(argstr="-weight %.1f", default_value=0.6, desc="Weighting factor for each iteration in nl optimization")
+    stiffness = traits.Float(argstr="-stiffness %.1f", default_value=0.005, desc="Weighting factor for smoothing between nl iterations")
+    similarity = traits.Float(argstr="-similarity %.1f", default_value=0.5, desc="Weighting factor for  r=similarity*w + cost(1*w)")
     
-    verbose = traits.Bool(position=-2, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
-    clobber = traits.Bool(position=-1, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    # verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class TraccOutput(TraitedSpec):
     out_file_xfm = File(exists=True, desc="transformation matrix")

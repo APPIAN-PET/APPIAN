@@ -10,5 +10,6 @@ from .calc import CalcCommand
 from .smooth import SmoothCommand
 from .tracc import TraccCommand
 from .xfmOp import (ConcatCommand, InvertCommand)
+from .inormalize import InormalizeCommand
 
 from .gzip_test import GZipTask

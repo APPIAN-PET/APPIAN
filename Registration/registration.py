@@ -3,6 +3,8 @@ import numpy as np
 import tempfile
 import shutil
 
+from os.path import basename
+
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
@@ -13,6 +15,7 @@ from nipype.interfaces.minc.tracc import TraccCommand
 from nipype.interfaces.minc.resample import ResampleCommand
 from nipype.interfaces.minc.xfmOp import ConcatCommand
 from nipype.interfaces.minc.xfmOp import InvertCommand
+from nipype.interfaces.minc.inormalize import InormalizeCommand
 
 
 
@@ -38,7 +41,6 @@ class PETtoT1LinRegRunning(BaseInterface):
     input_spec = PETtoT1LinRegInput
     output_spec = PETtoT1LinRegOutput
 
-
     def _run_interface(self, runtime):
         tmpdir = tempfile.mkdtemp()
 
@@ -48,10 +50,12 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         source = self.inputs.input_source_file
         target = self.inputs.input_target_file
+        s_base = basename(os.path.splitext(source)[0])
+        t_base = basename(os.path.splitext(target)[0])
 
         if self.inputs.input_source_mask and self.inputs.input_target_mask:
             if os.path.isfile(self.inputs.input_source_mask):
-                source = tmpdir+"/s_base_masked.mnc"
+                source = tmpdir+"/"+s_base+"_masked.mnc"
                 run_calc = CalcCommand();
                 run_calc.inputs.input_file = [self.inputs.input_source_file, self.inputs.input_source_mask]
                 run_calc.inputs.out_file = source
@@ -64,7 +68,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
             if os.path.isfile(self.inputs.input_target_mask):
-                target = tmpdir+"/t_base_masked.mnc"
+                target = tmpdir+"/"+t_base+"_masked.mnc"
                 run_calc.inputs.input_file = [self.inputs.input_target_file, self.inputs.input_target_mask]
                 run_calc.inputs.out_file = target
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -75,11 +79,11 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
         class conf:
-            def __init__(self, type_, est, blur_fwhm_mri, blur_fwhm_pet, steps, tolerance, simplex):
+            def __init__(self, type_, est, blur_fwhm_source, blur_fwhm_target, steps, tolerance, simplex):
                 self.type_=type_
                 self.est=est
-                self.blur_fwhm_mri=blur_fwhm_mri
-                self.blur_fwhm_pet=blur_fwhm_pet
+                self.blur_fwhm_source=blur_fwhm_source
+                self.blur_fwhm_target=blur_fwhm_target
                 self.steps=steps
                 self.tolerance=tolerance
                 self.simplex=simplex
@@ -92,21 +96,21 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         i=1
         for confi in conf_list:
-            tmp_source=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_source_blur_base=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_source_blur=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)+"_"+confi.type_+".mnc"
-            tmp_target=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_target_blur_base=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_target_blur=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)+"_"+confi.type_+".mnc"
-            tmp_xfm = tmpdir+"/t_base_conf"+str(i)+".xfm";
-            tmp_rspl_vol = tmpdir+"/s_base_conf"+str(i)+".mnc";
+            tmp_source=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
+            tmp_source_blur_base=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
+            tmp_source_blur=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)+"_"+confi.type_+".mnc"
+            tmp_target=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
+            tmp_target_blur_base=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
+            tmp_target_blur=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)+"_"+confi.type_+".mnc"
+            tmp_xfm = tmpdir+"/"+t_base+"_conf"+str(i)+".xfm";
+            tmp_rspl_vol = tmpdir+"/"+s_base+"_conf"+str(i)+".mnc";
 
 
 
             print '-------+------- iteration'+str(i)+' -------+-------\n'
             run_smooth = SmoothCommand();
             run_smooth.inputs.input_file=target
-            run_smooth.inputs.fwhm=confi.blur_fwhm_mri
+            run_smooth.inputs.fwhm=confi.blur_fwhm_target
             run_smooth.inputs.output_file=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
@@ -115,7 +119,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
             run_smooth = SmoothCommand();
             run_smooth.inputs.input_file=source
-            run_smooth.inputs.fwhm=confi.blur_fwhm_pet
+            run_smooth.inputs.fwhm=confi.blur_fwhm_source
             run_smooth.inputs.output_file=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
@@ -195,6 +199,8 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_resample.run()
 
+        shutil.rmtree(tmpdir)
+
         return runtime
 
 
@@ -208,16 +214,17 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
 
-class T1toTalnLinRegOutput(TraitedSpec):
+class nLinRegOutput(TraitedSpec):
     out_file_xfm = File(exists=True, desc="transformation matrix")
     out_file_img = File(exists=True, desc="resampled image")
 
-class T1toTalnLinRegInput(BaseInterfaceInputSpec):
+class nLinRegInput(BaseInterfaceInputSpec):
     input_target_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="target image")
     input_source_file = File(position=1, argstr="%s", exists=True, mandatory=True, desc="source image")
     input_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
     input_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
+    normalize = traits.Bool(argstr="-normalize", usedefault=True, default_value=False, desc="Do intensity normalization on source to match intensity of target")
     out_file_xfm = File(position=-2, argstr="%s", mandatory=True, desc="transformation matrix")
     out_file_img = File(position=-1, argstr="%s", mandatory=True, desc="resampled image")
 
@@ -225,50 +232,56 @@ class T1toTalnLinRegInput(BaseInterfaceInputSpec):
     run = traits.Bool(position=-4, argstr="-run", usedefault=False, default_value=False, desc="Run the commands")
     verbose = traits.Bool(position=-3, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class T1toTalnLinRegRunning(BaseInterface):
-    input_spec = T1toTalnLinRegInput
-    output_spec = T1toTalnLinRegOutput
-
+class nLinRegRunning(BaseInterface):
+    input_spec = nLinRegInput
+    output_spec = nLinRegOutput
 
     def _run_interface(self, runtime):
+        if os.path.exists(self.inputs.out_file_xfm):
+            os.remove(self.inputs.out_file_xfm) 
+
         tmpdir = tempfile.mkdtemp()
 
+        source = self.inputs.input_source_file
+        target = self.inputs.input_target_file
+        s_base = basename(os.path.splitext(source)[0])
+        t_base = basename(os.path.splitext(target)[0])
+ 
         prev_xfm = None
         if self.inputs.init_file_xfm:
             prev_xfm = self.inputs.init_file_xfm
 
-        source = self.inputs.input_source_file
-        target = self.inputs.input_target_file
+        if self.inputs.normalize:
+            inorm_target = tmpdir+"/"+t_base+"_inorm.mnc"
+            inorm_source = tmpdir+"/"+s_base+"_inorm.mnc"
 
-        if self.inputs.input_source_mask and self.inputs.input_target_mask:
-            if os.path.isfile(self.inputs.input_source_mask):
-                source = tmpdir+"/s_base_masked.mnc"
-                run_calc = CalcCommand();
-                run_calc.inputs.input_file = [self.inputs.input_source_file, self.inputs.input_source_mask]
-                run_calc.inputs.out_file = source
-                # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
-                run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
-                if self.inputs.verbose:
-                    print run_calc.cmdline
-                if self.inputs.run:
-                    run_calc.run()
+            run_resample = ResampleCommand();
+            run_resample.inputs.input_file=target
+            run_resample.inputs.out_file=inorm_target
+            run_resample.inputs.model_file=source
+            if self.inputs.verbose:
+                print run_resample.cmdline
+            if self.inputs.run:
+                run_resample.run()
+
+            run_inormalize = InormalizeCommand();
+            run_inormalize.inputs.input_file=source
+            run_inormalize.inputs.out_file=inorm_source
+            run_inormalize.inputs.model_file=inorm_target
+            if self.inputs.verbose:
+                print run_inormalize.cmdline
+            if self.inputs.run:
+                run_inormalize.run()
 
 
-            if os.path.isfile(self.inputs.input_target_mask):
-                target = tmpdir+"/t_base_masked.mnc"
-                run_calc.inputs.input_file = [self.inputs.input_target_file, self.inputs.input_target_mask]
-                run_calc.inputs.out_file = target
-                run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
-                if self.inputs.verbose:
-                    print run_calc.cmdline
-                if self.inputs.run:
-                    run_calc.run()
+        else:
+            inorm_target = target
+            inorm_source = source 
 
 
         class tracc_args:
-            def __init__(self, clobber, nonlinear, weight, stiffness, similarity, sub_lattice):
+            def __init__(self, nonlinear, weight, stiffness, similarity, sub_lattice):
                 # self.debug=debug
-                self.clobber=clobber
                 self.nonlinear=nonlinear
                 self.weight=weight
                 self.stiffness=stiffness
@@ -276,40 +289,69 @@ class T1toTalnLinRegRunning(BaseInterface):
                 self.sub_lattice=sub_lattice
 
         class conf:
-            def __init__(self, steps, blur_fwhm, iterations):
-                self.steps=steps
+            def __init__(self, step, blur_fwhm, iterations, lattice_diam):
+                self.step=step
                 self.blur_fwhm=blur_fwhm
                 self.iterations=iterations
+                self.lattice_diam=lattice_diam
 
-        conf1 = conf(32,16,20)
-        conf2 = conf(16,8,20)
-        conf3 = conf(12,6,20)
-        conf4 = conf(8,4,20)
-        conf5 = conf(6,3,20)
-        conf6 = conf(4,2,10)
+        conf1 = conf(32,16,20,96)
+        conf2 = conf(16,8,20,48)
+        conf3 = conf(12,6,20,36)
+        conf4 = conf(8,4,20,24)
+        conf5 = conf(6,3,20,18)
+        conf6 = conf(4,2,10,12)
         conf_list = [ conf1, conf2, conf3, conf4, conf5, conf6 ]
 
-        nonlin_tracc_args = tracc_args(True,'corrcoeff',1.0,1,0.3,6)
-
+        nonlin_tracc_args = tracc_args('corrcoeff',1.0,1,0.3,6)
 
 
         i=1
         for confi in conf_list:
-            tmp_source=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_source_blur_base=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_source_blur=tmpdir+"/s_base_fwhm"+str(confi.blur_fwhm_mri)+"_"+confi.type_+".mnc"
-            tmp_target=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_target_blur_base=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)
-            tmp_target_blur=tmpdir+"/t_base_fwhm"+str(confi.blur_fwhm_mri)+"_"+confi.type_+".mnc"
-            tmp_xfm = tmpdir+"/t_base_conf"+str(i)+".xfm";
-            tmp_rspl_vol = tmpdir+"/s_base_conf"+str(i)+".mnc";
+            tmp_source=tmpdir+"/"+s_base+"_fwhm.mnc"
+            tmp_source_blur_base=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)
+            tmp_source_blur=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
+            tmp_target=tmpdir+"/"+t_base+"_fwhm.mnc"
+            tmp_target_blur_base=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)
+            tmp_target_blur=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
+            tmp_xfm = tmpdir+"/"+t_base+"_conf"+str(i)+".xfm";
+            tmp_rspl_vol = tmpdir+"/"+s_base+"_conf"+str(i)+".mnc";
 
 
 
             print '-------+------- iteration'+str(i)+' -------+-------\n'
+
+            if self.inputs.input_source_mask and self.inputs.input_target_mask:
+                if os.path.isfile(self.inputs.input_source_mask) and not os.path.exists(tmpdir+"/"+s_base+"_masked.mnc"):
+                    source = tmpdir+"/"+s_base+"_masked.mnc"
+                    run_calc = CalcCommand();
+                    run_calc.inputs.input_file = [inorm_source, self.inputs.input_source_mask]
+                    run_calc.inputs.out_file = source
+                    # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
+                    run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
+                    if self.inputs.verbose:
+                        print run_calc.cmdline
+                    if self.inputs.run:
+                        run_calc.run()
+
+                if os.path.isfile(self.inputs.input_target_mask) and not os.path.exists(tmpdir+"/"+t_base+"_masked.mnc"):
+                    target = tmpdir+"/"+t_base+"_masked.mnc"
+                    run_calc.inputs.input_file = [inorm_target, self.inputs.input_target_mask]
+                    run_calc.inputs.out_file = target
+                    run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
+                    if self.inputs.verbose:
+                        print run_calc.cmdline
+                    if self.inputs.run:
+                        run_calc.run()
+            else:
+                source = inorm_source
+                target = inorm_target
+
+
+
             run_smooth = SmoothCommand();
             run_smooth.inputs.input_file=target
-            run_smooth.inputs.fwhm=confi.blur_fwhm_mri
+            run_smooth.inputs.fwhm=confi.blur_fwhm
             run_smooth.inputs.output_file=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
@@ -318,7 +360,7 @@ class T1toTalnLinRegRunning(BaseInterface):
 
             run_smooth = SmoothCommand();
             run_smooth.inputs.input_file=source
-            run_smooth.inputs.fwhm=confi.blur_fwhm_pet
+            run_smooth.inputs.fwhm=confi.blur_fwhm
             run_smooth.inputs.output_file=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
@@ -329,11 +371,21 @@ class T1toTalnLinRegRunning(BaseInterface):
             run_tracc = TraccCommand();
             run_tracc.inputs.input_source_file=tmp_source_blur
             run_tracc.inputs.input_target_file=tmp_target_blur
-            run_tracc.inputs.out_file_xfm=tmp_xfm
-            run_tracc.inputs.objective_func='mi'
-            run_tracc.inputs.steps=confi.steps
-            run_tracc.inputs.simplex=confi.simplex
-            run_tracc.inputs.tolerance=confi.tolerance
+            if i == 6:
+                run_tracc.inputs.out_file_xfm=self.inputs.out_file_xfm
+            else :
+                run_tracc.inputs.out_file_xfm=tmp_xfm
+            run_tracc.inputs.steps=str(confi.step)+' '+str(confi.step)+' '+str(confi.step)
+            run_tracc.inputs.iterations=confi.iterations
+            run_tracc.inputs.nonlinear=nonlin_tracc_args.nonlinear
+            run_tracc.inputs.weight=nonlin_tracc_args.weight
+            run_tracc.inputs.stiffness=nonlin_tracc_args.stiffness
+            run_tracc.inputs.similarity=nonlin_tracc_args.similarity
+            run_tracc.inputs.sub_lattice=nonlin_tracc_args.sub_lattice
+            run_tracc.inputs.lattice=str(confi.lattice_diam)+' '+str(confi.lattice_diam)+' '+str(confi.lattice_diam)
+            if i == 1:
+	    	run_tracc.inputs.identity=True
+		
             if prev_xfm:
                 run_tracc.inputs.transformation=prev_xfm
             if self.inputs.input_source_mask:
@@ -347,18 +399,21 @@ class T1toTalnLinRegRunning(BaseInterface):
                 run_tracc.run()
 
             
+            if i == 6:
+                prev_xfm = self.inputs.out_file_xfm
+            else :
+                run_resample = ResampleCommand();
+                run_resample.inputs.input_file=source
+                run_resample.inputs.out_file=tmp_rspl_vol
+                run_resample.inputs.model_file=target
+                run_resample.inputs.transformation=tmp_xfm
+                if self.inputs.verbose:
+                    print run_resample.cmdline
+                if self.inputs.run:
+                    run_resample.run()
 
-            run_resample = ResampleCommand();
-            run_resample.inputs.input_file=source
-            run_resample.inputs.out_file=tmp_rspl_vol
-            run_resample.inputs.model_file=target
-            run_resample.inputs.transformation=tmp_xfm
-            if self.inputs.verbose:
-                print run_resample.cmdline
-            if self.inputs.run:
-                run_resample.run()
+                prev_xfm = tmp_xfm
 
-            prev_xfm = tmp_xfm
             i += 1
 
             print '\n'
@@ -377,16 +432,8 @@ class T1toTalnLinRegRunning(BaseInterface):
 
 
 
-        else:
-            if self.inputs.verbose:
-                cmd=' '.join(['cp', prev_xfm, self.inputs.out_file_xfm])
-                print(cmd)
-            if self.inputs.run:
-                copyfile(prev_xfm, self.inputs.out_file_xfm)
-
-
         if self.inputs.out_file_img:
-            print '\n-+- creating $outfile using $outxfm -+-\n'
+            print '\n-+- creating '+self.inputs.out_file_img+' using '+self.inputs.out_file_xfm+' -+-\n'
             run_resample = ResampleCommand();
             run_resample.inputs.input_file=self.inputs.input_source_file
             run_resample.inputs.out_file=self.inputs.out_file_img
@@ -396,6 +443,8 @@ class T1toTalnLinRegRunning(BaseInterface):
                 print run_resample.cmdline
             if self.inputs.run:
                 run_resample.run()
+
+        # shutil.rmtree(tmpdir)
 
         return runtime
 

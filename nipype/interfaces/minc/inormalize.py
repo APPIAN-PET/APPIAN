@@ -9,26 +9,22 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,is
 
 
 
-class ResampleOutput(TraitedSpec):
-    out_file = File(exists=True, desc="resampled image")
+class InormalizeOutput(TraitedSpec):
+    out_file = File(exists=True, desc="Normalized image")
 
-class ResampleInput(MINCCommandInputSpec):
-    # input_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="image to resample")
-    input_file = File(position=0, argstr="%s", mandatory=True, desc="image to resample")
-    out_file = File(position=1, argstr="%s", mandatory=True, desc="resampled image")
-    model_file = File(position=2, argstr="-like %s", mandatory=True, desc="model image")
+class InormalizeInput(MINCCommandInputSpec):
+    input_file = File(position=0, argstr="%s", mandatory=True, desc="image to normalize")
+    out_file = File(position=1, argstr="%s", mandatory=True, desc="Normalized image")
+    model_file = File(position=2, argstr="-model %s", mandatory=True, desc="model image")
     
-    # transformation = File(position=4, argstr="-transformation %s", exists=True, mandatory=False, desc="image to resample")
-    transformation = File(position=4, argstr="-transformation %s", mandatory=False, desc="image to resample")
-    interpolation = traits.Enum('trilinear', 'tricubic', 'nearest_neighbour', 'sinc', argstr="-%s", position=3, desc="interpolation type", mandatory=False,default='trilinear')
     clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class ResampleCommand(MINCCommand):
-    _cmd = "mincresample"
-    _suffix = "_resample"
-    input_spec = ResampleInput
-    output_spec = ResampleOutput
+class InormalizeCommand(MINCCommand):
+    _cmd = "inormalize"
+    _suffix = "_inorm"
+    input_spec = InormalizeInput
+    output_spec = InormalizeOutput
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

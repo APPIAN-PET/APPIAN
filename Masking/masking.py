@@ -92,7 +92,7 @@ class RefmaskingInput(BaseInterfaceInputSpec):
 	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
 	T1Tal = File(exists=True, mandatory=True, desc="T1 image normalized into Talairach space")
 	LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
-	brainmask  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
+	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
 	clsmaskTal  = File(exists=True, mandatory=True, desc="Classification mask in Talairach space")
 	segmaskTal  = File(exists=True, mandatory=True, desc="Segmentation mask in Talairach space")
 	
@@ -133,11 +133,14 @@ class RefmaskingRunning(BaseInterface):
 			    run_resample.run()
 
 		elif self.inputs.RefOpts is 'nonlinear':
+			model_T1 = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+			model_T1_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+
 			run_nlinreg=reg.T1toTalnLinRegRunning();
 			run_nlinreg.inputs.input_source_file = self.inputs.T1Tal
-			run_nlinreg.inputs.input_target_file = 
-			run_nlinreg.inputs.input_source_mask = 
-			run_nlinreg.inputs.input_target_mask = 
+			run_nlinreg.inputs.input_target_file = model_T1
+			run_nlinreg.inputs.input_source_mask = brainmaskTal
+			run_nlinreg.inputs.input_target_mask = model_T1_mask
 			run_nlinreg.inputs.out_file_xfm = 
 			run_nlinreg.inputs.out_file_img = 
 			run_nlinreg.inputs.clobber = True;

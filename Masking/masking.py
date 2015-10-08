@@ -54,12 +54,12 @@ class T1maskingRunning(BaseInterface):
 		    run_xfminvert.run()
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file=model_headmask
-		run_resample.inputs.out_file=self.inputs.T1headmask
-		run_resample.inputs.model_file=self.inputs.nativeT1
-		run_resample.inputs.transformation=run_xfminvert.inputs.out_file_xfm
-		run_resample.inputs.interpolation='nearest_neighbour'
-		run_resample.inputs.clobber=True
+		run_resample.inputs.input_file =  = model_headmask
+		run_resample.inputs.out_file = self.inputs.T1headmask
+		run_resample.inputs.model_file = self.inputs.nativeT1
+		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
+		run_resample.inputs.interpolation = 'nearest_neighbour'
+		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
 		    print run_resample.cmdline
 		if self.inputs.run:
@@ -67,12 +67,12 @@ class T1maskingRunning(BaseInterface):
 
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file=self.inputs.brainmask
-		run_resample.inputs.out_file=self.inputs.T1brainmask
-		run_resample.inputs.model_file=self.inputs.nativeT1
-		run_resample.inputs.transformation=run_xfminvert.inputs.out_file_xfm
-		run_resample.inputs.interpolation='nearest_neighbour'
-		run_resample.inputs.clobber=True
+		run_resample.inputs.input_file = self.inputs.brainmask
+		run_resample.inputs.out_file = self.inputs.T1brainmask
+		run_resample.inputs.model_file = self.inputs.nativeT1
+		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
+		run_resample.inputs.interpolation = 'nearest_neighbour'
+		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
 		    print run_resample.cmdline
 		if self.inputs.run:
@@ -91,18 +91,18 @@ class T1maskingRunning(BaseInterface):
 class RefmaskingInput(BaseInterfaceInputSpec):
 	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
 	T1Tal = File(exists=True, mandatory=True, desc="T1 image normalized into Talairach space")
-	
-	_RefOpts = ["atlas", "nonlinear", "no-transform"]
-	user_opts = traits.Enum(*_RefOpts, mandatory=True, desc="Masking approaches")
-
-	RefmaskTal  = File(exists=True, mandatory=True, desc="Reference mask in Talairach space")
-	RefmaskT1  = File(exists=True, mandatory=True, desc="Reference mask in the native space")
-
-	RefmaskTemplate  = File(exists=True, mandatory=True, desc="Reference mask in Talairach space")
 	LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
 	brainmask  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
 	clsmaskTal  = File(exists=True, mandatory=True, desc="Classification mask in Talairach space")
 	segmaskTal  = File(exists=True, mandatory=True, desc="Segmentation mask in Talairach space")
+	
+	_RefOpts = ["atlas", "nonlinear", "no-transform"]
+	user_opts = traits.Enum(*_RefOpts, mandatory=True, desc="Masking approaches")
+	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
+	RefmaskTemplate  = File(exists=True, mandatory=True, desc="Reference mask on the template")
+
+	RefmaskTal  = File(exists=True, mandatory=True, desc="Reference mask in Talairach space")
+	RefmaskT1  = File(exists=True, mandatory=True, desc="Reference mask in the native space")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
@@ -123,10 +123,10 @@ class RefmaskingRunning(BaseInterface):
 
 		if self.inputs.RefOpts is 'no-transform':
 			run_resample = ResampleCommand();
-			run_resample.inputs.input_file=self.inputs.RefmaskTemplate
-			run_resample.inputs.out_file=self.inputs.RefmaskTal
-			run_resample.inputs.model_file=self.inputs.T1Tal
-			run_resample.inputs.clobber=True
+			run_resample.inputs.input_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.out_file = self.inputs.RefmaskTal
+			run_resample.inputs.model_file = self.inputs.T1Tal
+			run_resample.inputs.clobber = True
 			if self.inputs.verbose:
 			    print run_resample.cmdline
 			if self.inputs.run:
@@ -134,7 +134,7 @@ class RefmaskingRunning(BaseInterface):
 
 		elif self.inputs.RefOpts is 'nonlinear':
 			run_nlinreg=reg.T1toTalnLinRegRunning();
-			run_nlinreg.inputs.input_source_file = 
+			run_nlinreg.inputs.input_source_file = self.inputs.T1Tal
 			run_nlinreg.inputs.input_target_file = 
 			run_nlinreg.inputs.input_source_mask = 
 			run_nlinreg.inputs.input_target_mask = 
@@ -150,20 +150,3 @@ class RefmaskingRunning(BaseInterface):
 
 
 
-
-
-
-# def reference(nativet1, t1tal, Lint1talXfm, brainmask, clsmask, segmask, talrefmask, t1refmask, opt, verbose, run):
-# 	tmpDir = tempfile.mkdtemp()
-# 	if opt.noTransf and opt.RefMaskTemplate:
-# 		run_resample = ResampleCommand();
-# 		run_resample.inputs.input_file=opt.RefMaskTemplate
-# 		run_resample.inputs.out_file=talrefmask
-# 		run_resample.inputs.model_file=t1tal
-# 		run_resample.inputs.clobber=True
-# 		if verbose:
-# 		    print run_resample.cmdline
-# 		if run:
-# 		    run_resample.run()
-
-# 	elif opt.RefTemplate and opt.RefMaskTemplate

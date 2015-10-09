@@ -17,8 +17,8 @@ class InormalizeInput(MINCCommandInputSpec):
     out_file = File(position=1, argstr="%s", mandatory=True, desc="Normalized image")
     model_file = File(position=2, argstr="-model %s", mandatory=True, desc="model image")
     
-    clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class InormalizeCommand(MINCCommand):
     _cmd = "inormalize"

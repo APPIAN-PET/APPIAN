@@ -22,6 +22,9 @@ class MathsInput(MINCCommandInputSpec):
     operation = traits.Enum(*_opmaths, mandatory=True, argstr="-%s", position=3, desc="math operations to perform")
     operand_file = File(exists=True, argstr="%s", mandatory=True, position=4, desc="second image to perform operation with")
 
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+
 
 class MathsCommand(MINCCommand):
     _cmd = "mincmath"

@@ -17,6 +17,9 @@ class CalcInput(MINCCommandInputSpec):
 
     expression = traits.Str(position=2, argstr="-expression '%s'", mandatory=True, desc="algorithm")
 
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+
 class CalcCommand(MINCCommand):
     _cmd = "minccalc"
     _suffix = "_minccalc"

@@ -37,7 +37,8 @@ class TraccInput(MINCCommandInputSpec):
     stiffness = traits.Float(argstr="-stiffness %.1f", default_value=0.005, desc="Weighting factor for smoothing between nl iterations")
     similarity = traits.Float(argstr="-similarity %.1f", default_value=0.5, desc="Weighting factor for  r=similarity*w + cost(1*w)")
     
-    # verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    # clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    # verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class TraccOutput(TraitedSpec):
     out_file_xfm = File(exists=True, desc="transformation matrix")

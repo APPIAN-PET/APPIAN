@@ -14,11 +14,11 @@ class SmoothInput(MINCCommandInputSpec):
     output_file = File(position=1, argstr="%s", desc="smoothed image")
     # output_file = File(position=1, argstr="%s", name_source=["input_file"], name_template='%s', output_name='output_file', desc="smoothed image")
 
-    fwhm = traits.Int(position=2, argstr="-fwhm %d", mandatory=True, desc="fwhm value")
-   
+    fwhm = traits.Int(position=2, argstr="-fwhm %d", mandatory=True, desc="fwhm value")  
     no_apodize = traits.Bool(position=-3, argstr="-no_apodize", usedefault=True, default_value=True, desc="Do not apodize the data before blurring")
-    clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class SmoothOutput(TraitedSpec):
     output_file = File(exists=True, desc="smoothed image")

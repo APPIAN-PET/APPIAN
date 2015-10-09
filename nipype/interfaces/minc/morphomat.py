@@ -17,7 +17,9 @@ class MorphInput(MINCCommandInputSpec):
     output_file = File(position=1, argstr="%s", mandatory=True, desc="mincmorphed image")
 
     successive = traits.Str(position=2, argstr="-successive %s", mandatory=True, desc="Successive operations")
-    verbose = traits.Bool(argstr="-verbose", position=3, usedefault=True, default_value=False, desc="verbose")
+    
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class MorphCommand(MINCCommand):
     _cmd = "mincmorph"

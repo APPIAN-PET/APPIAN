@@ -15,8 +15,8 @@ class ConcatInput(MINCCommandInputSpec):
     in_files_xfm2 = File(position=1, argstr="%s", exists=True, mandatory=True, desc="input xfm files to concat")
     out_file_xfm = File(position=2, argstr="%s", desc="output concatenated xfm file")
 
-    clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class ConcatOutput(TraitedSpec):
     output_file = File(exists=True, desc="transformation matrix")
@@ -65,8 +65,8 @@ class InvertInput(MINCCommandInputSpec):
     in_file_xfm = File(position=0, argstr="%s", exists=True, mandatory=True, desc="main input xfm file")
     out_file_xfm = File(position=2, argstr="%s", desc="output inverted xfm file")
 
-    clobber = traits.Bool(position=-2, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(position=-1, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class InvertOutput(TraitedSpec):
     output_file = File(desc="transformation matrix")

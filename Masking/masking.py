@@ -42,8 +42,6 @@ class T1maskingRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-		tmpDir = tempfile.mkdtemp()
-
 		model_headmask = self.inputs.modelDir+"/icbm_avg_152_t1_tal_lin_headmask.mnc"
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file_xfm = self.inputs.Lint1talXfm
@@ -94,7 +92,8 @@ class RefmaskingInput(BaseInterfaceInputSpec):
 	LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
 	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
 	clsmaskTal  = File(exists=True, mandatory=True, desc="Classification mask in Talairach space")
-	segmaskTal  = File(exists=True, mandatory=True, desc="Segmentation mask in Talairach space")
+	segMaskTal  = File(exists=True, mandatory=True, desc="Segmentation mask in Talairach space")
+	segLabels = traits.Str(default_value='67 76', desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
 	
 	_RefOpts = ["atlas", "nonlinear", "no-transform"]
 	user_opts = traits.Enum(*_RefOpts, mandatory=True, desc="Masking approaches")
@@ -135,17 +134,41 @@ class RefmaskingRunning(BaseInterface):
 		elif self.inputs.RefOpts is 'nonlinear':
 			model_T1 = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
 			model_T1_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+			T1toModel_ref_xfm = tmpdir+"/T1toModel_ref.xfm"
 
 			run_nlinreg=reg.T1toTalnLinRegRunning();
 			run_nlinreg.inputs.input_source_file = self.inputs.T1Tal
 			run_nlinreg.inputs.input_target_file = model_T1
 			run_nlinreg.inputs.input_source_mask = brainmaskTal
 			run_nlinreg.inputs.input_target_mask = model_T1_mask
-			run_nlinreg.inputs.out_file_xfm = 
-			run_nlinreg.inputs.out_file_img = 
+			run_nlinreg.inputs.out_file_xfm = T1toModel_ref_xfm
 			run_nlinreg.inputs.clobber = True;
 			run_nlinreg.inputs.verbose = True;
 			run_nlinreg.inputs.run = False;
+
+			run_resample = ResampleCommand();
+			run_resample.inputs.input_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.out_file = self.inputs.RefmaskTal
+			run_resample.inputs.model_file = self.inputs.T1Tal
+			run_resample.inputs.transformation = T1toModel_ref_xfm
+			run_resample.inputs.interpolation = 'nearest_neighbour'
+			run_resample.inputs.clobber = True
+			if self.inputs.verbose:
+			    print run_resample.cmdline
+			if self.inputs.run:
+			    run_resample.run()
+
+		else
+			mask = tmpdir+"/mask.xfm"
+		    run_calc = CalcCommand();
+            run_calc.inputs.input_file = segMaskTal
+            run_calc.inputs.out_file = mask
+            run_calc.inputs.expression = 'A[1] > '+self.inputs.segLabels+'? A[0] : A[1]'
+            if self.inputs.verbose:
+                print run_calc.cmdline
+            if self.inputs.run:
+                run_calc.run()
+
 
 
 		return runtime

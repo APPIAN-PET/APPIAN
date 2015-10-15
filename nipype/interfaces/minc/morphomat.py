@@ -13,7 +13,8 @@ class MorphOutput(TraitedSpec):
     output_file = File(exists=True, desc="mincmorphed image")
 
 class MorphInput(MINCCommandInputSpec):
-    input_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="image to mincmorph")
+    # input_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="image to mincmorph")
+    input_file = File(position=0, argstr="%s", mandatory=True, desc="image to mincmorph")
     output_file = File(position=1, argstr="%s", mandatory=True, desc="mincmorphed image")
 
     successive = traits.Str(position=2, argstr="-successive %s", mandatory=True, desc="Successive operations")

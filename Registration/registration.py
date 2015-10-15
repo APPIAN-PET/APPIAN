@@ -31,7 +31,7 @@ class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     input_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
     out_file_xfm = File(position=-2, argstr="%s", mandatory=True, desc="transformation matrix")
-    out_file_img = File(position=-1, argstr="%s", mandatory=True, desc="resampled image")
+    out_file_img = File(position=-1, argstr="%s", desc="resampled image")
 
     clobber = traits.Bool(position=-5, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     run = traits.Bool(position=-4, argstr="-run", usedefault=False, default_value=False, desc="Run the commands")
@@ -226,7 +226,7 @@ class nLinRegInput(BaseInterfaceInputSpec):
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
     normalize = traits.Bool(argstr="-normalize", usedefault=True, default_value=False, desc="Do intensity normalization on source to match intensity of target")
     out_file_xfm = File(position=-2, argstr="%s", mandatory=True, desc="transformation matrix")
-    out_file_img = File(position=-1, argstr="%s", mandatory=True, desc="resampled image")
+    out_file_img = File(position=-1, argstr="%s", desc="resampled image")
 
     clobber = traits.Bool(position=-5, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     run = traits.Bool(position=-4, argstr="-run", usedefault=False, default_value=False, desc="Run the commands")

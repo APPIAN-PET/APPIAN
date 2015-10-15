@@ -15,7 +15,7 @@ class CalcInput(MINCCommandInputSpec):
     input_file = InputMultiPath(File(exits=True, mandatory=True), position=0, desc='list of inputs', argstr='%s')
     out_file = File(position=1, argstr="%s", mandatory=True, desc="output image")
 
-    expression = traits.Str(position=2, argstr="-expression '%s'", mandatory=True, desc="algorithm")
+    expression = traits.Str(position=2, argstr="-expression '%s'", desc="algorithm")
 
     clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")

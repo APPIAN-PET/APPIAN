@@ -11,5 +11,7 @@ from .smooth import SmoothCommand
 from .tracc import TraccCommand
 from .xfmOp import (ConcatCommand, InvertCommand)
 from .inormalize import InormalizeCommand
+from .info import InfoCommand
+from .average import AverageCommand
 
 from .gzip_test import GZipTask

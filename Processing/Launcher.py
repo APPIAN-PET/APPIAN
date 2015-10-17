@@ -11,15 +11,19 @@ import time
 from optparse import OptionParser
 from optparse import OptionGroup
 
-
-sys.path.append('')
-sys.path.append('/dagher/dagher1/klarcher/git/tka_nipype/Masking')
+import nipype.interfaces.minc as minc
+import nipype.pipeline.engine as pe
+import nipype.interfaces.io as nio
+import nipype.interfaces.utility as util
+from nipype.interfaces.utility import Rename
 
 from ScanConstructor import * 
-from Reference_masking import * 
 
 version = "1.0"
 
+
+sys.path.append('')
+sys.path.append('/dagher/dagher1/klarcher/git/tka_nipype/Masking')
 
 
 def printOptions(opts,args):
@@ -43,8 +47,64 @@ def initPipeline(opts,args):
 		scan.set_filenames(opts,id)
 
 def runPipeline(scan,opts):	
-	# stage_RefMasking_v1(scan,opts)
-	stage_RefMasking_v2(scan,opts)
+	node1 = pe.Node(interface=minc.AverageCommand(), name="pet_volume")
+	node1.inputs.input_file='/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_fwhm4_real.mnc'
+	node1.inputs.out_file='/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_fwhm4_real_sum.mnc'
+	node1.inputs.avgdim='time'
+	node1.inputs.width_weighted=True
+
+
+	node2 = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="node2")
+	node2.inputs.input_source_file = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_real_resh_sum.mnc';
+	node2.inputs.input_target_file = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_nuc.mnc';
+	node2.inputs.input_source_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_headmask.mnc';
+	node2.inputs.input_target_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_head_mask_native.mnc';
+	node2.inputs.out_file_xfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.xfm';
+	node2.inputs.out_file_img = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.mnc';
+	node2.inputs.clobber = True;
+	node2.inputs.verbose = True;
+	node2.inputs.run = True;
+
+
+	node3 = pe.Node(interface=masking.T1maskingRunning(), name="node3")
+	node3.inputs.nativeT1 = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/native/gluta_015_t1_nuc.mnc';
+	node3.inputs.LinT1TalXfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_tal.xfm';
+	node3.inputs.brainmaskTal = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/mask/gluta_015_skull_mask.mnc';
+	node3.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
+	node3.inputs.T1headmask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_headmask.mnc';
+	node3.inputs.T1brainmask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_brainmask.mnc';
+	node3.inputs.clobber = True;
+	node3.inputs.run = False;
+	node3.inputs.verbose = True;
+
+	node4 = pe.Node(interface=masking.RefmaskingRunning(), name="node4")
+	node4.inputs.nativeT1 = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/native/gluta_015_t1_nuc.mnc';
+	node4.inputs.T1Tal = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/final/gluta_015_t1_final.mnc';
+	node4.inputs.LinT1TalXfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_tal.xfm';
+	node4.inputs.brainmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/mask/gluta_015_skull_mask.mnc';
+	node4.inputs.clsmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/classify/gluta_015_pve_classify.mnc';
+	node4.inputs.segMaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/segment/gluta_015_stx_labels_masked.mnc'
+	node4.inputs.segLabels = [67, 76];
+	node4.inputs.MaskingType = "no-transform"
+	node4.inputs.modelDir = '/dagher/dagher4/klarcher/atlases/icbm152/';
+	node4.inputs.RefmaskTemplate  = '/dagher/dagher5/klarcher/tvincent/neuroecon/apROI/template/minc/Hammers_mith_atlas_n30r83_SPM5_icbm152_asym_vmPFC.mnc';
+	node4.inputs.close = True;
+	node4.inputs.refGM = True;
+	node4.inputs.refWM = False;
+	node4.inputs.RefmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_tal_refmask.mnc';
+	node4.inputs.RefmaskT1  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_refmask.mnc';
+	node4.inputs.clobber = True;
+	node4.inputs.run = False;
+	node4.inputs.verbose = True;
+
+
+
+
+	workflow = pe.Workflow(name='preproc')
+
+
+
+
 
 
 def get_opt_list(option,opt,value,parser):

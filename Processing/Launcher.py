@@ -48,34 +48,38 @@ def initPipeline(opts,args):
 
 def runPipeline(scan,opts):	
 	node1 = pe.Node(interface=minc.AverageCommand(), name="pet_volume")
-	node1.inputs.input_file='/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_fwhm4_real.mnc'
-	node1.inputs.out_file='/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_fwhm4_real_sum.mnc'
-	node1.inputs.avgdim='time'
-	node1.inputs.width_weighted=True
+	node1.inputs.input_file = scan.pypet.dynamic_pet_raw_real
+	node1.inputs.out_file = scan.pypet.volume_pet
+	node1.inputs.avgdim = 'time'
+	node1.inputs.width_weighted = True
+	node1.inputs.clobber = True;
+	node1.inputs.verbose = True;
+	node1.inputs.run = False;
 
 
-	node2 = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="node2")
-	node2.inputs.input_source_file = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_real_resh_sum.mnc';
-	node2.inputs.input_target_file = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_nuc.mnc';
-	node2.inputs.input_source_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_headmask.mnc';
-	node2.inputs.input_target_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_head_mask_native.mnc';
-	node2.inputs.out_file_xfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.xfm';
-	node2.inputs.out_file_img = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.mnc';
+	node2 = pe.Node(interface=masking.T1maskingRunning(), name="node3")
+	node2.inputs.nativeT1 = scan.civet.t1_native
+	node2.inputs.LinT1TalXfm = scan.civet.xfm_tal
+	node2.inputs.brainmaskTal = scan.civet.tal_brainmask
+	node2.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
+	node2.inputs.T1headmask = scan.civet.t1_headmask
+	node2.inputs.T1brainmask = scan.civet.t1_brainmask
 	node2.inputs.clobber = True;
 	node2.inputs.verbose = True;
-	node2.inputs.run = True;
+	node2.inputs.run = False;
 
 
-	node3 = pe.Node(interface=masking.T1maskingRunning(), name="node3")
-	node3.inputs.nativeT1 = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/native/gluta_015_t1_nuc.mnc';
-	node3.inputs.LinT1TalXfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_tal.xfm';
-	node3.inputs.brainmaskTal = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/mask/gluta_015_skull_mask.mnc';
-	node3.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
-	node3.inputs.T1headmask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_headmask.mnc';
-	node3.inputs.T1brainmask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_brainmask.mnc';
+	node3 = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="node2")
+	node3.inputs.input_source_file = scan.pypet.volume_pet
+	node3.inputs.input_target_file = scan.civet.t1_native
+	node3.inputs.input_source_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_headmask.mnc';
+	node3.inputs.input_target_mask = scan.civet.t1_headmask
+	node3.inputs.out_file_xfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.xfm';
+	node3.inputs.out_file_img = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.mnc';
 	node3.inputs.clobber = True;
-	node3.inputs.run = False;
 	node3.inputs.verbose = True;
+	node3.inputs.run = False;
+
 
 	node4 = pe.Node(interface=masking.RefmaskingRunning(), name="node4")
 	node4.inputs.nativeT1 = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/native/gluta_015_t1_nuc.mnc';
@@ -94,8 +98,8 @@ def runPipeline(scan,opts):
 	node4.inputs.RefmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_tal_refmask.mnc';
 	node4.inputs.RefmaskT1  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_refmask.mnc';
 	node4.inputs.clobber = True;
-	node4.inputs.run = False;
 	node4.inputs.verbose = True;
+	node4.inputs.run = False;
 
 
 
@@ -123,7 +127,6 @@ if __name__ == "__main__":
 
 	parser = OptionParser(usage=usage,version=version)
 
-	# group= OptionGroup(parser,"File options","Mandatory")
 	group= OptionGroup(parser,"File options (mandatory)")
 	group.add_option("-s","--sourcedir",dest="sourceDir",help="Native pet and mri directory")
 	group.add_option("-t","--targetdir",dest="targetDir",help="Directory where output data will be saved in")
@@ -136,24 +139,9 @@ if __name__ == "__main__":
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"Registration options")
-	# PERL :
-	# ["-template", "string", 1, \$template, "Template to resample the subject MR image in strereostatix space."],
-	# ["-fr-range-reg", "integer", 2, \@rangeFramesReg, "Frames range for MRI/PET registration."],
-	# ["-manual-mripet", "const", "manual-reg", \$manual_reg, "Use manual MRI/PET registration."], 
-	# ["-no-manual-mripet", "const", "no-manual-reg", \$manual_reg, "Compute manual MRI/PET registration. [default]"], 
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"PET acquisition options")
-	# PERL :
-	# ["-motions-corr", "const", "motions", \$motions_corr, "Correct for the head motions. [default]"], 
-	# ["-no-motions-corr", "const", "no-motions", \$motions_corr, "Don't correct for the head motions. The dynamic PET image need to be provided."], 
-	# ["-target-fr", "integer", 2, \@targetFr, "Frames range used for creating target volume that will be used for realigning each frame."],
-	# ["-target-all-fr", "integer", 1, \$targetFrAll, "Use all frames for creating target volume. [default]"],
-	# ["-remove-fr", "const", "remove-fr", \$remove_fr, "Run the frame removing."], 
-	# ["-no-remove-fr", "const", "no-remove-fr", \$remove_fr, "Don't run the frame removing."], 
-	# ["-exclude-fr", "call", [\@excludeFr], \&ParseOption, "Frames to exclude."],
-	# ["-exclude-fr-time", "call", [\@excludeFrTime], \&ParseOption, "Width-Time of frames to exclude."],
-	# ["-smooth", "integer", 1, \$smooth, "FWHM value to blur the dynamic pet image."], 
 	parser.add_option_group(group)
 		
 	group= OptionGroup(parser,"Masking options","Reference region")
@@ -179,16 +167,6 @@ if __name__ == "__main__":
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")
-	# PERL :
-	# ["-param", "const", "parametric", \$param, "Compute modelling parameters. [default]"], 
-	# ["-no-param", "const", "no-parametric", \$param, "Don't compute modelling parameters. Stop just after the registration MRI/PET."], 
-	# ["-vox-wise", "const", "vox", \$analysis, "Run voxel-wise analysis."],
-	# ["-regional", "const", "regional", \$analysis, "Run regional analysis." ], 
-	# ["-regional-stx", "const", "regional-stx", \$analysis, "Run regional analysis, using the mask in the stereotaxic space." ], 
-	# ["-srtm-gunn", "const", "gunn", \$mapping, "Create the Receptors Parametric Maps, from the matlab script written by Roger GUNN (some matlab librairies are necessary)."],
-	# ["-srtm-turku", "const", "turku", \$mapping, "Create the Receptors Parametric Maps, using Turku tools." ], 
-	# ["-theta3", "float", 2, \@theta3val, "Minimal and maximal values of theta3 (min max)."],
-	# ["-ligand", "integer", 1, \$ligand, "Ligand."],
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Pipeline control")
@@ -196,14 +174,6 @@ if __name__ == "__main__":
 	group.add_option("","--fake",dest="pfake",help="do a dry run, (echo cmds only).",action='store_true',default=True)
 	group.add_option("","--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
 	group.add_option("","--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
-	# PERL :
-	# ["-run", "const", "run", \$command, "Run the pipeline."],
-	# ["-status-from-files", "const", "statusFromFiles", \$command, "Compute pipeline status from files"],
-	# ["-print-stages", "const", "printStages", \$command, "Print the pipeline stages."],
-	# ["-print-status", "const", "printStatus", \$command, "Print the status of each pipeline."],
-	# ["-make-graph", "const", "makeGraph", \$command, "Create dot graph file."],
-	# ["-make-filename-graph", "const", "makeFilenameGraph", \$command, "Create dot graph of filenames."],
-	# ["-print-status-report", "const", "printStatusReport", \$command, "Writes a CSV status report to file in cwd."],
 	parser.add_option_group(group)
 
 	(opts, args) = parser.parse_args()
@@ -223,8 +193,6 @@ if __name__ == "__main__":
 	opts.targetDir = os.path.normpath(opts.targetDir)
 	opts.sourceDir = os.path.normpath(opts.sourceDir)
 	opts.civetDir = os.path.normpath(opts.civetDir)
-	# PERL :
-	# if (@targetFr) {$targetFrAll = 0;}
 
 	scan = PipelineFiles()
 	initPipeline(opts,args)

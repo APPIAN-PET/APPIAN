@@ -35,7 +35,6 @@ class SmoothCommand(MINCCommand, Info):
 
         if not isdefined(self.inputs.output_file):
             fname, ext = os.path.splitext(self.inputs.input_file)
-            # self.inputs.output_file = self._gen_fname(fname, suffix=self._suffix)
             self.inputs.output_file = fname + '_fwhm' + str(self.inputs.fwhm)
 
         return super(SmoothCommand, self)._parse_inputs(skip=skip)

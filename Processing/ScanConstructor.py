@@ -201,7 +201,7 @@ class PipelineFiles:
 			self.pypet.volume_pet=petvoldir+os.sep+opts.prefix+"_"+id+"_"+condi+"_real_sum"+'.'+opts.extension
 			self.pypet.volume_pet_rhp={}
 			self.pypet.volume_pet_t1=petvoldir+os.sep+opts.prefix+"_"+id+"_"+condi+"_t1_real_sum"+'.'+opts.extension
-			self.pypet.volume_pet_headmask={}
+			self.pypet.volume_pet_headmask=regdir+os.sep+opts.prefix+"_"+id+"_"+condi+"_headmask"+'.'+opts.extension
 			self.pypet.xfm_pet_t1_init={}
 			self.pypet.xfm_pet_t1=lindir+os.sep+opts.prefix+"_"+id+"_"+condi+"_petmri.xfm"
 			self.pypet.xfm_pet_tal={}

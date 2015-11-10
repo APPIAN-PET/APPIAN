@@ -246,3 +246,48 @@ class RefmaskingRunning(BaseInterface):
 
 
 
+
+
+class PETheadMaskingOutput(TraitedSpec):
+	RefmaskTal  = File(desc="Headmask from PET volume")
+
+class PETheadMaskingInput(BaseInterfaceInputSpec):
+    input_volume = File(exists=True, mandatory=True, desc="PET volume")
+    input_json = File(exists=True, mandatory=True, desc="PET json file")
+    output_file = File(mandatory=True, desc="Head mask")
+	
+	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
+	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
+	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
+
+class PETheadMaskingRunning(BaseInterface):
+    input_spec = PETheadMaskingInput
+    output_spec = PETheadMaskingOutput
+
+
+    def _run_interface(self, runtime):
+		tmpDir = tempfile.mkdtemp()
+
+		hd = load_json(self.inputs.input_json)
+		dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
+
+		for ii in np.arange(1,dim[3],1):
+			slice_tmp = tmpdir + '/pet_slice.mnc'
+			
+
+
+
+		if self.inputs.verbose:
+		    print run_resample.cmdline
+		if self.inputs.run:
+		    run_resample.run()		
+
+		return runtime
+
+
+    def _list_outputs(self):
+		outputs = self.output_spec().get()
+		outputs["output_file"] = self.inputs.output_file
+
+
+

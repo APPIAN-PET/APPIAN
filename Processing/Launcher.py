@@ -47,66 +47,75 @@ def initPipeline(opts,args):
 		scan.set_filenames(opts,id)
 
 def runPipeline(scan,opts):	
-	node1 = pe.Node(interface=minc.AverageCommand(), name="pet_volume")
-	node1.inputs.input_file = scan.pypet.dynamic_pet_raw_real
-	node1.inputs.out_file = scan.pypet.volume_pet
-	node1.inputs.avgdim = 'time'
-	node1.inputs.width_weighted = True
-	node1.inputs.clobber = True;
-	node1.inputs.verbose = True;
-	node1.inputs.run = False;
+	pet_volume = pe.Node(interface=minc.AverageCommand(), name="pet_volume")
+	pet_volume.inputs.input_file = scan.pypet.dynamic_pet_raw_real
+	pet_volume.inputs.out_file = scan.pypet.volume_pet
+	pet_volume.inputs.avgdim = 'time'
+	pet_volume.inputs.width_weighted = True
+	pet_volume.inputs.clobber = True;
+	pet_volume.inputs.verbose = True;
+	pet_volume.inputs.run = False;
 
 
-	node2 = pe.Node(interface=masking.T1maskingRunning(), name="node3")
-	node2.inputs.nativeT1 = scan.civet.t1_native
-	node2.inputs.LinT1TalXfm = scan.civet.xfm_tal
-	node2.inputs.brainmaskTal = scan.civet.tal_brainmask
-	node2.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
-	node2.inputs.T1headmask = scan.civet.t1_headmask
-	node2.inputs.T1brainmask = scan.civet.t1_brainmask
-	node2.inputs.clobber = True;
-	node2.inputs.verbose = True;
-	node2.inputs.run = False;
+	t1_masking = pe.Node(interface=masking.T1maskingRunning(), name="t1_masking")
+	t1_masking.inputs.nativeT1 = scan.civet.t1_native
+	t1_masking.inputs.LinT1TalXfm = scan.civet.xfm_tal
+	t1_masking.inputs.brainmaskTal = scan.civet.tal_brainmask
+	t1_masking.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
+	t1_masking.inputs.T1headmask = scan.civet.t1_headmask
+	t1_masking.inputs.T1brainmask = scan.civet.t1_brainmask
+	t1_masking.inputs.clobber = True;
+	t1_masking.inputs.verbose = True;
+	t1_masking.inputs.run = False;
 
 
-	node3 = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="node2")
-	node3.inputs.input_source_file = scan.pypet.volume_pet
-	node3.inputs.input_target_file = scan.civet.t1_native
-	node3.inputs.input_source_mask = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_headmask.mnc';
-	node3.inputs.input_target_mask = scan.civet.t1_headmask
-	node3.inputs.out_file_xfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.xfm';
-	node3.inputs.out_file_img = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_0_petmri.mnc';
-	node3.inputs.clobber = True;
-	node3.inputs.verbose = True;
-	node3.inputs.run = False;
+	pet2mri_lin = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="pet2mri_lin")
+	pet2mri_lin.inputs.input_source_file = scan.pypet.volume_pet
+	pet2mri_lin.inputs.input_target_file = scan.civet.t1_native
+	pet2mri_lin.inputs.input_source_mask = scan.pypet.volume_pet_headmask
+	pet2mri_lin.inputs.input_target_mask = scan.civet.t1_headmask
+	pet2mri_lin.inputs.out_file_xfm = scan.pypet.xfm_pet_t1
+	pet2mri_lin.inputs.out_file_img = scan.pypet.volume_pet_headmask
+	pet2mri_lin.inputs.clobber = True;
+	pet2mri_lin.inputs.verbose = True;
+	pet2mri_lin.inputs.run = False;
 
 
-	node4 = pe.Node(interface=masking.RefmaskingRunning(), name="node4")
-	node4.inputs.nativeT1 = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/native/gluta_015_t1_nuc.mnc';
-	node4.inputs.T1Tal = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/final/gluta_015_t1_final.mnc';
-	node4.inputs.LinT1TalXfm = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_tal.xfm';
-	node4.inputs.brainmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/mask/gluta_015_skull_mask.mnc';
-	node4.inputs.clsmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/classify/gluta_015_pve_classify.mnc';
-	node4.inputs.segMaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/civet/gluta/015/segment/gluta_015_stx_labels_masked.mnc'
-	node4.inputs.segLabels = [67, 76];
-	node4.inputs.MaskingType = "no-transform"
-	node4.inputs.modelDir = '/dagher/dagher4/klarcher/atlases/icbm152/';
-	node4.inputs.RefmaskTemplate  = '/dagher/dagher5/klarcher/tvincent/neuroecon/apROI/template/minc/Hammers_mith_atlas_n30r83_SPM5_icbm152_asym_vmPFC.mnc';
-	node4.inputs.close = True;
-	node4.inputs.refGM = True;
-	node4.inputs.refWM = False;
-	node4.inputs.RefmaskTal  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_tal_refmask.mnc';
-	node4.inputs.RefmaskT1  = '/dagher/dagher4/klarcher/nipype_test/data/gluta_015_t1_refmask.mnc';
-	node4.inputs.clobber = True;
-	node4.inputs.verbose = True;
-	node4.inputs.run = False;
+	ref_masking = pe.Node(interface=masking.RefmaskingRunning(), name="ref_masking")
+	ref_masking.inputs.nativeT1 = scan.civet.t1_native
+	ref_masking.inputs.T1Tal = scan.civet.tal_final
+	ref_masking.inputs.LinT1TalXfm = scan.civet.xfm_tal
+	ref_masking.inputs.brainmaskTal  = scan.civet.t1_brainmask
+	ref_masking.inputs.clsmaskTal  = scan.civet.tal_cls
+	ref_masking.inputs.segMaskTal  = scan.civet.tal_animal_masked
+	ref_masking.inputs.segLabels = [67, 76];
+	ref_masking.inputs.MaskingType = "no-transform"
+	ref_masking.inputs.modelDir = '/data/movement/movement7/klarcher/share/icbm';
+	# ref_masking.inputs.RefmaskTemplate  = '/dagher/dagher5/klarcher/tvincent/neuroecon/apROI/template/minc/Hammers_mith_atlas_n30r83_SPM5_icbm152_asym_vmPFC.mnc';
+	ref_masking.inputs.close = True;
+	ref_masking.inputs.refGM = True;
+	ref_masking.inputs.refWM = False;
+	ref_masking.inputs.RefmaskTal  = scan.pypet.tal_ref
+	ref_masking.inputs.RefmaskT1  = scan.pypet.t1_ref
+	ref_masking.inputs.clobber = True;
+	ref_masking.inputs.verbose = True;
+	ref_masking.inputs.run = False;
 
 
 
 
 	workflow = pe.Workflow(name='preproc')
+	workflow.base_dir=wkdir
 
 
+workflow.connect([(pet_volume, pet2mri_lin, [('out_file', 'input_target_file')])])
+
+workflow.connect(t1_masking, 'out_file', pet2mri_lin, 'input_file')
+
+workflow.connect(pet2mri_lin, 'out_file', datasink, 'pet2mri_lin')
+
+#run the work flow
+workflow.run()
 
 
 

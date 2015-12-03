@@ -2,10 +2,11 @@ import os
 import numpy as np
 import tempfile
 import shutil
+import pickle
 
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
@@ -14,6 +15,10 @@ from nipype.interfaces.minc.resample import ResampleCommand
 from nipype.interfaces.minc.xfmOp import ConcatCommand
 from nipype.interfaces.minc.xfmOp import InvertCommand
 from nipype.interfaces.minc.morphomat import MorphCommand
+from nipype.interfaces.minc.info import InfoCommand
+from nipype.interfaces.minc.info import StatsCommand
+from nipype.interfaces.minc.reshape import ReshapeCommand
+from nipype.interfaces.minc.concat import ConcatCommand
 import Registration.registration as reg
 
 
@@ -252,9 +257,9 @@ class PETheadMaskingOutput(TraitedSpec):
 	RefmaskTal  = File(desc="Headmask from PET volume")
 
 class PETheadMaskingInput(BaseInterfaceInputSpec):
-    input_volume = File(exists=True, mandatory=True, desc="PET volume")
-    input_json = File(exists=True, mandatory=True, desc="PET json file")
-    output_file = File(mandatory=True, desc="Head mask")
+	input_volume = File(exists=True, mandatory=True, desc="PET volume")
+	input_json = File(exists=True, mandatory=True, desc="PET json file")
+	output_file = File(mandatory=True, desc="Head mask")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
@@ -266,21 +271,105 @@ class PETheadMaskingRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
+
 		tmpDir = tempfile.mkdtemp()
 
 		hd = load_json(self.inputs.input_json)
 		dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
 
-		for ii in np.arange(1,dim[3],1):
-			slice_tmp = tmpdir + '/pet_slice.mnc'
-			
+		mean_slices = []
+		for ii in np.arange(1,dim[2],1):
+			slice_tmp = tmpDir + '/pet_slice.mnc'
+
+			run_mincreshape=ReshapeCommand()
+			run_mincreshape.inputs.input_file = self.inputs.input_volume
+			run_mincreshape.inputs.output_file = slice_tmp
+			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
+			if self.inputs.verbose:
+			    print run_mincreshape.cmdline
+			if self.inputs.run:
+			    run_mincreshape.run()
 
 
+			run_stats=StatsCommand()
+			run_stats.inputs.input_file = slice_tmp;
+			run_stats.inputs.opt_string = '-max';
+			if self.inputs.verbose:
+			    print run_stats.cmdline
+			if self.inputs.run:
+			    run_stats.run()
 
+
+			outfile = os.path.join(os.getcwd(), 'stat_result.pck')
+			file = open(outfile, "r")
+			max_slice = pickle.load(file)
+			max_slice = max_slice/4
+
+
+			run_stats=StatsCommand()
+			run_stats.inputs.input_file = slice_tmp;
+			run_stats.inputs.opt_string = '-floor '+str(max_slice)+' -mean ';
+			if self.inputs.verbose:
+			    print run_stats.cmdline
+			if self.inputs.run:
+			    run_stats.run()
+
+			outfile = os.path.join(os.getcwd(), 'stat_result.pck')
+			file = open(outfile, "r")
+			mean_slice = pickle.load(file)
+
+			mean_slices.append(mean_slice)
+
+		threshold = np.mean(mean_slices)
+		threshold = threshold/3
+
+		mask_slices = []
+		for ii in np.arange(1,dim[2],1):
+			slice_tmp = tmpDir + '/pet_slice.mnc'
+			mask_tmp = tmpDir + '/mask_slice' + str(ii) + '.mnc'
+
+			run_mincreshape=ReshapeCommand()
+			run_mincreshape.inputs.input_file = self.inputs.input_volume
+			run_mincreshape.inputs.output_file = slice_tmp
+			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
+			if self.inputs.verbose:
+			    print run_mincreshape.cmdline
+			if self.inputs.run:
+			    run_mincreshape.run()
+
+			run_calc = CalcCommand();
+			run_calc.inputs.input_file = slice_tmp
+			run_calc.inputs.out_file = mask_tmp
+			run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
+			if self.inputs.verbose:
+				print run_calc.cmdline
+			if self.inputs.run:
+				run_calc.run()
+
+			mask_slices.append(mask_tmp)
+
+		mask_tmp = tmpDir + '/headmask.mnc'
+
+		run_concat=ConcatCommand()
+		run_concat.inputs.input_file = mask_slices
+		run_concat.inputs.output_file = mask_tmp
+		run_concat.inputs.dimension = 'zspace'
+		run_concat.inputs.start = hd['zspace']['start'][0]
+		run_concat.inputs.step = hd['zspace']['step'][0]
+		if self.inputs.verbose:
+		    print run_concat.cmdline
+		if self.inputs.run:
+		    run_concat.run()
+
+		run_resample = ResampleCommand();
+		run_resample.inputs.input_file = mask_tmp
+		run_resample.inputs.out_file = self.inputs.output_file
+		run_resample.inputs.model_file = self.inputs.input_volume
+		run_resample.inputs.interpolation = 'trilinear'
 		if self.inputs.verbose:
 		    print run_resample.cmdline
 		if self.inputs.run:
-		    run_resample.run()		
+		    run_resample.run()
 
 		return runtime
 

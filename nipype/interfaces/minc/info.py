@@ -4,6 +4,7 @@ import numpy as np
 from base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 from ...utils.filemanip import (load_json, save_json, update_minchd_json, split_filename, fname_presuffix)
+import pickle
 
 
 
@@ -112,7 +113,8 @@ class StatsCommand(MINCCommand):
 
     def aggregate_outputs(self, runtime=None, needed_outputs=None):
         outputs = self._outputs()
-        outfile = os.path.join(os.getcwd(), 'stat_result.json')
+        outfile = os.path.join(os.getcwd(), 'stat_result.pck')
+        # outfile = os.path.join(os.getcwd(), 'stat_result.json')
 
         if runtime is None:
             try:
@@ -132,16 +134,12 @@ class StatsCommand(MINCCommand):
 
             if len(out_stats) == 1:
                 out_stats = out_stats[0]
-            save_json(outfile,out_stats)
+
+            file = open(outfile, 'w')
+            pickle.dump(out_stats, file)
+            file.close()
+
+            # save_json(outfile,out_stats)
         
         outputs.output_file = out_stats
         return outputs
-
-
-
-
-
-
-
-
-

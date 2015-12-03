@@ -15,7 +15,7 @@ class PETinfoOutput(TraitedSpec):
     output_file = File(desc="Output file")
 
 class PETinfoInput(BaseInterfaceInputSpec):
-    nativePET = File(exists=True, mandatory=True, desc="Native dynamic PET image")
+    input_file = File(exists=True, mandatory=True, desc="Native dynamic PET image")
     output_file = File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -30,7 +30,7 @@ class PETinfoRunning(BaseInterface):
     #     if skip is None:
     #         skip = []
     #     if not isdefined(self.inputs.output_file):
-    #         fname, ext = os.path.splitext(self.inputs.nativePET)
+    #         fname, ext = os.path.splitext(self.inputs.input_file)
     #         self.inputs.output_file = fname + _suffix
 
     #     return super(PETinfoRunning, self)._parse_inputs(skip=skip)
@@ -41,7 +41,7 @@ class PETinfoRunning(BaseInterface):
         _suffix = ".info"
 
         if not isdefined(self.inputs.output_file):
-            fname, ext = os.path.splitext(self.inputs.nativePET)
+            fname, ext = os.path.splitext(self.inputs.input_file)
             self.inputs.output_file = fname + _suffix
 
 
@@ -58,7 +58,7 @@ class PETinfoRunning(BaseInterface):
 
         for opt in options:
             run_mincinfo=InfoCommand()
-            run_mincinfo.inputs.input_file = self.inputs.nativePET
+            run_mincinfo.inputs.input_file = self.inputs.input_file
             run_mincinfo.inputs.output_file = self.inputs.output_file
             run_mincinfo.inputs.opt_string = opt.command
             run_mincinfo.inputs.json_var = opt.variable
@@ -72,7 +72,7 @@ class PETinfoRunning(BaseInterface):
                 run_mincinfo.run()
 
 
-        img = minc.Image(self.inputs.nativePET, metadata_only=True)
+        img = minc.Image(self.inputs.input_file, metadata_only=True)
         hd = img.get_MINC_header()
         for key in hd.keys():
             for subkey in hd[key].keys():

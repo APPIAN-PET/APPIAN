@@ -127,6 +127,8 @@ class PipelineFiles:
 		os.makedirs(tmpdir)
 		tmptfmdir=opts.targetDir+os.sep+opts.prefix+os.sep+id+os.sep+"temp"+os.sep+"transforms"+os.sep
 		os.makedirs(tmptfmdir)
+		petdir=opts.targetDir+os.sep+opts.prefix+os.sep+id+os.sep+"pet"+os.sep
+		os.makedirs(petdir)
 		petdynadir=opts.targetDir+os.sep+opts.prefix+os.sep+id+os.sep+"pet"+os.sep+"dynamic"+os.sep
 		os.makedirs(petdynadir)
 		petvoldir=opts.targetDir+os.sep+opts.prefix+os.sep+id+os.sep+"pet"+os.sep+"volume"+os.sep
@@ -191,10 +193,11 @@ class PipelineFiles:
 			self.pypet.blank_sinogram={}
 			self.pypet.normalization_file={}
 			self.pypet.realign_results={}
-			self.pypet.dynamic_pet_raw={}
-			self.pypet.dynamic_pet_raw_ecat={}
+			self.pypet.dynamic_pet_raw=self.src_pet+os.sep+opts.prefix+"_"+id+"_"+condi+"_orig"+'.'+opts.extension
+			self.pypet.dynamic_pet_raw_ecat=self.src_pet+os.sep+opts.prefix+"_"+id+"_"+condi+"_orig.v"
 			self.pypet.dynamic_pet_raw_real=self.src_pet+os.sep+opts.prefix+"_"+id+"_"+condi+"_real_orig"+'.'+opts.extension
 			self.pypet.dynamic_pet_raw_real_ecat=self.src_pet+os.sep+opts.prefix+"_"+id+"_"+condi+"_real_orig.v"
+			self.pypet.dynamic_pet_info=petdir+os.sep+opts.prefix+"_"+id+"_"+condi+"_real.info"
 			self.pypet.dynamic_pet_pvc={}
 			self.pypet.dynamic_rhp_corr={}
 			self.pypet.dynamic_rhp_ref={}

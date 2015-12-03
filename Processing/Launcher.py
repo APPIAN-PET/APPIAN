@@ -18,6 +18,8 @@ import nipype.interfaces.utility as util
 from nipype.interfaces.utility import Rename
 
 from ScanConstructor import * 
+import Masking.masking as masking
+import Settings.settings as settings
 
 version = "1.0"
 
@@ -55,6 +57,22 @@ def runPipeline(scan,opts):
 	pet_volume.inputs.clobber = True;
 	pet_volume.inputs.verbose = True;
 	pet_volume.inputs.run = False;
+
+
+	pet_settings = pe.Node(interface=settings.PETinfoRunning(), name="pet_info")
+	pet_settings.inputs.input_file = scan.pypet.dynamic_pet_raw_real;
+	pet_settings.inputs.output_file = scan.pypet.dynamic_pet_info;
+	pet_settings.inputs.verbose = False;
+	pet_settings.inputs.run = True;
+	pet_settings.inputs.clobber = True;
+
+
+	pet_headmasking = pe.Node(interface=masking.PETheadMaskingRunning(), name="pet_headmasking")
+	pet_headmasking.inputs.input_volume = scan.pypet.volume_pet
+	pet_headmasking.inputs.output_file = scan.pypet.volume_pet
+	pet_headmasking.inputs.input_json = scan.pypet.dynamic_pet_info;
+	pet_headmasking.inputs.verbose = False;
+	pet_headmasking.inputs.run = True;
 
 
 	t1_masking = pe.Node(interface=masking.T1maskingRunning(), name="t1_masking")

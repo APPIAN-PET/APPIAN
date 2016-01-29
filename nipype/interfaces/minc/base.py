@@ -57,30 +57,6 @@ class MINCCommand(CommandLine):
 
     def _gen_fname(self, basename, cwd=None, suffix=None, change_ext=True,
                    ext=None):
-        """Generate a filename based on the given parameters.
-
-        The filename will take the form: cwd/basename<suffix><ext>.
-        If change_ext is True, it will use the extentions specified in
-        <instance>intputs.output_type.
-
-        Parameters
-        ----------
-        basename : str
-            Filename to base the new filename on.
-        cwd : str
-            Path to prefix to the new filename. (default is os.getcwd())
-        suffix : str
-            Suffix to add to the `basename`.  (defaults is '' )
-        change_ext : bool
-            Flag to change the filename extension to the FSL output type.
-            (default True)
-
-        Returns
-        -------
-        fname : str
-            New filename based on given parameters.
-
-        """
 
         if basename == '':
             msg = 'Unable to generate filename for command %s. ' % self.cmd

@@ -58,7 +58,3 @@ class TraccCommand(MINCCommand, Info):
         outputs["out_file_xfm"] = os.path.abspath(outputs["out_file_xfm"])
         return outputs
 
-    def _gen_filename(self, name):
-        if name == "output_file":
-            return self._list_outputs()["output_file"]
-        return None

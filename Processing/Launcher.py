@@ -171,57 +171,63 @@ def runPipeline(opts,args):
 
 	rt1Masking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
-	refMasking = pe.Node(interface=masking.RefmaskingRunning(), name="refMasking")
-	refMasking.inputs.nativeT1 = scan.civet.t1_native
-	refMasking.inputs.T1Tal = scan.civet.tal_final
-	refMasking.inputs.LinT1TalXfm = scan.civet.xfm_tal
-	refMasking.inputs.brainmaskTal  = scan.civet.t1_brainmask
-	refMasking.inputs.clsmaskTal  = scan.civet.tal_cls
-	refMasking.inputs.segMaskTal  = scan.civet.tal_animal_masked
+	node_name="refMasking"
+	refMasking = pe.Node(interface=masking.RefmaskingRunning(), name=node_name)
 	refMasking.inputs.segLabels = opts.RefAtlasValue
 	refMasking.inputs.MaskingType = opts.RefMaskType
 	refMasking.inputs.modelDir = opts.RefTemplate
 	refMasking.inputs.close = opts.RefClose
 	refMasking.inputs.refGM = True if opts.RefMatter == 'gm' else False
 	refMasking.inputs.refWM = True if opts.RefMatter == 'wm' else False
-	refMasking.inputs.RefmaskTal  = scan.pypet.tal_ref
-	refMasking.inputs.RefmaskT1  = scan.pypet.t1_ref
 	refMasking.inputs.clobber = True
 	refMasking.inputs.verbose = True
 	refMasking.inputs.run = opts.prun
 
-	pet_volume = pe.Node(interface=minc.AverageCommand(), name="pet_volume")
-	pet_volume.inputs.input_file = scan.pypet.dynamic_pet_raw_real
-	pet_volume.inputs.out_file = scan.pypet.volume_pet
-	pet_volume.inputs.avgdim = 'time'
-	pet_volume.inputs.width_weighted = True
-	pet_volume.inputs.clobber = True
-	pet_volume.inputs.verbose = True
+	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
-	pet_settings = pe.Node(interface=settings.PETinfoRunning(), name="pet_info")
-	pet_settings.inputs.input_file = scan.pypet.dynamic_pet_raw_real
-	pet_settings.inputs.output_file = scan.pypet.dynamic_pet_info
-	pet_settings.inputs.verbose = True
-	pet_settings.inputs.clobber = True
-	pet_settings.inputs.run = opts.prun
 
-	pet_headmasking = pe.Node(interface=masking.PETheadMaskingRunning(), name="pet_headmasking")
-	pet_headmasking.inputs.input_volume = scan.pypet.volume_pet
-	pet_headmasking.inputs.output_file = scan.pypet.volume_pet_headmask
-	pet_headmasking.inputs.input_json = scan.pypet.dynamic_pet_info
-	pet_headmasking.inputs.verbose = True
-	pet_headmasking.inputs.run = opts.prun
+	node_name="petVolume"
+	petVolume = pe.Node(interface=minc.AverageCommand(), name="petVolume")
+	petVolume.inputs.avgdim = 'time'
+	petVolume.inputs.width_weighted = True
+	petVolume.inputs.clobber = True
+	petVolume.inputs.verbose = True
 
-	pet2mri_lin = pe.Node(interface=reg.PETtoT1LinRegRunning(), name="pet2mri_lin")
-	pet2mri_lin.inputs.input_source_file = scan.pypet.volume_pet
-	pet2mri_lin.inputs.input_target_file = scan.civet.t1_native
-	pet2mri_lin.inputs.input_source_mask = scan.pypet.volume_pet_headmask
-	pet2mri_lin.inputs.input_target_mask = scan.civet.t1_headmask
-	pet2mri_lin.inputs.out_file_xfm = scan.pypet.xfm_pet_t1
-	pet2mri_lin.inputs.out_file_img = scan.pypet.volume_pet_headmask
-	pet2mri_lin.inputs.clobber = True
-	pet2mri_lin.inputs.verbose = True
-	pet2mri_lin.inputs.run = opts.prun
+	rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+
+	node_name="petSettings"
+	petSettings = pe.Node(interface=settings.PETinfoRunning(), name=node_name)
+	petSettings.inputs.input_file = scan.pypet.dynamic_pet_raw_real
+	petSettings.inputs.output_file = scan.pypet.dynamic_pet_info
+	petSettings.inputs.verbose = True
+	petSettings.inputs.clobber = True
+	petSettings.inputs.run = opts.prun
+
+	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+
+	node_name="petMasking"
+	petMasking = pe.Node(interface=masking.PETheadMaskingRunning(), name="petMasking")
+	petMasking.inputs.verbose = True
+	petMasking.inputs.run = opts.prun
+
+	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+
+	node_name="pet2mri"
+	pet2mri = pe.Node(interface=reg.PETtoT1LinRegRunning(), name=node_name)
+	pet2mri.inputs.input_source_file = scan.pypet.volume_pet
+	pet2mri.inputs.input_target_file = scan.civet.t1_native
+	pet2mri.inputs.input_source_mask = scan.pypet.volume_pet_headmask
+	pet2mri.inputs.input_target_mask = scan.civet.t1_headmask
+	pet2mri.inputs.out_file_xfm = scan.pypet.xfm_pet_t1
+	pet2mri.inputs.out_file_img = scan.pypet.volume_pet_headmask
+	pet2mri.inputs.clobber = True
+	pet2mri.inputs.verbose = True
+	pet2mri.inputs.run = opts.prun
+
+	rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name+"Img")
+	rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
+
 
 
 
@@ -237,17 +243,27 @@ def runPipeline(opts,args):
 	workflow.connect(datasourceCivet, ['nativeT1nuc', 'xfmT1tal', 'brainmasktal'], 
 					 t1Masking, ['nativeT1', 'LinT1TalXfm', 'brainmaskTal'])
 	workflow.connect(t1Masking, ['T1headmask', 'T1brainmask'],
-					 rt1Masking, [])
+					 rt1Masking, ['study_prefix', 'subject_id', 'condition_id'])
 
+	workflow.connect(datasourceCivet, ['nativeT1nuc', 'talT1', 'xfmT1tal', 'brainmasktal', 'clsmask', 'animalmask'], 
+					 refMasking, ['nativeT1', 'T1Tal', 'LinT1TalXfm', 'brainmaskTal', 'clsmaskTal', 'segMaskTal'])
+	workflow.connect(refMasking, ['RefmaskTal'], rRefMaskingTal, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect(refMasking, ['RefmaskT1'], rRefMaskingT1, ['study_prefix', 'subject_id', 'condition_id'])
 
-	workflow.connect(node1, 'out_file', rnode1, 'in_file')
-	workflow.connect([(infosource, rnode1, [('subject_id', 'subject_id')]),
-	                  (infosource, rnode1, [('condition_id', 'condition_id')]),
-	                  (infosource, rnode1, [('study_prefix', 'study_prefix')])
-	                ])
-	workflow.connect(rnode1, 'out_file', datasink, 'node1')
-	workflow.connect(infosource, 'subject_id', datasink, 'container')
+	workflow.connect(datasourceRaw, ['pet'], petVolume, ['input_file'])
+	workflow.connect(petVolume, ['output_file'], rPetVolume, ['study_prefix', 'subject_id', 'condition_id'])
 
+	workflow.connect(datasourceRaw, ['pet'], petSettings, ['input_file'])
+	workflow.connect(petSettings, ['output_file'], rPetSettings, ['study_prefix', 'subject_id', 'condition_id'])
+
+	workflow.connect([(petVolume, petSettings, ['output_file','output_file'])], petMasking, ['input_file','input_json'])
+	workflow.connect(petMasking, ['output_file'], rPetMasking, ['study_prefix', 'subject_id', 'condition_id'])
+
+	workflow.connect([(petVolume, datasourceCivet, petMasking, t1Masking, ['output_file', 'nativeT1nuc', 'output_file','T1headmask'])], 
+		               pet2mri, ['input_source_file','input_target_file', 'input_source_mask','input_target_mask'])
+	workflow.connect(pet2mri, ['out_file_img'], rPet2MriImg, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect(pet2mri, ['out_file_xfm'], rPet2MriXfm, ['study_prefix', 'subject_id', 'condition_id'])
+	
 
 
 

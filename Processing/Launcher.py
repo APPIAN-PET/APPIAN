@@ -18,6 +18,7 @@ import nipype.interfaces.utility as util
 from nipype.interfaces.utility import Rename
 
 import Masking.masking as masking
+import Registration.registration as reg
 import Settings.settings as settings
 
 version = "1.0"
@@ -32,60 +33,12 @@ def printOptions(opts,args):
 	print "* Command line is : \n "+str(sys.argv)+"\n"
 	print "* The source directory is : "+opts.sourceDir
 	print "* The target directory is : "+opts.targetDir+"\n"
-	print "* The Civet directory is : "+opts.CivetDir+"\n"
-	#print "* Data-set Subject ID(s) is/are : "+args+"\n"
+	print "* The Civet directory is : "+opts.civetDir+"\n"
 	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
 	print "* PET conditions : "+opts.condiList+"\n"
 	print "* ROI labels : "+str(', '.join(opts.ROILabels))+"\n"
 
 
-def create_dirs(opts, id):
-	sbjdir=opts.targetDir+os.sep+opts.prefix+os.sep+id+os.sep
-	logdir=sbjdir+"log"+os.sep
-	if not os.path.exists(logdir):
-		os.makedirs(logdir)
-	tmpdir=sbjdir+"temp"+os.sep
-	if not os.path.exists(tmpdir):
-		os.makedirs(tmpdir)
-	tmptfmdir=sbjdir+"temp"+os.sep+"transforms"+os.sep
-	if not os.path.exists(tmptfmdir):
-		os.makedirs(tmptfmdir)
-	petdir=sbjdir+"pet"+os.sep
-	if not os.path.exists(petdir):
-		os.makedirs(petdir)
-	petdynadir=sbjdir+"pet"+os.sep+"dynamic"+os.sep
-	if not os.path.exists(petdynadir):
-		os.makedirs(petdynadir)
-	petvoldir=sbjdir+"pet"+os.sep+"volume"+os.sep
-	if not os.path.exists(petvoldir):
-		os.makedirs(petvoldir)
-	mrinatdir=sbjdir+"mri"+os.sep+"native"+os.sep
-	if not os.path.exists(mrinatdir):
-		os.makedirs(mrinatdir)
-	mristxdir=sbjdir+"mri"+os.sep+"stereotaxic"+os.sep
-	if not os.path.exists(mristxdir):
-		os.makedirs(mristxdir)
-	lindir=sbjdir+"transforms"+os.sep+"linear"+os.sep
-	if not os.path.exists(lindir):
-		os.makedirs(lindir)
-	nlindir=sbjdir+"transforms"+os.sep+"non-linear"+os.sep
-	if not os.path.exists(nlindir):
-		os.makedirs(nlindir)
-	regdir=sbjdir+"regions"+os.sep
-	if not os.path.exists(regdir):
-		os.makedirs(regdir)
-	tacdir=sbjdir+"TAC"+os.sep
-	if not os.path.exists(tacdir):
-		os.makedirs(tacdir)
-	bpdir=sbjdir+"BP"+os.sep
-	if not os.path.exists(bpdir):
-		os.makedirs(bpdir)
-	bpnatdir=sbjdir+"BP"+os.sep+"native"+os.sep
-	if not os.path.exists(bpnatdir):
-		os.makedirs(bpnatdir)
-	bpstxdir=sbjdir+"BP"+os.sep+"stereotaxic"+os.sep
-	if not os.path.exists(bpstxdir):
-		os.makedirs(bpstxdir)
 
 
 def test_get_inputs():
@@ -98,14 +51,10 @@ def runPipeline(opts,args):
 		print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
 		sys.exit(1)
 
-	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
+#	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
+	conditions_ids=list(range(len([opts.condiList])))
 
 	printOptions(opts,subjects_ids)
-
-	# for id in subjects_ids:
-	#  	create_dirs(opts, id)
-	
-	conditions_ids=list(range(len(conditions)))
 
 
 	###Infosource###
@@ -127,37 +76,37 @@ def runPipeline(opts,args):
 
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
 														 outfields=['nativeT1', 'nativeT1nuc', 
-														 			'talT1', 'xfmT1tal', 
+														 			'talT1', 'xfmT1tal','xfmT1talnl',
 														 			'brainmasktal', 'headmasktal', 'clsmask', 'animalmask'
 														 			], 
 														 sort_filelist=False), name="datasourceCivet")
-	datasourceCivet.inputs.base_directory = opts.CivetDir
+	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.template = '*'
-	datasourceCivet.inputs.field_template = dict(nativeT1='%s/native/%s_%s_t1.mnc', 
-												 nativeT1nuc='%s/native/%s_%s_t1_nuc.mnc', 
-												 talT1='%s/final/%s_%s_t1_tal.mnc',
-												 xfmT1tal='%s/transforms/linear/%s_%s_t1_tal.xfm',
-												 xfmT1talnl='%s/transforms/nonlinear/%s_%s_nlfit_It.xfm',
-												 brainmasktal='%s/mask/%s_%s_brain_mask.mnc',
-												 headmasktal='%s/mask/%s_%s_skull_mask.mnc',
-												 clsmasktal='%s/classify/%s_%s_pve_classify.mnc',
-												 animaltal='%s/segment/%s_%s_stx_labels_masked.mnc',
-												 )
-	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'study_prefix', 'subject_id']], 
-										   		nativeT1nuc=[['study_prefix', 'study_prefix', 'subject_id']], 
-										   		talT1=[['study_prefix', 'study_prefix', 'subject_id']], 
-										   		xfmT1tal=[['study_prefix', 'study_prefix', 'subject_id']], 
-										   		xfmT1talnl=[['study_prefix', 'study_prefix', 'subject_id']], 
-										   		brainmasktal=[['study_prefix', 'study_prefix', 'subject_id']], 										   		
-										   		headmasktal=[['study_prefix', 'study_prefix', 'subject_id']], 										   		
-										   		clsmask=[['study_prefix', 'study_prefix', 'subject_id']], 										   		
-										   		animalmask=[['study_prefix', 'study_prefix', 'subject_id']], 										   		
+	datasourceCivet.inputs.field_template = dict(nativeT1='%s/%s/native/%s_%s_t1.mnc.gz', 
+												 nativeT1nuc='%s/%s/native/%s_%s_t1_nuc.mnc', 
+												 talT1='%s/%s/final/%s_%s_t1_tal.mnc',
+												 xfmT1tal='%s/%s/transforms/linear/%s_%s_t1_tal.xfm',
+												 xfmT1talnl='%s/%s/transforms/nonlinear/%s_%s_nlfit_It.xfm',
+												 brainmasktal='%s/%s/mask/%s_%s_brain_mask.mnc',
+												 headmasktal='%s/%s/mask/%s_%s_skull_mask.mnc',
+												 clsmask='%s/%s/classify/%s_%s_pve_classify.mnc',
+												 animalmask='%s/%s/segment/%s_%s_stx_labels_masked.mnc'
+												)
+	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
+										   		nativeT1nuc=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
+										   		talT1=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
+										   		xfmT1tal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
+										   		xfmT1talnl=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
+										   		brainmasktal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
+										   		headmasktal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
+										   		clsmask=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
+										   		animalmask=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']] 										   		
 										   		)	
 
 
 	##Datasink###
 	datasink=pe.Node(interface=nio.DataSink(), name="output")
-	datasink.inputs.base_directory= opts.sourceDir + '/' +opts.prefix
+	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_condition_id_', ''), ('subject_id_', '')]
 
 
@@ -168,8 +117,13 @@ def runPipeline(opts,args):
 	t1Masking.inputs.clobber = True
 	t1Masking.inputs.verbose = True
 	t1Masking.inputs.run = opts.prun
+	# t1Masking.inputs.T1headmask = node_name+"_head.mnc"
+	# t1Masking.inputs.T1brainmask = node_name+"_brain.mnc"
+	# t1Masking.outputs.T1headmask = node_name+"_head.mnc"
+	# t1Masking.outputs.T1brainmask = node_name+"_brain.mnc"
 
-	rt1Masking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
+	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
 	node_name="refMasking"
 	refMasking = pe.Node(interface=masking.RefmaskingRunning(), name=node_name)
@@ -198,8 +152,6 @@ def runPipeline(opts,args):
 
 	node_name="petSettings"
 	petSettings = pe.Node(interface=settings.PETinfoRunning(), name=node_name)
-	petSettings.inputs.input_file = scan.pypet.dynamic_pet_raw_real
-	petSettings.inputs.output_file = scan.pypet.dynamic_pet_info
 	petSettings.inputs.verbose = True
 	petSettings.inputs.clobber = True
 	petSettings.inputs.run = opts.prun
@@ -215,12 +167,6 @@ def runPipeline(opts,args):
 
 	node_name="pet2mri"
 	pet2mri = pe.Node(interface=reg.PETtoT1LinRegRunning(), name=node_name)
-	pet2mri.inputs.input_source_file = scan.pypet.volume_pet
-	pet2mri.inputs.input_target_file = scan.civet.t1_native
-	pet2mri.inputs.input_source_mask = scan.pypet.volume_pet_headmask
-	pet2mri.inputs.input_target_mask = scan.civet.t1_headmask
-	pet2mri.inputs.out_file_xfm = scan.pypet.xfm_pet_t1
-	pet2mri.inputs.out_file_img = scan.pypet.volume_pet_headmask
 	pet2mri.inputs.clobber = True
 	pet2mri.inputs.verbose = True
 	pet2mri.inputs.run = opts.prun
@@ -240,30 +186,49 @@ def runPipeline(opts,args):
                       (infosource, datasourceCivet, [('subject_id', 'subject_id')]),
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')])
                 	 ])
-	workflow.connect(datasourceCivet, ['nativeT1nuc', 'xfmT1tal', 'brainmasktal'], 
-					 t1Masking, ['nativeT1', 'LinT1TalXfm', 'brainmaskTal'])
-	workflow.connect(t1Masking, ['T1headmask', 'T1brainmask'],
-					 rt1Masking, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect([(datasourceCivet, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
+					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
+					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
 
-	workflow.connect(datasourceCivet, ['nativeT1nuc', 'talT1', 'xfmT1tal', 'brainmasktal', 'clsmask', 'animalmask'], 
-					 refMasking, ['nativeT1', 'T1Tal', 'LinT1TalXfm', 'brainmaskTal', 'clsmaskTal', 'segMaskTal'])
-	workflow.connect(refMasking, ['RefmaskTal'], rRefMaskingTal, ['study_prefix', 'subject_id', 'condition_id'])
-	workflow.connect(refMasking, ['RefmaskT1'], rRefMaskingT1, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1headmask', 'in_file')])])
+	workflow.connect([(t1Masking, rT1MaskingHead, [('T1brainmask', 'in_file')])])
 
-	workflow.connect(datasourceRaw, ['pet'], petVolume, ['input_file'])
-	workflow.connect(petVolume, ['output_file'], rPetVolume, ['study_prefix', 'subject_id', 'condition_id'])
 
-	workflow.connect(datasourceRaw, ['pet'], petSettings, ['input_file'])
-	workflow.connect(petSettings, ['output_file'], rPetSettings, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
+					  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
+					  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
+	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
+					  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
+					  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
 
-	workflow.connect([(petVolume, petSettings, ['output_file','output_file'])], petMasking, ['input_file','input_json'])
-	workflow.connect(petMasking, ['output_file'], rPetMasking, ['study_prefix', 'subject_id', 'condition_id'])
+	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
+	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
 
-	workflow.connect([(petVolume, datasourceCivet, petMasking, t1Masking, ['output_file', 'nativeT1nuc', 'output_file','T1headmask'])], 
-		               pet2mri, ['input_source_file','input_target_file', 'input_source_mask','input_target_mask'])
-	workflow.connect(pet2mri, ['out_file_img'], rPet2MriImg, ['study_prefix', 'subject_id', 'condition_id'])
-	workflow.connect(pet2mri, ['out_file_xfm'], rPet2MriXfm, ['study_prefix', 'subject_id', 'condition_id'])
+	# workflow.connect(datasourceCivet, [('nativeT1nuc', 'talT1', 'xfmT1tal', 'brainmasktal', 'clsmask', 'animalmask')], 
+	# 				 refMasking, [('nativeT1', 'T1Tal', 'LinT1TalXfm', 'brainmaskTal', 'clsmaskTal', 'segMaskTal')])
+	# workflow.connect(refMasking, ['RefmaskTal'], rRefMaskingTal, [('study_prefix', 'subject_id', 'condition_id')])
+	# workflow.connect(refMasking, ['RefmaskT1'], rRefMaskingT1, [('study_prefix', 'subject_id', 'condition_id')])
+
+	# workflow.connect(datasourceRaw, ['pet'], petVolume, ['input_file'])
+	# workflow.connect(petVolume, ['output_file'], rPetVolume, [('study_prefix', 'subject_id', 'condition_id')])
+
+	# workflow.connect(datasourceRaw, ['pet'], petSettings, ['input_file'])
+	# workflow.connect(petSettings, ['output_file'], rPetSettings, [('study_prefix', 'subject_id', 'condition_id')])
+
+	# workflow.connect([(petVolume, petSettings, [('output_file','output_file')])], petMasking, [('input_file','input_json')])
+	# workflow.connect(petMasking, ['output_file'], rPetMasking, [('study_prefix', 'subject_id', 'condition_id')])
+
+	# workflow.connect([(petVolume, datasourceCivet, petMasking, t1Masking, [('output_file', 'nativeT1nuc', 'output_file','T1headmask')])], 
+	# 	               pet2mri, [('input_source_file','input_target_file', 'input_source_mask','input_target_mask')])
+	# workflow.connect(pet2mri, ['out_file_img'], rPet2MriImg, [('study_prefix', 'subject_id', 'condition_id')])
+	# workflow.connect(pet2mri, ['out_file_xfm'], rPet2MriXfm, [('study_prefix', 'subject_id', 'condition_id')])
 	
+
+	#run the work flow
+	workflow.run()
+
+	# #vizualization graph of the workflow
+	# workflow.write_graph()
 
 
 
@@ -298,7 +263,7 @@ if __name__ == "__main__":
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"Registration options")
-	group.add_option("","--modelDir",dest="modelDir",help="Models directory")
+	group.add_option("","--modelDir",dest="modelDir",help="Models directory",default='/data/movement/movement7/klarcher/share/icbm/')
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"PET acquisition options")

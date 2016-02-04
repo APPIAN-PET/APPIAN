@@ -30,16 +30,16 @@ class T1maskingInput(BaseInterfaceInputSpec):
 	LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
 	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
 	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
-	T1headmask = File( exists=True, mandatory=True, desc="anatomical head mask, background removed")
-	T1brainmask = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
+	T1headmask = File(desc="anatomical head mask, background removed")
+	T1brainmask = File(desc="Transformation matrix to register T1 image into Talairach space")
 
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class T1maskingOutput(TraitedSpec):
-	T1headmask = File(exists=True, desc="anatomical head mask, background removed")
-	T1brainmask = File(exists=True, desc="anatomical head mask, background and skull removed")
+	T1headmask = File(desc="anatomical head mask, background removed")
+	T1brainmask = File(desc="anatomical head mask, background and skull removed")
 
 class T1maskingRunning(BaseInterface):
     input_spec = T1maskingInput
@@ -55,6 +55,17 @@ class T1maskingRunning(BaseInterface):
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
 		    run_xfminvert.run()
+
+		if not isdefined(self.inputs.T1headmask):
+			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
+			dname = os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1headmask = dname + '/'+ fname + "_headmask.mnc"
+
+		if not isdefined(self.inputs.T1brainmask):
+			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
+			dname = os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1brainmask = dname + '/'+ fname + "_brainmask.mnc"
+
 
 		run_resample = ResampleCommand();
 		run_resample.inputs.input_file = model_headmask
@@ -87,6 +98,9 @@ class T1maskingRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["T1headmask"] = self.inputs.T1headmask
         outputs["T1brainmask"] = self.inputs.T1brainmask
+        
+        return outputs  
+
 
 
 

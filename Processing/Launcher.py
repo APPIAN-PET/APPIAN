@@ -204,25 +204,77 @@ def runPipeline(opts,args):
 	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
 	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
 
-	# workflow.connect(datasourceCivet, [('nativeT1nuc', 'talT1', 'xfmT1tal', 'brainmasktal', 'clsmask', 'animalmask')], 
-	# 				 refMasking, [('nativeT1', 'T1Tal', 'LinT1TalXfm', 'brainmaskTal', 'clsmaskTal', 'segMaskTal')])
-	# workflow.connect(refMasking, ['RefmaskTal'], rRefMaskingTal, [('study_prefix', 'subject_id', 'condition_id')])
-	# workflow.connect(refMasking, ['RefmaskT1'], rRefMaskingT1, [('study_prefix', 'subject_id', 'condition_id')])
+	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','talT1',)]),
+                      (datasourceCivet, refMasking, [('nativeT1','T1Tal', )]),
+                      (datasourceCivet, refMasking, [('xfmT1tal','LinT1TalXfm')]),
+                      (datasourceCivet, refMasking, [('brainmasktal','brainmaskTal' )]),
+                      (datasourceCivet, refMasking, [('clsmask','clsmaskTal')]),
+                      (datasourceCivet, refMasking, [('animalmask','segMaskTal' )])
+                    ])
+  
+    #Connect RefmaskTal from refMasking to rename node
+	workflow.connect(refMasking, 'RefmaskTal', rRefMaskingTal, 'in_file')
+    workflox.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
+                      (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
+                    ])
 
-	# workflow.connect(datasourceRaw, ['pet'], petVolume, ['input_file'])
-	# workflow.connect(petVolume, ['output_file'], rPetVolume, [('study_prefix', 'subject_id', 'condition_id')])
+    #Connect RefmaskT1 from refMasking to rename node
+	workflow.connect(refMasking, ['RefmaskT1'], rRefMaskingT1, [('study_prefix', 'subject_id', 'condition_id')])
 
-	# workflow.connect(datasourceRaw, ['pet'], petSettings, ['input_file'])
-	# workflow.connect(petSettings, ['output_file'], rPetSettings, [('study_prefix', 'subject_id', 'condition_id')])
+	workflow.connect(refMasking, 'RefmaskT1', rRefMaskingTal, 'in_file')
+    workflox.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
+                      (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
+                    ])
 
-	# workflow.connect([(petVolume, petSettings, [('output_file','output_file')])], petMasking, [('input_file','input_json')])
-	# workflow.connect(petMasking, ['output_file'], rPetMasking, [('study_prefix', 'subject_id', 'condition_id')])
+    #Connect PET to PET volume
+	workflow.connect(datasourceRaw, ['pet'], petVolume, ['input_file'])
+	#Connect pet from petVolume to its rename node
+	workflow.connect(petVolume, 'pet', rPetVolume, 'in_file')
+    workflox.connect([(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetVolume, [('subject_id', 'subject_id')]),
+                      (infosource, rPetVolume, [('condition_id', 'condition_id')])
+                    ])
+    #
+	workflow.connect(datasourceRaw, ['pet'], petSettings, ['input_file'])
+	#
+	workflow.connect(petSettings, 'pet', rPetSettings, 'in_file')
+    workflox.connect([(infosource, rPetSettings, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetSettings, [('subject_id', 'subject_id')]),
+                      (infosource, rPetSettings, [('condition_id', 'condition_id')])
+                    ])
+    #
+	workflow.connect([(petVolume, petMasking, [('output_file', 'input_file')]),
+	                  (petSettings, petMasking, [('output_file','input_json')])
+                    ])
+	#
+	workflow.connect(petMasking, 'output_file', rPetMasking, 'in_file')
+    workflox.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetMasking, [('subject_id', 'subject_id')]),
+                      (infosource, rPetMasking, [('condition_id', 'condition_id')])
+                    ])
+    #
+	workflow.connect([(petVolume, datasourceCivet, petMasking, t1Masking, [('output_file', 'nativeT1nuc', 'output_file','T1headmask')])], 
+	 	               pet2mri, [('input_source_file','input_target_file', 'input_source_mask','input_target_mask')])
+    workflow.connect([(petVolume, pet2mri, [('output_file', 'input_source_file' )]),
+                      (datasourceCivet, pet2mri, [('nativeT1nuc', 'input_target_file')]),
+                      (petMasking, pet2mri, [('output_file', 'input_source_mask')]), 
+                      (t1Masking, pet2mri, [('T1headmask',  'input_target_mask')])
+                      ]) 
+    #
+	workflow.connect(pet2mri, 'output_file', rPet2MriImg, 'in_file')
+    workflox.connect([(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPet2MriImg, [('subject_id', 'subject_id')]),
+                      (infosource, rPet2MriImg, [('condition_id', 'condition_id')])
+                    ])
 
-	# workflow.connect([(petVolume, datasourceCivet, petMasking, t1Masking, [('output_file', 'nativeT1nuc', 'output_file','T1headmask')])], 
-	# 	               pet2mri, [('input_source_file','input_target_file', 'input_source_mask','input_target_mask')])
-	# workflow.connect(pet2mri, ['out_file_img'], rPet2MriImg, [('study_prefix', 'subject_id', 'condition_id')])
-	# workflow.connect(pet2mri, ['out_file_xfm'], rPet2MriXfm, [('study_prefix', 'subject_id', 'condition_id')])
-	
+	#
+    workflow.connect(pet2mri, 'out_file_xfm', rPet2MriXfm, 'in_file')
+    workflox.connect([(infosource, rPet2MriXfm, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPet2MriXfm, [('subject_id', 'subject_id')]),
+                      (infosource, rPet2MriXfm, [('condition_id', 'condition_id')])
+                    ])
 
 	#run the work flow
 	workflow.run()

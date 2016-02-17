@@ -68,7 +68,7 @@ class T1maskingRunning(BaseInterface):
 
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file = model_headmask
+		run_resample.inputs.in_file = model_headmask
 		run_resample.inputs.out_file = self.inputs.T1headmask
 		run_resample.inputs.model_file = self.inputs.nativeT1
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
@@ -81,7 +81,7 @@ class T1maskingRunning(BaseInterface):
 
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file = self.inputs.brainmaskTal
+		run_resample.inputs.in_file = self.inputs.brainmaskTal
 		run_resample.inputs.out_file = self.inputs.T1brainmask
 		run_resample.inputs.model_file = self.inputs.nativeT1
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
@@ -98,7 +98,7 @@ class T1maskingRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["T1headmask"] = self.inputs.T1headmask
         outputs["T1brainmask"] = self.inputs.T1brainmask
-        
+
         return outputs  
 
 
@@ -117,13 +117,13 @@ class RefmaskingInput(BaseInterfaceInputSpec):
 	_methods = ["atlas", "nonlinear", "no-transform"]
 	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
 	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
-	RefmaskTemplate  = File(exists=True, mandatory=True, desc="Reference mask on the template")
+	RefmaskTemplate  = File(exists=True, desc="Reference mask on the template")
 	close = traits.Bool(usedefault=True, default_value=True, desc="erosion(dilation(X))")
 	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
 	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
 
-	RefmaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
-	RefmaskT1  = File(mandatory=True, desc="Reference mask in the native space")
+	RefmaskTal  = File(desc="Reference mask in Talairach space")
+	RefmaskT1  = File(desc="Reference mask in the native space")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
@@ -143,7 +143,7 @@ class RefmaskingRunning(BaseInterface):
 
 		if self.inputs.MaskingType == 'no-transform':
 			run_resample = ResampleCommand();
-			run_resample.inputs.input_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
 			run_resample.inputs.out_file = self.inputs.RefmaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
@@ -169,7 +169,7 @@ class RefmaskingRunning(BaseInterface):
 			run_nlinreg.run()
 
 			run_resample = ResampleCommand();
-			run_resample.inputs.input_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
 			run_resample.inputs.out_file = self.inputs.RefmaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.transformation = T1toModel_ref_xfm
@@ -186,7 +186,7 @@ class RefmaskingRunning(BaseInterface):
 			machin = self.inputs.segLabels
 			
 			run_calc = CalcCommand();
-			run_calc.inputs.input_file = self.inputs.segMaskTal
+			run_calc.inputs.in_file = self.inputs.segMaskTal
 			run_calc.inputs.out_file = mask
 			run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'
 			if self.inputs.verbose:
@@ -196,8 +196,8 @@ class RefmaskingRunning(BaseInterface):
 
 			if self.inputs.close:
 				run_mincmorph = MorphCommand()
-				run_mincmorph.inputs.input_file = mask
-				run_mincmorph.inputs.output_file = mask_clean
+				run_mincmorph.inputs.in_file = mask
+				run_mincmorph.inputs.out_file = mask_clean
 				run_mincmorph.inputs.successive='CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC'
 				run_mincmorph.inputs.verbose=True			 
   				run_mincmorph.inputs.clobber = True
@@ -211,7 +211,7 @@ class RefmaskingRunning(BaseInterface):
   			if self.inputs.refGM or self.inputs.refWM:
   				if self.inputs.refGM:
 					run_calc = CalcCommand();
-					run_calc.inputs.input_file = [mask_clean, self.inputs.clsmaskTal]
+					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
 					run_calc.inputs.out_file = self.inputs.RefmaskTal
 					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0'
 					if self.inputs.verbose:
@@ -221,7 +221,7 @@ class RefmaskingRunning(BaseInterface):
 
   				if self.inputs.refWM:
 					run_calc = CalcCommand();
-					run_calc.inputs.input_file = [mask_clean, self.inputs.clsmaskTal]
+					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
 					run_calc.inputs.out_file = self.inputs.RefmaskTal
 					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0'
 					if self.inputs.verbose:
@@ -244,7 +244,7 @@ class RefmaskingRunning(BaseInterface):
 		    run_xfminvert.run()
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file = self.inputs.RefmaskTal
+		run_resample.inputs.in_file = self.inputs.RefmaskTal
 		run_resample.inputs.out_file = self.inputs.RefmaskT1
 		run_resample.inputs.model_file = self.inputs.nativeT1
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
@@ -263,17 +263,20 @@ class RefmaskingRunning(BaseInterface):
 		outputs["RefmaskTal"] = self.inputs.RefmaskTal
 		outputs["RefmaskT1"] = self.inputs.RefmaskT1
 
+		return outputs
+
+
 
 
 
 
 class PETheadMaskingOutput(TraitedSpec):
-	RefmaskTal  = File(desc="Headmask from PET volume")
+	out_file  = File(desc="Headmask from PET volume")
 
 class PETheadMaskingInput(BaseInterfaceInputSpec):
-	input_volume = File(exists=True, mandatory=True, desc="PET volume")
+	in_file = File(exists=True, mandatory=True, desc="PET volume")
 	input_json = File(exists=True, mandatory=True, desc="PET json file")
-	output_file = File(mandatory=True, desc="Head mask")
+	out_file = File(desc="Head mask")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
@@ -289,6 +292,7 @@ class PETheadMaskingRunning(BaseInterface):
 		tmpDir = tempfile.mkdtemp()
 
 		hd = load_json(self.inputs.input_json)
+		# dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
 		dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
 
 		mean_slices = []
@@ -296,8 +300,8 @@ class PETheadMaskingRunning(BaseInterface):
 			slice_tmp = tmpDir + '/pet_slice.mnc'
 
 			run_mincreshape=ReshapeCommand()
-			run_mincreshape.inputs.input_file = self.inputs.input_volume
-			run_mincreshape.inputs.output_file = slice_tmp
+			run_mincreshape.inputs.in_file = self.inputs.in_file
+			run_mincreshape.inputs.out_file = slice_tmp
 			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
 			if self.inputs.verbose:
 			    print run_mincreshape.cmdline
@@ -306,7 +310,7 @@ class PETheadMaskingRunning(BaseInterface):
 
 
 			run_stats=StatsCommand()
-			run_stats.inputs.input_file = slice_tmp;
+			run_stats.inputs.in_file = slice_tmp;
 			run_stats.inputs.opt_string = '-max';
 			if self.inputs.verbose:
 			    print run_stats.cmdline
@@ -321,7 +325,7 @@ class PETheadMaskingRunning(BaseInterface):
 
 
 			run_stats=StatsCommand()
-			run_stats.inputs.input_file = slice_tmp;
+			run_stats.inputs.in_file = slice_tmp;
 			run_stats.inputs.opt_string = '-floor '+str(max_slice)+' -mean ';
 			if self.inputs.verbose:
 			    print run_stats.cmdline
@@ -343,8 +347,8 @@ class PETheadMaskingRunning(BaseInterface):
 			mask_tmp = tmpDir + '/mask_slice' + str(ii) + '.mnc'
 
 			run_mincreshape=ReshapeCommand()
-			run_mincreshape.inputs.input_file = self.inputs.input_volume
-			run_mincreshape.inputs.output_file = slice_tmp
+			run_mincreshape.inputs.in_file = self.inputs.in_file
+			run_mincreshape.inputs.out_file = slice_tmp
 			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
 			if self.inputs.verbose:
 			    print run_mincreshape.cmdline
@@ -352,7 +356,7 @@ class PETheadMaskingRunning(BaseInterface):
 			    run_mincreshape.run()
 
 			run_calc = CalcCommand();
-			run_calc.inputs.input_file = slice_tmp
+			run_calc.inputs.in_file = slice_tmp
 			run_calc.inputs.out_file = mask_tmp
 			run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
 			if self.inputs.verbose:
@@ -365,8 +369,8 @@ class PETheadMaskingRunning(BaseInterface):
 		mask_tmp = tmpDir + '/headmask.mnc'
 
 		run_concat=ConcatCommand()
-		run_concat.inputs.input_file = mask_slices
-		run_concat.inputs.output_file = mask_tmp
+		run_concat.inputs.in_file = mask_slices
+		run_concat.inputs.out_file = mask_tmp
 		run_concat.inputs.dimension = 'zspace'
 		run_concat.inputs.start = hd['zspace']['start'][0]
 		run_concat.inputs.step = hd['zspace']['step'][0]
@@ -376,9 +380,9 @@ class PETheadMaskingRunning(BaseInterface):
 		    run_concat.run()
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.input_file = mask_tmp
-		run_resample.inputs.out_file = self.inputs.output_file
-		run_resample.inputs.model_file = self.inputs.input_volume
+		run_resample.inputs.in_file = mask_tmp
+		run_resample.inputs.out_file = self.inputs.out_file
+		run_resample.inputs.model_file = self.inputs.in_file
 		run_resample.inputs.interpolation = 'trilinear'
 		if self.inputs.verbose:
 		    print run_resample.cmdline
@@ -390,7 +394,6 @@ class PETheadMaskingRunning(BaseInterface):
 
     def _list_outputs(self):
 		outputs = self.output_spec().get()
-		outputs["output_file"] = self.inputs.output_file
+		outputs["out_file"] = self.inputs.out_file
 
-
-
+		return outputs

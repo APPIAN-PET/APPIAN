@@ -13,8 +13,7 @@ class ResampleOutput(TraitedSpec):
     out_file = File(exists=True, desc="resampled image")
 
 class ResampleInput(MINCCommandInputSpec):
-    # input_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="image to resample")
-    input_file = File(position=0, argstr="%s", mandatory=True, desc="image to resample")
+    in_file = File(position=0, argstr="%s", mandatory=True, desc="image to resample")
     out_file = File(position=1, argstr="%s", mandatory=True, desc="resampled image")
     model_file = File(position=2, argstr="-like %s", mandatory=True, desc="model image")
     
@@ -34,7 +33,7 @@ class ResampleCommand(MINCCommand):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
+            outputs["out_file"] = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
         outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 

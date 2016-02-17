@@ -12,11 +12,11 @@ import pickle
 
 
 class InfoOutput(TraitedSpec):
-    output_file = traits.Any(desc='Infos ouput')
+    out_file = traits.Any(desc='Infos ouput')
 
 class InfoInput(MINCCommandInputSpec):
-    input_file = File(position=-1, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
-    output_file = File(desc="Output Json file")
+    in_file = File(position=-1, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    out_file = File(desc="Output Json file")
 
     opt_string = traits.Str(argstr="%s", mandatory=True, desc="Option defining the infos to print out")
     json_var = traits.Str(mandatory=True, desc="Define the variable name")
@@ -35,16 +35,16 @@ class InfoCommand(MINCCommand):
         if skip is None:
             skip = []
 
-        if not isdefined(self.inputs.output_file):
-            fname, ext = os.path.splitext(self.inputs.input_file)
-            self.inputs.output_file = fname + self._suffix
+        if not isdefined(self.inputs.out_file):
+            fname, ext = os.path.splitext(self.inputs.in_file)
+            self.inputs.out_file = fname + self._suffix
 
         return super(InfoCommand, self)._parse_inputs(skip=skip)
 
 
     # def _list_outputs(self):
     #     outputs = self.output_spec().get()
-    #     outputs["output_file"] = self.inputs.output_file
+    #     outputs["out_file"] = self.inputs.out_file
     #     return outputs
 
 
@@ -54,7 +54,7 @@ class InfoCommand(MINCCommand):
 
         if runtime is None:
             try:
-                out_info = load_json(self.inputs.output_file)[self.inputs.json_attr][self.inputs.json_var]
+                out_info = load_json(self.inputs.out_file)[self.inputs.json_attr][self.inputs.json_var]
             except IOError:
                 return self.run().outputs
         else:
@@ -83,12 +83,12 @@ class InfoCommand(MINCCommand):
 
             if len(out_info) == 1:
                 out_info = out_info[0]
-            if os.path.exists(self.inputs.output_file):
-                update_minchd_json(self.inputs.output_file, out_info, self.inputs.json_var, self.inputs.json_attr)
+            if os.path.exists(self.inputs.out_file):
+                update_minchd_json(self.inputs.out_file, out_info, self.inputs.json_var, self.inputs.json_attr)
             else:
-                save_json(self.inputs.output_file, dict(((self.inputs.json_var,dict(((self.inputs.json_attr,out_info),))),)))
+                save_json(self.inputs.out_file, dict(((self.inputs.json_var,dict(((self.inputs.json_attr,out_info),))),)))
         
-        outputs.output_file = out_info
+        outputs.out_file = out_info
         return outputs
 
 
@@ -97,11 +97,11 @@ class InfoCommand(MINCCommand):
 
 
 class StatsOutput(TraitedSpec):
-    output_file = traits.Any(desc='Infos ouput')
+    out_file = traits.Any(desc='Infos ouput')
 
 class StatsInput(MINCCommandInputSpec):
-    input_file = File(position=-1, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
-    output_file = File(desc="Output Json file")
+    in_file = File(position=-1, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    out_file = File(desc="Output Json file")
 
     opt_string = traits.Str(argstr="%s", mandatory=True, desc="Option defining the infos to print out")
     quiet = traits.Bool(argstr="-quiet", usedefault=True, default_value=True, desc="Overwrite output file")
@@ -118,7 +118,7 @@ class StatsCommand(MINCCommand):
 
         if runtime is None:
             try:
-                out_stats = load_json(self.inputs.output_file)
+                out_stats = load_json(self.inputs.out_file)
             except IOError:
                 return self.run().outputs
         else:
@@ -141,5 +141,5 @@ class StatsCommand(MINCCommand):
 
             # save_json(outfile,out_stats)
         
-        outputs.output_file = out_stats
+        outputs.out_file = out_stats
         return outputs

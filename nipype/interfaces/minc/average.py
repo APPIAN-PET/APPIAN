@@ -13,8 +13,8 @@ class AverageOutput(TraitedSpec):
     out_file = File(exists=True, desc="3D output image")
 
 class AverageInput(MINCCommandInputSpec):
-    input_file = File(position=0, argstr="%s", mandatory=True, desc="4D input image")
-    out_file = File(position=-1, argstr="%s", mandatory=True, desc="3D output image")
+    in_file = File(position=0, argstr="%s", mandatory=True, desc="4D input image")
+    out_file = File(position=-1, argstr="%s", desc="3D output image")
 
     avgdim = traits.Str(argstr="-avgdim %s", mandatory=True, desc="Specify a dimension along which we wish to average")
     width_weighted = traits.Bool(argstr="-width_weighted", usedefault=True, default_value=True, desc="Weight by dimension widths.")
@@ -28,12 +28,18 @@ class AverageCommand(MINCCommand):
     input_spec = AverageInput
     output_spec = AverageOutput
 
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+
+        return super(AverageCommand, self)._parse_inputs(skip=skip)
+
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
-        outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 
     def _gen_filename(self, name):

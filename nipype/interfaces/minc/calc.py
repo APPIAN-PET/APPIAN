@@ -11,8 +11,7 @@ class CalcOutput(TraitedSpec):
     out_file = File(exists=True, desc="output image")
 
 class CalcInput(MINCCommandInputSpec):
-#    input_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="input image")
-    input_file = InputMultiPath(File(exits=True, mandatory=True), position=0, desc='list of inputs', argstr='%s')
+    in_file = InputMultiPath(File(exits=True, mandatory=True), position=0, desc='list of inputs', argstr='%s')
     out_file = File(position=1, argstr="%s", mandatory=True, desc="output image")
 
     expression = traits.Str(position=2, argstr="-expression '%s'", desc="algorithm")
@@ -30,7 +29,7 @@ class CalcCommand(MINCCommand):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
+            outputs["out_file"] = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
         outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 

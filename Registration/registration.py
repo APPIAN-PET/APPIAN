@@ -208,7 +208,8 @@ class PETtoT1LinRegRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file_xfm"] = self.inputs.out_file_xfm
         outputs["out_file_img"] = self.inputs.out_file_img
-
+        
+        return outputs
 
 
 
@@ -453,6 +454,7 @@ class nLinRegRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file_xfm"] = self.inputs.out_file_xfm
         outputs["out_file_img"] = self.inputs.out_file_img
-
+        
+        return outputs
 
 

@@ -15,7 +15,7 @@ class MathsOutput(TraitedSpec):
 
 class MathsInput(MINCCommandInputSpec):
 
-    input_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    in_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
     out_file = File(position=-1, argstr="%s", mandatory=True, desc="image to operate on")
 
     _opmaths = ["add", "sub", "mult", "div", "pd", "eq", "ne", "ge", "gt", "and", "or", "not", "isnan", 'nisnan']
@@ -33,12 +33,17 @@ class MathsCommand(MINCCommand):
     output_spec = MathsOutput
     
 
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+
+        return super(MathsCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
-        outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 
     def _gen_filename(self, name):
@@ -53,7 +58,7 @@ class MathsCommand(MINCCommand):
 
 
 class ConstantMathsInput(MINCCommandInputSpec):
-    input_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    in_file = File(position=2, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
     out_file = File(position=-1, argstr="%s", mandatory=True, desc="image to operate on")
 
 
@@ -68,12 +73,18 @@ class ConstantMathsCommand(MINCCommand):
     input_spec = ConstantMathsInput
     output_spec = MathsOutput
 
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+
+        return super(ConstantMathsCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
-        outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 
     def _gen_filename(self, name):
@@ -91,7 +102,7 @@ class ConstantMathsCommand(MINCCommand):
 
 
 class Constant2MathsInput(MINCCommandInputSpec):
-    input_file = File(position=2, argstr="%s", exists=True, mandatory=True,
+    in_file = File(position=2, argstr="%s", exists=True, mandatory=True,
                    desc="image to operate on")
 
     out_file = File(position=-1, argstr="%s", mandatory=True,
@@ -113,12 +124,17 @@ class Constant2MathsCommand(MINCCommand):
     input_spec = Constant2MathsInput
     output_spec = MathsOutput
 
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+
+        return super(Constant2MathsCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
-        outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 
     def _gen_filename(self, name):

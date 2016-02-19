@@ -9,12 +9,12 @@ from ...utils.filemanip import (load_json, save_json, split_filename, fname_pres
 
  
 class TraccInput(MINCCommandInputSpec):
-    input_source_file = File(position=0, argstr="%s", mandatory=True, desc="source volume")
-    input_target_file = File(position=1, argstr="%s", mandatory=True, desc="target volume")
+    in_source_file = File(position=0, argstr="%s", mandatory=True, desc="source volume")
+    in_target_file = File(position=1, argstr="%s", mandatory=True, desc="target volume")
     out_file_xfm = traits.Str(position=2, argstr="%s", exists=True, mandatory=True, desc="transformation matrix")
 
-    input_source_mask = File(position=3, argstr="-source_mask %s", exists=True, desc="Binary source mask file")
-    input_target_mask = File(position=4, argstr="-model_mask %s", exists=True, desc="Binary target mask file")
+    in_source_mask = File(position=3, argstr="-source_mask %s", exists=True, desc="Binary source mask file")
+    in_target_mask = File(position=4, argstr="-model_mask %s", exists=True, desc="Binary target mask file")
 
     identity = traits.Bool(argstr="-identity", desc="Use identity transformation for starting point")
     transformation = File(argstr="-transformation %s", desc="Initial world transformation")
@@ -45,16 +45,20 @@ class TraccOutput(TraitedSpec):
 
 class TraccCommand(MINCCommand, Info):
     _cmd = "minctracc"
-    _suffix = "_minctracc"
+    _suffix = '_minctracc'
     input_spec = TraccInput
     output_spec = TraccOutput
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file_xfm):
+            self.inputs.out_file_xfm = self._gen_fname(self.inputs.in_source_file, suffix=self._suffix)
+
+        return super(TraccCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file_xfm"] = self.inputs.out_file_xfm
-
-        # if not isdefined(self.inputs.out_file_xfm):
-        #     outputs["out_file_xfm"] = self._gen_fname(self.inputs.input_file, suffix=self._suffix)
-        outputs["out_file_xfm"] = os.path.abspath(outputs["out_file_xfm"])
         return outputs
 

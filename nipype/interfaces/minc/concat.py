@@ -29,12 +29,18 @@ class ConcatCommand(MINCCommand):
     input_spec = ConcatInput
     output_spec = ConcatOutput
 
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+
+        return super(ConcatCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        if not isdefined(self.inputs.out_file):
-            outputs["out_file"] = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
-        outputs["out_file"] = os.path.abspath(outputs["out_file"])
         return outputs
 
     def _gen_filename(self, name):

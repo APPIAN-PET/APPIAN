@@ -11,9 +11,9 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 
 
 class ConcatInput(MINCCommandInputSpec):
-    in_file_xfm = File(position=0, argstr="%s", exists=True, mandatory=True, desc="main input xfm file")
-    in_files_xfm2 = File(position=1, argstr="%s", exists=True, mandatory=True, desc="input xfm files to concat")
-    out_file_xfm = File(position=2, argstr="%s", desc="output concatenated xfm file")
+    in_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="main input xfm file")
+    in_file_2 = File(position=1, argstr="%s", exists=True, mandatory=True, desc="input xfm files to concat")
+    out_file = File(position=2, argstr="%s", desc="output concatenated xfm file")
 
     clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
@@ -31,28 +31,20 @@ class ConcatCommand(MINCCommand, Info):
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
-
-        if not isdefined(self.inputs.out_file_xfm):
-            fname, ext = os.path.splitext(self.inputs.in_file_xfm)
-            # self.inputs.out_file_xfm = self._gen_fname(fname, suffix=self._suffix)
-            self.inputs.out_file_xfm = fname + self._suffix + '.xfm'
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
 
         return super(ConcatCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["output_file"] = self.inputs.out_file_xfm
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 
-    def _run_interface(self, runtime):
-        runtime = super(ConcatCommand, self)._run_interface(runtime)
-        if runtime.stderr:
-            self.raise_exception(runtime)
-        return runtime
 
     def _gen_filename(self, name):
-        if name == "output_file":
-            return self._list_outputs()["output_file"]
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
         return None
 
 
@@ -62,8 +54,8 @@ class ConcatCommand(MINCCommand, Info):
 
 
 class InvertInput(MINCCommandInputSpec):
-    in_file_xfm = File(position=0, argstr="%s", exists=True, mandatory=True, desc="main input xfm file")
-    out_file_xfm = File(position=2, argstr="%s", desc="output inverted xfm file")
+    in_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="main input xfm file")
+    out_file = File(position=2, argstr="%s", desc="output inverted xfm file")
 
     clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
@@ -80,30 +72,18 @@ class InvertCommand(MINCCommand, Info):
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
-
-        if not isdefined(self.inputs.out_file_xfm):
-            fname, ext = os.path.splitext(self.inputs.in_file_xfm)
-            # self.inputs.out_file_xfm = self._gen_fname(fname, suffix=self._suffix)
-            self.inputs.out_file_xfm = fname + self._suffix + '.xfm'
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
 
         return super(InvertCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["output_file"] = self.inputs.out_file_xfm
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 
 
-    def _run_interface(self, runtime):
-        runtime = super(InvertCommand, self)._run_interface(runtime)
-        if runtime.stderr:
-            self.raise_exception(runtime)
-        return runtime
-
     def _gen_filename(self, name):
-        if name == "output_file":
-            return self._list_outputs()["output_file"]
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
         return None
-
-
-

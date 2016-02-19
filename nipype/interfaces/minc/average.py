@@ -10,11 +10,11 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,is
 
 
 class AverageOutput(TraitedSpec):
-    out_file = File(exists=True, desc="3D output image")
+    out_file = File(desc="3D output image")
 
 class AverageInput(MINCCommandInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="4D input image")
-    out_file = File(position=-1, argstr="%s", desc="3D output image")
+    out_file = File(argstr="%s", desc="3D output image")
 
     avgdim = traits.Str(argstr="-avgdim %s", mandatory=True, desc="Specify a dimension along which we wish to average")
     width_weighted = traits.Bool(argstr="-width_weighted", usedefault=True, default_value=True, desc="Weight by dimension widths.")

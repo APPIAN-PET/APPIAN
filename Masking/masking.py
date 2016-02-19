@@ -3,11 +3,10 @@ import numpy as np
 import tempfile
 import shutil
 import pickle
-
+from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
 from nipype.interfaces.minc.tracc import TraccCommand
@@ -130,8 +129,8 @@ class RefmaskingInput(BaseInterfaceInputSpec):
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class RefmaskingOutput(TraitedSpec):
-	RefmaskTal  = File(exists=True, mandatory=True, desc="Reference mask in Talairach space")
-	RefmaskT1  = File(exists=True, mandatory=True, desc="Reference mask in the native space")
+	RefmaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
+	RefmaskT1  = File(mandatory=True, desc="Reference mask in the native space")
 
 class RefmaskingRunning(BaseInterface):
     input_spec = RefmaskingInput
@@ -158,10 +157,10 @@ class RefmaskingRunning(BaseInterface):
 			T1toModel_ref_xfm = tmpDir+"/T1toModel_ref.xfm"
 
 			run_nlinreg=reg.nLinRegRunning();
-			run_nlinreg.inputs.input_source_file = self.inputs.T1Tal
-			run_nlinreg.inputs.input_target_file = model_T1
-			run_nlinreg.inputs.input_source_mask = self.inputs.brainmaskTal
-			run_nlinreg.inputs.input_target_mask = model_T1_mask
+			run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
+			run_nlinreg.inputs.in_file_target_file = model_T1
+			run_nlinreg.inputs.in_file_source_mask = self.inputs.brainmaskTal
+			run_nlinreg.inputs.in_file_target_mask = model_T1_mask
 			run_nlinreg.inputs.out_file_xfm = T1toModel_ref_xfm
 			run_nlinreg.inputs.clobber = self.inputs.clobber;
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
@@ -275,7 +274,7 @@ class PETheadMaskingOutput(TraitedSpec):
 
 class PETheadMaskingInput(BaseInterfaceInputSpec):
 	in_file = File(exists=True, mandatory=True, desc="PET volume")
-	input_json = File(exists=True, mandatory=True, desc="PET json file")
+	in_json = File(exists=True, mandatory=True, desc="PET json file")
 	out_file = File(desc="Head mask")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -291,12 +290,13 @@ class PETheadMaskingRunning(BaseInterface):
 
 		tmpDir = tempfile.mkdtemp()
 
-		hd = load_json(self.inputs.input_json)
+		#hd = load_json(self.inputs.in_json)
 		# dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
-		dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
+		
+		infile = volumeFromFile(self.inputs.in_file)
 
 		mean_slices = []
-		for ii in np.arange(1,dim[2],1):
+		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
 			slice_tmp = tmpDir + '/pet_slice.mnc'
 
 			run_mincreshape=ReshapeCommand()
@@ -342,7 +342,7 @@ class PETheadMaskingRunning(BaseInterface):
 		threshold = threshold/3
 
 		mask_slices = []
-		for ii in np.arange(1,dim[2],1):
+		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
 			slice_tmp = tmpDir + '/pet_slice.mnc'
 			mask_tmp = tmpDir + '/mask_slice' + str(ii) + '.mnc'
 
@@ -372,8 +372,10 @@ class PETheadMaskingRunning(BaseInterface):
 		run_concat.inputs.in_file = mask_slices
 		run_concat.inputs.out_file = mask_tmp
 		run_concat.inputs.dimension = 'zspace'
-		run_concat.inputs.start = hd['zspace']['start'][0]
-		run_concat.inputs.step = hd['zspace']['step'][0]
+		# run_concat.inputs.start = hd['zspace']['start'][0]
+		# run_concat.inputs.step = hd['zspace']['step'][0]
+		run_concat.inputs.start = infile.starts[infile.dimnames.index("zspace")]
+		run_concat.inputs.step = infile.separations[infile.dimnames.index("zspace")]
 		if self.inputs.verbose:
 		    print run_concat.cmdline
 		if self.inputs.run:

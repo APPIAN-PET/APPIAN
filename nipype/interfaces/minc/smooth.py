@@ -40,7 +40,7 @@ class SmoothCommand(MINCCommand, Info):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file + self._suffix + '.mnc'
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 
 

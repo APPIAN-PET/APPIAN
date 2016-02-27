@@ -21,7 +21,7 @@ class CalcInput(MINCCommandInputSpec):
 
 class CalcCommand(MINCCommand):
     _cmd = "minccalc"
-    _suffix = "_minccalc"
+    _suffix = "_calc"
     input_spec = CalcInput
     output_spec = CalcOutput
 
@@ -29,8 +29,7 @@ class CalcCommand(MINCCommand):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
-
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file[0], suffix=self._suffix)
         return super(CalcCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):

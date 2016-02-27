@@ -27,8 +27,8 @@ class PETtoT1LinRegOutput(TraitedSpec):
 class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     in_target_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="target image")
     in_source_file = File(position=1, argstr="%s", exists=True, mandatory=True, desc="source image")
-    in_file_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
-    in_file_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
+    in_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
+    in_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
     out_file_xfm = File(position=-2, argstr="%s", desc="transformation matrix")
     out_file_img = File(position=-1, argstr="%s", desc="resampled image")
@@ -63,11 +63,11 @@ class PETtoT1LinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
 
-        if self.inputs.in_file_source_mask and self.inputs.in_file_target_mask:
-            if os.path.isfile(self.inputs.in_file_source_mask):
+        if self.inputs.in_source_mask and self.inputs.in_target_mask:
+            if os.path.isfile(self.inputs.in_source_mask):
                 source = tmpdir+"/"+s_base+"_masked.mnc"
                 run_calc = CalcCommand();
-                run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_file_source_mask]
+                run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
                 run_calc.inputs.out_file = source
                 # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -77,9 +77,9 @@ class PETtoT1LinRegRunning(BaseInterface):
                     run_calc.run()
 
 
-            if os.path.isfile(self.inputs.in_file_target_mask):
+            if os.path.isfile(self.inputs.in_target_mask):
                 target = tmpdir+"/"+t_base+"_masked.mnc"
-                run_calc.inputs.in_file = [self.inputs.in_target_file, self.inputs.in_file_target_mask]
+                run_calc.inputs.in_file = [self.inputs.in_target_file, self.inputs.in_target_mask]
                 run_calc.inputs.out_file = target
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
                 if self.inputs.verbose:
@@ -119,9 +119,9 @@ class PETtoT1LinRegRunning(BaseInterface):
 
             print '-------+------- iteration'+str(i)+' -------+-------\n'
             run_smooth = SmoothCommand();
-            run_smooth.inputs.input_file=target
+            run_smooth.inputs.in_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm_target
-            run_smooth.inputs.output_file=tmp_target_blur_base
+            run_smooth.inputs.out_file=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
@@ -130,7 +130,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_smooth = SmoothCommand();
             run_smooth.inputs.in_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm_source
-            run_smooth.inputs.output_file=tmp_source_blur_base
+            run_smooth.inputs.out_file=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
@@ -148,10 +148,10 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_tracc.inputs.est=confi.est
             if prev_xfm:
                 run_tracc.inputs.transformation=prev_xfm
-            if self.inputs.in_file_source_mask:
-                run_tracc.inputs.in_file_source_mask=self.inputs.in_file_source_mask
-            if self.inputs.in_file_target_mask:
-                run_tracc.inputs.in_file_target_mask=self.inputs.in_file_target_mask
+            if self.inputs.in_source_mask:
+                run_tracc.inputs.in_source_mask=self.inputs.in_source_mask
+            if self.inputs.in_target_mask:
+                run_tracc.inputs.in_target_mask=self.inputs.in_target_mask
 
             if self.inputs.verbose:
                 print run_tracc.cmdline
@@ -232,8 +232,8 @@ class nLinRegOutput(TraitedSpec):
 class nLinRegInput(BaseInterfaceInputSpec):
     in_target_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="target image")
     in_source_file = File(position=1, argstr="%s", exists=True, mandatory=True, desc="source image")
-    in_file_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
-    in_file_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
+    in_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
+    in_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
     normalize = traits.Bool(argstr="-normalize", usedefault=True, default_value=False, desc="Do intensity normalization on source to match intensity of target")
     out_file_xfm = File(position=-2, argstr="%s", mandatory=True, desc="transformation matrix")
@@ -246,6 +246,23 @@ class nLinRegInput(BaseInterfaceInputSpec):
 class nLinRegRunning(BaseInterface):
     input_spec = nLinRegInput
     output_spec = nLinRegOutput
+    _suffix = "_NlReg"
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        source = self.inputs.in_source_file
+        target = self.inputs.in_target_file
+        s_base = basename(os.path.splitext(source)[0])
+        t_base = basename(os.path.splitext(target)[0])
+        if not isdefined(self.inputs.out_file_xfm):
+            # self.inputs.out_file_xfm = self._gen_fname(self.inputs.in_source_file, suffix=self._suffix)
+            self.inputs.out_file_xfm = self._gen_fname(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix, ext='xfm')
+        if not isdefined(self.inputs.out_file_img):
+            self.inputs.out_file_img = self._gen_fname(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix)
+
+        return super(nLinRegRunning, self)._parse_inputs(skip=skip)
+
 
     def _run_interface(self, runtime):
         if os.path.exists(self.inputs.out_file_xfm):
@@ -332,11 +349,11 @@ class nLinRegRunning(BaseInterface):
 
             print '-------+------- iteration'+str(i)+' -------+-------\n'
 
-            if self.inputs.in_file_source_mask and self.inputs.in_file_target_mask:
-                if os.path.isfile(self.inputs.in_file_source_mask) and not os.path.exists(tmpdir+"/"+s_base+"_masked.mnc"):
+            if self.inputs.in_source_mask and self.inputs.in_target_mask:
+                if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpdir+"/"+s_base+"_masked.mnc"):
                     source = tmpdir+"/"+s_base+"_masked.mnc"
                     run_calc = CalcCommand();
-                    run_calc.inputs.in_file = [inorm_source, self.inputs.in_file_source_mask]
+                    run_calc.inputs.in_file = [inorm_source, self.inputs.in_source_mask]
                     run_calc.inputs.out_file = source
                     # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
                     run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -345,9 +362,9 @@ class nLinRegRunning(BaseInterface):
                     if self.inputs.run:
                         run_calc.run()
 
-                if os.path.isfile(self.inputs.in_file_target_mask) and not os.path.exists(tmpdir+"/"+t_base+"_masked.mnc"):
+                if os.path.isfile(self.inputs.in_target_mask) and not os.path.exists(tmpdir+"/"+t_base+"_masked.mnc"):
                     target = tmpdir+"/"+t_base+"_masked.mnc"
-                    run_calc.inputs.in_file = [inorm_target, self.inputs.in_file_target_mask]
+                    run_calc.inputs.in_file = [inorm_target, self.inputs.in_target_mask]
                     run_calc.inputs.out_file = target
                     run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
                     if self.inputs.verbose:
@@ -363,16 +380,16 @@ class nLinRegRunning(BaseInterface):
             run_smooth = SmoothCommand();
             run_smooth.inputs.in_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm
-            run_smooth.inputs.output_file=tmp_target_blur_base
+            run_smooth.inputs.out_file=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
                 run_smooth.run()
 
             run_smooth = SmoothCommand();
-            run_smooth.inputs.input_file=source
+            run_smooth.inputs.in_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm
-            run_smooth.inputs.output_file=tmp_source_blur_base
+            run_smooth.inputs.out_file=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:

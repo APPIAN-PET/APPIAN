@@ -238,7 +238,7 @@ def runPipeline(opts,args):
 	workflow.connect(datasourceRaw, 'pet', petSettings, 'in_file')
 
 	workflow.connect([(petVolume, petMasking, [('out_file', 'in_file')]),
-	                  (petSettings, petMasking, [('out_file','input_json')])
+	                  (petSettings, petMasking, [('out_file','in_json')])
                     ])
 	#
 	workflow.connect(petMasking, 'out_file', rPetMasking, 'in_file')
@@ -247,10 +247,10 @@ def runPipeline(opts,args):
                       (infosource, rPetMasking, [('condition_id', 'condition_id')])
                     ])
     #
-	workflow.connect([(petVolume, pet2mri, [('out_file', 'input_source_file' )]),
-                      (datasourceCivet, pet2mri, [('nativeT1nuc', 'input_target_file')]),
-                      (petMasking, pet2mri, [('out_file', 'input_source_mask')]), 
-                      (t1Masking, pet2mri, [('T1headmask',  'input_target_mask')])
+	workflow.connect([(petVolume, pet2mri, [('out_file', 'in_source_file' )]),
+                      (datasourceCivet, pet2mri, [('nativeT1nuc', 'in_target_file')]),
+                      (petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
+                      (t1Masking, pet2mri, [('T1headmask',  'in_target_mask')])
                       ]) 
     #
 	workflow.connect(pet2mri, 'out_file_img', rPet2MriImg, 'in_file')

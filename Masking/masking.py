@@ -48,7 +48,7 @@ class T1maskingRunning(BaseInterface):
     def _run_interface(self, runtime):
 		model_headmask = self.inputs.modelDir+"/icbm_avg_152_t1_tal_lin_headmask.mnc"
 		run_xfminvert = InvertCommand();
-		run_xfminvert.inputs.in_file_xfm = self.inputs.LinT1TalXfm
+		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
 		# run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
@@ -70,7 +70,7 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.in_file = model_headmask
 		run_resample.inputs.out_file = self.inputs.T1headmask
 		run_resample.inputs.model_file = self.inputs.nativeT1
-		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
+		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
@@ -83,7 +83,7 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.in_file = self.inputs.brainmaskTal
 		run_resample.inputs.out_file = self.inputs.T1brainmask
 		run_resample.inputs.model_file = self.inputs.nativeT1
-		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
+		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
@@ -135,11 +135,25 @@ class RefmaskingOutput(TraitedSpec):
 class RefmaskingRunning(BaseInterface):
     input_spec = RefmaskingInput
     output_spec = RefmaskingOutput
+    _suffix = "_RefMask"
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.RefmaskT1):
+            self.inputs.RefmaskT1 = self._gen_fname(self.inputs.nativeT1, suffix=self._suffix)
+        if not isdefined(self.inputs.RefmaskTal):
+            self.inputs.RefmaskTal = self._gen_fname(self.inputs.T1Tal, suffix=self._suffix)
+
+        return super(RefmaskingRunning, self)._parse_inputs(skip=skip)
 
 
     def _run_interface(self, runtime):
 		tmpDir = tempfile.mkdtemp()
 
+		print self.inputs.RefmaskTal
+		print self.inputs.MaskingType
+		print type(self.inputs.MaskingType)
 		if self.inputs.MaskingType == 'no-transform':
 			run_resample = ResampleCommand();
 			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
@@ -179,6 +193,8 @@ class RefmaskingRunning(BaseInterface):
 			if self.inputs.run:
 			    run_resample.run()
 
+
+
 		else:
 			mask = tmpDir+"/mask.mnc"
 			mask_clean = tmpDir+"/mask_clean.mnc"
@@ -205,8 +221,13 @@ class RefmaskingRunning(BaseInterface):
 				if self.inputs.run:
 					run_mincmorph.run()
 			else:
-  				mask_clean = mask
-
+  				# mask_clean = mask
+				if self.inputs.verbose:
+					cmd=' '.join(['cp', mask, mask_clean])
+					print(cmd)
+				if self.inputs.run:
+					copyfile(mask, mask_clean)
+			
   			if self.inputs.refGM or self.inputs.refWM:
   				if self.inputs.refGM:
 					run_calc = CalcCommand();
@@ -218,7 +239,7 @@ class RefmaskingRunning(BaseInterface):
 					if self.inputs.run:
 						run_calc.run()
 
-  				if self.inputs.refWM:
+				if self.inputs.refWM:
 					run_calc = CalcCommand();
 					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
 					run_calc.inputs.out_file = self.inputs.RefmaskTal
@@ -236,7 +257,7 @@ class RefmaskingRunning(BaseInterface):
 					copyfile(mask_clean, self.inputs.RefmaskTal)
 
 		run_xfminvert = InvertCommand();
-		run_xfminvert.inputs.in_file_xfm = self.inputs.LinT1TalXfm
+		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
@@ -246,7 +267,7 @@ class RefmaskingRunning(BaseInterface):
 		run_resample.inputs.in_file = self.inputs.RefmaskTal
 		run_resample.inputs.out_file = self.inputs.RefmaskT1
 		run_resample.inputs.model_file = self.inputs.nativeT1
-		run_resample.inputs.transformation = run_xfminvert.inputs.out_file_xfm
+		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
@@ -284,6 +305,15 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
 class PETheadMaskingRunning(BaseInterface):
     input_spec = PETheadMaskingInput
     output_spec = PETheadMaskingOutput
+    _suffix = "_headMask"
+
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+        return super(PETheadMaskingRunning, self)._parse_inputs(skip=skip)
 
 
     def _run_interface(self, runtime):

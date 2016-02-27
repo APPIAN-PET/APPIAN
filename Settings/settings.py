@@ -43,6 +43,12 @@ class PETinfoRunning(BaseInterface):
             fname, ext = os.path.splitext(self.inputs.in_file)
             self.inputs.out_file = fname + self._suffix
 
+        # if os.path.exists(self.inputs.out_file):
+        #     os.remove(self.inputs.out_file)
+        try:
+            os.remove(self.inputs.out_file)
+        except OSError:
+            pass
 
         class InfoOptions:
             def __init__(self, command, variable, attribute, type_):

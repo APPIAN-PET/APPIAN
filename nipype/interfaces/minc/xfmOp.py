@@ -61,7 +61,7 @@ class InvertInput(MINCCommandInputSpec):
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class InvertOutput(TraitedSpec):
-    output_file = File(desc="transformation matrix")
+    out_file = File(desc="transformation matrix")
 
 class InvertCommand(MINCCommand, Info):
     _cmd = "xfminvert"
@@ -73,7 +73,7 @@ class InvertCommand(MINCCommand, Info):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix, ext='.xfm')
 
         return super(InvertCommand, self)._parse_inputs(skip=skip)
 

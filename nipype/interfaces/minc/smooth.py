@@ -32,15 +32,14 @@ class SmoothCommand(MINCCommand, Info):
             skip = []
 
         if not isdefined(self.inputs.out_file):
-            fname, ext = os.path.splitext(self.inputs.in_file)
-            self.inputs.out_file = fname + '_fwhm' + str(self.inputs.fwhm)
+            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix='_fwhm' + str(self.inputs.fwhm) + self._suffix)
 
         return super(SmoothCommand, self)._parse_inputs(skip=skip)
 
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
+        outputs["out_file"] = self._gen_fname(self.inputs.out_file, suffix='.mnc')
         return outputs
 
 

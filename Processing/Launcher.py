@@ -75,8 +75,7 @@ def runPipeline(opts,args):
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
 														 outfields=['nativeT1', 'nativeT1nuc', 
 														 			'talT1', 'xfmT1tal','xfmT1talnl',
-														 			'brainmasktal', 'headmasktal', 'clsmask', 'animalmask'
-														 			], 
+														 			'brainmasktal', 'headmasktal', 'clsmask', 'animalmask'], 
 														 sort_filelist=False), name="datasourceCivet")
 	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.template = '*'
@@ -113,12 +112,8 @@ def runPipeline(opts,args):
 	t1Masking = pe.Node(interface=masking.T1maskingRunning(), name=node_name)
 	t1Masking.inputs.modelDir = opts.modelDir
 	t1Masking.inputs.clobber = True
-	t1Masking.inputs.verbose = True
+	t1Masking.inputs.verbose = opts.verbose
 	t1Masking.inputs.run = opts.prun
-	# t1Masking.inputs.T1headmask = node_name+"_head.mnc"
-	# t1Masking.inputs.T1brainmask = node_name+"_brain.mnc"
-	# t1Masking.outputs.T1headmask = node_name+"_head.mnc"
-	# t1Masking.outputs.T1brainmask = node_name+"_brain.mnc"
 
 	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
 	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
@@ -132,7 +127,7 @@ def runPipeline(opts,args):
 	refMasking.inputs.refGM = True if opts.RefMatter == 'gm' else False
 	refMasking.inputs.refWM = True if opts.RefMatter == 'wm' else False
 	refMasking.inputs.clobber = True
-	refMasking.inputs.verbose = True
+	refMasking.inputs.verbose = opts.verbose
 	refMasking.inputs.run = opts.prun
 
 	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
@@ -144,13 +139,13 @@ def runPipeline(opts,args):
 	petVolume.inputs.avgdim = 'time'
 	petVolume.inputs.width_weighted = True
 	petVolume.inputs.clobber = True
-	petVolume.inputs.verbose = True
+	petVolume.inputs.verbose = opts.verbose
 	
 	rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petSettings"
 	petSettings = pe.Node(interface=settings.PETinfoRunning(), name=node_name)
-	petSettings.inputs.verbose = True
+	petSettings.inputs.verbose = opts.verbose
 	petSettings.inputs.clobber = True
 	petSettings.inputs.run = opts.prun
 
@@ -158,7 +153,7 @@ def runPipeline(opts,args):
 
 	node_name="petMasking"
 	petMasking = pe.Node(interface=masking.PETheadMaskingRunning(), name=node_name)
-	petMasking.inputs.verbose = True
+	petMasking.inputs.verbose = opts.verbose
 	petMasking.inputs.run = opts.prun
 
 	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
@@ -166,7 +161,7 @@ def runPipeline(opts,args):
 	node_name="pet2mri"
 	pet2mri = pe.Node(interface=reg.PETtoT1LinRegRunning(), name=node_name)
 	pet2mri.inputs.clobber = True
-	pet2mri.inputs.verbose = True
+	pet2mri.inputs.verbose = opts.verbose
 	pet2mri.inputs.run = opts.prun
 
 	rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name+"Img")
@@ -205,7 +200,7 @@ def runPipeline(opts,args):
 
 
 	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1',)]),
-                      (datasourceCivet, refMasking, [('nativeT1','T1Tal', )]),
+                      (datasourceCivet, refMasking, [('talT1','T1Tal', )]),
                       (datasourceCivet, refMasking, [('xfmT1tal','LinT1TalXfm')]),
                       (datasourceCivet, refMasking, [('brainmasktal','brainmaskTal' )]),
                       (datasourceCivet, refMasking, [('clsmask','clsmaskTal')]),
@@ -213,14 +208,14 @@ def runPipeline(opts,args):
                     ])
   
     #Connect RefmaskTal from refMasking to rename node
-	workflow.connect(refMasking, 'RefmaskTal', rRefMaskingTal, 'in_file')
+	workflow.connect([(refMasking, rRefMaskingTal, [('RefmaskTal', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
                       (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
                     ])
 
     #Connect RefmaskT1 from refMasking to rename node
-	workflow.connect(refMasking, 'RefmaskT1', rRefMaskingT1, 'in_file')
+	workflow.connect([(refMasking, rRefMaskingT1, [('RefmaskT1', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
                       (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
@@ -228,37 +223,38 @@ def runPipeline(opts,args):
 
     #Connect PET to PET volume
 	workflow.connect([(datasourceRaw, petVolume, [('pet', 'in_file')])])
+
 	#Connect pet from petVolume to its rename node
-	workflow.connect(petVolume, 'out_file', rPetVolume, 'in_file')
+	workflow.connect([(petVolume, rPetVolume, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetVolume, [('subject_id', 'subject_id')]),
                       (infosource, rPetVolume, [('condition_id', 'condition_id')])
                     ])
     #
-	workflow.connect(datasourceRaw, 'pet', petSettings, 'in_file')
-
+	workflow.connect([(datasourceRaw, petSettings, [('pet', 'in_file')])])
 	workflow.connect([(petVolume, petMasking, [('out_file', 'in_file')]),
 	                  (petSettings, petMasking, [('out_file','in_json')])
                     ])
 	#
-	workflow.connect(petMasking, 'out_file', rPetMasking, 'in_file')
+	workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetMasking, [('subject_id', 'subject_id')]),
                       (infosource, rPetMasking, [('condition_id', 'condition_id')])
                     ])
     #
 	workflow.connect([(petVolume, pet2mri, [('out_file', 'in_source_file' )]),
-                      (datasourceCivet, pet2mri, [('nativeT1nuc', 'in_target_file')]),
                       (petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
-                      (t1Masking, pet2mri, [('T1headmask',  'in_target_mask')])
+                      (t1Masking, pet2mri, [('T1headmask',  'in_target_mask')]),
+                      (datasourceCivet, pet2mri, [('nativeT1nuc', 'in_target_file')])
                       ]) 
     #
-	workflow.connect(pet2mri, 'out_file_img', rPet2MriImg, 'in_file')
-	workflow.connect(pet2mri, 'out_file_xfm', rPet2MriXfm, 'in_file')
+	workflow.connect([(pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
 	workflow.connect([(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriImg, [('subject_id', 'subject_id')]),
                       (infosource, rPet2MriImg, [('condition_id', 'condition_id')])
                     ])
+
+	workflow.connect([(pet2mri, rPet2MriXfm, [('out_file_xfm', 'in_file')])])
 	workflow.connect([(infosource, rPet2MriXfm, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriXfm, [('subject_id', 'subject_id')]),
                       (infosource, rPet2MriXfm, [('condition_id', 'condition_id')])
@@ -339,12 +335,12 @@ if __name__ == "__main__":
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Command control")
-	group.add_option("","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=True)
+	group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Pipeline control")
-	group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true')
-	group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false')
+	group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true',default=False)
+	group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false',default=False)
 	group.add_option("","--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
 	group.add_option("","--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
 	parser.add_option_group(group)

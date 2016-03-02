@@ -3,10 +3,13 @@ import numpy as np
 import tempfile
 import shutil
 import pickle
+
 from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.interfaces.minc.base import Info
+
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
 from nipype.interfaces.minc.tracc import TraccCommand
@@ -137,23 +140,25 @@ class RefmaskingRunning(BaseInterface):
     output_spec = RefmaskingOutput
     _suffix = "_RefMask"
 
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        if not isdefined(self.inputs.RefmaskT1):
-            self.inputs.RefmaskT1 = self._gen_fname(self.inputs.nativeT1, suffix=self._suffix)
-        if not isdefined(self.inputs.RefmaskTal):
-            self.inputs.RefmaskTal = self._gen_fname(self.inputs.T1Tal, suffix=self._suffix)
+  #   def _parse_inputs(self, skip=None):
+		# if skip is None:
+		# 	skip = []
+		# if not isdefined(self.inputs.RefmaskT1):
+		# 	self.inputs.RefmaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
+		# if not isdefined(self.inputs.RefmaskTal):
+		# 	self.inputs.RefmaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 
-        return super(RefmaskingRunning, self)._parse_inputs(skip=skip)
 
 
     def _run_interface(self, runtime):
 		tmpDir = tempfile.mkdtemp()
+		# self._parse_inputs()
 
-		print self.inputs.RefmaskTal
-		print self.inputs.MaskingType
-		print type(self.inputs.MaskingType)
+		if not isdefined(self.inputs.RefmaskT1):
+			self.inputs.RefmaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
+		if not isdefined(self.inputs.RefmaskTal):
+			self.inputs.RefmaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
+		
 		if self.inputs.MaskingType == 'no-transform':
 			run_resample = ResampleCommand();
 			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
@@ -308,17 +313,20 @@ class PETheadMaskingRunning(BaseInterface):
     _suffix = "_headMask"
 
 
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
-        return super(PETheadMaskingRunning, self)._parse_inputs(skip=skip)
+    # def _parse_inputs(self, skip=None):
+    #     if skip is None:
+    #         skip = []
+    #     if not isdefined(self.inputs.out_file):
+    #         self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+    #     return super(PETheadMaskingRunning, self)._parse_inputs(skip=skip)
 
 
     def _run_interface(self, runtime):
 
 		tmpDir = tempfile.mkdtemp()
+
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
 
 		#hd = load_json(self.inputs.in_json)
 		# dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']

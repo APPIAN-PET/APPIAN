@@ -43,16 +43,20 @@ class PETtoT1LinRegRunning(BaseInterface):
     _suffix = "_toT1LinReg"
 
 
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = self._gen_fname(self.inputs.in_source_file, suffix=self._suffix)
-
-        return super(PETtoT1LinRegRunning, self)._parse_inputs(skip=skip)
-
     def _run_interface(self, runtime):
         tmpdir = tempfile.mkdtemp()
+
+
+        source = self.inputs.in_source_file
+        target = self.inputs.in_target_file
+        s_base = basename(os.path.splitext(source)[0])
+        t_base = basename(os.path.splitext(target)[0])
+        if not isdefined(self.inputs.out_file_xfm):
+            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
+        if not isdefined(self.inputs.out_file_img):
+            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
+            # self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+Info.ftypes['MINC'], use_ext=False)
+
 
         prev_xfm = None
         if self.inputs.init_file_xfm:
@@ -248,32 +252,21 @@ class nLinRegRunning(BaseInterface):
     output_spec = nLinRegOutput
     _suffix = "_NlReg"
 
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        source = self.inputs.in_source_file
-        target = self.inputs.in_target_file
-        s_base = basename(os.path.splitext(source)[0])
-        t_base = basename(os.path.splitext(target)[0])
-        if not isdefined(self.inputs.out_file_xfm):
-            # self.inputs.out_file_xfm = self._gen_fname(self.inputs.in_source_file, suffix=self._suffix)
-            self.inputs.out_file_xfm = self._gen_fname(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix, ext='xfm')
-        if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = self._gen_fname(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix)
-
-        return super(nLinRegRunning, self)._parse_inputs(skip=skip)
-
 
     def _run_interface(self, runtime):
-        if os.path.exists(self.inputs.out_file_xfm):
-            os.remove(self.inputs.out_file_xfm) 
-
         tmpdir = tempfile.mkdtemp()
 
         source = self.inputs.in_source_file
         target = self.inputs.in_target_file
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
+        if not isdefined(self.inputs.out_file_xfm):
+            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
+        if not isdefined(self.inputs.out_file_img):
+            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix)
+
+        if os.path.exists(self.inputs.out_file_xfm):
+            os.remove(self.inputs.out_file_xfm) 
  
         prev_xfm = None
         if self.inputs.init_file_xfm:

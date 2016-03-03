@@ -21,8 +21,8 @@ from nipype.interfaces.minc.inormalize import InormalizeCommand
 
 
 class PETtoT1LinRegOutput(TraitedSpec):
-    out_file_xfm = File(exists=True, desc="transformation matrix")
-    out_file_img = File(exists=True, desc="resampled image")
+    out_file_xfm = File(desc="transformation matrix")
+    out_file_img = File(desc="resampled image")
 
 class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     in_target_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="target image")
@@ -40,7 +40,7 @@ class PETtoT1LinRegInput(BaseInterfaceInputSpec):
 class PETtoT1LinRegRunning(BaseInterface):
     input_spec = PETtoT1LinRegInput
     output_spec = PETtoT1LinRegOutput
-    _suffix = "_toT1LinReg"
+    _suffix = "_LinReg"
 
 
     def _run_interface(self, runtime):
@@ -52,10 +52,10 @@ class PETtoT1LinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
         if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
+            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
-            # self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+Info.ftypes['MINC'], use_ext=False)
+            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
+            # self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+Info.ftypes['MINC'], use_ext=False)
 
 
         prev_xfm = None
@@ -174,7 +174,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_resample.run()
 
-            prev_xfm = tmp_xfm
+            # prev_xfm = tmp_xfm
             i += 1
 
             print '\n'
@@ -184,7 +184,7 @@ class PETtoT1LinRegRunning(BaseInterface):
         if self.inputs.init_file_xfm:
             run_concat = ConcatCommand();
             run_concat.inputs.in_file=self.inputs.init_xfm
-            run_concat.inputs.in_file_2=prev_xfm
+            run_concat.inputs.in_file_2=tmp_xfm
             run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_concat.cmdline
@@ -195,10 +195,10 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         else:
             if self.inputs.verbose:
-                cmd=' '.join(['cp', prev_xfm, self.inputs.out_file_xfm])
+                cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
                 print(cmd)
             if self.inputs.run:
-                copyfile(prev_xfm, self.inputs.out_file_xfm)
+                shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
 
 
         if self.inputs.out_file_img:
@@ -261,9 +261,9 @@ class nLinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
         if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
+            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+s_base+"_TO_"+t_base, suffix=self._suffix)
+            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix)
 
         if os.path.exists(self.inputs.out_file_xfm):
             os.remove(self.inputs.out_file_xfm) 
@@ -433,7 +433,7 @@ class nLinRegRunning(BaseInterface):
                 if self.inputs.run:
                     run_resample.run()
 
-                prev_xfm = tmp_xfm
+                # prev_xfm = tmp_xfm
 
             i += 1
 
@@ -444,13 +444,19 @@ class nLinRegRunning(BaseInterface):
         if self.inputs.init_file_xfm:
             run_concat = ConcatCommand();
             run_concat.inputs.in_file=self.inputs.init_xfm
-            run_concat.inputs.in_file_2=prev_xfm
+            run_concat.inputs.in_file_2=tmp_xfm
             run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_concat.cmdline
             if self.inputs.run:
                 run_concat.run()
 
+        else:
+            if self.inputs.verbose:
+                cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
+                print(cmd)
+            if self.inputs.run:
+                shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
 
 
         if self.inputs.out_file_img:

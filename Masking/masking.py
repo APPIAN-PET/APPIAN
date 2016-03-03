@@ -61,12 +61,12 @@ class T1maskingRunning(BaseInterface):
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
 			dname = os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1headmask = dname + '/'+ fname + "_headmask.mnc"
+			self.inputs.T1headmask = dname +os.sep+ fname + "_headmask.mnc"
 
 		if not isdefined(self.inputs.T1brainmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
 			dname = os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname + '/'+ fname + "_brainmask.mnc"
+			self.inputs.T1brainmask = dname +os.sep+ fname + "_brainmask.mnc"
 
 
 		run_resample = ResampleCommand();
@@ -231,7 +231,7 @@ class RefmaskingRunning(BaseInterface):
 					cmd=' '.join(['cp', mask, mask_clean])
 					print(cmd)
 				if self.inputs.run:
-					copyfile(mask, mask_clean)
+					shutil.copy(mask, mask_clean)
 			
   			if self.inputs.refGM or self.inputs.refWM:
   				if self.inputs.refGM:
@@ -259,7 +259,7 @@ class RefmaskingRunning(BaseInterface):
 					cmd=' '.join(['cp', mask_clean, self.inputs.RefmaskTal])
 					print(cmd)
 				if self.inputs.run:
-					copyfile(mask_clean, self.inputs.RefmaskTal)
+					shutil.copy(mask_clean, self.inputs.RefmaskTal)
 
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm

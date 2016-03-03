@@ -135,7 +135,7 @@ def runPipeline(opts,args):
 
 
 	node_name="petVolume"
-	petVolume = pe.Node(interface=minc.AverageCommand(), name="petVolume")
+	petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
 	petVolume.inputs.avgdim = 'time'
 	petVolume.inputs.width_weighted = True
 	petVolume.inputs.clobber = True
@@ -168,6 +168,14 @@ def runPipeline(opts,args):
 	rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
 
 
+	node_name="petRefMask"
+	petRefMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+	petRefMask.inputs.interpolation = 'nearest_neighbour'
+	petRefMask.inputs.invert = 'invert_transformation'
+	petRefMask.inputs.clobber = True
+
+	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+
 
 
 	workflow = pe.Workflow(name='preproc')
@@ -183,6 +191,11 @@ def runPipeline(opts,args):
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
 					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
 
+
+
+
+
+
 	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1headmask', 'in_file')])])
 	workflow.connect([(t1Masking, rT1MaskingHead, [('T1brainmask', 'in_file')])])
 
@@ -196,6 +209,9 @@ def runPipeline(opts,args):
 
 	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
 	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
+
+
+
 
 
 
@@ -221,6 +237,14 @@ def runPipeline(opts,args):
                       (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
                     ])
 
+	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
+	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
+
+
+
+
+
+
     #Connect PET to PET volume
 	workflow.connect([(datasourceRaw, petVolume, [('pet', 'in_file')])])
 
@@ -230,6 +254,13 @@ def runPipeline(opts,args):
                       (infosource, rPetVolume, [('subject_id', 'subject_id')]),
                       (infosource, rPetVolume, [('condition_id', 'condition_id')])
                     ])
+
+	workflow.connect(rPetVolume, 'out_file', datasink, petVolume.name)
+
+
+
+
+
     #
 	workflow.connect([(datasourceRaw, petSettings, [('pet', 'in_file')])])
 	workflow.connect([(petVolume, petMasking, [('out_file', 'in_file')]),
@@ -241,6 +272,13 @@ def runPipeline(opts,args):
                       (infosource, rPetMasking, [('subject_id', 'subject_id')]),
                       (infosource, rPetMasking, [('condition_id', 'condition_id')])
                     ])
+
+	workflow.connect(rPetMasking, 'out_file', datasink, petMasking.name)
+
+
+
+
+
     #
 	workflow.connect([(petVolume, pet2mri, [('out_file', 'in_source_file' )]),
                       (petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
@@ -260,13 +298,36 @@ def runPipeline(opts,args):
                       (infosource, rPet2MriXfm, [('condition_id', 'condition_id')])
                     ])
 
+	workflow.connect(rPet2MriXfm, 'out_file', datasink, pet2mri.name+"Xfm")
+	workflow.connect(rPet2MriImg, 'out_file', datasink, pet2mri.name+"Img")
+
+
+
+
+
+    #
+	workflow.connect([(refMasking, petRefMask, [('RefmaskT1', 'in_file' )]),
+                      (petVolume, petRefMask, [('out_file', 'model_file')]), 
+                      (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+                      ]) 
+
+	workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
+	workflow.connect([(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetRefMask, [('subject_id', 'subject_id')]),
+                      (infosource, rPetRefMask, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
+	
+
+
 	printOptions(opts,subjects_ids)
 
 	#run the work flow
 	workflow.run()
 
-	#vizualization graph of the workflow
-	workflow.write_graph()
+	# #vizualization graph of the workflow
+	# workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
 
 

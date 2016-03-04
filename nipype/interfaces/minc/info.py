@@ -35,6 +35,8 @@ class InfoCommand(MINCCommand):
         if skip is None:
             skip = []
 
+        # if not isdefined(self.inputs.out_file):
+        #     self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
         if not isdefined(self.inputs.out_file):
             fname, ext = os.path.splitext(self.inputs.in_file)
             self.inputs.out_file = fname + self._suffix

@@ -12,7 +12,7 @@ class ReshapeOutput(TraitedSpec):
 
 class ReshapeInput(MINCCommandInputSpec):
     in_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="input image")
-    out_file = File(position=1, argstr="%s", mandatory=True, desc="output image")
+    out_file = File(position=1, argstr="%s", desc="output image")
     
     dimrange = traits.Str(position=2, argstr="-dimrange '%s'", desc="Specify range of dimension subscripts")
 

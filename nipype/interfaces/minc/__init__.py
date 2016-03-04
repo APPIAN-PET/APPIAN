@@ -15,5 +15,6 @@ from .info import (InfoCommand, StatsCommand)
 from .average import AverageCommand
 from .reshape import ReshapeCommand
 from .concat import ConcatCommand
+from .modifHeader import ModifyHeaderCommand
 
 from .gzip_test import GZipTask

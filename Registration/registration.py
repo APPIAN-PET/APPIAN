@@ -44,7 +44,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-        tmpdir = tempfile.mkdtemp()
+        tmpDir = tempfile.mkdtemp()
 
 
         source = self.inputs.in_source_file
@@ -69,7 +69,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         if self.inputs.in_source_mask and self.inputs.in_target_mask:
             if os.path.isfile(self.inputs.in_source_mask):
-                source = tmpdir+"/"+s_base+"_masked.mnc"
+                source = tmpDir+"/"+s_base+"_masked.mnc"
                 run_calc = CalcCommand();
                 run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
                 run_calc.inputs.out_file = source
@@ -82,7 +82,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
             if os.path.isfile(self.inputs.in_target_mask):
-                target = tmpdir+"/"+t_base+"_masked.mnc"
+                target = tmpDir+"/"+t_base+"_masked.mnc"
                 run_calc.inputs.in_file = [self.inputs.in_target_file, self.inputs.in_target_mask]
                 run_calc.inputs.out_file = target
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -110,14 +110,14 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         i=1
         for confi in conf_list:
-            tmp_source=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
-            tmp_source_blur_base=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
-            tmp_source_blur=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)+"_"+confi.type_+".mnc"
-            tmp_target=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
-            tmp_target_blur_base=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
-            tmp_target_blur=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)+"_"+confi.type_+".mnc"
-            tmp_xfm = tmpdir+"/"+t_base+"_conf"+str(i)+".xfm";
-            tmp_rspl_vol = tmpdir+"/"+s_base+"_conf"+str(i)+".mnc";
+            tmp_source=tmpDir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
+            tmp_source_blur_base=tmpDir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)
+            tmp_source_blur=tmpDir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm_source)+"_"+confi.type_+".mnc"
+            tmp_target=tmpDir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
+            tmp_target_blur_base=tmpDir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)
+            tmp_target_blur=tmpDir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm_target)+"_"+confi.type_+".mnc"
+            tmp_xfm = tmpDir+"/"+t_base+"_conf"+str(i)+".xfm";
+            tmp_rspl_vol = tmpDir+"/"+s_base+"_conf"+str(i)+".mnc";
 
 
 
@@ -213,8 +213,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_resample.run()
 
-        shutil.rmtree(tmpdir)
-
+        # shutil.rmtree(tmpDir)
         return runtime
 
 
@@ -254,7 +253,7 @@ class nLinRegRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-        tmpdir = tempfile.mkdtemp()
+        tmpDir = tempfile.mkdtemp()
 
         source = self.inputs.in_source_file
         target = self.inputs.in_target_file
@@ -273,8 +272,8 @@ class nLinRegRunning(BaseInterface):
             prev_xfm = self.inputs.init_file_xfm
 
         if self.inputs.normalize:
-            inorm_target = tmpdir+"/"+t_base+"_inorm.mnc"
-            inorm_source = tmpdir+"/"+s_base+"_inorm.mnc"
+            inorm_target = tmpDir+"/"+t_base+"_inorm.mnc"
+            inorm_source = tmpDir+"/"+s_base+"_inorm.mnc"
 
             run_resample = ResampleCommand();
             run_resample.inputs.in_file=target
@@ -329,22 +328,22 @@ class nLinRegRunning(BaseInterface):
 
         i=1
         for confi in conf_list:
-            tmp_source=tmpdir+"/"+s_base+"_fwhm.mnc"
-            tmp_source_blur_base=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)
-            tmp_source_blur=tmpdir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
-            tmp_target=tmpdir+"/"+t_base+"_fwhm.mnc"
-            tmp_target_blur_base=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)
-            tmp_target_blur=tmpdir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
-            tmp_xfm = tmpdir+"/"+t_base+"_conf"+str(i)+".xfm";
-            tmp_rspl_vol = tmpdir+"/"+s_base+"_conf"+str(i)+".mnc";
+            tmp_source=tmpDir+"/"+s_base+"_fwhm.mnc"
+            tmp_source_blur_base=tmpDir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)
+            tmp_source_blur=tmpDir+"/"+s_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
+            tmp_target=tmpDir+"/"+t_base+"_fwhm.mnc"
+            tmp_target_blur_base=tmpDir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)
+            tmp_target_blur=tmpDir+"/"+t_base+"_fwhm"+str(confi.blur_fwhm)+"_blur.mnc"
+            tmp_xfm = tmpDir+"/"+t_base+"_conf"+str(i)+".xfm";
+            tmp_rspl_vol = tmpDir+"/"+s_base+"_conf"+str(i)+".mnc";
 
 
 
             print '-------+------- iteration'+str(i)+' -------+-------\n'
 
             if self.inputs.in_source_mask and self.inputs.in_target_mask:
-                if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpdir+"/"+s_base+"_masked.mnc"):
-                    source = tmpdir+"/"+s_base+"_masked.mnc"
+                if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpDir+"/"+s_base+"_masked.mnc"):
+                    source = tmpDir+"/"+s_base+"_masked.mnc"
                     run_calc = CalcCommand();
                     run_calc.inputs.in_file = [inorm_source, self.inputs.in_source_mask]
                     run_calc.inputs.out_file = source
@@ -355,8 +354,8 @@ class nLinRegRunning(BaseInterface):
                     if self.inputs.run:
                         run_calc.run()
 
-                if os.path.isfile(self.inputs.in_target_mask) and not os.path.exists(tmpdir+"/"+t_base+"_masked.mnc"):
-                    target = tmpdir+"/"+t_base+"_masked.mnc"
+                if os.path.isfile(self.inputs.in_target_mask) and not os.path.exists(tmpDir+"/"+t_base+"_masked.mnc"):
+                    target = tmpDir+"/"+t_base+"_masked.mnc"
                     run_calc.inputs.in_file = [inorm_target, self.inputs.in_target_mask]
                     run_calc.inputs.out_file = target
                     run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -471,7 +470,7 @@ class nLinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_resample.run()
 
-        # shutil.rmtree(tmpdir)
+        # shutil.rmtree(tmpDir)
 
         return runtime
 

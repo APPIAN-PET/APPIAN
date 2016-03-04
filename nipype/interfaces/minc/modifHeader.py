@@ -5,29 +5,21 @@ from base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
 
-
-
-
-
-
 class ModifyHeaderOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
 
-class ModifyHeaderInput(BaseInterfaceInputSpec):
-    in_file = File(position=-1, argstr="%s", mandatory=True, desc="Image")
+class ModifyHeaderInput(MINCCommandInputSpec):
+    in_file = File(position=-3, argstr="%s", mandatory=True, desc="Image")
 
-    sinsert = traits.Bool(argstr="-sinsert", usedefault=True, default_value=True, desc="Insert a string attribute")
-    dinsert = traits.Bool(argstr="-dinsert", usedefault=True, default_value=True, desc="Insert a double precision attribute")
-    sappend = traits.Bool(argstr="-sappend", usedefault=True, default_value=True, desc="Append a string attribute")
-    dappend = traits.Bool(argstr="-dappend", usedefault=True, default_value=True, desc="Append a double precision attribute")
-    opt_string = traits.Str(argstr="%s", mandatory=True, desc="Option defining the infos to print out")
+    sinsert = traits.Bool(argstr="-sinsert", default_value=False, desc="Insert a string attribute")
+    dinsert = traits.Bool(argstr="-dinsert", default_value=False, desc="Insert a double precision attribute")
+    sappend = traits.Bool(argstr="-sappend", default_value=False, desc="Append a string attribute")
+    dappend = traits.Bool(argstr="-dappend", default_value=False, desc="Append a double precision attribute")
+    delete = traits.Bool(argstr="-delete", default_value=False, desc="Delete an attribute")
+    opt_string = traits.Str(argstr="%s", desc="Option defining the infos to print out")
 
-    delete = traits.Bool(argstr="-delete", usedefault=True, default_value=True, desc="Delete an attribute")
- 
-    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
-
-class ModifyHeaderRunning(BaseInterface):
+class ModifyHeaderCommand(MINCCommand):
+    _cmd = "minc_modify_header"
     input_spec = ModifyHeaderInput
     output_spec = ModifyHeaderOutput
 
@@ -36,6 +28,4 @@ class ModifyHeaderRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.in_file
         return outputs
-
-
 

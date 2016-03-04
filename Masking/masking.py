@@ -280,6 +280,7 @@ class RefmaskingRunning(BaseInterface):
 		if self.inputs.run:
 		    run_resample.run()		
 
+		shutil.rmtree(tmpDir)
 		return runtime
 
 
@@ -429,6 +430,7 @@ class PETheadMaskingRunning(BaseInterface):
 		if self.inputs.run:
 		    run_resample.run()
 
+		shutil.rmtree(tmpDir)
 		return runtime
 
 

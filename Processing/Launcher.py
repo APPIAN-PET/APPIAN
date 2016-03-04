@@ -19,7 +19,7 @@ from nipype.interfaces.utility import Rename
 
 import Masking.masking as masking
 import Registration.registration as reg
-import Settings.settings as settings
+import Initialization.initialization as init
 
 version = "1.0"
 
@@ -114,7 +114,6 @@ def runPipeline(opts,args):
 	t1Masking.inputs.clobber = True
 	t1Masking.inputs.verbose = opts.verbose
 	t1Masking.inputs.run = opts.prun
-
 	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
 	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
@@ -129,33 +128,41 @@ def runPipeline(opts,args):
 	refMasking.inputs.clobber = True
 	refMasking.inputs.verbose = opts.verbose
 	refMasking.inputs.run = opts.prun
-
 	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
 	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
+
+	node_name="petCenter"
+	petCenter= pe.Node(interface=init.VolCenteringRunning(), name=node_name)
+	petCenter.inputs.verbose = opts.verbose
+	petCenter.inputs.run = opts.prun	
+	rPetCenter=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+
+	node_name="petExcludeFr"
+	petExFr = pe.Node(interface=init.PETexcludeFrRunning(), name=node_name)
+	petExFr.inputs.verbose = opts.verbose	
+	petExFr.inputs.run = opts.prun
+	rPetExFr=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petVolume"
 	petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
 	petVolume.inputs.avgdim = 'time'
 	petVolume.inputs.width_weighted = True
 	petVolume.inputs.clobber = True
-	petVolume.inputs.verbose = opts.verbose
-	
+	petVolume.inputs.verbose = opts.verbose	
 	rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petSettings"
-	petSettings = pe.Node(interface=settings.PETinfoRunning(), name=node_name)
+	petSettings = pe.Node(interface=init.MincHdrInfoRunning(), name=node_name)
 	petSettings.inputs.verbose = opts.verbose
 	petSettings.inputs.clobber = True
 	petSettings.inputs.run = opts.prun
-
 	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petMasking"
 	petMasking = pe.Node(interface=masking.PETheadMaskingRunning(), name=node_name)
 	petMasking.inputs.verbose = opts.verbose
 	petMasking.inputs.run = opts.prun
-
 	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="pet2mri"
@@ -163,7 +170,6 @@ def runPipeline(opts,args):
 	pet2mri.inputs.clobber = True
 	pet2mri.inputs.verbose = opts.verbose
 	pet2mri.inputs.run = opts.prun
-
 	rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name+"Img")
 	rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
 
@@ -173,7 +179,6 @@ def runPipeline(opts,args):
 	petRefMask.inputs.interpolation = 'nearest_neighbour'
 	petRefMask.inputs.invert = 'invert_transformation'
 	petRefMask.inputs.clobber = True
-
 	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
 
@@ -246,7 +251,32 @@ def runPipeline(opts,args):
 
 
     #Connect PET to PET volume
-	workflow.connect([(datasourceRaw, petVolume, [('pet', 'in_file')])])
+	workflow.connect([(datasourceRaw, petCenter, [('pet', 'in_file')])])
+
+	#Connect pet from petVolume to its rename node
+	workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
+	workflow.connect([(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetCenter, [('subject_id', 'subject_id')]),
+                      (infosource, rPetCenter, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rPetCenter, 'out_file', datasink, petCenter.name)
+
+
+
+	workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
+	
+	workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
+	workflow.connect([(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetExFr, [('subject_id', 'subject_id')]),
+                      (infosource, rPetExFr, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
+
+
+
+	workflow.connect([(petExFr, petVolume, [('out_file', 'in_file')])])
 
 	#Connect pet from petVolume to its rename node
 	workflow.connect([(petVolume, rPetVolume, [('out_file', 'in_file')])])
@@ -256,9 +286,6 @@ def runPipeline(opts,args):
                     ])
 
 	workflow.connect(rPetVolume, 'out_file', datasink, petVolume.name)
-
-
-
 
 
     #

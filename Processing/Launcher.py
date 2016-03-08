@@ -448,20 +448,20 @@ if __name__ == "__main__":
 	opts.civetDir = os.path.normpath(opts.civetDir)
 
 
-	if opts.prun:
-		runPipeline(opts,args)
-	elif opts.pscan:
+#	if opts.prun:
+#		runPipeline(opts,args)
+#	elif opts.pscan:
+#		printScan(opts,args)
+#	elif opts.pstages:
+#		printStages(opts,args)
+#	else:
+#		print "\n\n*******ERROR********: \n    The options -run, -print-scan or print-stages need to be chosen \n********************\n\n"
+#		parser.print_help()
+#		sys.exit(1)
+
+	if opts.pscan:
 		printScan(opts,args)
 	elif opts.pstages:
 		printStages(opts,args)
 	else:
-		print "\n\n*******ERROR********: \n    The options -run, -print-scan or print-stages need to be chosen \n********************\n\n"
-		parser.print_help()
-
-
-	# if opts.pscan:
-	# 	printScan(scan,opts)
-	# elif opts.pstages:
-	# 	printStages(scan,opts)
-	# else:
-	# 	runPipeline(scan,opts)
+		runPipeline(opts,args)

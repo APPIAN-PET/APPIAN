@@ -93,11 +93,11 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
         class conf:
-            def __init__(self, type_, est, blur_fwhm_source, blur_fwhm_target, steps, tolerance, simplex):
+            def __init__(self, type_, est, blur_fwhm_target, blur_fwhm_source, steps, tolerance, simplex):
                 self.type_=type_
                 self.est=est
-                self.blur_fwhm_source=blur_fwhm_source
                 self.blur_fwhm_target=blur_fwhm_target
+                self.blur_fwhm_source=blur_fwhm_source
                 self.steps=steps
                 self.tolerance=tolerance
                 self.simplex=simplex
@@ -121,7 +121,17 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
 
-            print '-------+------- iteration'+str(i)+' -------+-------\n'
+            print '-------+------- iteration'+str(i)+' -------+-------'
+            print '       | steps : \t\t'+ confi.steps
+            print '       | blur_fwhm_mri : \t'+ str(confi.blur_fwhm_target)
+            print '       | blur_fwhm_pet : \t'+ str(confi.blur_fwhm_source)
+            print '       | simplex : \t\t'+ str(confi.simplex)
+            print '       | source : \t\t'+ tmp_source_blur
+            print '       | target : \t\t'+ tmp_target_blur
+            print '       | xfm : \t\t\t'+ tmp_xfm
+            print '       | out : \t\t\t'+ tmp_rspl_vol
+            print '\n'
+
             run_smooth = SmoothCommand();
             run_smooth.inputs.in_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm_target
@@ -150,6 +160,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_tracc.inputs.simplex=confi.simplex
             run_tracc.inputs.tolerance=confi.tolerance
             run_tracc.inputs.est=confi.est
+            run_tracc.inputs.lsq='lsq6'
             if prev_xfm:
                 run_tracc.inputs.transformation=prev_xfm
             if self.inputs.in_source_mask:
@@ -174,7 +185,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_resample.run()
 
-            # prev_xfm = tmp_xfm
+            prev_xfm = tmp_xfm
             i += 1
 
             print '\n'
@@ -339,7 +350,19 @@ class nLinRegRunning(BaseInterface):
 
 
 
-            print '-------+------- iteration'+str(i)+' -------+-------\n'
+            print '-------+------- iteration'+str(i)+' -------+-------'
+            print '       | steps : \t\t'+ confi.steps
+            print '       | blur_fwhm : \t'+ str(confi.blur_fwhm)
+            print '       | nonlinear : \t\t'+ str(confi.nonlinear)
+            print '       | weight : \t\t'+ str(confi.weight)
+            print '       | stiffness : \t\t'+ str(confi.stiffness)
+            print '       | similarity : \t\t'+ str(confi.similarity)
+            print '       | sub_lattice : \t\t'+ str(confi.sub_lattice)
+            print '       | source : \t\t'+ tmp_source_blur
+            print '       | target : \t\t'+ tmp_target_blur
+            print '       | xfm : \t\t\t'+ tmp_xfm
+            print '       | out : \t\t\t'+ tmp_rspl_vol
+            print '\n'
 
             if self.inputs.in_source_mask and self.inputs.in_target_mask:
                 if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpDir+"/"+s_base+"_masked.mnc"):

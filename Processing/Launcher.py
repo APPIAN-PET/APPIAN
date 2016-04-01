@@ -201,8 +201,8 @@ def runPipeline(opts,args):
 
 
 
-	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1headmask', 'in_file')])])
-	workflow.connect([(t1Masking, rT1MaskingHead, [('T1brainmask', 'in_file')])])
+	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
+	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
 
 
 	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),

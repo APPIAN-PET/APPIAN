@@ -2,8 +2,7 @@ import os
 import numpy as np
 import tempfile
 import shutil
-import pyezminc
-import minc
+import nipype.interfaces.minc as minc
 
 from os.path import basename
 from math import *

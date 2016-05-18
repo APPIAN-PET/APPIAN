@@ -11,14 +11,14 @@ import time
 from optparse import OptionParser
 from optparse import OptionGroup
 #sys.path.insert(1, "/home/t/neuro/projects/nipype/tka_nipype/")
-print sys.path
+#print sys.path
 import nipype.interfaces.minc as minc
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 from nipype.interfaces.utility import Rename
 
-from Masking.masking as masking
+from Masking import masking as masking
 import Registration.registration as reg
 import Initialization.initialization as init
 

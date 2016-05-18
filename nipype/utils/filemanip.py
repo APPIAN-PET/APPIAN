@@ -16,7 +16,7 @@ import shutil
 
 import numpy as np
 
-from ..interfaces.traits_extension import isdefined
+from nipype.interfaces.traits_extension import isdefined
 from .misc import is_container
 
 from .. import logging, config

@@ -2,8 +2,7 @@ import os
 import numpy as np
 import tempfile
 import shutil
-import pyezminc
-import minc
+import nipype.interfaces.minc as minc
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, update_minchd_json, split_filename, fname_presuffix)

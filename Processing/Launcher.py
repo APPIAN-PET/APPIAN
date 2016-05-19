@@ -197,28 +197,25 @@ def runPipeline(opts,args):
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
 					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
 
+	#workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
+	#workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
 
+	#workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
+	#				  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
+	#				  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
+	#workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
+	#				  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
+	#				  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
 
+	#workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
+	#workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
 
+	printOptions(opts,subjects_ids)
 
+	#run the work flow
+	workflow.run()
 
-	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
-	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
-
-
-	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
-					  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
-					  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
-	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
-					  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
-					  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
-
-	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
-	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
-
-
-
-
+	exit(0)
 
 
 	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1',)]),

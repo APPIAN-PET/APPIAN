@@ -4,13 +4,15 @@ import tempfile
 import shutil
 import nipype.interfaces.minc as minc
 
+import minc as pyezminc
 from os.path import basename
 from math import *
 
 from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.utils.filemanip import (load_json, save_json, update_minchd_json, split_filename, fname_presuffix, copyfile)
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.utils.minc_filemanip import update_minchd_json
 
 from nipype.interfaces.minc.info import InfoCommand
 from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand
@@ -85,8 +87,7 @@ class MincHdrInfoRunning(BaseInterface):
             if self.inputs.run:
                 run_mincinfo.run()
 
-
-        img = minc.Image(self.inputs.in_file, metadata_only=True)
+        img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
         hd = img.get_MINC_header()
         for key in hd.keys():
             for subkey in hd[key].keys():

@@ -10,8 +10,6 @@ import time
 
 from optparse import OptionParser
 from optparse import OptionGroup
-#sys.path.insert(1, "/home/t/neuro/projects/nipype/tka_nipype/")
-#print sys.path
 import nipype.interfaces.minc as minc
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
@@ -36,7 +34,8 @@ def printOptions(opts,args):
 	print "* The target directory is : "+opts.targetDir+"\n"
 	print "* The Civet directory is : "+opts.civetDir+"\n"
 	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
-	print "* PET conditions : "+opts.condiList+"\n"
+	print opts.condiList
+	print "* PET conditions : "+', '.join(opts.condiList)+"\n"
 	print "* ROI labels : "+str(', '.join(opts.ROILabels))+"\n"
 
 
@@ -53,10 +52,9 @@ def runPipeline(opts,args):
 		sys.exit(1)
 
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
-	conditions_ids=list(range(len([opts.condiList])))
-
-
-
+	conditions_ids=list(range(len(opts.condiList)))
+	conditions_ids=opts.condiList
+	print(conditions_ids)
 
 	###Infosource###
 	infosource = pe.Node(interface=util.IdentityInterface(fields=['study_prefix', 'subject_id', 'condition_id']), name="infosource")
@@ -106,7 +104,6 @@ def runPipeline(opts,args):
 	datasink=pe.Node(interface=nio.DataSink(), name="output")
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_condition_id_', ''), ('subject_id_', '')]
-
 
 	##Nodes###
 	node_name="t1Masking"
@@ -197,28 +194,18 @@ def runPipeline(opts,args):
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
 					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
 
-
-
-
-
-
 	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
 	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
-
 
 	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
 					  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
 					  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
 	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
-					  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
-					  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
+	 				  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
+	 				  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
 
-	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
-	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
-
-
-
-
+	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Head")
+	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Brain")
 
 
 	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1',)]),
@@ -245,10 +232,6 @@ def runPipeline(opts,args):
 
 	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
 	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
-
-
-
-
 
 
     #Connect PET to PET volume
@@ -376,6 +359,10 @@ if __name__ == "__main__":
 
 	usage = "usage: "
 
+	file_dir = os.path.dirname(os.path.realpath(__file__))
+	atlas_dir = file_dir + "/Atlas/MNI152/"
+
+
 	parser = OptionParser(usage=usage,version=version)
 
 	group= OptionGroup(parser,"File options (mandatory)")
@@ -390,7 +377,7 @@ if __name__ == "__main__":
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"Registration options")
-	group.add_option("","--modelDir",dest="modelDir",help="Models directory",default='/data/movement/movement7/klarcher/share/icbm/')
+	group.add_option("","--modelDir",dest="modelDir",help="Models directory",default=atlas_dir)
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"PET acquisition options")
@@ -401,7 +388,7 @@ if __name__ == "__main__":
 	group.add_option("","--ref-nonlinear",dest="RefMaskType",help="Non linear registration based segmentatoin",action='store_const',const='nonlinear',default='atlas')
 	group.add_option("","--ref-no-transform",dest="RefMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='atlas')
 	group.add_option("","--ref-atlas_labels",dest="RefAtlasValue",help="Label value(s) from ANIMAL segmentation. By default, the values correspond to the cerebellum",type='string',action='callback',callback=get_opt_list,default=['67','76'])
-	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default= atlas_dir + 'mni_icbm152_t1_tal_nlin_sym_09a.mnc')
 	group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
 	group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
 	group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
@@ -412,9 +399,9 @@ if __name__ == "__main__":
 	group.add_option("","--roi-animal",dest="roiValueAnimal",help="Label value(s) from ANIMAL segmentation.",type='string',action='callback',callback=get_opt_list)
 	group.add_option("","--roi-linreg",dest="roiRegister",help="Non-linear registration based segmentation",action='store_true',default=False)
 	group.add_option("","--roi-no-linreg",dest="roiRegister",help="Don't run any non-linear registration",action='store_false',default=False)
-	group.add_option("","--roi-template",dest="templateROI",help="Template to segment the ROI.",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--roi-template",dest="templateROI",help="Template to segment the ROI.",default=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc')
 	group.add_option("","--roi-template-suffix",dest="templateROIsuffix",help="Suffix for the ROI template.",default='icbm152')
-	group.add_option("","--roi-mask",dest="ROIOnTemplate",help="ROI mask on the template",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
+	group.add_option("","--roi-mask",dest="ROIOnTemplate",help="ROI mask on the template",default=atlas_dir + 'mni_icbm152_t1_tal_nlin_sym_09a_atlas/atlas_level0.5_BG.mnc')	
 	group.add_option("","--roi-suffix",dest="ROIsuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--roi-labels",dest="ROILabels",help="ROI labels",type='string',action='callback',callback=get_opt_list,default=['4','5','6','9','10','11'])
 	group.add_option("","--roi-erosion",dest="roiErosion",help="Erode the ROI mask",action='store_true',default=False)

@@ -49,10 +49,12 @@ class T1maskingRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-		model_headmask = self.inputs.modelDir+"/icbm_avg_152_t1_tal_lin_headmask.mnc"
+		model_headmask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09a_headmask.mnc"
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
-		# run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
+		#run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
+
+
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
@@ -60,14 +62,14 @@ class T1maskingRunning(BaseInterface):
 
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1headmask = dname +os.sep+ fname + "_headmask.mnc"
+			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
+			print(dname)
+			self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
 
 		if not isdefined(self.inputs.T1brainmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname +os.sep+ fname + "_brainmask.mnc"
-
+			dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1brainmask = dname + os.sep + fname + "_braimmask.mnc"
 
 		run_resample = ResampleCommand();
 		run_resample.inputs.in_file = model_headmask
@@ -76,10 +78,11 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
+
 		if self.inputs.verbose:
 		    print run_resample.cmdline
 		if self.inputs.run:
-		    run_resample.run()
+			run_resample.run()
 
 
 		run_resample = ResampleCommand();
@@ -89,10 +92,14 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
+
+
 		if self.inputs.verbose:
 		    print run_resample.cmdline
+
 		if self.inputs.run:
-		    run_resample.run()
+			run_resample.run()
+
 
 		return runtime
 
@@ -100,7 +107,6 @@ class T1maskingRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["T1headmask"] = self.inputs.T1headmask
         outputs["T1brainmask"] = self.inputs.T1brainmask
-
         return outputs  
 
 

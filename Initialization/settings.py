@@ -5,7 +5,9 @@ import shutil
 import nipype.interfaces.minc as minc
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.utils.filemanip import (load_json, save_json, update_minchd_json, split_filename, fname_presuffix)
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix)
+from nipype.utils.minc_filemanip import update_minchd_json
+
 from nipype.interfaces.minc.info import InfoCommand
 
 

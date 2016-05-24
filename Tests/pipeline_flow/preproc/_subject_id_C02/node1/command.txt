@@ -1,1 +1,0 @@
-mincmath /data1/projects/nipype/tf/tka_nipype/Tests/pipeline_flow/data/PET/test_C02_pet.mnc -mult -const 2.00000000 brain_mask_2.mnc

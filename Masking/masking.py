@@ -62,14 +62,14 @@ class T1maskingRunning(BaseInterface):
 
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = os.getcwd() +"/" #os.path.dirname(self.inputs.nativeT1)
+			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
 			print(dname)
-			self.inputs.T1headmask = dname+fname + "_headmask.mnc"
+			self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
 
 		if not isdefined(self.inputs.T1brainmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = dname = os.getcwd() +"/"  #os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname + fname + "_braimmask.mnc"
+			dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1brainmask = dname + os.sep + fname + "_braimmask.mnc"
 
 		run_resample = ResampleCommand();
 		run_resample.inputs.in_file = model_headmask

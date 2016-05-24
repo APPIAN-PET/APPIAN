@@ -10,8 +10,6 @@ import time
 
 from optparse import OptionParser
 from optparse import OptionGroup
-#sys.path.insert(1, "/home/t/neuro/projects/nipype/tka_nipype/")
-#print sys.path
 import nipype.interfaces.minc as minc
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
@@ -107,7 +105,6 @@ def runPipeline(opts,args):
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_condition_id_', ''), ('subject_id_', '')]
 
-
 	##Nodes###
 	node_name="t1Masking"
 	t1Masking = pe.Node(interface=masking.T1maskingRunning(), name=node_name)
@@ -118,35 +115,6 @@ def runPipeline(opts,args):
 	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
 	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
-
-	workflow = pe.Workflow(name='preproc')
-	workflow.base_dir = opts.targetDir
-
-	workflow.connect([(infosource, datasourceRaw, [('subject_id', 'subject_id')]),
-                      (infosource, datasourceRaw, [('condition_id', 'condition_id')]),
-                      (infosource, datasourceRaw, [('study_prefix', 'study_prefix')]),
-                      (infosource, datasourceCivet, [('subject_id', 'subject_id')]),
-                      (infosource, datasourceCivet, [('study_prefix', 'study_prefix')])
-                	 ])
-	workflow.connect([(datasourceCivet, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
-					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
-					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
-
-	#workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
-	#workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
-	workflow.connect(t1Masking, 'T1brainmask', datasink, t1Masking.name+"Head")
-	workflow.connect(t1Masking, 'T1headmask', datasink, t1Masking.name+"Brain")
-
-	printOptions(opts,subjects_ids)
-	print __file__
-
-	#run the work flow
-	#workflow.run()
-
-	########################
-	####REMOVE##############
-	########################
-	
 	node_name="refMasking"
 	refMasking = pe.Node(interface=masking.RefmaskingRunning(), name=node_name)
 	refMasking.inputs.segLabels = opts.RefAtlasValue
@@ -226,28 +194,18 @@ def runPipeline(opts,args):
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
 					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
 
-
-
-
-
-
 	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
 	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
-
 
 	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
 					  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
 					  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
 	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
-					  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
-					  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
+	 				  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
+	 				  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
 
-	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
-	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
-
-
-
-
+	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Head")
+	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Brain")
 
 
 	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1',)]),
@@ -274,10 +232,6 @@ def runPipeline(opts,args):
 
 	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
 	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
-
-
-
-
 
 
     #Connect PET to PET volume

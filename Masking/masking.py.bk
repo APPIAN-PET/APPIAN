@@ -8,7 +8,7 @@ from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-#from nipype.interfaces.minc.base import Info
+from nipype.interfaces.minc.base import Info
 
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
@@ -49,12 +49,10 @@ class T1maskingRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-		model_headmask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09a_headmask.mnc"
+		model_headmask = self.inputs.modelDir+"/icbm_avg_152_t1_tal_lin_headmask.mnc"
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
-		#run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
-
-
+		# run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
@@ -62,14 +60,14 @@ class T1maskingRunning(BaseInterface):
 
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
-			print(dname)
-			self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
+			dname = os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1headmask = dname +os.sep+ fname + "_headmask.mnc"
 
 		if not isdefined(self.inputs.T1brainmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname + os.sep + fname + "_braimmask.mnc"
+			dname = os.path.dirname(self.inputs.nativeT1)
+			self.inputs.T1brainmask = dname +os.sep+ fname + "_brainmask.mnc"
+
 
 		run_resample = ResampleCommand();
 		run_resample.inputs.in_file = model_headmask
@@ -78,11 +76,10 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
-
 		if self.inputs.verbose:
 		    print run_resample.cmdline
 		if self.inputs.run:
-			run_resample.run()
+		    run_resample.run()
 
 
 		run_resample = ResampleCommand();
@@ -92,14 +89,10 @@ class T1maskingRunning(BaseInterface):
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
-
-
 		if self.inputs.verbose:
 		    print run_resample.cmdline
-
 		if self.inputs.run:
-			run_resample.run()
-
+		    run_resample.run()
 
 		return runtime
 
@@ -107,53 +100,53 @@ class T1maskingRunning(BaseInterface):
         outputs = self.output_spec().get()
         outputs["T1headmask"] = self.inputs.T1headmask
         outputs["T1brainmask"] = self.inputs.T1brainmask
+
         return outputs  
 
 
 
 
 
-class RegionalMaskingInput(BaseInterfaceInputSpec):
+class RefmaskingInput(BaseInterfaceInputSpec):
 	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
 	T1Tal = File(exists=True, mandatory=True, desc="T1 image normalized into Talairach space")
 	LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
-	brainmaskTal  = File(exists=True, desc="Brain mask image in Talairach space")
-	clsmaskTal  = File(exists=True, desc="Classification mask in Talairach space")
-	segMaskTal  = File(exists=True, desc="Segmentation mask in Talairach space")
+	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
+	clsmaskTal  = File(exists=True, mandatory=True, desc="Classification mask in Talairach space")
+	segMaskTal  = File(exists=True, mandatory=True, desc="Segmentation mask in Talairach space")
 	segLabels = traits.Array(usedefault=True, value=[67, 76], desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
 	
 	_methods = ["atlas", "nonlinear", "no-transform"]
 	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
-	modelDir = traits.Str(exists=True, desc="Models directory")
-	model = traits.Str(exists=True, desc="Template image")
-	RegionalMaskTemplate  = File(exists=True, desc="Mask on the template")
+	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
+	RefmaskTemplate  = File(exists=True, desc="Reference mask on the template")
 	close = traits.Bool(usedefault=True, default_value=True, desc="erosion(dilation(X))")
 	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
 	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
 
-	RegionalMaskTal  = File(desc="Reference mask in Talairach space")
-	RegionalMaskT1  = File(desc="Reference mask in the native space")
+	RefmaskTal  = File(desc="Reference mask in Talairach space")
+	RefmaskT1  = File(desc="Reference mask in the native space")
 	
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class RegionalMaskingOutput(TraitedSpec):
-	RegionalMaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
-	RegionalMaskT1  = File(mandatory=True, desc="Reference mask in the native space")
+class RefmaskingOutput(TraitedSpec):
+	RefmaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
+	RefmaskT1  = File(mandatory=True, desc="Reference mask in the native space")
 
-class RegionalMaskingRunning(BaseInterface):
-    input_spec = RegionalMaskingInput
-    output_spec = RegionalMaskingOutput
-    _suffix = "_RegionalMask"
+class RefmaskingRunning(BaseInterface):
+    input_spec = RefmaskingInput
+    output_spec = RefmaskingOutput
+    _suffix = "_RefMask"
 
   #   def _parse_inputs(self, skip=None):
 		# if skip is None:
 		# 	skip = []
-		# if not isdefined(self.inputs.RegionalMaskT1):
-		# 	self.inputs.RegionalMaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
-		# if not isdefined(self.inputs.RegionalMaskTal):
-		# 	self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
+		# if not isdefined(self.inputs.RefmaskT1):
+		# 	self.inputs.RefmaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
+		# if not isdefined(self.inputs.RefmaskTal):
+		# 	self.inputs.RefmaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 
 
 
@@ -161,15 +154,15 @@ class RegionalMaskingRunning(BaseInterface):
 		tmpDir = tempfile.mkdtemp()
 		# self._parse_inputs()
 
-		if not isdefined(self.inputs.RegionalMaskT1):
-			self.inputs.RegionalMaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
-		if not isdefined(self.inputs.RegionalMaskTal):
-			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
+		if not isdefined(self.inputs.RefmaskT1):
+			self.inputs.RefmaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
+		if not isdefined(self.inputs.RefmaskTal):
+			self.inputs.RefmaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 		
 		if self.inputs.MaskingType == 'no-transform':
 			run_resample = ResampleCommand();
-			run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
-			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
+			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.out_file = self.inputs.RefmaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
 			if self.inputs.verbose:
@@ -178,35 +171,34 @@ class RegionalMaskingRunning(BaseInterface):
 			    run_resample.run()
 
 		elif self.inputs.MaskingType == 'nonlinear':
-			run_nlinreg=reg.nLinRegRunning();
-			if not self.inputs.model:
-				run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
-				run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
-				run_nlinreg.inputs.in_source_mask = self.inputs.brainmaskTal
-				run_nlinreg.inputs.in_target_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b_mask.mnc"
-			else:
-				run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
-				run_nlinreg.inputs.in_target_file = self.inputs.model
-			
-			sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
+			model_T1 = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+			model_T1_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+			T1toModel_ref_xfm = tmpDir+"/T1toModel_ref.xfm"
 
-			run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm
+			run_nlinreg=reg.nLinRegRunning();
+			run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
+			run_nlinreg.inputs.in_file_target_file = model_T1
+			run_nlinreg.inputs.in_file_source_mask = self.inputs.brainmaskTal
+			run_nlinreg.inputs.in_file_target_mask = model_T1_mask
+			run_nlinreg.inputs.out_file_xfm = T1toModel_ref_xfm
 			run_nlinreg.inputs.clobber = self.inputs.clobber;
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
 			run_nlinreg.inputs.run = self.inputs.run;
 			run_nlinreg.run()
 
 			run_resample = ResampleCommand();
-			run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
-			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
+			run_resample.inputs.in_file = self.inputs.RefmaskTemplate
+			run_resample.inputs.out_file = self.inputs.RefmaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
-			run_resample.inputs.transformation = sourceToModel_xfm
+			run_resample.inputs.transformation = T1toModel_ref_xfm
 			run_resample.inputs.interpolation = 'nearest_neighbour'
 			run_resample.inputs.clobber = True
 			if self.inputs.verbose:
 			    print run_resample.cmdline
 			if self.inputs.run:
 			    run_resample.run()
+
+
 
 		else:
 			mask = tmpDir+"/mask.mnc"
@@ -245,7 +237,7 @@ class RegionalMaskingRunning(BaseInterface):
   				if self.inputs.refGM:
 					run_calc = CalcCommand();
 					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
+					run_calc.inputs.out_file = self.inputs.RefmaskTal
 					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0'
 					if self.inputs.verbose:
 						print run_calc.cmdline
@@ -255,7 +247,7 @@ class RegionalMaskingRunning(BaseInterface):
 				if self.inputs.refWM:
 					run_calc = CalcCommand();
 					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
+					run_calc.inputs.out_file = self.inputs.RefmaskTal
 					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0'
 					if self.inputs.verbose:
 						print run_calc.cmdline
@@ -264,10 +256,10 @@ class RegionalMaskingRunning(BaseInterface):
 
 			else:
 				if self.inputs.verbose:
-					cmd=' '.join(['cp', mask_clean, self.inputs.RegionalMaskTal])
+					cmd=' '.join(['cp', mask_clean, self.inputs.RefmaskTal])
 					print(cmd)
 				if self.inputs.run:
-					shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
+					shutil.copy(mask_clean, self.inputs.RefmaskTal)
 
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
@@ -277,8 +269,8 @@ class RegionalMaskingRunning(BaseInterface):
 		    run_xfminvert.run()
 
 		run_resample = ResampleCommand();
-		run_resample.inputs.in_file = self.inputs.RegionalMaskTal
-		run_resample.inputs.out_file = self.inputs.RegionalMaskT1
+		run_resample.inputs.in_file = self.inputs.RefmaskTal
+		run_resample.inputs.out_file = self.inputs.RefmaskT1
 		run_resample.inputs.model_file = self.inputs.nativeT1
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
@@ -294,8 +286,8 @@ class RegionalMaskingRunning(BaseInterface):
 
     def _list_outputs(self):
 		outputs = self.output_spec().get()
-		outputs["RegionalMaskTal"] = self.inputs.RegionalMaskTal
-		outputs["RegionalMaskT1"] = self.inputs.RegionalMaskT1
+		outputs["RefmaskTal"] = self.inputs.RefmaskTal
+		outputs["RefmaskT1"] = self.inputs.RefmaskT1
 
 		return outputs
 

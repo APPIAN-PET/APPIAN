@@ -59,3 +59,26 @@ class idwcRpmRunning(BaseInterface):
 
 
 
+class dftRegionalInput(BaseInterfaceInputSpec):
+
+    clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
+    run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
+    verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
+
+class dftRegionalOutput(TraitedSpec):
+
+class dftRegionalRunning(BaseInterface):
+    input_spec = dftRegionalInput
+    output_spec = dftRegionalOutput
+
+
+    def _run_interface(self, runtime):
+
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+
+
+

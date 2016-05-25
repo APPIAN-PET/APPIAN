@@ -246,8 +246,8 @@ class nLinRegOutput(TraitedSpec):
 class nLinRegInput(BaseInterfaceInputSpec):
     in_target_file = File(position=0, argstr="%s", exists=True, mandatory=True, desc="target image")
     in_source_file = File(position=1, argstr="%s", exists=True, mandatory=True, desc="source image")
-    in_target_mask = File(position=2, argstr="-source_mask %s", exists=True, desc="target mask")
-    in_source_mask = File(position=3, argstr="-target_mask %s", exists=True, desc="source mask")
+    in_target_mask = File(position=2, argstr="-source_mask %s", desc="target mask")
+    in_source_mask = File(position=3, argstr="-target_mask %s", desc="source mask")
     init_file_xfm = File(argstr="-init_xfm %s", exists=True, desc="initial transformation (default identity)")
     normalize = traits.Bool(argstr="-normalize", usedefault=True, default_value=False, desc="Do intensity normalization on source to match intensity of target")
     out_file_xfm = File(position=-2, argstr="%s", mandatory=True, desc="transformation matrix")
@@ -351,13 +351,13 @@ class nLinRegRunning(BaseInterface):
 
 
             print '-------+------- iteration'+str(i)+' -------+-------'
-            print '       | steps : \t\t'+ confi.steps
-            print '       | blur_fwhm : \t'+ str(confi.blur_fwhm)
-            print '       | nonlinear : \t\t'+ str(confi.nonlinear)
-            print '       | weight : \t\t'+ str(confi.weight)
-            print '       | stiffness : \t\t'+ str(confi.stiffness)
-            print '       | similarity : \t\t'+ str(confi.similarity)
-            print '       | sub_lattice : \t\t'+ str(confi.sub_lattice)
+            print '       | steps : \t\t'+ str(confi.step)
+            print '       | blur_fwhm : \t\t'+ str(confi.blur_fwhm)
+            print '       | nonlinear : \t\t'+ str(nonlin_tracc_args.nonlinear)
+            print '       | weight : \t\t'+ str(nonlin_tracc_args.weight)
+            print '       | stiffness : \t\t'+ str(nonlin_tracc_args.stiffness)
+            print '       | similarity : \t\t'+ str(nonlin_tracc_args.similarity)
+            print '       | sub_lattice : \t\t'+ str(nonlin_tracc_args.sub_lattice)
             print '       | source : \t\t'+ tmp_source_blur
             print '       | target : \t\t'+ tmp_target_blur
             print '       | xfm : \t\t\t'+ tmp_xfm
@@ -414,10 +414,6 @@ class nLinRegRunning(BaseInterface):
             run_tracc = TraccCommand();
             run_tracc.inputs.in_source_file=tmp_source_blur
             run_tracc.inputs.in_target_file=tmp_target_blur
-            if i == 6:
-                run_tracc.inputs.out_file_xfm=self.inputs.out_file_xfm
-            else :
-                run_tracc.inputs.out_file_xfm=tmp_xfm
             run_tracc.inputs.steps=str(confi.step)+' '+str(confi.step)+' '+str(confi.step)
             run_tracc.inputs.iterations=confi.iterations
             run_tracc.inputs.nonlinear=nonlin_tracc_args.nonlinear
@@ -426,15 +422,18 @@ class nLinRegRunning(BaseInterface):
             run_tracc.inputs.similarity=nonlin_tracc_args.similarity
             run_tracc.inputs.sub_lattice=nonlin_tracc_args.sub_lattice
             run_tracc.inputs.lattice=str(confi.lattice_diam)+' '+str(confi.lattice_diam)+' '+str(confi.lattice_diam)
+            if i == 6:
+                run_tracc.inputs.out_file_xfm=self.inputs.out_file_xfm
+            else :
+                run_tracc.inputs.out_file_xfm=tmp_xfm
             if i == 1:
-	    	run_tracc.inputs.identity=True
-		
+                run_tracc.inputs.identity=True
             if prev_xfm:
                 run_tracc.inputs.transformation=prev_xfm
-            if self.inputs.input_source_mask:
-                run_tracc.inputs.input_source_mask=self.inputs.input_source_mask
-            if self.inputs.input_target_mask:
-                run_tracc.inputs.input_target_mask=self.inputs.input_target_mask
+            if self.inputs.in_source_mask:
+                run_tracc.inputs.in_source_mask=self.inputs.in_source_mask
+            if self.inputs.in_target_mask:
+                run_tracc.inputs.in_target_mask=self.inputs.in_target_mask
 
             if self.inputs.verbose:
                 print run_tracc.cmdline
@@ -445,20 +444,21 @@ class nLinRegRunning(BaseInterface):
             if i == 6:
                 prev_xfm = self.inputs.out_file_xfm
             else :
-                run_resample = ResampleCommand();
-                run_resample.inputs.input_file=source
-                run_resample.inputs.out_file=tmp_rspl_vol
-                run_resample.inputs.model_file=target
-                run_resample.inputs.transformation=tmp_xfm
-                if self.inputs.verbose:
-                    print run_resample.cmdline
-                if self.inputs.run:
-                    run_resample.run()
+                prev_xfm = tmp_xfm
+                
+            run_resample = ResampleCommand();
+            run_resample.inputs.in_file=source
+            run_resample.inputs.out_file=tmp_rspl_vol
+            run_resample.inputs.model_file=target
+            run_resample.inputs.transformation=tmp_xfm
+            if self.inputs.verbose:
+                print run_resample.cmdline
+            if self.inputs.run:
+                run_resample.run()
 
                 # prev_xfm = tmp_xfm
 
             i += 1
-
             print '\n'
 
 
@@ -466,19 +466,20 @@ class nLinRegRunning(BaseInterface):
         if self.inputs.init_file_xfm:
             run_concat = ConcatCommand();
             run_concat.inputs.in_file=self.inputs.init_xfm
-            run_concat.inputs.in_file_2=tmp_xfm
+            run_concat.inputs.in_file_2=prev_xfm
             run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_concat.cmdline
             if self.inputs.run:
                 run_concat.run()
 
-        else:
-            if self.inputs.verbose:
-                cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
-                print(cmd)
-            if self.inputs.run:
-                shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
+        # else:
+        #     if self.inputs.verbose:
+        #         cmd=' '.join(['cp', prev_xfm, self.inputs.out_file_xfm])
+        #         print(cmd)
+        #     if self.inputs.run:
+        #         shutil.copy(prev_xfm, self.inputs.out_file_xfm)
+
 
 
         if self.inputs.out_file_img:

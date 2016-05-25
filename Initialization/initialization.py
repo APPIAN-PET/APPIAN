@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import shutil
 import pyezminc
-import minc
+# import minc
 
 from os.path import basename
 from math import *

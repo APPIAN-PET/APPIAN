@@ -36,7 +36,7 @@ def printOptions(opts,args):
 	print "* The Civet directory is : "+opts.civetDir+"\n"
 	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
 	print "* PET conditions : "+opts.condiList+"\n"
-	print "* ROI labels : "+str(', '.join(opts.ROILabels))+"\n"
+	print "* ROI labels : "+str(', '.join(opts.RoiLabels))+"\n"
 
 
 
@@ -118,10 +118,11 @@ def runPipeline(opts,args):
 	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
 	node_name="refMasking"
-	refMasking = pe.Node(interface=masking.RefmaskingRunning(), name=node_name)
-	refMasking.inputs.segLabels = opts.RefAtlasValue
+	refMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
 	refMasking.inputs.MaskingType = opts.RefMaskType
-	refMasking.inputs.modelDir = opts.RefTemplate
+	# refMasking.inputs.modelDir = opts.RefTemplateDir
+	refMasking.inputs.model = opts.RefTemplate
+	refMasking.inputs.segLabels = opts.RefAnimalValues
 	refMasking.inputs.close = opts.RefClose
 	refMasking.inputs.refGM = True if opts.RefMatter == 'gm' else False
 	refMasking.inputs.refWM = True if opts.RefMatter == 'wm' else False
@@ -130,6 +131,18 @@ def runPipeline(opts,args):
 	refMasking.inputs.run = opts.prun
 	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
 	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+
+	node_name="roiMasking"
+	roiMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
+	roiMasking.inputs.MaskingType = opts.RoiMaskType
+	roiMasking.inputs.model = opts.RoiTemplate
+	roiMasking.inputs.segLabels = opts.RoiAnimalValues
+	# roiMasking.inputs.erosion = False
+	roiMasking.inputs.clobber = True
+	roiMasking.inputs.verbose = opts.verbose
+	roiMasking.inputs.run = opts.prun
+	rRoiMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rRoiMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
 
 	node_name="petCenter"
@@ -220,23 +233,23 @@ def runPipeline(opts,args):
 
 
 
-	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1',)]),
-                      (datasourceCivet, refMasking, [('talT1','T1Tal', )]),
+	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1')]),
+                      (datasourceCivet, refMasking, [('talT1','T1Tal')]),
                       (datasourceCivet, refMasking, [('xfmT1tal','LinT1TalXfm')]),
                       (datasourceCivet, refMasking, [('brainmasktal','brainmaskTal' )]),
                       (datasourceCivet, refMasking, [('clsmask','clsmaskTal')]),
                       (datasourceCivet, refMasking, [('animalmask','segMaskTal' )])
                     ])
   
-    #Connect RefmaskTal from refMasking to rename node
-	workflow.connect([(refMasking, rRefMaskingTal, [('RefmaskTal', 'in_file')])])
+    #Connect RegionalMaskTal from refMasking to rename node
+	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
                       (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
                     ])
 
-    #Connect RefmaskT1 from refMasking to rename node
-	workflow.connect([(refMasking, rRefMaskingT1, [('RefmaskT1', 'in_file')])])
+    #Connect RegionalMaskT1 from refMasking to rename node
+	workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
                       (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
@@ -244,6 +257,41 @@ def runPipeline(opts,args):
 
 	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
 	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
+
+
+
+
+
+
+	workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]),
+                      (datasourceCivet, roiMasking, [('talT1','T1Tal')]),
+                      (datasourceCivet, roiMasking, [('xfmT1tal','LinT1TalXfm')]),
+                      (datasourceCivet, roiMasking, [('brainmasktal','brainmaskTal' )]),
+                      (datasourceCivet, roiMasking, [('clsmask','clsmaskTal')]),
+                      (datasourceCivet, roiMasking, [('animalmask','segMaskTal' )])
+                    ])
+  
+    #Connect RegionalMaskTal from roiMasking to rename node
+	workflow.connect([(roiMasking, rRoiMaskingTal, [('RegionalMaskTal', 'in_file')])])
+	workflow.connect([(infosource, rRoiMaskingTal, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRoiMaskingTal, [('subject_id', 'subject_id')]),
+                      (infosource, rRoiMaskingTal, [('condition_id', 'condition_id')])
+                    ])
+
+    #Connect RegionalMaskT1 from roiMasking to rename node
+	workflow.connect([(roiMasking, rRoiMaskingT1, [('RegionalMaskT1', 'in_file')])])
+	workflow.connect([(infosource, rRoiMaskingT1, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRoiMaskingT1, [('subject_id', 'subject_id')]),
+                      (infosource, rRoiMaskingT1, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rRoiMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
+	workflow.connect(rRoiMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
+
+
+
+
+
 
 
 
@@ -333,7 +381,7 @@ def runPipeline(opts,args):
 
 
     #
-	workflow.connect([(refMasking, petRefMask, [('RefmaskT1', 'in_file' )]),
+	workflow.connect([(refMasking, petRefMask, [('RegionalMaskT1', 'in_file' )]),
                       (petVolume, petRefMask, [('out_file', 'model_file')]), 
                       (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
                       ]) 
@@ -397,10 +445,11 @@ if __name__ == "__main__":
 		
 	group= OptionGroup(parser,"Masking options","Reference region")
 	group.add_option("","--ref-atlas",dest="RefMaskType",help="Use an atlas to make the Reference mask",action='store_const',const='atlas',default='atlas')
-	group.add_option("","--ref-nonlinear",dest="RefMaskType",help="Non linear registration based segmentatoin",action='store_const',const='nonlinear',default='atlas')
-	group.add_option("","--ref-no-transform",dest="RefMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='atlas')
-	group.add_option("","--ref-atlas_labels",dest="RefAtlasValue",help="Label value(s) from ANIMAL segmentation. By default, the values correspond to the cerebellum",type='string',action='callback',callback=get_opt_list,default=['67','76'])
-	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--ref-nlinreg",dest="RefMaskType",help="Non linear registration based segmentatoin",action='store_const',const='nonlinear',default='atlas')
+	group.add_option("","--ref-no-nlinreg",dest="RefMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='atlas')
+	group.add_option("","--ref-animal-labels",dest="RefAnimalValues",help="Label value(s) from ANIMAL segmentation. By default, the values correspond to the cerebellum",type='string',action='callback',callback=get_opt_list,default=['67','76'])
+	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default='/dagher/dagher4/klarcher/atlases/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--ref-template-dir",dest="RefTemplateDir",help="Template directory.",default='/dagher/dagher4/klarcher/atlases/icbm152/')
 	group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
 	group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
 	group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
@@ -408,15 +457,16 @@ if __name__ == "__main__":
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Masking options","Region Of Interest")
-	group.add_option("","--roi-animal",dest="roiValueAnimal",help="Label value(s) from ANIMAL segmentation.",type='string',action='callback',callback=get_opt_list)
-	group.add_option("","--roi-linreg",dest="roiRegister",help="Non-linear registration based segmentation",action='store_true',default=False)
-	group.add_option("","--roi-no-linreg",dest="roiRegister",help="Don't run any non-linear registration",action='store_false',default=False)
-	group.add_option("","--roi-template",dest="templateROI",help="Template to segment the ROI.",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
-	group.add_option("","--roi-template-suffix",dest="templateROIsuffix",help="Suffix for the ROI template.",default='icbm152')
-	group.add_option("","--roi-mask",dest="ROIOnTemplate",help="ROI mask on the template",default='/home/klarcher/bic/models/icbm152/mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
-	group.add_option("","--roi-suffix",dest="ROIsuffix",help="ROI suffix",default='striatal_6lbl')	
-	group.add_option("","--roi-labels",dest="ROILabels",help="ROI labels",type='string',action='callback',callback=get_opt_list,default=['4','5','6','9','10','11'])
-	group.add_option("","--roi-erosion",dest="roiErosion",help="Erode the ROI mask",action='store_true',default=False)
+	group.add_option("","--roi-atlas",dest="RoiMaskType",help="Use an atlas to make the ROI mask",action='store_const',const='atlas',default='nonlinear')	
+	group.add_option("","--roi-nlinreg",dest="RoiMaskType",help="Non-linear registration based segmentation",action='store_const',const='nonlinear',default='nonlinear')
+	group.add_option("","--roi-no-nlinreg",dest="RoiMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='nonlinear')
+	group.add_option("","--roi-animal-labels",dest="RoiAnimalValues",help="Label value(s) from ANIMAL segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+	group.add_option("","--roi-template",dest="RoiTemplate",help="Template to segment the ROI.",default='/dagher/dagher4/klarcher/atlases/icbm152/mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--roi-model",dest="RoiModel",help="ROI mask on the template",default='/dagher/dagher4/klarcher/atlases/icbm152/mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
+	group.add_option("","--roi-labels",dest="RoiLabels",help="ROI labels",type='string',action='callback',callback=get_opt_list,default=['4','5','6','9','10','11'])
+	group.add_option("","--roi-template-suffix",dest="templateRoiSuffix",help="Suffix for the ROI template.",default='icbm152')
+	group.add_option("","--roi-suffix",dest="RoiSuffix",help="ROI suffix",default='striatal_6lbl')	
+	group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")

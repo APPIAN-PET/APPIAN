@@ -122,6 +122,8 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 	segMaskTal  = File(exists=True, desc="Segmentation mask in Talairach space")
 	segLabels = traits.Array(usedefault=True, value=[67, 76], desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
 	
+	subjectROI=File(desc="Segmentation mask for subject")
+
 	_methods = ["atlas", "nonlinear", "no-transform"]
 	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
 	modelDir = traits.Str(exists=True, desc="Models directory")
@@ -166,9 +168,13 @@ class RegionalMaskingRunning(BaseInterface):
 		if not isdefined(self.inputs.RegionalMaskTal):
 			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 		
-		if self.inputs.MaskingType == 'no-transform':
+		#Option 1: Transform the atlas to have same resolution as T1 native 
+		if self.inputs.MaskingType == 'no-transform' or os.path.exists(opt.roi_dir):
 			run_resample = ResampleCommand();
-			run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
+			if os.path.exists(opt.roi_dir):
+				run_resample.inputs.in_file = self.inputs.subjectROI
+			else:
+				run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
@@ -176,27 +182,31 @@ class RegionalMaskingRunning(BaseInterface):
 			    print run_resample.cmdline
 			if self.inputs.run:
 			    run_resample.run()
-
+		#Option 2: Use a nonlinear transform to coregister the template of the atlas to the T1
 		elif self.inputs.MaskingType == 'nonlinear':
 			run_nlinreg=reg.nLinRegRunning();
+			
+			run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
+
 			if not self.inputs.model:
-				run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
-				run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc"
+				#No alternate template was specified, use MNI ICBM152
+				#Deform from MNI ICBM152 to subject stereotaxic
+				run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc" #QUESTION: can't we just use the default setting?
 				run_nlinreg.inputs.in_source_mask = self.inputs.brainmaskTal
 				run_nlinreg.inputs.in_target_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b_mask.mnc"
 			else:
-				run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
+				#Use alternate template
 				run_nlinreg.inputs.in_target_file = self.inputs.model
 			
 			sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
 
-			run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm
-			run_nlinreg.inputs.clobber = self.inputs.clobber;
+			run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm	# xfm file for the transformation from template to subject stereotaxic
+			run_nlinreg.inputs.clobber = self.inputs.clobber; 
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
 			run_nlinreg.inputs.run = self.inputs.run;
-			run_nlinreg.run()
+			run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
 
-			run_resample = ResampleCommand();
+			run_resample = ResampleCommand(); 
 			run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
@@ -206,22 +216,27 @@ class RegionalMaskingRunning(BaseInterface):
 			if self.inputs.verbose:
 			    print run_resample.cmdline
 			if self.inputs.run:
-			    run_resample.run()
-
+			    run_resample.run() #Resample the template atlas to subject stereotaxic space 
+		#Option 3: ANIMAL (or CIVET)
 		else:
 			mask = tmpDir+"/mask.mnc"
 			mask_clean = tmpDir+"/mask_clean.mnc"
 			machin = self.inputs.segLabels
 			
-			run_calc = CalcCommand();
-			run_calc.inputs.in_file = self.inputs.segMaskTal
-			run_calc.inputs.out_file = mask
-			run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'
+			run_calc = CalcCommand(); #Extract the desired labels from the atlas using minccalc.
+			run_calc.inputs.in_file = self.inputs.segMaskTal #The ANIMAL or CIVET classified atlas
+			run_calc.inputs.out_file = mask #Output mask with desired labels
+			#Select region from each hemisphere of ANIMAL:
+			run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'  
 			if self.inputs.verbose:
 				print run_calc.cmdline
 			if self.inputs.run:
 				run_calc.run()
 
+			#If we need to close the region, use mincmorph.
+			#QUESTION: Why have the option to close all regions regardless of whether its an ROI
+			#			or a reference region? Shouldn't there be a distrinction between the ROI
+			#			and reference region? 
 			if self.inputs.close:
 				run_mincmorph = MorphCommand()
 				run_mincmorph.inputs.in_file = mask
@@ -234,6 +249,7 @@ class RegionalMaskingRunning(BaseInterface):
 				if self.inputs.run:
 					run_mincmorph.run()
 			else:
+				# QUESTION: Why is the line below commented out? can't we use it instead of copying?
   				# mask_clean = mask
 				if self.inputs.verbose:
 					cmd=' '.join(['cp', mask, mask_clean])
@@ -242,11 +258,12 @@ class RegionalMaskingRunning(BaseInterface):
 					shutil.copy(mask, mask_clean)
 			
   			if self.inputs.refGM or self.inputs.refWM:
+  				#QUESTION:  If we already have the segmentation, why add the mask_class to GM or WM?
   				if self.inputs.refGM:
 					run_calc = CalcCommand();
 					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
 					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0'
+					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0' 
 					if self.inputs.verbose:
 						print run_calc.cmdline
 					if self.inputs.run:
@@ -256,12 +273,11 @@ class RegionalMaskingRunning(BaseInterface):
 					run_calc = CalcCommand();
 					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
 					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0'
+					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0' 
 					if self.inputs.verbose:
 						print run_calc.cmdline
 					if self.inputs.run:
 						run_calc.run()
-
 			else:
 				if self.inputs.verbose:
 					cmd=' '.join(['cp', mask_clean, self.inputs.RegionalMaskTal])
@@ -274,9 +290,9 @@ class RegionalMaskingRunning(BaseInterface):
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
-		    run_xfminvert.run()
+		    run_xfminvert.run() #Invert xfm file to get Tal to T1 transformation
 
-		run_resample = ResampleCommand();
+		run_resample = ResampleCommand(); #Resample regional mask to T1 native
 		run_resample.inputs.in_file = self.inputs.RegionalMaskTal
 		run_resample.inputs.out_file = self.inputs.RegionalMaskT1
 		run_resample.inputs.model_file = self.inputs.nativeT1
@@ -294,14 +310,10 @@ class RegionalMaskingRunning(BaseInterface):
 
     def _list_outputs(self):
 		outputs = self.output_spec().get()
-		outputs["RegionalMaskTal"] = self.inputs.RegionalMaskTal
-		outputs["RegionalMaskT1"] = self.inputs.RegionalMaskT1
+		outputs["RegionalMaskTal"] = self.inputs.RegionalMaskTal #Masks in stereotaxic space
+		outputs["RegionalMaskT1"] = self.inputs.RegionalMaskT1 #Masks in native space
 
 		return outputs
-
-
-
-
 
 
 class PETheadMaskingOutput(TraitedSpec):

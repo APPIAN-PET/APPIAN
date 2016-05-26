@@ -56,12 +56,18 @@ def runPipeline(opts,args):
 	print(conditions_ids)
 
 	###Infosource###
-	infosource = pe.Node(interface=util.IdentityInterface(fields=['study_prefix', 'subject_id', 'condition_id']), name="infosource")
+	is_fields=['study_prefix', 'subject_id', 'condition_id']
+	if os.path.exists(opts.roi_dir):
+		is_fields += ['RoiSuffix']
+
+	infosource = pe.Node(interface=util.IdentityInterface(fields=is_fields), name="infosource")
 	infosource.inputs.study_prefix = opts.prefix
 	infosource.iterables = [ ('subject_id', subjects_ids), ('condition_id', conditions_ids) ]
 
-
-	##Datasources###
+	#################
+	###Datasources###
+	#################
+	#PET datasource
 	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id', 'condition_id'], 
 													   outfields=['pet'], sort_filelist=False), name="datasourceRaw")
 	datasourceRaw.inputs.base_directory = opts.sourceDir
@@ -69,7 +75,17 @@ def runPipeline(opts,args):
 	datasourceRaw.inputs.field_template = dict(pet='pet/%s/%s_%s_%s_real_orig.mnc')
 	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'subject_id', 'condition_id']])	
 
+	#Subject ROI datasource
+	if os.path.exists(opts.roi_dir):
+		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id', 'RoiSuffix'], 
+														   outfields=['subjectROI'], sort_filelist=False), name="datasourceROI")
+		datasourceROI.inputs.base_directory = opts.roi_dir
+		datasourceROI.inputs.template = '*'
+		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
+		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'subject_id', 'RoiSuffix']])	
 
+
+	#CIVET datasource
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
 														 outfields=['nativeT1', 'nativeT1nuc', 
 														 			'talT1', 'xfmT1tal','xfmT1talnl',
@@ -98,13 +114,16 @@ def runPipeline(opts,args):
 										   		animalmask=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']] 										   		
 										   		)	
 
-
-	##Datasink###
+	##############
+	###Datasink###
+	##############
 	datasink=pe.Node(interface=nio.DataSink(), name="output")
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_condition_id_', ''), ('subject_id_', '')]
 
-	##Nodes###
+	###########
+	###Nodes###
+	###########
 	node_name="t1Masking"
 	t1Masking = pe.Node(interface=masking.T1maskingRunning(), name=node_name)
 	t1Masking.inputs.modelDir = opts.modelDir
@@ -200,8 +219,16 @@ def runPipeline(opts,args):
                       (infosource, datasourceRaw, [('condition_id', 'condition_id')]),
                       (infosource, datasourceRaw, [('study_prefix', 'study_prefix')]),
                       (infosource, datasourceCivet, [('subject_id', 'subject_id')]),
-                      (infosource, datasourceCivet, [('study_prefix', 'study_prefix')])
+                      (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
+
+	if os.path.exists(opt.roi_dir):
+		workflow.connect([(infosource, datasourceROI, [('study_prefix', 'study_prefix')]),
+                 	  	  (infosource, datasourceROI, [('subject_id', 'subject_id')]),
+                 	  	  (infosource, datasourceROI, [('RoiSuffix', 'RoiSuffix')])
+                 	  	  ])
+		workflow.connect([(datasourceROI, roiMasking, [('subjectROI','subjectROI')])])
+
 	workflow.connect([(datasourceCivet, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
 					  (datasourceCivet, t1Masking, [('brainmasktal', 'brainmaskTal')])])
@@ -254,6 +281,10 @@ def runPipeline(opts,args):
                       (datasourceCivet, roiMasking, [('clsmask','clsmaskTal')]),
                       (datasourceCivet, roiMasking, [('animalmask','segMaskTal' )])
                     ])
+
+	#DELETE?
+	#workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]) ])
+
   
     #Connect RegionalMaskTal from roiMasking to rename node
 	workflow.connect([(roiMasking, rRoiMaskingTal, [('RegionalMaskTal', 'in_file')])])
@@ -403,7 +434,7 @@ if __name__ == "__main__":
 
 	file_dir = os.path.dirname(os.path.realpath(__file__))
 	atlas_dir = file_dir + "/Atlas/MNI152/"
-
+	icbm152=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc'
 
 	parser = OptionParser(usage=usage,version=version)
 
@@ -426,28 +457,39 @@ if __name__ == "__main__":
 	parser.add_option_group(group)
 		
 	group= OptionGroup(parser,"Masking options","Reference region")
-	group.add_option("","--ref-atlas",dest="RefMaskType",help="Use an atlas to make the Reference mask",action='store_const',const='atlas',default='atlas')
-	group.add_option("","--ref-nlinreg",dest="RefMaskType",help="Non linear registration based segmentatoin",action='store_const',const='nonlinear',default='atlas')
-	group.add_option("","--ref-no-nlinreg",dest="RefMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='atlas')
-	group.add_option("","--ref-animal-labels",dest="RefAnimalValues",help="Label value(s) from ANIMAL segmentation. By default, the values correspond to the cerebellum",type='string',action='callback',callback=get_opt_list,default=['67','76'])
-	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default= atlas_dir + 'mni_icbm152_t1_tal_nlin_sym_09a.mnc')
+	group.add_option("","--ref-user",dest="RefMaskingType",help="User defined ROI for each subject",action='store_const',const='no-transform',default='animal')	
+	group.add_option("","--ref-animal",dest="RefMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
+	group.add_option("","--ref-civet",dest="RefMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='animal')
+	group.add_option("","--ref-icbm152-atlas",dest="RefMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='animal')
+	group.add_option("","--ref-atlas",dest="RefMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='animal')
+	group.add_option("","--ref-labels",dest="RefAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default=icbm152)
+
 	group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
 	group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
 	group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
+	group.add_option("","--ref-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
 	group.add_option("","--ref-mask",dest="RefOnTemplate",help="Reference mask on the template",default=None)	
+	group.add_option("","--ref_dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
+	group.add_option("","--ref-template-suffix",dest="templateRefSuffix",help="Suffix for the Ref template.",default='icbm152')
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Masking options","Region Of Interest")
-	group.add_option("","--roi-atlas",dest="RoiMaskType",help="Use an atlas to make the ROI mask",action='store_const',const='atlas',default='nonlinear')	
-	group.add_option("","--roi-nlinreg",dest="RoiMaskType",help="Non-linear registration based segmentation",action='store_const',const='nonlinear',default='nonlinear')
-	group.add_option("","--roi-no-nlinreg",dest="RoiMaskType",help="Don't run any non-linear registration",action='store_const',const='no-transform',default='nonlinear')
-	group.add_option("","--roi-animal-labels",dest="RoiAnimalValues",help="Label value(s) from ANIMAL segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
-	group.add_option("","--roi-template",dest="templateROI",help="Template to segment the ROI.",default=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc')
-	group.add_option("","--roi-model",dest="RoiModel",help="ROI mask on the template",default=atlas_dir + 'mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
+	group.add_option("","--roi-user",dest="ROIMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='icbm152')	
+	group.add_option("","--roi-animal",dest="ROIMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='icbm152')	
+	group.add_option("","--roi-civet",dest="ROIMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='icbm152')
+	group.add_option("","--roi-icbm152-atlas",dest="ROIMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
+	group.add_option("","--roi-atlas",dest="ROIMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='icbm152')	
+	group.add_option("","--roi-labels",dest="ROIAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+
+
+	group.add_option("","--roi-template",dest="ROITemplate",help="Template to segment the ROI.",default=icbm152)
+	group.add_option("","--roi-mask",dest="RoiMask",help="ROI mask on the template",default=atlas_dir + 'mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
 	group.add_option("","--roi-labels",dest="RoiLabels",help="ROI labels",type='string',action='callback',callback=get_opt_list,default=['4','5','6','9','10','11'])
 	group.add_option("","--roi-template-suffix",dest="templateRoiSuffix",help="Suffix for the ROI template.",default='icbm152')
 	group.add_option("","--roi-suffix",dest="RoiSuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
+	group.add_option("","--roi_dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default=None)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")
@@ -468,12 +510,37 @@ if __name__ == "__main__":
 
 	opts.extension='mnc'
 
+	##########################################################
+	# Check inputs to make sure there are no inconsistencies #
+	##########################################################
+
 	if not opts.sourceDir or not opts.targetDir or not opts.civetDir or not opts.prefix:
 		print "\n\n*******ERROR******** \n     You must specify -sourcedir, -targetdir, -civetdir  and -prefix \n********************\n"
 		parser.print_help()
 		sys.exit(1)
 	
-	
+	if ROIMaskingType == "roi-user":
+		if not os.path.exists(roi_dir) 
+			print "Option \'--roi-user\' requires \'-roi_dir\' "
+			exit(1)
+		if roi_suffix == None:
+			print "Option \'--roi-user\' requires \'-roi_suffix\' "
+			exit(1)
+
+	if ROIMaskingType == "icbm152":
+		if not os.path.exists(RoiMask) 
+			print "Option \'--roi-user\' requires \'-roi_dir\' "
+			exit(1)
+
+	if ROIMaskingType == "atlas":
+		if not os.path.exists(RoiMask) 
+			print "Option \'--roi-user\' requires \'-roi_dir\' "
+			exit(1)
+		if not os.path.exists(ROITemplate) 
+			print "Option \'--roi-user\' requires \'-roi_dir\' "
+			exit(1)
+
+
 	opts.targetDir = os.path.normpath(opts.targetDir)
 	opts.sourceDir = os.path.normpath(opts.sourceDir)
 	opts.civetDir = os.path.normpath(opts.civetDir)

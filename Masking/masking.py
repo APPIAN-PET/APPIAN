@@ -120,18 +120,21 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 	brainmaskTal  = File(exists=True, desc="Brain mask image in Talairach space")
 	clsmaskTal  = File(exists=True, desc="Classification mask in Talairach space")
 	segMaskTal  = File(exists=True, desc="Segmentation mask in Talairach space")
+
 	segLabels = traits.Array(usedefault=True, value=[67, 76], desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
 	
 	subjectROI=File(desc="Segmentation mask for subject")
 
-	_methods = ["atlas", "nonlinear", "no-transform"]
+	_methods = ['roi-user', 'animal', 'civet', 'icbm152', 'atlas'] 
 	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
 	modelDir = traits.Str(exists=True, desc="Models directory")
 	model = traits.Str(exists=True, desc="Template image")
+	roi_dir = File(desc="Segmentation mask in Talairach space")
 	RegionalMaskTemplate  = File(exists=True, desc="Mask on the template")
 	close = traits.Bool(usedefault=True, default_value=True, desc="erosion(dilation(X))")
 	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
 	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
+
 
 	RegionalMaskTal  = File(desc="Reference mask in Talairach space")
 	RegionalMaskT1  = File(desc="Reference mask in the native space")
@@ -169,9 +172,9 @@ class RegionalMaskingRunning(BaseInterface):
 			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 		
 		#Option 1: Transform the atlas to have same resolution as T1 native 
-		if self.inputs.MaskingType == 'no-transform' or os.path.exists(opt.roi_dir):
+		if self.inputs.MaskingType == 'icbm152' or os.path.exists(self.inputs.roi_dir):
 			run_resample = ResampleCommand();
-			if os.path.exists(opt.roi_dir):
+			if os.path.exists(str(self.inputs.roi_dir)):
 				run_resample.inputs.in_file = self.inputs.subjectROI
 			else:
 				run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate

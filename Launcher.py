@@ -34,8 +34,8 @@ def printOptions(opts,args):
 	print "* The target directory is : "+opts.targetDir+"\n"
 	print "* The Civet directory is : "+opts.civetDir+"\n"
 	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
-	print "* PET conditions : "+opts.condiList+"\n"
-	print "* ROI labels : "+str(', '.join(opts.RoiLabels))+"\n"
+	print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
+	print "* ROI labels : "+str(', '.join(opts.ROIAtlasLabels))+"\n"
 
 
 
@@ -72,7 +72,7 @@ def runPipeline(opts,args):
 													   outfields=['pet'], sort_filelist=False), name="datasourceRaw")
 	datasourceRaw.inputs.base_directory = opts.sourceDir
 	datasourceRaw.inputs.template = '*'
-	datasourceRaw.inputs.field_template = dict(pet='pet/%s/%s_%s_%s_real_orig.mnc')
+	datasourceRaw.inputs.field_template = dict(pet='%s/%s_%s_%s_pet.mnc')
 	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'subject_id', 'condition_id']])	
 
 	#Subject ROI datasource
@@ -92,6 +92,7 @@ def runPipeline(opts,args):
 														 			'brainmasktal', 'headmasktal', 'clsmask', 'animalmask'], 
 														 sort_filelist=False), name="datasourceCivet")
 	datasourceCivet.inputs.base_directory = opts.civetDir
+	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
 	datasourceCivet.inputs.field_template = dict(nativeT1='%s/%s/native/%s_%s_t1.mnc', 
 												 nativeT1nuc='%s/%s/native/%s_%s_t1_nuc.mnc', 
@@ -101,7 +102,7 @@ def runPipeline(opts,args):
 												 brainmasktal='%s/%s/mask/%s_%s_brain_mask.mnc',
 												 headmasktal='%s/%s/mask/%s_%s_skull_mask.mnc',
 												 clsmask='%s/%s/classify/%s_%s_pve_classify.mnc',
-												 animalmask='%s/%s/segment/%s_%s_stx_labels_masked.mnc'
+												 animalmask='%s/%s/segment/%s_%s_animal_labels_masked.mnc'
 												)
 	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
 										   		nativeT1nuc=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
@@ -135,10 +136,10 @@ def runPipeline(opts,args):
 
 	node_name="refMasking"
 	refMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
-	refMasking.inputs.MaskingType = opts.RefMaskType
+	refMasking.inputs.MaskingType = opts.RefMaskingType
 	# refMasking.inputs.modelDir = opts.RefTemplateDir
 	refMasking.inputs.model = opts.RefTemplate
-	refMasking.inputs.segLabels = opts.RefAnimalValues
+	refMasking.inputs.segLabels = opts.RefAtlasLabels
 	refMasking.inputs.close = opts.RefClose
 	refMasking.inputs.refGM = True if opts.RefMatter == 'gm' else False
 	refMasking.inputs.refWM = True if opts.RefMatter == 'wm' else False
@@ -150,9 +151,9 @@ def runPipeline(opts,args):
 
 	node_name="roiMasking"
 	roiMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
-	roiMasking.inputs.MaskingType = opts.RoiMaskType
-	roiMasking.inputs.model = opts.RoiTemplate
-	roiMasking.inputs.segLabels = opts.RoiAnimalValues
+	roiMasking.inputs.MaskingType = opts.ROIMaskingType
+	roiMasking.inputs.model = opts.ROITemplate
+	roiMasking.inputs.segLabels = opts.ROIAtlasLabels
 	# roiMasking.inputs.erosion = False
 	roiMasking.inputs.clobber = True
 	roiMasking.inputs.verbose = opts.verbose
@@ -222,7 +223,7 @@ def runPipeline(opts,args):
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
 
-	if os.path.exists(opt.roi_dir):
+	if os.path.exists(opts.roi_dir):
 		workflow.connect([(infosource, datasourceROI, [('study_prefix', 'study_prefix')]),
                  	  	  (infosource, datasourceROI, [('subject_id', 'subject_id')]),
                  	  	  (infosource, datasourceROI, [('RoiSuffix', 'RoiSuffix')])
@@ -435,14 +436,16 @@ if __name__ == "__main__":
 	file_dir = os.path.dirname(os.path.realpath(__file__))
 	atlas_dir = file_dir + "/Atlas/MNI152/"
 	icbm152=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc'
+	default_atlas = atlas_dir + "mni_icbm152_t1_tal_nlin_sym_09a_atlas/AtlasGrey.mnc"
+
 
 	parser = OptionParser(usage=usage,version=version)
 
 	group= OptionGroup(parser,"File options (mandatory)")
-	group.add_option("-s","--sourcedir",dest="sourceDir",help="Native pet and mri directory")
-	group.add_option("-t","--targetdir",dest="targetDir",help="Directory where output data will be saved in")
-	group.add_option("-p","--prefix",dest="prefix",help="Study name")
-	group.add_option("-c","--civetdir",dest="civetDir",help="Civet directory")
+	group.add_option("-s","--petdir",dest="sourceDir",  help="Native PET directory")
+	group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
+	group.add_option("-p","--prefix",dest="prefix",type='string',help="Study name")
+	group.add_option("-c","--civetdir",dest="civetDir",  help="Civet directory")
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"Scan options","***if not, only baseline condition***")
@@ -478,18 +481,17 @@ if __name__ == "__main__":
 	group.add_option("","--roi-user",dest="ROIMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='icbm152')	
 	group.add_option("","--roi-animal",dest="ROIMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='icbm152')	
 	group.add_option("","--roi-civet",dest="ROIMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='icbm152')
-	group.add_option("","--roi-icbm152-atlas",dest="ROIMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
+	group.add_option("","--roi-icbm152",dest="ROIMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
 	group.add_option("","--roi-atlas",dest="ROIMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='icbm152')	
 	group.add_option("","--roi-labels",dest="ROIAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
 
 
 	group.add_option("","--roi-template",dest="ROITemplate",help="Template to segment the ROI.",default=icbm152)
-	group.add_option("","--roi-mask",dest="RoiMask",help="ROI mask on the template",default=atlas_dir + 'mni_icbm152_t1_tal_nlin_BG_mask_6lbl.mnc')	
-	group.add_option("","--roi-labels",dest="RoiLabels",help="ROI labels",type='string',action='callback',callback=get_opt_list,default=['4','5','6','9','10','11'])
+	group.add_option("","--roi-mask",dest="RoiMask",help="ROI mask on the template",default=default_atlas)	
 	group.add_option("","--roi-template-suffix",dest="templateRoiSuffix",help="Suffix for the ROI template.",default='icbm152')
 	group.add_option("","--roi-suffix",dest="RoiSuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
-	group.add_option("","--roi_dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default=None)
+	group.add_option("","--roi-dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default="")
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")
@@ -518,26 +520,28 @@ if __name__ == "__main__":
 		print "\n\n*******ERROR******** \n     You must specify -sourcedir, -targetdir, -civetdir  and -prefix \n********************\n"
 		parser.print_help()
 		sys.exit(1)
-	
-	if ROIMaskingType == "roi-user":
-		if not os.path.exists(roi_dir) 
-			print "Option \'--roi-user\' requires \'-roi_dir\' "
+	print "Path:"
+	print opts.RoiMask
+
+	if opts.ROIMaskingType == "roi-user":
+		if not os.path.exists(opts.roi_dir): 
+			print "Option \'--roi-user\' requires \'-roi-dir\' "
 			exit(1)
 		if roi_suffix == None:
 			print "Option \'--roi-user\' requires \'-roi_suffix\' "
 			exit(1)
 
-	if ROIMaskingType == "icbm152":
-		if not os.path.exists(RoiMask) 
-			print "Option \'--roi-user\' requires \'-roi_dir\' "
+	if opts.ROIMaskingType == "icbm152":
+		if not os.path.exists(opts.RoiMask) :
+			print "Option \'--icbm152-atlas\' requires \'-roi-mask\' "
 			exit(1)
 
-	if ROIMaskingType == "atlas":
-		if not os.path.exists(RoiMask) 
-			print "Option \'--roi-user\' requires \'-roi_dir\' "
+	if opts.ROIMaskingType == "atlas":
+		if not os.path.exists(opts.RoiMask) :
+			print "Option \'--atlas\' requires \'-roi-dir\' "
 			exit(1)
-		if not os.path.exists(ROITemplate) 
-			print "Option \'--roi-user\' requires \'-roi_dir\' "
+		if not os.path.exists(opts.ROITemplate) :
+			print "Option \'--atlas\' requires \'-roi-dir\' "
 			exit(1)
 
 

@@ -51,9 +51,9 @@ class MincHdrInfoRunning(BaseInterface):
     def _run_interface(self, runtime):
 
         if not isdefined(self.inputs.out_file):
-            fname, ext = os.path.splitext(self.inputs.in_file)
-            self.inputs.out_file = fname + self._suffix
-
+            fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
+            dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
+            self.inputs.out_file = dname+ os.sep+fname + self._suffix
         # if os.path.exists(self.inputs.out_file):
         #     os.remove(self.inputs.out_file)
         try:
@@ -124,7 +124,10 @@ class VolCenteringRunning(BaseInterface):
 
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+            fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
+            dname = dname = os.getcwd()
+            self.inputs.out_file = dname + os.sep + fname + self._suffix
+
 	
         shutil.copy(self.inputs.in_file, self.inputs.out_file)
         infile = volumeFromFile(self.inputs.in_file)
@@ -146,7 +149,7 @@ class VolCenteringRunning(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        
+
         return outputs
 
 

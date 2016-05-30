@@ -76,14 +76,14 @@ def runPipeline(opts,args):
 	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'subject_id', 'condition_id']])	
 
 	#Subject ROI datasource
+	
 	if os.path.exists(opts.roi_dir):
 		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id', 'RoiSuffix'], 
 														   outfields=['subjectROI'], sort_filelist=False), name="datasourceROI")
 		datasourceROI.inputs.base_directory = opts.roi_dir
 		datasourceROI.inputs.template = '*'
-		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
-		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'subject_id', 'RoiSuffix']])	
-
+		datasourceROI.inputs.field_template = dict(ROIMask='%s_%s_%s.mnc')
+		datasourceROI.inputs.template_args = dict(ROIMask=[['study_prefix', 'subject_id', 'RoiSuffix']])	
 
 	#CIVET datasource
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
@@ -158,8 +158,8 @@ def runPipeline(opts,args):
 	roiMasking.inputs.clobber = True
 	roiMasking.inputs.verbose = opts.verbose
 	roiMasking.inputs.run = opts.prun
-	rRoiMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rRoiMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
 
 	node_name="petCenter"
@@ -222,13 +222,12 @@ def runPipeline(opts,args):
                       (infosource, datasourceCivet, [('subject_id', 'subject_id')]),
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
-
-	if os.path.exists(opts.roi_dir):
+	if opts.ROIMaskingType == "roi-user":
 		workflow.connect([(infosource, datasourceROI, [('study_prefix', 'study_prefix')]),
                  	  	  (infosource, datasourceROI, [('subject_id', 'subject_id')]),
                  	  	  (infosource, datasourceROI, [('RoiSuffix', 'RoiSuffix')])
                  	  	  ])
-		workflow.connect([(datasourceROI, roiMasking, [('subjectROI','subjectROI')])])
+
 
 	workflow.connect([(datasourceCivet, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
 					  (datasourceCivet, t1Masking, [('xfmT1tal', 'LinT1TalXfm')]), 
@@ -283,29 +282,30 @@ def runPipeline(opts,args):
                       (datasourceCivet, roiMasking, [('animalmask','segMaskTal' )])
                     ])
 
-	#DELETE?
-	#workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]) ])
+	if opts.ROIMaskingType == "roi-user":
+		workflow.connect([(datasourceROI, roiMasking, [('ROIMask','ROIMask')]) ])	
+	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
+		roiMasking.inputs.ROIMask=opts.ROIMask
 
+	if opts.ROIMaskingType == "atlas":
+		workflow.connect([(datasourceCivet, roiMasking, [('ROITemplate','ROITemplate')]) ])	
   
     #Connect RegionalMaskTal from roiMasking to rename node
-	workflow.connect([(roiMasking, rRoiMaskingTal, [('RegionalMaskTal', 'in_file')])])
-	workflow.connect([(infosource, rRoiMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRoiMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rRoiMaskingTal, [('condition_id', 'condition_id')])
+	workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
+	workflow.connect([(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
+                      (infosource, rROIMaskingTal, [('subject_id', 'subject_id')]),
+                      (infosource, rROIMaskingTal, [('condition_id', 'condition_id')])
                     ])
 
     #Connect RegionalMaskT1 from roiMasking to rename node
-	workflow.connect([(roiMasking, rRoiMaskingT1, [('RegionalMaskT1', 'in_file')])])
-	workflow.connect([(infosource, rRoiMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRoiMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rRoiMaskingT1, [('condition_id', 'condition_id')])
+	workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
+	workflow.connect([(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
+                      (infosource, rROIMaskingT1, [('subject_id', 'subject_id')]),
+                      (infosource, rROIMaskingT1, [('condition_id', 'condition_id')])
                     ])
 
-	workflow.connect(rRoiMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
-	workflow.connect(rRoiMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
-
-
-
+	workflow.connect(rROIMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
+	workflow.connect(rROIMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
 
 
     #Connect PET to PET volume
@@ -458,7 +458,8 @@ if __name__ == "__main__":
 
 	group= OptionGroup(parser,"PET acquisition options")
 	parser.add_option_group(group)
-		
+	
+	#Parse user options
 	group= OptionGroup(parser,"Masking options","Reference region")
 	group.add_option("","--ref-user",dest="RefMaskingType",help="User defined ROI for each subject",action='store_const',const='no-transform',default='animal')	
 	group.add_option("","--ref-animal",dest="RefMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
@@ -473,7 +474,7 @@ if __name__ == "__main__":
 	group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
 	group.add_option("","--ref-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
 	group.add_option("","--ref-mask",dest="RefOnTemplate",help="Reference mask on the template",default=None)	
-	group.add_option("","--ref_dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
+	group.add_option("","--ref-dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
 	group.add_option("","--ref-template-suffix",dest="templateRefSuffix",help="Suffix for the Ref template.",default='icbm152')
 	parser.add_option_group(group)
 
@@ -487,7 +488,7 @@ if __name__ == "__main__":
 
 
 	group.add_option("","--roi-template",dest="ROITemplate",help="Template to segment the ROI.",default=icbm152)
-	group.add_option("","--roi-mask",dest="RoiMask",help="ROI mask on the template",default=default_atlas)	
+	group.add_option("","--roi-mask",dest="ROIMask",help="ROI mask on the template",default=default_atlas)	
 	group.add_option("","--roi-template-suffix",dest="templateRoiSuffix",help="Suffix for the ROI template.",default='icbm152')
 	group.add_option("","--roi-suffix",dest="RoiSuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
@@ -510,6 +511,7 @@ if __name__ == "__main__":
 
 	(opts, args) = parser.parse_args()
 
+
 	opts.extension='mnc'
 
 	##########################################################
@@ -520,28 +522,26 @@ if __name__ == "__main__":
 		print "\n\n*******ERROR******** \n     You must specify -sourcedir, -targetdir, -civetdir  and -prefix \n********************\n"
 		parser.print_help()
 		sys.exit(1)
-	print "Path:"
-	print opts.RoiMask
 
 	if opts.ROIMaskingType == "roi-user":
 		if not os.path.exists(opts.roi_dir): 
 			print "Option \'--roi-user\' requires \'-roi-dir\' "
 			exit(1)
 		if roi_suffix == None:
-			print "Option \'--roi-user\' requires \'-roi_suffix\' "
+			print "Option \'--roi-user\' requires \'-roi-suffix\' "
 			exit(1)
 
 	if opts.ROIMaskingType == "icbm152":
-		if not os.path.exists(opts.RoiMask) :
+		if not os.path.exists(opts.ROIMask) :
 			print "Option \'--icbm152-atlas\' requires \'-roi-mask\' "
 			exit(1)
 
 	if opts.ROIMaskingType == "atlas":
-		if not os.path.exists(opts.RoiMask) :
-			print "Option \'--atlas\' requires \'-roi-dir\' "
+		if not os.path.exists(opts.ROIMask) :
+			print "Option \'--atlas\' requires \'-roi-mask\' "
 			exit(1)
 		if not os.path.exists(opts.ROITemplate) :
-			print "Option \'--atlas\' requires \'-roi-dir\' "
+			print "Option \'--atlas\' requires \'-roi-template\' "
 			exit(1)
 
 

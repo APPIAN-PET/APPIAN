@@ -59,7 +59,9 @@ class T1maskingRunning(BaseInterface):
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
 		    run_xfminvert.run()
-
+		#print "\n\n\nXFM Invert file created:"
+		#print run_xfminvert.inputs.out_file
+		#print "\n\n\n"
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
 			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
@@ -100,7 +102,7 @@ class T1maskingRunning(BaseInterface):
 		if self.inputs.run:
 			run_resample.run()
 
-
+	
 		return runtime
 
     def _list_outputs(self):
@@ -127,14 +129,13 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 
 	_methods = ['roi-user', 'animal', 'civet', 'icbm152', 'atlas'] 
 	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
-	modelDir = traits.Str(exists=True, desc="Models directory")
-	model = traits.Str(exists=True, desc="Template image")
+	modelDir = traits.Str(desc="Model's directory")
+	model = traits.Str(desc="Template image")
 	roi_dir = File(desc="Segmentation mask in Talairach space")
-	RegionalMaskTemplate  = File(exists=True, desc="Mask on the template")
+	ROIMask  = File(desc="Mask on the template")
 	close = traits.Bool(usedefault=True, default_value=True, desc="erosion(dilation(X))")
 	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
 	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
-
 
 	RegionalMaskTal  = File(desc="Reference mask in Talairach space")
 	RegionalMaskT1  = File(desc="Reference mask in the native space")
@@ -172,12 +173,14 @@ class RegionalMaskingRunning(BaseInterface):
 			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 		
 		#Option 1: Transform the atlas to have same resolution as T1 native 
-		if self.inputs.MaskingType == 'icbm152' or os.path.exists(self.inputs.roi_dir):
+		if self.inputs.MaskingType == 'icbm152' or os.path.exists(str(self.inputs.roi_dir)):
 			run_resample = ResampleCommand();
 			if os.path.exists(str(self.inputs.roi_dir)):
 				run_resample.inputs.in_file = self.inputs.subjectROI
 			else:
-				run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
+				run_resample.inputs.in_file = self.inputs.ROIMask
+			print run_resample.inputs.in_file 
+	
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
@@ -210,7 +213,7 @@ class RegionalMaskingRunning(BaseInterface):
 			run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
 
 			run_resample = ResampleCommand(); 
-			run_resample.inputs.in_file = self.inputs.RegionalMaskTemplate
+			run_resample.inputs.in_file = self.inputs.ROIMask
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.transformation = sourceToModel_xfm
@@ -348,6 +351,9 @@ class PETheadMaskingRunning(BaseInterface):
     def _run_interface(self, runtime):
 
 		tmpDir = tempfile.mkdtemp()
+		print "\n\n"
+		print self.inputs.in_file
+		print "\n\n"
 
 		if not isdefined(self.inputs.out_file):
 			self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)

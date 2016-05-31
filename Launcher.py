@@ -19,6 +19,7 @@ from nipype.interfaces.utility import Rename
 from Masking import masking as masking
 import Registration.registration as reg
 import Initialization.initialization as init
+import nipype.interfaces.minc.results as results
 
 version = "1.0"
 
@@ -148,6 +149,7 @@ def runPipeline(opts,args):
 	refMasking.inputs.run = opts.prun
 	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
 	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rRefMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
 
 	node_name="roiMasking"
 	roiMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
@@ -160,7 +162,7 @@ def runPipeline(opts,args):
 	roiMasking.inputs.run = opts.prun
 	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
 	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-
+	rROIMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
 
 	node_name="petCenter"
 	petCenter= pe.Node(interface=init.VolCenteringRunning(), name=node_name)
@@ -211,6 +213,12 @@ def runPipeline(opts,args):
 	petRefMask.inputs.clobber = True
 	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
+	node_name="results"
+	resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
+	resultsReport.inputs.out_file = 'results_report.csv'
+	resultsReport.inputs.clobber = True
+	rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".csv"), name="r"+node_name)
+
 
 
 	workflow = pe.Workflow(name='preproc')
@@ -247,66 +255,9 @@ def runPipeline(opts,args):
 	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Brain")
 
 
-	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1')]),
-                      (datasourceCivet, refMasking, [('talT1','T1Tal')]),
-                      (datasourceCivet, refMasking, [('xfmT1tal','LinT1TalXfm')]),
-                      (datasourceCivet, refMasking, [('brainmasktal','brainmaskTal' )]),
-                      (datasourceCivet, refMasking, [('clsmask','clsmaskTal')]),
-                      (datasourceCivet, refMasking, [('animalmask','segMaskTal' )])
-                    ])
-  
-    #Connect RegionalMaskTal from refMasking to rename node
-	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
-	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
-                    ])
-
-    #Connect RegionalMaskT1 from refMasking to rename node
-	workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
-	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
-                    ])
-
-	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
-	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
-
-
-
-	workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]),
-                      (datasourceCivet, roiMasking, [('talT1','T1Tal')]),
-                      (datasourceCivet, roiMasking, [('xfmT1tal','LinT1TalXfm')]),
-                      (datasourceCivet, roiMasking, [('brainmasktal','brainmaskTal' )]),
-                      (datasourceCivet, roiMasking, [('clsmask','clsmaskTal')]),
-                      (datasourceCivet, roiMasking, [('animalmask','segMaskTal' )])
-                    ])
-
-	if opts.ROIMaskingType == "roi-user":
-		workflow.connect([(datasourceROI, roiMasking, [('ROIMask','ROIMask')]) ])	
-	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
-		roiMasking.inputs.ROIMask=opts.ROIMask
-
-	if opts.ROIMaskingType == "atlas":
-		workflow.connect([(datasourceCivet, roiMasking, [('ROITemplate','ROITemplate')]) ])	
-  
-    #Connect RegionalMaskTal from roiMasking to rename node
-	workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
-	workflow.connect([(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rROIMaskingTal, [('condition_id', 'condition_id')])
-                    ])
-
-    #Connect RegionalMaskT1 from roiMasking to rename node
-	workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
-	workflow.connect([(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rROIMaskingT1, [('condition_id', 'condition_id')])
-                    ])
-
-	workflow.connect(rROIMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
-	workflow.connect(rROIMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
-
+	############################
+	# Connect PET volume nodes #
+	############################
 
     #Connect PET to PET volume
 	workflow.connect([(datasourceRaw, petCenter, [('pet', 'in_file')])])
@@ -331,8 +282,6 @@ def runPipeline(opts,args):
                     ])
 
 	workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
-
-
 
 	workflow.connect([(petExFr, petVolume, [('out_file', 'in_file')])])
 
@@ -360,10 +309,6 @@ def runPipeline(opts,args):
 
 	workflow.connect(rPetMasking, 'out_file', datasink, petMasking.name)
 
-
-
-
-
     #
 	workflow.connect([(petVolume, pet2mri, [('out_file', 'in_source_file' )]),
                       (petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
@@ -386,10 +331,6 @@ def runPipeline(opts,args):
 	workflow.connect(rPet2MriXfm, 'out_file', datasink, pet2mri.name+"Xfm")
 	workflow.connect(rPet2MriImg, 'out_file', datasink, pet2mri.name+"Img")
 
-
-
-
-
     #
 	workflow.connect([(refMasking, petRefMask, [('RegionalMaskT1', 'in_file' )]),
                       (petVolume, petRefMask, [('out_file', 'model_file')]), 
@@ -403,7 +344,100 @@ def runPipeline(opts,args):
                     ])
 
 	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
-	
+
+
+	##################################
+	# Connect regional masking nodes #
+	##################################
+
+
+	workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]),
+                      (datasourceCivet, roiMasking, [('talT1','T1Tal')]),
+                      (datasourceCivet, roiMasking, [('xfmT1tal','LinT1TalXfm')]),
+                      (datasourceCivet, roiMasking, [('brainmasktal','brainmaskTal' )]),
+                      (datasourceCivet, roiMasking, [('clsmask','clsmaskTal')]),
+                      (datasourceCivet, roiMasking, [('animalmask','segMaskTal' )])
+                    ])
+
+	if opts.ROIMaskingType == "roi-user":
+		workflow.connect([(datasourceROI, roiMasking, [('ROIMask','ROIMask')]) ])	
+	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
+		roiMasking.inputs.ROIMask=opts.ROIMask
+
+	if opts.ROIMaskingType == "atlas":
+		workflow.connect([(datasourceCivet, roiMasking, [('ROITemplate','ROITemplate')]) ])	
+
+	workflow.connect([(petVolume, roiMasking, [('out_file','PETVolume')]) ])
+	workflow.connect([(rPet2MriXfm, roiMasking, [('out_file','pet2mriXfm')]) ])
+
+    #Connect RegionalMaskTal from roiMasking to rename node
+	workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
+	workflow.connect([(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
+                      (infosource, rROIMaskingTal, [('subject_id', 'subject_id')]),
+                      (infosource, rROIMaskingTal, [('condition_id', 'condition_id')])
+                    ])
+
+    #Connect RegionalMaskT1 from roiMasking to rename node
+	workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
+	workflow.connect([(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
+                      (infosource, rROIMaskingT1, [('subject_id', 'subject_id')]),
+                      (infosource, rROIMaskingT1, [('condition_id', 'condition_id')])
+                    ])
+
+    #Connect RegionalMaskPET from roiMasking to rename node
+	workflow.connect([(roiMasking, rROIMaskingPET, [('RegionalMaskPET', 'in_file')])])
+	workflow.connect([(infosource, rROIMaskingPET, [('study_prefix', 'study_prefix')]),
+                      (infosource, rROIMaskingPET, [('subject_id', 'subject_id')]),
+                      (infosource, rROIMaskingPET, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rROIMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
+	workflow.connect(rROIMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
+	workflow.connect(rROIMaskingPET, 'out_file', datasink, roiMasking.name+"PET")
+
+	###################################
+	# Connect nodes for reference ROI #
+	###################################
+
+ 	workflow.connect([(petVolume, refMasking, [('out_file','PETVolume')]) ])
+	workflow.connect([(rPet2MriXfm, refMasking, [('out_file','pet2mriXfm')]) ])
+
+	workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
+	workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
+
+
+	workflow.connect([(datasourceCivet, refMasking, [('nativeT1nuc','nativeT1')]),
+                      (datasourceCivet, refMasking, [('talT1','T1Tal')]),
+                      (datasourceCivet, refMasking, [('xfmT1tal','LinT1TalXfm')]),
+                      (datasourceCivet, refMasking, [('brainmasktal','brainmaskTal' )]),
+                      (datasourceCivet, refMasking, [('clsmask','clsmaskTal')]),
+                      (datasourceCivet, refMasking, [('animalmask','segMaskTal' )])
+                    ])
+  
+    #Connect RegionalMaskTal from refMasking to rename node
+	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
+	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
+                      (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
+                    ])	
+
+  	#Connect RegionalMaskT1 from refMasking to rename node
+	workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
+	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
+                      (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
+                    ])
+
+  	#Connect RegionalMaskT1 from refMasking to rename node
+	workflow.connect([(refMasking, rRefMaskingPET, [('RegionalMaskT1', 'in_file')])])
+	workflow.connect([(infosource, rRefMaskingPET, [('study_prefix', 'study_prefix')]),
+                      (infosource, rRefMaskingPET, [('subject_id', 'subject_id')]),
+                      (infosource, rRefMaskingPET, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect([(petVolume, resultsReport, [('out_file','image')]),
+					  (rROIMaskingPET, resultsReport, [('out_file','vol_roi')]),
+    				  ])
 
 
 	printOptions(opts,subjects_ids)
@@ -412,7 +446,7 @@ def runPipeline(opts,args):
 	workflow.run()
 
 	# #vizualization graph of the workflow
-	# workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
+	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
 
 

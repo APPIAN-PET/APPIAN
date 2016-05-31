@@ -123,6 +123,10 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 	clsmaskTal  = File(exists=True, desc="Classification mask in Talairach space")
 	segMaskTal  = File(exists=True, desc="Segmentation mask in Talairach space")
 
+	PETVolume = File(exists=True, desc="3D PET volume")
+
+	pet2mriXfm = File(exists=True, desc="Transformation from PET to MRI")
+
 	segLabels = traits.Array(usedefault=True, value=[67, 76], desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
 	
 	subjectROI=File(desc="Segmentation mask for subject")
@@ -137,16 +141,18 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
 	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
 
-	RegionalMaskTal  = File(desc="Reference mask in Talairach space")
+	RegionalMaskTal = File(desc="Reference mask in Talairach space")
 	RegionalMaskT1  = File(desc="Reference mask in the native space")
-	
+	RegionalMaskPET = File(desc="Reference mask in the native space")
+
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class RegionalMaskingOutput(TraitedSpec):
 	RegionalMaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
-	RegionalMaskT1  = File(mandatory=True, desc="Reference mask in the native space")
+	RegionalMaskT1  = File(mandatory=True, desc="Reference mask in the T1 native space")
+	RegionalMaskPET  = File(mandatory=True, desc="Reference mask in the PET native space")
 
 class RegionalMaskingRunning(BaseInterface):
     input_spec = RegionalMaskingInput
@@ -171,7 +177,9 @@ class RegionalMaskingRunning(BaseInterface):
 			self.inputs.RegionalMaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
 		if not isdefined(self.inputs.RegionalMaskTal):
 			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
-		
+		if not isdefined(self.inputs.RegionalMaskPET):
+			self.inputs.RegionalMaskPET = fname_presuffix(self.inputs.PETVolume, suffix=self._suffix)
+
 		#Option 1: Transform the atlas to have same resolution as T1 native 
 		if self.inputs.MaskingType == 'icbm152' or os.path.exists(str(self.inputs.roi_dir)):
 			run_resample = ResampleCommand();
@@ -290,7 +298,9 @@ class RegionalMaskingRunning(BaseInterface):
 					print(cmd)
 				if self.inputs.run:
 					shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
-
+		
+		#FIXME: inversion of transformation file should probably be its own node.
+		#Invert transformation from Tal to T1
 		run_xfminvert = InvertCommand();
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
 		if self.inputs.verbose:
@@ -298,11 +308,31 @@ class RegionalMaskingRunning(BaseInterface):
 		if self.inputs.run:
 		    run_xfminvert.run() #Invert xfm file to get Tal to T1 transformation
 
+		#Invert transformation from PET to T1
+		run_xfmpetinvert = InvertCommand();
+		run_xfmpetinvert.inputs.in_file = self.inputs.pet2mriXfm
+		if self.inputs.verbose:
+		    print run_xfmpetinvert.cmdline
+		if self.inputs.run:
+		    run_xfmpetinvert.run()
+
 		run_resample = ResampleCommand(); #Resample regional mask to T1 native
 		run_resample.inputs.in_file = self.inputs.RegionalMaskTal
 		run_resample.inputs.out_file = self.inputs.RegionalMaskT1
 		run_resample.inputs.model_file = self.inputs.nativeT1
 		run_resample.inputs.transformation = run_xfminvert.inputs.out_file
+		run_resample.inputs.interpolation = 'nearest_neighbour'
+		run_resample.inputs.clobber = True
+		if self.inputs.verbose:
+		    print run_resample.cmdline
+		if self.inputs.run:
+		    run_resample.run()
+
+		run_resample = ResampleCommand(); #Resample regional mask to T1 native
+		run_resample.inputs.in_file = self.inputs.RegionalMaskT1
+		run_resample.inputs.out_file = self.inputs.RegionalMaskPET
+		run_resample.inputs.model_file = self.inputs.PETVolume
+		run_resample.inputs.transformation = run_xfmpetinvert.inputs.out_file
 		run_resample.inputs.interpolation = 'nearest_neighbour'
 		run_resample.inputs.clobber = True
 		if self.inputs.verbose:
@@ -318,7 +348,7 @@ class RegionalMaskingRunning(BaseInterface):
 		outputs = self.output_spec().get()
 		outputs["RegionalMaskTal"] = self.inputs.RegionalMaskTal #Masks in stereotaxic space
 		outputs["RegionalMaskT1"] = self.inputs.RegionalMaskT1 #Masks in native space
-
+		outputs["RegionalMaskPET"] = self.inputs.RegionalMaskPET #Masks in native space
 		return outputs
 
 

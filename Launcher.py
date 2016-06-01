@@ -440,17 +440,26 @@ def runPipeline(opts,args):
 	# Connect nodes for reporting results #
 	#######################################
 
-	workflow.connect([(petVolume, resultsReport, [('out_file','image')]),
+	workflow.connect([(petCenter, resultsReport, [('out_file','image')]),
 					  (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
     				  ])
+	
+	workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
+	workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
+                      (infosource, rresultsReport, [('subject_id', 'subject_id')]),
+                      (infosource, rresultsReport, [('condition_id', 'condition_id')])
+                    ])
+	workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
 	printOptions(opts,subjects_ids)
+
+	# #vizualization graph of the workflow
+	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
 	#run the work flow
 	workflow.run()
 
-	# #vizualization graph of the workflow
-	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
+
 
 
 

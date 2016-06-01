@@ -215,7 +215,7 @@ def runPipeline(opts,args):
 
 	node_name="results"
 	resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
-	resultsReport.inputs.out_file = 'results_report.csv'
+	#resultsReport.inputs.out_file = 'results_report.csv'
 	resultsReport.inputs.clobber = True
 	rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".csv"), name="r"+node_name)
 
@@ -435,10 +435,14 @@ def runPipeline(opts,args):
                       (infosource, rRefMaskingPET, [('condition_id', 'condition_id')])
                     ])
 
-	workflow.connect([(petVolume, resultsReport, [('out_file','image')]),
-					  (rROIMaskingPET, resultsReport, [('out_file','vol_roi')]),
-    				  ])
 
+	#######################################
+	# Connect nodes for reporting results #
+	#######################################
+
+	workflow.connect([(petVolume, resultsReport, [('out_file','image')]),
+					  (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
+    				  ])
 
 	printOptions(opts,subjects_ids)
 

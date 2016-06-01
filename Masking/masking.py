@@ -54,7 +54,6 @@ class T1maskingRunning(BaseInterface):
 		run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
 		#run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
 
-
 		if self.inputs.verbose:
 		    print run_xfminvert.cmdline
 		if self.inputs.run:
@@ -65,7 +64,6 @@ class T1maskingRunning(BaseInterface):
 		if not isdefined(self.inputs.T1headmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
 			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
-			print(dname)
 			self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
 
 		if not isdefined(self.inputs.T1brainmask):

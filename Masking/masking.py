@@ -178,15 +178,18 @@ class RegionalMaskingRunning(BaseInterface):
 		if not isdefined(self.inputs.RegionalMaskPET):
 			self.inputs.RegionalMaskPET = fname_presuffix(self.inputs.PETVolume, suffix=self._suffix)
 
+		print "\n\nMasking Type:"
+		print self.inputs.MaskingType
+		print "\n\n"
 		#Option 1: Transform the atlas to have same resolution as T1 native 
-		if self.inputs.MaskingType == 'icbm152' or os.path.exists(str(self.inputs.roi_dir)):
+		if self.inputs.MaskingType == 'icbm152' or self.inputs.MaskingType == 'roi-user':
+			print "\nRUNNING OPTION 1\n"
 			run_resample = ResampleCommand();
 			if os.path.exists(str(self.inputs.roi_dir)):
 				run_resample.inputs.in_file = self.inputs.subjectROI
 			else:
 				run_resample.inputs.in_file = self.inputs.ROIMask
 			print run_resample.inputs.in_file 
-	
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
@@ -194,29 +197,32 @@ class RegionalMaskingRunning(BaseInterface):
 			    print run_resample.cmdline
 			if self.inputs.run:
 			    run_resample.run()
+			exit(3)
 		#Option 2: Use a nonlinear transform to coregister the template of the atlas to the T1
-		elif self.inputs.MaskingType == 'nonlinear':
+		elif self.inputs.MaskingType == 'atlas':
+			print "\nRUNNING OPTION 2\n"
+			sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
 			run_nlinreg=reg.nLinRegRunning();
-			
 			run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
 
-			if not self.inputs.model:
+			#if not self.inputs.model:
 				#No alternate template was specified, use MNI ICBM152
 				#Deform from MNI ICBM152 to subject stereotaxic
-				run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc" #QUESTION: can't we just use the default setting?
-				run_nlinreg.inputs.in_source_mask = self.inputs.brainmaskTal
-				run_nlinreg.inputs.in_target_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b_mask.mnc"
-			else:
+			#	run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc" #QUESTION: can't we just use the default setting?
+			#	run_nlinreg.inputs.in_source_mask = self.inputs.brainmaskTal
+			#	run_nlinreg.inputs.in_target_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b_mask.mnc"
+			#else:
 				#Use alternate template
-				run_nlinreg.inputs.in_target_file = self.inputs.model
-			
-			sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
-
+			run_nlinreg.inputs.in_target_file = self.inputs.model
 			run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm	# xfm file for the transformation from template to subject stereotaxic
 			run_nlinreg.inputs.clobber = self.inputs.clobber; 
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
 			run_nlinreg.inputs.run = self.inputs.run;
+
+
 			run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
+
+			print "\nAbout to resample\n"
 
 			run_resample = ResampleCommand(); 
 			run_resample.inputs.in_file = self.inputs.ROIMask
@@ -230,7 +236,8 @@ class RegionalMaskingRunning(BaseInterface):
 			if self.inputs.run:
 			    run_resample.run() #Resample the template atlas to subject stereotaxic space 
 		#Option 3: ANIMAL (or CIVET)
-		else:
+		elif self.inputs.MaskingType == 'civet' or self.inputs.MaskingType == 'animal':
+			print "\nRUNNING OPTION 3\n"
 			mask = tmpDir+"/mask.mnc"
 			mask_clean = tmpDir+"/mask_clean.mnc"
 			machin = self.inputs.segLabels
@@ -296,6 +303,9 @@ class RegionalMaskingRunning(BaseInterface):
 					print(cmd)
 				if self.inputs.run:
 					shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
+		else: 
+			print "No mask type specified"
+			exit(1)
 		
 		#FIXME: inversion of transformation file should probably be its own node.
 		#Invert transformation from Tal to T1

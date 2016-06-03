@@ -426,6 +426,7 @@ class nLinRegRunning(BaseInterface):
                 run_tracc.inputs.out_file_xfm=self.inputs.out_file_xfm
             else :
                 run_tracc.inputs.out_file_xfm=tmp_xfm
+            print "\nOutput of minctracc:" +  run_tracc.inputs.out_file_xfm + "\n"
             if i == 1:
                 run_tracc.inputs.identity=True
             if prev_xfm:
@@ -445,12 +446,14 @@ class nLinRegRunning(BaseInterface):
                 prev_xfm = self.inputs.out_file_xfm
             else :
                 prev_xfm = tmp_xfm
-                
+            print "\ni="+str(i)
+            print run_tracc.inputs.out_file_xfm
+            print "\n"
             run_resample = ResampleCommand();
             run_resample.inputs.in_file=source
             run_resample.inputs.out_file=tmp_rspl_vol
             run_resample.inputs.model_file=target
-            run_resample.inputs.transformation=tmp_xfm
+            run_resample.inputs.transformation=run_tracc.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_resample.cmdline
             if self.inputs.run:
@@ -460,7 +463,7 @@ class nLinRegRunning(BaseInterface):
 
             i += 1
             print '\n'
-
+        print "\nFinished loops for nLinReg\n"
 
 
         if self.inputs.init_file_xfm:

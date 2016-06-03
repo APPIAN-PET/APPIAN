@@ -349,8 +349,6 @@ def runPipeline(opts,args):
 	##################################
 	# Connect regional masking nodes #
 	##################################
-
-
 	workflow.connect([(datasourceCivet, roiMasking, [('nativeT1nuc','nativeT1')]),
                       (datasourceCivet, roiMasking, [('talT1','T1Tal')]),
                       (datasourceCivet, roiMasking, [('xfmT1tal','LinT1TalXfm')]),
@@ -363,9 +361,6 @@ def runPipeline(opts,args):
 		workflow.connect([(datasourceROI, roiMasking, [('ROIMask','ROIMask')]) ])	
 	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
 		roiMasking.inputs.ROIMask=opts.ROIMask
-
-	if opts.ROIMaskingType == "atlas":
-		workflow.connect([(datasourceCivet, roiMasking, [('ROITemplate','ROITemplate')]) ])	
 
 	workflow.connect([(petVolume, roiMasking, [('out_file','PETVolume')]) ])
 	workflow.connect([(rPet2MriXfm, roiMasking, [('out_file','pet2mriXfm')]) ])
@@ -585,10 +580,11 @@ if __name__ == "__main__":
 
 	if opts.ROIMaskingType == "atlas":
 		if not os.path.exists(opts.ROIMask) :
-			print "Option \'--atlas\' requires \'-roi-mask\' "
+			print "Error: recieved " + opts.ROIMask
+			print "Option \'--roi-atlas\' requires \'-roi-mask\' "
 			exit(1)
 		if not os.path.exists(opts.ROITemplate) :
-			print "Option \'--atlas\' requires \'-roi-template\' "
+			print "Option \'--roi-atlas\' requires \'-roi-template\' "
 			exit(1)
 
 

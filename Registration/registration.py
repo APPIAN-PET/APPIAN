@@ -446,9 +446,6 @@ class nLinRegRunning(BaseInterface):
                 prev_xfm = self.inputs.out_file_xfm
             else :
                 prev_xfm = tmp_xfm
-            print "\ni="+str(i)
-            print run_tracc.inputs.out_file_xfm
-            print "\n"
             run_resample = ResampleCommand();
             run_resample.inputs.in_file=source
             run_resample.inputs.out_file=tmp_rspl_vol
@@ -462,8 +459,6 @@ class nLinRegRunning(BaseInterface):
                 # prev_xfm = tmp_xfm
 
             i += 1
-            print '\n'
-        print "\nFinished loops for nLinReg\n"
 
 
         if self.inputs.init_file_xfm:
@@ -483,12 +478,10 @@ class nLinRegRunning(BaseInterface):
         #     if self.inputs.run:
         #         shutil.copy(prev_xfm, self.inputs.out_file_xfm)
 
-
-
         if self.inputs.out_file_img:
             print '\n-+- creating '+self.inputs.out_file_img+' using '+self.inputs.out_file_xfm+' -+-\n'
             run_resample = ResampleCommand();
-            run_resample.inputs.input_file=self.inputs.in_source_file
+            run_resample.inputs.in_file=self.inputs.in_source_file
             run_resample.inputs.out_file=self.inputs.out_file_img
             run_resample.inputs.model_file=self.inputs.in_target_file
             run_resample.inputs.transformation=self.inputs.out_file_xfm

@@ -3,6 +3,7 @@ import numpy as np
 import tempfile
 import shutil
 import pickle
+import ntpath 
 
 from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
@@ -157,13 +158,11 @@ class RegionalMaskingRunning(BaseInterface):
     output_spec = RegionalMaskingOutput
     _suffix = "_RegionalMask"
 
-  #   def _parse_inputs(self, skip=None):
-		# if skip is None:
-		# 	skip = []
-		# if not isdefined(self.inputs.RegionalMaskT1):
-		# 	self.inputs.RegionalMaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
-		# if not isdefined(self.inputs.RegionalMaskTal):
-		# 	self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
+    def _gen_output(self, basefile, _suffix):
+		fname = ntpath.basename(basefile)
+		fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+		dname = os.getcwd() 
+		return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
 
 
@@ -172,11 +171,11 @@ class RegionalMaskingRunning(BaseInterface):
 		# self._parse_inputs()
 
 		if not isdefined(self.inputs.RegionalMaskT1):
-			self.inputs.RegionalMaskT1 = fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
+			self.inputs.RegionalMaskT1 = self._gen_output(self.inputs.nativeT1, self._suffix+'T1') # fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
 		if not isdefined(self.inputs.RegionalMaskTal):
-			self.inputs.RegionalMaskTal = fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
+			self.inputs.RegionalMaskTal = self._gen_output(self.inputs.nativeT1, self._suffix+'TAL') # fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
 		if not isdefined(self.inputs.RegionalMaskPET):
-			self.inputs.RegionalMaskPET = fname_presuffix(self.inputs.PETVolume, suffix=self._suffix)
+			self.inputs.RegionalMaskPET = self._gen_output(self.inputs.nativeT1, self._suffix+'PET') #fname_presuffix(self.inputs.PETVolume, suffix=self._suffix)
 
 		print "\n\nMasking Type:"
 		print self.inputs.MaskingType
@@ -197,10 +196,11 @@ class RegionalMaskingRunning(BaseInterface):
 			    print run_resample.cmdline
 			if self.inputs.run:
 			    run_resample.run()
-			exit(3)
+			
 		#Option 2: Use a nonlinear transform to coregister the template of the atlas to the T1
 		elif self.inputs.MaskingType == 'atlas':
 			print "\nRUNNING OPTION 2\n"
+
 			sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
 			run_nlinreg=reg.nLinRegRunning();
 			run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
@@ -218,12 +218,8 @@ class RegionalMaskingRunning(BaseInterface):
 			run_nlinreg.inputs.clobber = self.inputs.clobber; 
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
 			run_nlinreg.inputs.run = self.inputs.run;
-
-
 			run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
-
-			print "\nAbout to resample\n"
-
+			
 			run_resample = ResampleCommand(); 
 			run_resample.inputs.in_file = self.inputs.ROIMask
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
@@ -235,6 +231,8 @@ class RegionalMaskingRunning(BaseInterface):
 			    print run_resample.cmdline
 			if self.inputs.run:
 			    run_resample.run() #Resample the template atlas to subject stereotaxic space 
+			print "\n\nFinished running nlinreg: " + self.inputs.RegionalMaskTal
+
 		#Option 3: ANIMAL (or CIVET)
 		elif self.inputs.MaskingType == 'civet' or self.inputs.MaskingType == 'animal':
 			print "\nRUNNING OPTION 3\n"

@@ -54,15 +54,15 @@ def runPipeline(opts,args):
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
 	conditions_ids=list(range(len(opts.condiList)))
 	conditions_ids=opts.condiList
-	print(conditions_ids)
 
 	###Infosource###
 	is_fields=['study_prefix', 'subject_id', 'condition_id']
-	if os.path.exists(opts.roi_dir):
+	if opts.ROIMaskingType == "roi-user":
 		is_fields += ['RoiSuffix']
 
 	infosource = pe.Node(interface=util.IdentityInterface(fields=is_fields), name="infosource")
 	infosource.inputs.study_prefix = opts.prefix
+	infosource.inputs.RoiSuffix = opts.RoiSuffix
 	infosource.iterables = [ ('subject_id', subjects_ids), ('condition_id', conditions_ids) ]
 
 	#################
@@ -83,8 +83,8 @@ def runPipeline(opts,args):
 														   outfields=['subjectROI'], sort_filelist=False), name="datasourceROI")
 		datasourceROI.inputs.base_directory = opts.roi_dir
 		datasourceROI.inputs.template = '*'
-		datasourceROI.inputs.field_template = dict(ROIMask='%s_%s_%s.mnc')
-		datasourceROI.inputs.template_args = dict(ROIMask=[['study_prefix', 'subject_id', 'RoiSuffix']])	
+		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
+		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'subject_id', 'RoiSuffix']])	
 
 	#CIVET datasource
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
@@ -358,7 +358,7 @@ def runPipeline(opts,args):
                     ])
 
 	if opts.ROIMaskingType == "roi-user":
-		workflow.connect([(datasourceROI, roiMasking, [('ROIMask','ROIMask')]) ])	
+		workflow.connect([(datasourceROI, roiMasking, [('subjectROI','ROIMask')]) ])	
 	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
 		roiMasking.inputs.ROIMask=opts.ROIMask
 
@@ -569,7 +569,7 @@ if __name__ == "__main__":
 		if not os.path.exists(opts.roi_dir): 
 			print "Option \'--roi-user\' requires \'-roi-dir\' "
 			exit(1)
-		if roi_suffix == None:
+		if opts.RoiSuffix == None:
 			print "Option \'--roi-user\' requires \'-roi-suffix\' "
 			exit(1)
 

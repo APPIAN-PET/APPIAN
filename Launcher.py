@@ -19,7 +19,7 @@ from nipype.interfaces.utility import Rename
 from Masking import masking as masking
 import Registration.registration as reg
 import Initialization.initialization as init
-import nipype.interfaces.minc.results as results
+# import nipype.interfaces.minc.results as results
 
 version = "1.0"
 

@@ -1,1 +1,1 @@
-from .results_report.py import *
+from .results import *

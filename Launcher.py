@@ -231,16 +231,18 @@ def runPipeline(opts,args):
 
 	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
 
-	node_name="pvc"
-	pvcNode = pe.Node(interface=pvc.PVCCommand(), name=node_name)
-	pvcNode.inputs.fwhm = opts.fwhm
-	pvcNode.inputs.pvc_method = opts.pvc_method
-	pvcNode.inputs.max_iterations = opts.max_iterations
-    #if not pvcNode.inputs.tolerance == None:
-    pvcNode.inputs.tolerance = opts.tolerance
-	pvcNode.inputs.denoise_fwhm = opts.denoise_fwhm
-	pvcNode.inputs.lambda_var = opts.lambda_var
-	pvcNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
+	node_name="GTM"
+	gtmNode = pe.Node(interface=pvc.GTMCommand(), name=node_name)
+	gtmNode.inputs.fwhm = opts.scanner_fwhm
+
+	node_name="idSURF"
+	idSURFNode = pe.Node(interface=pvc.idSURFCommand(), name=node_name)
+	idSURFNode.inputs.fwhm = opts.scanner_fwhm
+	idSURFNode.inputs.max_iterations = opts.max_iterations
+	idSURFNode.inputs.tolerance = opts.tolerance
+	idSURFNode.inputs.denoise_fwhm = opts.denoise_fwhm
+	idSURFNode.inputs.lambda_var = opts.lambda_var
+	idSURFNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
 
 	node_name="results"
 	resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
@@ -360,21 +362,6 @@ def runPipeline(opts,args):
 	workflow.connect(rPet2MriXfm, 'out_file', datasink, pet2mri.name+"Xfm")
 	workflow.connect(rPet2MriImg, 'out_file', datasink, pet2mri.name+"Img")
 
-    #
-	workflow.connect([(refMasking, petRefMask, [('RegionalMaskT1', 'in_file' )]),
-                      (petVolume, petRefMask, [('out_file', 'model_file')]), 
-                      (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
-                      ]) 
-
-	workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
-	workflow.connect([(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetRefMask, [('subject_id', 'subject_id')]),
-                      (infosource, rPetRefMask, [('condition_id', 'condition_id')])
-                    ])
-
-	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
-
-
 	##################################
 	# Connect regional masking nodes #
 	##################################
@@ -388,8 +375,13 @@ def runPipeline(opts,args):
 
 	if opts.ROIMaskingType == "roi-user":
 		workflow.connect([(datasourceROI, roiMasking, [('subjectROI','ROIMask')]) ])	
-	elif opts.ROIMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
+	elif opts.ROIMaskingType in [ "animal" ]:
+		workflow.connect([(datasourceCivet, roiMasking, [('animalmask','ROIMask')]) ]) 
+	elif opts.ROIMaskingType in [ "civet" ]:
+		workflow.connect([(datasourceCivet, roiMasking, [('clsmask','ROIMask')]) ])
+	elif opts.ROIMaskingType in [ "icbm152", "atlas"] :
 		roiMasking.inputs.ROIMask=opts.ROIMask
+
 
 	workflow.connect([(petVolume, roiMasking, [('out_file','PETVolume')]) ])
 	workflow.connect([(rPet2MriXfm, roiMasking, [('out_file','pet2mriXfm')]) ])
@@ -438,6 +430,15 @@ def runPipeline(opts,args):
                       (datasourceCivet, refMasking, [('animalmask','segMaskTal' )])
                     ])
   
+	if opts.RefMaskingType == "roi-user":
+		workflow.connect([(datasourceROI, refMasking, [('subjectROI','ROIMask')]) ])	
+	elif opts.RefMaskingType in [ "animal" ]:
+		workflow.connect([(datasourceCivet, refMasking, [('animalmask','ROIMask')]) ]) 
+	elif opts.RefMaskingType in [ "civet" ]:
+		workflow.connect([(datasourceCivet, refMasking, [('clsmask','ROIMask')]) ])
+	elif opts.RefMaskingType in [ "icbm152", "atlas"] :
+		refMasking.inputs.ROIMask=opts.ROIMask
+
     #Connect RegionalMaskTal from refMasking to rename node
 	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
@@ -458,6 +459,20 @@ def runPipeline(opts,args):
                       (infosource, rRefMaskingPET, [('subject_id', 'subject_id')]),
                       (infosource, rRefMaskingPET, [('condition_id', 'condition_id')])
                     ])
+
+                        #
+	workflow.connect([(refMasking, petRefMask, [('RegionalMaskT1', 'in_file' )]),
+                      (petVolume, petRefMask, [('out_file', 'model_file')]), 
+                      (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+                      ]) 
+
+	workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
+	workflow.connect([(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
+                      (infosource, rPetRefMask, [('subject_id', 'subject_id')]),
+                      (infosource, rPetRefMask, [('condition_id', 'condition_id')])
+                    ])
+
+	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
 	#############################
 	# Connect nodes for PVC ROI #
 	#############################
@@ -469,10 +484,15 @@ def runPipeline(opts,args):
                       (datasourceCivet, pvcMasking, [('animalmask','segMaskTal' )])
                     ])
 
+
 	if opts.PVCMaskingType == "roi-user":
 		workflow.connect([(datasourceROI, pvcMasking, [('subjectROI','ROIMask')]) ])	
-	elif opts.PVCMaskingType in [ "animal", "civet", "icbm152", "atlas"] :
-		roiMasking.inputs.ROIMask=opts.pvcMask
+	elif opts.PVCMaskingType in [ "animal" ]:
+		workflow.connect([(datasourceCivet, pvcMasking, [('animalmask','ROIMask')]) ]) 
+	elif opts.PVCMaskingType in [ "civet" ]:
+		workflow.connect([(datasourceCivet, pvcMasking, [('clsmask','ROIMask')]) ])
+	elif opts.PVCMaskingType in [ "icbm152", "atlas"] :
+		pvcMasking.inputs.ROIMask=opts.ROIMask
 
 	workflow.connect([(petVolume, pvcMasking, [('out_file','PETVolume')]) ])
 	workflow.connect([(rPet2MriXfm, pvcMasking, [('out_file','pet2mriXfm')]) ])
@@ -484,32 +504,41 @@ def runPipeline(opts,args):
                       (infosource, rPVCMaskingTal, [('condition_id', 'condition_id')])
                     ])
 
-    #Connect RegionalMaskT1 from roiMasking to rename node
+    #Connect RegionalMaskT1 from pvcMasking to rename node
 	workflow.connect([(pvcMasking, rPVCMaskingT1, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rPVCMaskingT1, [('study_prefix', 'study_prefix')]),
                       (infosource, rPVCMaskingT1, [('subject_id', 'subject_id')]),
                       (infosource, rPVCMaskingT1, [('condition_id', 'condition_id')])
                     ])
 
-    #Connect RegionalMaskPET from roiMasking to rename node
+    #Connect RegionalMaskPET from pvcMasking to rename node
 	workflow.connect([(pvcMasking, rPVCMaskingPET, [('RegionalMaskPET', 'in_file')])])
 	workflow.connect([(infosource, rPVCMaskingPET, [('study_prefix', 'study_prefix')]),
                       (infosource, rPVCMaskingPET, [('subject_id', 'subject_id')]),
                       (infosource, rPVCMaskingPET, [('condition_id', 'condition_id')])
                     ])
+	workflow.connect(rPVCMaskingT1, 'out_file', datasink, pvcMasking.name+"T1")
+	workflow.connect(rPVCMaskingTal, 'out_file', datasink, pvcMasking.name+"Tal")
+	workflow.connect(rPVCMaskingPET, 'out_file', datasink, pvcMasking.name+"PET")
 
 
 
 	#############################
 	# Partial-volume correction #
 	#############################
-	workflow.connect([(rPetCenter, pvcNode, [('out_file','input_file')]),
-					  (pvcMasking, pvcNode, [('RegionalMaskPET','mask')])
+	if opts.pvc_method == "GTM" or opts.pvc_method == "idSURF":
+		workflow.connect([(rPetCenter, gtmNode, [('out_file','input_file')]),
+					  (pvcMasking, gtmNode, [('RegionalMaskPET','mask')])
     				  ])
+		workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
+	if opts.pvc_method == "idSURF":
+		workflow.connect([(gtmNode, idSURFNode, [('out_file','first_guess')]),
+						(rPetCenter, idSURFNode, [('out_file','input_file')]),
+					  	(pvcMasking, idSURFNode, [('RegionalMaskPET','mask')])
+    				  	])
+		workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
 
-	workflow.connect(rPVCMaskingT1, 'out_file', datasink, pvcMasking.name+"T1")
-	workflow.connect(rPVCMaskingTal, 'out_file', datasink, pvcMasking.name+"Tal")
-	workflow.connect(rPVCMaskingPET, 'out_file', datasink, pvcMasking.name+"PET")
+
 
 
 	#######################################
@@ -530,7 +559,7 @@ def runPipeline(opts,args):
 	printOptions(opts,subjects_ids)
 
 	# #vizualization graph of the workflow
-	#workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
+	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
 	#run the work flow
 	workflow.run()
@@ -546,10 +575,52 @@ def get_opt_list(option,opt,value,parser):
 
 # def printStages(opts,args):
 
+############################################
+# Define dictionaries for default settings #
+############################################
+#Set defaults for labels
+roi_labels={} 
+roi_labels["ROI"]={	"roi-user":['1'],
+			      	"icbm152":['39','53','16','14','25','72'],
+					"civet":['1','2','3'],
+					"animal":['1','2','3']} #FIXME, these values are not correct for animal
+roi_labels["REF"]={	"roi-user":['1'],
+		      		"icbm152":['39','53','16','14','25','72'],
+					"civet":['3'],
+					"animal":['3']} #FIXME, these values are not correct for animal
+roi_labels["PVC"]={	"roi-user":['1'],
+		      		"icbm152":['39','53','16','14','25','72'],
+					"civet":['2','3'],
+					"animal":['2','3']} #FIXME, these values are not correct for animal
 
+#Default FWHM for PET scanners
+pet_scanners={"HRRT":2.5,"HR+":6.5} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
+def check_masking_options(ROIMaskingType, roi_dir, RoiSuffix, ROIMask, ROITemplate):
+	'''Check to make sure that the user has provided the necessary information for 
+	the selected masking type'''
+	if ROIMaskingType == "roi-user":
+		if not os.path.exists(roi_dir): 
+			print "Option \'--roi-user\' requires \'-roi-dir\' "
+			exit(1)
+		if RoiSuffix == None:
+			print "Option \'--roi-user\' requires \'-roi-suffix\' "
+			exit(1)
 
+	if ROIMaskingType == "icbm152":
+		if not os.path.exists(ROIMask) :
+			print "Option \'--icbm152-atlas\' requires \'-roi-mask\' "
+			exit(1)
+
+	if ROIMaskingType == "atlas":
+		if not os.path.exists(ROIMask) :
+			print "Error: recieved " + ROIMask
+			print "Option \'--roi-atlas\' requires \'-roi-mask\' "
+			exit(1)
+		if not os.path.exists(ROITemplate) :
+			print "Option \'--roi-atlas\' requires \'-roi-template\' "
+			exit(1)
 
 
 if __name__ == "__main__":
@@ -580,25 +651,26 @@ if __name__ == "__main__":
 	parser.add_option_group(group)		
 
 	group= OptionGroup(parser,"PET acquisition options")
-	parser.add_option_group(group)
-	
+
+
 	#Parse user options
 	group= OptionGroup(parser,"Masking options","Reference region")
-	group.add_option("","--ref-user",dest="RefMaskingType",help="User defined ROI for each subject",action='store_const',const='no-transform',default='animal')	
-	group.add_option("","--ref-animal",dest="RefMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
-	group.add_option("","--ref-civet",dest="RefMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='animal')
-	group.add_option("","--ref-icbm152-atlas",dest="RefMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='animal')
-	group.add_option("","--ref-atlas",dest="RefMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='animal')
-	group.add_option("","--ref-labels",dest="RefAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+	group.add_option("","--ref-user",dest="RefMaskingType",help="User defined ROI for each subject",action='store_const',const='no-transform',default='civet')	
+	group.add_option("","--ref-animal",dest="RefMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='civet')	
+	group.add_option("","--ref-civet",dest="RefMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='civet')
+	group.add_option("","--ref-icbm152-atlas",dest="RefMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='civet')
+	group.add_option("","--ref-atlas",dest="RefMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='civet')
+	group.add_option("","--ref-labels",dest="RefAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
 	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default=icbm152)
 
+	group.add_option("","--ref-suffix",dest="refSuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
 	group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
 	group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
 	group.add_option("","--ref-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
-	group.add_option("","--ref-mask",dest="RefOnTemplate",help="Reference mask on the template",default=None)	
 	group.add_option("","--ref-dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
 	group.add_option("","--ref-template-suffix",dest="templateRefSuffix",help="Suffix for the Ref template.",default='icbm152')
+	group.add_option("","--ref-mask",dest="refMask",help="Ref mask on the template",type='string',default=default_atlas)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Masking options","Region Of Interest")
@@ -607,7 +679,7 @@ if __name__ == "__main__":
 	group.add_option("","--roi-civet",dest="ROIMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='icbm152')
 	group.add_option("","--roi-icbm152",dest="ROIMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
 	group.add_option("","--roi-atlas",dest="ROIMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='icbm152')	
-	group.add_option("","--roi-labels",dest="ROIAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+	group.add_option("","--roi-labels",dest="ROIAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
 
 	group.add_option("","--roi-template",dest="ROITemplate",help="Template to segment the ROI.",default=icbm152)
 	group.add_option("","--roi-mask",dest="ROIMask",help="ROI mask on the template",default=default_atlas)	
@@ -623,22 +695,23 @@ if __name__ == "__main__":
 	group.add_option("","--pvc-roi-animal",dest="PVCMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
 	group.add_option("","--pvc-roi-civet",dest="PVCMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='civet')
 	group.add_option("","--pvc-roi-icbm152",dest="PVCMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
-	group.add_option("","--pvc-roi-atlas",dest="PVCMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='icbm152')	
-	group.add_option("","--pvc-roi-labels",dest="PVCAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=['39','53','16','14','25','72'])
+	group.add_option("","--pvc-roi-atlas",dest="PVCMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='civet')	
+	group.add_option("","--pvc-roi-labels",dest="PVCAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
 
 	group.add_option("","--pvc-roi-template",dest="pvcTemplate",help="Template to segment the ROI.",default=icbm152)
 	group.add_option("","--pvc-roi-mask",dest="pvcMask",help="ROI mask on the template",default=default_atlas)	
 	group.add_option("","--pvc-roi-template-suffix",dest="templatePVCSuffix",help="Suffix for the ROI template.",default='icbm152')
 	group.add_option("","--pvc-roi-suffix",dest="pvcSuffix",help="PVC suffix",default='striatal_6lbl')	
-	group.add_option("","--pvc-roi-dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default="")
+	group.add_option("","--pvc-roi-dir",dest="pvc_roi_dir",help="ID of the subject ROI masks",type='string', default="")
 
 	group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
-	group.add_option("","--pvc-fwhm",dest="fwhm",help="FWHM of PET scanner.",type='float', default=None)
-	group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=None)
-	group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=None)
-	group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=None)
-	group.add_option("","--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter.",type='float', default=None)
-	group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over.",type='int', default=None)
+	group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
+	group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner.",type='float', default=None)
+	group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
+	group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
+	group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=1)
+	group.add_option("","--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter.",type='float', default=1)
+	group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over.",type='int', default=64)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")
@@ -669,31 +742,36 @@ if __name__ == "__main__":
 		parser.print_help()
 		sys.exit(1)
 
-	if opts.ROIMaskingType == "roi-user":
-		if not os.path.exists(opts.roi_dir): 
-			print "Option \'--roi-user\' requires \'-roi-dir\' "
-			exit(1)
-		if opts.RoiSuffix == None:
-			print "Option \'--roi-user\' requires \'-roi-suffix\' "
-			exit(1)
+	#Check inputs for ROI masking
+	check_masking_options(opts.ROIMaskingType, opts.roi_dir, opts.RoiSuffix, opts.ROIMask, opts.ROITemplate)
+	#Check inputs for REF masking
+	check_masking_options(opts.RefMaskingType, opts.ref_dir, opts.refSuffix, opts.refMask, opts.RefTemplate)
+	#Check inputs for PVC masking
+	check_masking_options(opts.PVCMaskingType, opts.pvc_roi_dir, opts.pvcSuffix, opts.pvcMask, opts.pvcTemplate)
 
-	if opts.ROIMaskingType == "icbm152":
-		if not os.path.exists(opts.ROIMask) :
-			print "Option \'--icbm152-atlas\' requires \'-roi-mask\' "
-			exit(1)
-
-	if opts.ROIMaskingType == "atlas":
-		if not os.path.exists(opts.ROIMask) :
-			print "Error: recieved " + opts.ROIMask
-			print "Option \'--roi-atlas\' requires \'-roi-mask\' "
-			exit(1)
-		if not os.path.exists(opts.ROITemplate) :
-			print "Option \'--roi-atlas\' requires \'-roi-template\' "
-			exit(1)
+	#Set default labels for ROI mask
+	if(opts.ROIAtlasLabels ==None): opts.ROIAtlasLabels=roi_labels["ROI"][opts.ROIMaskingType]
+	#If no labels given by user, set default labels for Ref mask
+	if(opts.RefAtlasLabels ==None): opts.RefAtlasLabels=roi_labels["REF"][opts.RefMaskingType]
+	#If no labels given by user, set default labels for PVC mask
+	if(opts.PVCAtlasLabels ==None): opts.PVCAtlasLabels=roi_labels["PVC"][opts.PVCMaskingType]
 
 
-
+	
     ###Check PVC options and set defaults if necessary
+	if opts.scanner_fwhm == None and opts.pet_scanner == None:
+		print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--scanner_fwhm <float>\" option, or"
+		print "\t2) set the PET scanner type using the \"--pet_scanner <string>\" option."
+		print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
+		exit(1)
+	if not opts.pet_scanner == None:
+		if opts.pet_scanner in pet_scanners.keys():
+			opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
+		else:
+			print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
+			print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
+			print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
+			exit(1)
     #if opts.pvc_method == "idSURF":
      #   print("hello")
         '''if opts.max_iterations == None: 

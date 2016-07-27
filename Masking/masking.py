@@ -136,9 +136,9 @@ class RegionalMaskingInput(BaseInterfaceInputSpec):
 	model = traits.Str(desc="Template image")
 	roi_dir = File(desc="Segmentation mask in Talairach space")
 	ROIMask  = File(desc="Mask on the template")
-	close = traits.Bool(usedefault=True, default_value=True, desc="erosion(dilation(X))")
-	refGM = traits.Bool(usedefault=True, default_value=True, desc="Only gray matter")
-	refWM = traits.Bool(usedefault=True, default_value=True, desc="Only white matter")
+	close = traits.Bool(usedefault=False, default_value=False, desc="erosion(dilation(X))")
+	refGM = traits.Bool(usedefault=False, default_value=False, desc="Only gray matter")
+	refWM = traits.Bool(usedefault=False, default_value=False, desc="Only white matter")
 
 	RegionalMaskTal = File(desc="Reference mask in Talairach space")
 	RegionalMaskT1  = File(desc="Reference mask in the native space")
@@ -164,8 +164,6 @@ class RegionalMaskingRunning(BaseInterface):
 		dname = os.getcwd() 
 		return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
-
-
     def _run_interface(self, runtime):
 		tmpDir = tempfile.mkdtemp()
 		# self._parse_inputs()
@@ -184,11 +182,10 @@ class RegionalMaskingRunning(BaseInterface):
 		if self.inputs.MaskingType == 'icbm152' or self.inputs.MaskingType == 'roi-user':
 			print "\nRUNNING OPTION 1\n"
 			run_resample = ResampleCommand();
-			if os.path.exists(str(self.inputs.roi_dir)):
-				run_resample.inputs.in_file = self.inputs.subjectROI
+			if self.inputs.MaskingType == 'roi-user':
+				run_resample.inputs.in_file = self.inputs.subjectROI #Subject specific ROI
 			else:
-				run_resample.inputs.in_file = self.inputs.ROIMask
-			print run_resample.inputs.in_file 
+				run_resample.inputs.in_file = self.inputs.ROIMask #Stereotaxic mask
 			run_resample.inputs.out_file = self.inputs.RegionalMaskTal
 			run_resample.inputs.model_file = self.inputs.T1Tal
 			run_resample.inputs.clobber = True
@@ -239,16 +236,23 @@ class RegionalMaskingRunning(BaseInterface):
 			mask = tmpDir+"/mask.mnc"
 			mask_clean = tmpDir+"/mask_clean.mnc"
 			machin = self.inputs.segLabels
+			#self.inputs.RegionalMaskTal = self.inputs.ROIMask
+			#if self.inputs.refGM or self.inputs.refWM:
+
+			#FIXME: Add option to concatenate labeled regions into a single region
 			
 			run_calc = CalcCommand(); #Extract the desired labels from the atlas using minccalc.
-			run_calc.inputs.in_file = self.inputs.segMaskTal #The ANIMAL or CIVET classified atlas
+			run_calc.inputs.in_file = self.inputs.ROIMask #The ANIMAL or CIVET classified atlas
 			run_calc.inputs.out_file = mask #Output mask with desired labels
 			#Select region from each hemisphere of ANIMAL:
-			run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'  
+			image_string=" || ".join([ 'A[0] == ' + str(labels) + ' ' for labels in self.inputs.segLabels ])
+			#run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'  
+			run_calc.inputs.expression = image_string + ' ? A[0] : 0'  
 			if self.inputs.verbose:
 				print run_calc.cmdline
 			if self.inputs.run:
 				run_calc.run()
+
 
 			#If we need to close the region, use mincmorph.
 			#QUESTION: Why have the option to close all regions regardless of whether its an ROI
@@ -266,41 +270,39 @@ class RegionalMaskingRunning(BaseInterface):
 				if self.inputs.run:
 					run_mincmorph.run()
 			else:
-				# QUESTION: Why is the line below commented out? can't we use it instead of copying?
-  				# mask_clean = mask
 				if self.inputs.verbose:
 					cmd=' '.join(['cp', mask, mask_clean])
 					print(cmd)
 				if self.inputs.run:
 					shutil.copy(mask, mask_clean)
 			
-  			if self.inputs.refGM or self.inputs.refWM:
-  				#QUESTION:  If we already have the segmentation, why add the mask_class to GM or WM?
-  				if self.inputs.refGM:
-					run_calc = CalcCommand();
-					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0' 
-					if self.inputs.verbose:
-						print run_calc.cmdline
-					if self.inputs.run:
-						run_calc.run()
 
-				if self.inputs.refWM:
-					run_calc = CalcCommand();
-					run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-					run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-					run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0' 
-					if self.inputs.verbose:
-						print run_calc.cmdline
-					if self.inputs.run:
-						run_calc.run()
-			else:
+			#QUESTION:  If we already have the segmentation, why add the mask_class to GM or WM?
+			if self.inputs.refGM:
+				run_calc = CalcCommand();
+				run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
+				run_calc.inputs.out_file = self.inputs.RegionalMaskTal
+				run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0' 
 				if self.inputs.verbose:
-					cmd=' '.join(['cp', mask_clean, self.inputs.RegionalMaskTal])
-					print(cmd)
+					print run_calc.cmdline
 				if self.inputs.run:
-					shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
+					run_calc.run()
+
+			if self.inputs.refWM:
+				run_calc = CalcCommand();
+				run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
+				run_calc.inputs.out_file = self.inputs.RegionalMaskTal
+				run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0' 
+				if self.inputs.verbose:
+					print run_calc.cmdline
+				if self.inputs.run:
+					run_calc.run()
+			#else:
+			if self.inputs.verbose:
+				cmd=' '.join(['cp', mask_clean, self.inputs.RegionalMaskTal])
+				print(cmd)
+			if self.inputs.run:
+				shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
 		else: 
 			print "No mask type specified"
 			exit(1)

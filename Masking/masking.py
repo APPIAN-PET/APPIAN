@@ -5,7 +5,7 @@ import shutil
 import pickle
 import ntpath 
 
-from pyminc.volumes.factory import *
+#from pyminc.volumes.factory import *
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)

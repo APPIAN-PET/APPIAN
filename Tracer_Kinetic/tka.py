@@ -1,0 +1,208 @@
+import os
+
+import nipype.pipeline.engine as pe
+
+
+import nipype.interfaces.io as nio
+import nipype.interfaces.utility as niu
+import nipype.algorithms.misc as misc
+from nipype.interfaces.utility import Function
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+from nipype.interfaces.minc.conversion import (ecattomincCommand, minctoecatCommand)
+from Turku.dft import img2dftCommand
+import ntpath
+#  input image starttime resultimage
+
+
+class lpOutput(TraitedSpec):
+    out_file = File(argstr="%s", position=-1, desc="Logan Plot distribution volume (DVR) parametric image.")
+
+class lpInput(MINCCommandInputSpec):
+	out_file = File(argstr="%s", position=-1, desc="image to operate on")
+	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
+	reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
+	start_time=traits.Float(argstr="%s", position=-2, desc="Start time for regression in mtga.")
+	k2=  traits.Float(argstr="-k2 %f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
+	thr=traits.Float(argstr="-thr %f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
+	Max=traits.Float(argstr="-max %f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
+	Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
+	Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
+	end=traits.Float(argstr="-end %f", desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+	v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
+	n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
+
+
+class lpCommand(MINCCommand):
+    input_spec =  lpInput
+    output_spec = lpOutput
+
+    _cmd = "imgdv" #input_spec.pvc_method 
+    _suffix = "_lp" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        return super(lpCommand, self)._parse_inputs(skip=skip)
+
+class ppOutput(TraitedSpec):
+    out_file = File(argstr="-o %s",  desc="Patlak plot ki parametric image.")
+
+class ppInput(MINCCommandInputSpec):
+	out_file = File(argstr="%s", position=-1, desc="image to operate on")
+	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
+	reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
+	start_time=traits.Float(argstr="%s", position=-2, desc="Start time for regression in mtga.")
+	Ca=  traits.Float(argstr="-Ca %f", desc="Concentration of native substrate in arterial plasma (mM).")
+	LC=traits.Float(argstr="-LC %f", desc="Lumped constant in MR calculation; default is 1.0")
+	density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
+	thr=traits.Float(argstr="-thr %f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
+	Max=traits.Float(argstr="-max %f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
+	#Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
+	Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
+	end=traits.Float(argstr="-end %f", desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+	v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
+	n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
+
+
+class ppCommand(MINCCommand):
+    input_spec =  lpInput
+    output_spec = lpOutput
+
+    _cmd = "imgdv" #input_spec.pvc_method 
+    _suffix = "_pp" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        return super(ppCommand, self)._parse_inputs(skip=skip)
+
+standard_fields=["in_file", "header", "reference", "mask"] #NOTE: in_file and out_file must be defined in field
+tka_param={}
+tka_param["lp"]=standard_fields
+tka_param["pp"]=standard_fields
+tka_param["srtm"]=standard_fields
+
+
+def get_tka_workflow(name, opts):
+
+	workflow = pe.Workflow(name=name)
+
+	#Define input node that will receive input from outside of workflow
+	inputnode = pe.Node(niu.IdentityInterface(fields=tka_param[opts.tka_method]), name='inputnode')
+
+	#Define node to convert the input file from minc to ecat
+	convertPET=pe.Node(interface=minctoecatCommand(), name="pet_convert")
+
+	#Connect input node to conversion
+	workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
+
+
+	#Define an empty node for reference region
+	tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
+	#Define empty node for output
+	outputnode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
+
+	if not opts.tka_arterial:
+		#Extracting TAC from reference region and putting it into text file
+		#Convert reference mask from minc to ecat
+		convertReference=pe.Node(interface=minctoecatCommand(), name="referencemask_convert") 
+		#convertReference.inputs.out_file="tempREF.mnc"
+		workflow.connect(inputnode, 'reference', convertReference, 'in_file')
+		#Extract TAC from input image using reference mask
+		extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
+		# convertReference --> extractRefernce 
+		workflow.connect(convertReference, 'out_file', extractReference, 'in_file')
+		# extractReference --> tacReference
+		workflow.connect(extractReference, 'out_file', tacReference, 'reference')
+	else:
+		#Using arterial input file (which must be provided by user). No conversion or extraction necessary
+		# inputnode --> tacReference
+		workflow.connect(inputnode, 'reference', tacReference, 'reference')
+		
+	if opts.tka_type=="voxel":
+		#Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric map
+
+		if opts.tka_method == "lp":
+			#Define node for logan plot analysis 
+			tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
+
+
+			if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
+			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+			if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
+			if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
+			if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+			if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+			if opts.tka_start_time != None:tkaNode.inputs.start_time=opts.tka_start_time
+
+		elif opts.tka_method == "pp":
+			tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
+			tkaNode.inputs.Ca=opts.tka_Ca
+			tkaNode.inputs.LC=opts.tka_LC
+			tkaNode.inputs.density=opts.tka_density
+			tkaNode.inputs.thr=opts.tka_thr
+			tkaNode.inputs.max=opts.tka_max
+			tkaNode.inputs.filter=opts.tka_filter
+			tkaNode.inputs.end=opts.tka_end
+			tkaNode.inputs.v=opts.tka_v
+			tkaNode.inputs.n=opts.tka_n
+			tkaNode.inputs.start_time=opts.tka_start_time
+		elif opts.tka_method == 'srtm':
+			print "Error: SRTM not yet implemented."
+			exit(0)
+
+		#inputnode.in_file -->  tkaNode.in_file
+		workflow.connect(inputnode, 'in_file', tkaNode, 'in_file')
+		#tacReference.reference --> tkaNode.reference
+		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+
+		convertParametric=pe.Node(interface=ecattomincCommand(), name="convertParametric") 
+		workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
+		workflow.connect(convertParametric, 'out_file', outputnode, 'out_file')
+
+	else: #ROI-based
+		print "Error: No data type selected for tracer kinetic analysis."
+		exit(1)
+
+	return(workflow)
+
+

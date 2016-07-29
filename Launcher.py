@@ -14,6 +14,7 @@ import nipype.interfaces.minc as minc
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
+import nipype.interfaces.utility as niu
 from nipype.interfaces.utility import Rename
 
 from Masking import masking as masking
@@ -21,7 +22,7 @@ import Registration.registration as reg
 import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
-
+import Tracer_Kinetic.tka as tka
 # import nipype.interfaces.minc.results as results
 
 version = "1.0"
@@ -59,38 +60,42 @@ def runPipeline(opts,args):
 	conditions_ids=opts.condiList
 
 	###Infosource###
-	is_fields=['study_prefix', 'subject_id', 'condition_id']
+	is_fields=['study_prefix', 'sid', 'cid']
 	if opts.ROIMaskingType == "roi-user":
 		is_fields += ['RoiSuffix']
 
 	infosource = pe.Node(interface=util.IdentityInterface(fields=is_fields), name="infosource")
 	infosource.inputs.study_prefix = opts.prefix
 	infosource.inputs.RoiSuffix = opts.RoiSuffix
-	infosource.iterables = [ ('subject_id', subjects_ids), ('condition_id', conditions_ids) ]
+	infosource.iterables = [ ('sid', subjects_ids), ('cid', conditions_ids) ]
+
+	#cid = Condition ID
+	#sid = Subject ID
+	#sp = Study Prefix
 
 	#################
 	###Datasources###
 	#################
 	#PET datasource
-	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id', 'condition_id'], 
+	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], 
 													   outfields=['pet'], sort_filelist=False), name="datasourceRaw")
 	datasourceRaw.inputs.base_directory = opts.sourceDir
 	datasourceRaw.inputs.template = '*'
 	datasourceRaw.inputs.field_template = dict(pet='%s/%s_%s_%s_pet.mnc')
-	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'subject_id', 'condition_id']])	
+	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'sid', 'cid']])	
 
 	#Subject ROI datasource
 	
 	if os.path.exists(opts.roi_dir):
-		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id', 'RoiSuffix'], 
+		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'RoiSuffix'], 
 														   outfields=['subjectROI'], sort_filelist=False), name="datasourceROI")
 		datasourceROI.inputs.base_directory = opts.roi_dir
 		datasourceROI.inputs.template = '*'
 		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
-		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'subject_id', 'RoiSuffix']])	
+		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
 	#CIVET datasource
-	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'subject_id'], 
+	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid'], 
 														 outfields=['nativeT1', 'nativeT1nuc', 
 														 			'talT1', 'xfmT1tal','xfmT1talnl',
 														 			'brainmasktal', 'headmasktal', 'clsmask', 'animalmask'], 
@@ -108,15 +113,15 @@ def runPipeline(opts,args):
 												 clsmask='%s/%s/classify/%s_%s_pve_classify.mnc',
 												 animalmask='%s/%s/segment/%s_%s_animal_labels_masked.mnc'
 												)
-	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
-										   		nativeT1nuc=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
-										   		talT1=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
-										   		xfmT1tal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
-										   		xfmT1talnl=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 
-										   		brainmasktal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
-										   		headmasktal=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
-										   		clsmask=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']], 										   		
-										   		animalmask=[['study_prefix', 'subject_id', 'study_prefix', 'subject_id']] 										   		
+	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
+										   		nativeT1nuc=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
+										   		talT1=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
+										   		xfmT1tal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
+										   		xfmT1talnl=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
+										   		brainmasktal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
+										   		headmasktal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
+										   		clsmask=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
+										   		animalmask=[['study_prefix', 'sid', 'study_prefix', 'sid']] 										   		
 										   		)	
 
 	##############
@@ -124,7 +129,7 @@ def runPipeline(opts,args):
 	##############
 	datasink=pe.Node(interface=nio.DataSink(), name="output")
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
-	datasink.inputs.substitutions = [('_condition_id_', ''), ('subject_id_', '')]
+	datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
 	###########
 	###Nodes###
@@ -135,8 +140,8 @@ def runPipeline(opts,args):
 	t1Masking.inputs.clobber = True
 	t1Masking.inputs.verbose = opts.verbose
 	t1Masking.inputs.run = opts.prun
-	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
-	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
+	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
+	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
 	node_name="refMasking"
 	refMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
@@ -150,9 +155,9 @@ def runPipeline(opts,args):
 	refMasking.inputs.clobber = True
 	refMasking.inputs.verbose = opts.verbose
 	refMasking.inputs.run = opts.prun
-	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-	rRefMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
+	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rRefMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
 
 	node_name="roiMasking"
 	roiMasking = pe.Node(interface=masking.RegionalMaskingRunning(), name=node_name)
@@ -163,9 +168,9 @@ def runPipeline(opts,args):
 	roiMasking.inputs.clobber = True
 	roiMasking.inputs.verbose = opts.verbose
 	roiMasking.inputs.run = opts.prun
-	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-	rROIMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
+	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rROIMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
 
 
 	node_name="pvcMasking"
@@ -176,22 +181,22 @@ def runPipeline(opts,args):
 	pvcMasking.inputs.clobber = True
 	pvcMasking.inputs.verbose = opts.verbose
 	pvcMasking.inputs.run = opts.prun
-	rPVCMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rPVCMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-	rPVCMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
+	rPVCMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rPVCMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rPVCMaskingPET=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"PET.mnc"), name="r"+node_name+"PET")
 
 
 	node_name="petCenter"
 	petCenter= pe.Node(interface=init.VolCenteringRunning(), name=node_name)
 	petCenter.inputs.verbose = opts.verbose
 	petCenter.inputs.run = opts.prun	
-	rPetCenter=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetCenter=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petExcludeFr"
 	petExFr = pe.Node(interface=init.PETexcludeFrRunning(), name=node_name)
 	petExFr.inputs.verbose = opts.verbose	
 	petExFr.inputs.run = opts.prun
-	rPetExFr=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetExFr=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petVolume"
 	petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
@@ -199,28 +204,28 @@ def runPipeline(opts,args):
 	petVolume.inputs.width_weighted = True
 	petVolume.inputs.clobber = True
 	petVolume.inputs.verbose = opts.verbose	
-	rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petSettings"
 	petSettings = pe.Node(interface=init.MincHdrInfoRunning(), name=node_name)
 	petSettings.inputs.verbose = opts.verbose
 	petSettings.inputs.clobber = True
 	petSettings.inputs.run = opts.prun
-	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="petMasking"
 	petMasking = pe.Node(interface=masking.PETheadMaskingRunning(), name=node_name)
 	petMasking.inputs.verbose = opts.verbose
 	petMasking.inputs.run = opts.prun
-	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="pet2mri"
 	pet2mri = pe.Node(interface=reg.PETtoT1LinRegRunning(), name=node_name)
 	pet2mri.inputs.clobber = True
 	pet2mri.inputs.verbose = opts.verbose
 	pet2mri.inputs.run = opts.prun
-	rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name+"Img")
-	rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
+	rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
+	rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
 
 
 	node_name="petRefMask"
@@ -229,7 +234,7 @@ def runPipeline(opts,args):
 	petRefMask.inputs.invert = 'invert_transformation'
 	petRefMask.inputs.clobber = True
 
-	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 	node_name="GTM"
 	gtmNode = pe.Node(interface=pvc.GTMCommand(), name=node_name)
@@ -248,22 +253,22 @@ def runPipeline(opts,args):
 	resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
 	#resultsReport.inputs.out_file = 'results_report.csv'
 	resultsReport.inputs.clobber = True
-	rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(subject_id)s_%(condition_id)s_"+node_name+".csv"), name="r"+node_name)
+	rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
 
 
 
 	workflow = pe.Workflow(name='preproc')
 	workflow.base_dir = opts.targetDir
 
-	workflow.connect([(infosource, datasourceRaw, [('subject_id', 'subject_id')]),
-                      (infosource, datasourceRaw, [('condition_id', 'condition_id')]),
+	workflow.connect([(infosource, datasourceRaw, [('sid', 'sid')]),
+                      (infosource, datasourceRaw, [('cid', 'cid')]),
                       (infosource, datasourceRaw, [('study_prefix', 'study_prefix')]),
-                      (infosource, datasourceCivet, [('subject_id', 'subject_id')]),
+                      (infosource, datasourceCivet, [('sid', 'sid')]),
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
 	if opts.ROIMaskingType == "roi-user":
 		workflow.connect([(infosource, datasourceROI, [('study_prefix', 'study_prefix')]),
-                 	  	  (infosource, datasourceROI, [('subject_id', 'subject_id')]),
+                 	  	  (infosource, datasourceROI, [('sid', 'sid')]),
                  	  	  (infosource, datasourceROI, [('RoiSuffix', 'RoiSuffix')])
                  	  	  ])
 
@@ -276,11 +281,11 @@ def runPipeline(opts,args):
 	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
 
 	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
-					  (infosource, rT1MaskingBrain, [('subject_id', 'subject_id')]),
-					  (infosource, rT1MaskingBrain, [('condition_id','condition_id')])])
+					  (infosource, rT1MaskingBrain, [('sid', 'sid')]),
+					  (infosource, rT1MaskingBrain, [('cid','cid')])])
 	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
-	 				  (infosource, rT1MaskingHead, [('subject_id', 'subject_id')]),
-	 				  (infosource, rT1MaskingHead, [('condition_id','condition_id')])])
+	 				  (infosource, rT1MaskingHead, [('sid', 'sid')]),
+	 				  (infosource, rT1MaskingHead, [('cid','cid')])])
 
 	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Head")
 	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Brain")
@@ -296,20 +301,18 @@ def runPipeline(opts,args):
 	#Connect pet from petVolume to its rename node
 	workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetCenter, [('subject_id', 'subject_id')]),
-                      (infosource, rPetCenter, [('condition_id', 'condition_id')])
+                      (infosource, rPetCenter, [('sid', 'sid')]),
+                      (infosource, rPetCenter, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPetCenter, 'out_file', datasink, petCenter.name)
-
-
 
 	workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
 	
 	workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetExFr, [('subject_id', 'subject_id')]),
-                      (infosource, rPetExFr, [('condition_id', 'condition_id')])
+                      (infosource, rPetExFr, [('sid', 'sid')]),
+                      (infosource, rPetExFr, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
@@ -319,8 +322,8 @@ def runPipeline(opts,args):
 	#Connect pet from petVolume to its rename node
 	workflow.connect([(petVolume, rPetVolume, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetVolume, [('subject_id', 'subject_id')]),
-                      (infosource, rPetVolume, [('condition_id', 'condition_id')])
+                      (infosource, rPetVolume, [('sid', 'sid')]),
+                      (infosource, rPetVolume, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPetVolume, 'out_file', datasink, petVolume.name)
@@ -334,8 +337,8 @@ def runPipeline(opts,args):
 	#
 	workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetMasking, [('subject_id', 'subject_id')]),
-                      (infosource, rPetMasking, [('condition_id', 'condition_id')])
+                      (infosource, rPetMasking, [('sid', 'sid')]),
+                      (infosource, rPetMasking, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPetMasking, 'out_file', datasink, petMasking.name)
@@ -349,14 +352,14 @@ def runPipeline(opts,args):
     #
 	workflow.connect([(pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
 	workflow.connect([(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPet2MriImg, [('subject_id', 'subject_id')]),
-                      (infosource, rPet2MriImg, [('condition_id', 'condition_id')])
+                      (infosource, rPet2MriImg, [('sid', 'sid')]),
+                      (infosource, rPet2MriImg, [('cid', 'cid')])
                     ])
 
 	workflow.connect([(pet2mri, rPet2MriXfm, [('out_file_xfm', 'in_file')])])
 	workflow.connect([(infosource, rPet2MriXfm, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPet2MriXfm, [('subject_id', 'subject_id')]),
-                      (infosource, rPet2MriXfm, [('condition_id', 'condition_id')])
+                      (infosource, rPet2MriXfm, [('sid', 'sid')]),
+                      (infosource, rPet2MriXfm, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPet2MriXfm, 'out_file', datasink, pet2mri.name+"Xfm")
@@ -389,22 +392,22 @@ def runPipeline(opts,args):
     #Connect RegionalMaskTal from roiMasking to rename node
 	workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rROIMaskingTal, [('condition_id', 'condition_id')])
+                      (infosource, rROIMaskingTal, [('sid', 'sid')]),
+                      (infosource, rROIMaskingTal, [('cid', 'cid')])
                     ])
 
     #Connect RegionalMaskT1 from roiMasking to rename node
 	workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rROIMaskingT1, [('condition_id', 'condition_id')])
+                      (infosource, rROIMaskingT1, [('sid', 'sid')]),
+                      (infosource, rROIMaskingT1, [('cid', 'cid')])
                     ])
 
     #Connect RegionalMaskPET from roiMasking to rename node
 	workflow.connect([(roiMasking, rROIMaskingPET, [('RegionalMaskPET', 'in_file')])])
 	workflow.connect([(infosource, rROIMaskingPET, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingPET, [('subject_id', 'subject_id')]),
-                      (infosource, rROIMaskingPET, [('condition_id', 'condition_id')])
+                      (infosource, rROIMaskingPET, [('sid', 'sid')]),
+                      (infosource, rROIMaskingPET, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rROIMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
@@ -442,22 +445,22 @@ def runPipeline(opts,args):
     #Connect RegionalMaskTal from refMasking to rename node
 	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rRefMaskingTal, [('condition_id', 'condition_id')])
+                      (infosource, rRefMaskingTal, [('sid', 'sid')]),
+                      (infosource, rRefMaskingTal, [('cid', 'cid')])
                     ])	
 
   	#Connect RegionalMaskT1 from refMasking to rename node
 	workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rRefMaskingT1, [('condition_id', 'condition_id')])
+                      (infosource, rRefMaskingT1, [('sid', 'sid')]),
+                      (infosource, rRefMaskingT1, [('cid', 'cid')])
                     ])
 
   	#Connect RegionalMaskT1 from refMasking to rename node
 	workflow.connect([(refMasking, rRefMaskingPET, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingPET, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingPET, [('subject_id', 'subject_id')]),
-                      (infosource, rRefMaskingPET, [('condition_id', 'condition_id')])
+                      (infosource, rRefMaskingPET, [('sid', 'sid')]),
+                      (infosource, rRefMaskingPET, [('cid', 'cid')])
                     ])
 
                         #
@@ -468,8 +471,8 @@ def runPipeline(opts,args):
 
 	workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetRefMask, [('subject_id', 'subject_id')]),
-                      (infosource, rPetRefMask, [('condition_id', 'condition_id')])
+                      (infosource, rPetRefMask, [('sid', 'sid')]),
+                      (infosource, rPetRefMask, [('cid', 'cid')])
                     ])
 
 	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
@@ -500,22 +503,22 @@ def runPipeline(opts,args):
     #Connect RegionalMaskTal from roiMasking to rename node
 	workflow.connect([(pvcMasking, rPVCMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rPVCMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPVCMaskingTal, [('subject_id', 'subject_id')]),
-                      (infosource, rPVCMaskingTal, [('condition_id', 'condition_id')])
+                      (infosource, rPVCMaskingTal, [('sid', 'sid')]),
+                      (infosource, rPVCMaskingTal, [('cid', 'cid')])
                     ])
 
     #Connect RegionalMaskT1 from pvcMasking to rename node
 	workflow.connect([(pvcMasking, rPVCMaskingT1, [('RegionalMaskT1', 'in_file')])])
 	workflow.connect([(infosource, rPVCMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPVCMaskingT1, [('subject_id', 'subject_id')]),
-                      (infosource, rPVCMaskingT1, [('condition_id', 'condition_id')])
+                      (infosource, rPVCMaskingT1, [('sid', 'sid')]),
+                      (infosource, rPVCMaskingT1, [('cid', 'cid')])
                     ])
 
     #Connect RegionalMaskPET from pvcMasking to rename node
 	workflow.connect([(pvcMasking, rPVCMaskingPET, [('RegionalMaskPET', 'in_file')])])
 	workflow.connect([(infosource, rPVCMaskingPET, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPVCMaskingPET, [('subject_id', 'subject_id')]),
-                      (infosource, rPVCMaskingPET, [('condition_id', 'condition_id')])
+                      (infosource, rPVCMaskingPET, [('sid', 'sid')]),
+                      (infosource, rPVCMaskingPET, [('cid', 'cid')])
                     ])
 	workflow.connect(rPVCMaskingT1, 'out_file', datasink, pvcMasking.name+"T1")
 	workflow.connect(rPVCMaskingTal, 'out_file', datasink, pvcMasking.name+"Tal")
@@ -526,21 +529,47 @@ def runPipeline(opts,args):
 	#############################
 	# Partial-volume correction #
 	#############################
-	if opts.pvc_method == "GTM" or opts.pvc_method == "idSURF":
-		workflow.connect([(rPetCenter, gtmNode, [('out_file','input_file')]),
-					  (pvcMasking, gtmNode, [('RegionalMaskPET','mask')])
-    				  ])
-		workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
+	pvcnode = pe.Node(niu.IdentityInterface(fields=["pvc"]), name='pvc')
+
+	workflow.connect([(rPetCenter, gtmNode, [('out_file','input_file')]),
+				  (pvcMasking, gtmNode, [('RegionalMaskPET','mask')])
+				  ])
+	workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
+	if opts.pvc_method == "GTM":
+		workflow.connect(gtmNode, 'out_file', pvcnode, "pvc")
+
+
 	if opts.pvc_method == "idSURF":
 		workflow.connect([(gtmNode, idSURFNode, [('out_file','first_guess')]),
 						(rPetCenter, idSURFNode, [('out_file','input_file')]),
 					  	(pvcMasking, idSURFNode, [('RegionalMaskPET','mask')])
     				  	])
 		workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
+		workflow.connect(idSURFNode, 'out_file', pvcnode, "pvc")
 
 
+	###########################
+	# Tracer kinetic analysis #
+	###########################
+	if not opts.tka_method == None:
+		#Perform TKA on uncorrected PET
+		#["in_file", "header", "reference", "mask", "out_file"]
+		tka_pve=tka.get_tka_workflow("tka_pve", opts)
+		workflow.connect(refMasking, 'RegionalMaskPET', tka_pve, "inputnode.reference")
+		workflow.connect(petSettings, 'out_file', tka_pve, "inputnode.header")
+		workflow.connect(roiMasking, 'RegionalMaskPET', tka_pve, "inputnode.mask")
+		workflow.connect(petCenter, 'out_file', tka_pve, "inputnode.in_file")
+		workflow.connect(tka_pve, 'outputnode.out_file', datasink, tka_pve.name)
 
+		#Perform TKA on PVC PET
+		tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
+		workflow.connect(refMasking, 'RegionalMaskPET', tka_pvc, "inputnode.reference")
+		workflow.connect(petSettings, 'out_file', tka_pvc, "inputnode.header")
+		workflow.connect(roiMasking, 'RegionalMaskPET', tka_pvc, "inputnode.mask")
+		workflow.connect(pvcnode, 'pvc', tka_pvc, "inputnode.in_file")
+		#workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
 
+	
 	#######################################
 	# Connect nodes for reporting results #
 	#######################################
@@ -551,8 +580,8 @@ def runPipeline(opts,args):
 	
 	#workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
 	#workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
-    #                  (infosource, rresultsReport, [('subject_id', 'subject_id')]),
-    #                  (infosource, rresultsReport, [('condition_id', 'condition_id')])
+    #                  (infosource, rresultsReport, [('sid', 'sid')]),
+    #                  (infosource, rresultsReport, [('cid', 'cid')])
     #                ])
 	#workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
@@ -714,7 +743,23 @@ if __name__ == "__main__":
 	group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over.",type='int', default=64)
 	parser.add_option_group(group)
 
+	#TKA Options
 	group= OptionGroup(parser,"Tracer Kinetic analysis options")
+	group.add_option("","--tka-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type='string', default=None)
+	group.add_option("","--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type='float', default=None)
+	group.add_option("","--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type='float', default=None)
+	group.add_option("","--max",dest="tka_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type='float', default=None)
+	group.add_option("","--min",dest="tka_min",help="Lower limit for Vt or DVR values, 0 by default",type='float', default=None)
+	group.add_option("","--filter",dest="tka_filter",help="Remove parametric pixel values that over 4x higher than their closest neighbours.",action='store_const',const=True, default=None)
+	group.add_option("","--reg-end",dest="tka_end",help="By default line is fit to the end of data. Use this option to enter the fit end time (in min).",type='float', default=None)
+	group.add_option("","--y-int",dest="tka_v",help="Y-axis intercepts time -1 are written as an image to specified file.",type='string', default=None)
+	group.add_option("","--num",dest="tka_n",help="Numbers of selected plot data points are written as an image.",type='string', default=None)
+	group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
+	group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
+	group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
+	group.add_option("","--arterial",dest="tka_arterial",help="Use arterial input input.",action='store_const', const=True, default=False)
+	group.add_option("","--start-time",dest="tka_start_time",help="Start time for regression in MTGA.",type='float', default=None)
+	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or ROI.",type='string', default=None)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Command control")
@@ -772,22 +817,6 @@ if __name__ == "__main__":
 			print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
 			print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
 			exit(1)
-    #if opts.pvc_method == "idSURF":
-     #   print("hello")
-        '''if opts.max_iterations == None: 
-            opts.max_iterations == 10
-        if opts.tolerance == None: 
-            opts.max_iterations == 0.001
-        if opts.nvoxel_to_avg == None: 
-            opts.max_iterations == 64
-        if opts.max_iterations == None: 
-            opts.max_iterations == 10
-        if opts.max_iterations == None: 
-            print "Error: FWHM of PET scanner was not specified for PVC. Please specify using <--pvc-fwhm>."
-        '''
-
-
-
 
 	opts.targetDir = os.path.normpath(opts.targetDir)
 	opts.sourceDir = os.path.normpath(opts.sourceDir)

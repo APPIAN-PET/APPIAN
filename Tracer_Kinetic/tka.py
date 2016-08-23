@@ -11,7 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.minc.conversion import (ecattomincCommand, minctoecatCommand)
+from nipype.interfaces.minc.conversion import (ecattomincCommand, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 import ntpath
 #  input image starttime resultimage
@@ -125,16 +125,16 @@ tka_param["srtm"]=standard_fields
 def get_tka_workflow(name, opts):
 
 	workflow = pe.Workflow(name=name)
-
+	
 	#Define input node that will receive input from outside of workflow
 	inputnode = pe.Node(niu.IdentityInterface(fields=tka_param[opts.tka_method]), name='inputnode')
 
 	#Define node to convert the input file from minc to ecat
-	convertPET=pe.Node(interface=minctoecatCommand(), name="pet_convert")
+	convertPET=minctoecatWorkflow("minctoecat_PET")
 
 	#Connect input node to conversion
-	workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
-
+	workflow.connect(inputnode, 'in_file', convertPET, 'inputNode.in_file')
+	workflow.connect(inputnode, 'header', convertPET, 'inputNode.header')
 
 	#Define an empty node for reference region
 	tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
@@ -144,13 +144,15 @@ def get_tka_workflow(name, opts):
 	if not opts.tka_arterial:
 		#Extracting TAC from reference region and putting it into text file
 		#Convert reference mask from minc to ecat
-		convertReference=pe.Node(interface=minctoecatCommand(), name="referencemask_convert") 
+		convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 
 		#convertReference.inputs.out_file="tempREF.mnc"
 		workflow.connect(inputnode, 'reference', convertReference, 'in_file')
+		
 		#Extract TAC from input image using reference mask
 		extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
 		# convertReference --> extractRefernce 
-		workflow.connect(convertReference, 'out_file', extractReference, 'in_file')
+		workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
+		workflow.connect(convertPET, 'outputNode.out_file', extractReference, 'in_file')
 		# extractReference --> tacReference
 		workflow.connect(extractReference, 'out_file', tacReference, 'reference')
 	else:
@@ -164,7 +166,6 @@ def get_tka_workflow(name, opts):
 		if opts.tka_method == "lp":
 			#Define node for logan plot analysis 
 			tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
-
 
 			if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
 			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
@@ -189,9 +190,10 @@ def get_tka_workflow(name, opts):
 		elif opts.tka_method == 'srtm':
 			print "Error: SRTM not yet implemented."
 			exit(0)
+		tkaNode.start_time = opts.tka_start_time
 
 		#inputnode.in_file -->  tkaNode.in_file
-		workflow.connect(inputnode, 'in_file', tkaNode, 'in_file')
+		workflow.connect(convertPET, 'outputNode.out_file', tkaNode, 'in_file')
 		#tacReference.reference --> tkaNode.reference
 		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
 

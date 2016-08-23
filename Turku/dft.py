@@ -16,7 +16,8 @@ class img2dftOutput(TraitedSpec):
 
 class img2dftInput(MINCCommandInputSpec):
     out_file = File( argstr="%s", position=-1, desc="image to operate on")
-    in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
+    in_file= File(exists=True, argstr="%s", position=-3, desc="PET file")
+    mask_file = File(exists=True, argstr="%s", position=-2, desc="Reference file")
 
 
 class img2dftCommand(MINCCommand):

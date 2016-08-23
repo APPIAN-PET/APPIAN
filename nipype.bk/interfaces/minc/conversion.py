@@ -2,6 +2,11 @@ import os
 import ntpath
 import nipype.pipeline.engine as pe
 import re
+import pandas as pd
+import json
+from sys import argv
+import numpy as np
+
 
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
@@ -10,6 +15,7 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+
 
 class convertOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")
@@ -68,6 +74,100 @@ class mincconvertCommand(MINCCommand):
 ##################
 ### minctoecat ###
 ##################
+def minctoecatWorkflow(name):
+
+    workflow = pe.Workflow(name=name)
+    #Define input node that will receive input from outside of workflow
+    inputNode = pe.Node(niu.IdentityInterface(fields=["in_file", "header"]), name='inputNode')
+    conversionNode = pe.Node(interface=minctoecatCommand(), name="conversionNode")
+    sifNode = pe.Node(interface=sifCommand(), name="sifNode")
+    eframeNode = pe.Node(interface=eframeCommand(), name="eframeNode")
+    outputNode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
+
+    workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
+    workflow.connect(inputNode, 'header', sifNode, 'in_file')
+    workflow.connect(conversionNode, 'out_file', eframeNode, 'in_file')
+    workflow.connect(sifNode, 'out_file', eframeNode, 'frame_file')
+    workflow.connect(eframeNode, 'out_file', outputNode, 'out_file')  
+
+    return(workflow)
+
+class eframeOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="PET image with correct time frames.")
+
+class eframeInput(MINCCommandInputSpec):
+    #out_file = File(argstr="%s",  desc="PET image with correct time frames.")
+    in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
+    frame_file = File(exists=True, argstr="%s", position=-1, desc="PET file")
+    unit = traits.Bool(argstr="-sec", position=-3, usedefault=True, default_value=True, desc="Time units are in seconds.")
+
+
+class eframeCommand(MINCCommand):
+    input_spec =  eframeInput
+    output_spec = eframeOutput
+
+    _cmd = "eframe"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.in_file
+        return outputs
+
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        
+        #self.inputs.out_file = self.inputs.in_file
+        return super(eframeCommand, self)._parse_inputs(skip=skip)
+
+
+class sifOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
+
+class sifInput(MINCCommandInputSpec):
+    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
+    in_file= File(exists=True, argstr="%s", position=-2, desc="PET header file")
+
+
+class sifCommand(BaseInterface):
+    input_spec =  sifInput
+    output_spec = sifOutput
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + "_frames.sif"
+
+
+    def _run_interface(self, runtime):
+        #Define the output file based on the input file
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+
+        in_file = self.inputs.in_file
+        out_file = self.inputs.out_file
+        print "\nHELLLO\n"; print in_file; print out_file; 
+
+        fp = file(in_file, 'r')
+        data = json.load(fp)
+        fp.close()
+        start=np.array(data['time']['frames-time'], dtype=float)
+        duration=np.array(data['time']['frames-length'], dtype=float    )
+        end=start+duration
+
+        df=pd.DataFrame(data={ "Start" : start, "Duration" : duration})
+        df=df.reindex_axis(["Start", "Duration"], axis=1)
+        df.to_csv(out_file, sep=" ", header=True, index=False )
+
+        return runtime
+
 
 class minctoecatOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")
@@ -97,7 +197,7 @@ class minctoecatCommand(MINCCommand):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-        	self.inputs.out_file = self._gen_output(self.inputs.in_file,)
+        	self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(minctoecatCommand, self)._parse_inputs(skip=skip)
 
 ##################

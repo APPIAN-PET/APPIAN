@@ -84,6 +84,7 @@ class PETinfoRunning(BaseInterface):
                 data_in = hd[key][subkey]
                 var = str(key)
                 attr = str(subkey)
+                print key, subkey, var, attr
                 update_minchd_json(self.inputs.out_file, data_in, var, attr)
 
         return runtime

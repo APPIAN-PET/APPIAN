@@ -15,7 +15,8 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-
+from nipype.interfaces.minc.resample import ResampleCommand, param2xfmCommand
+from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand, FixHeaderCommand
 
 class convertOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")
@@ -23,19 +24,10 @@ class convertOutput(TraitedSpec):
 class convertInput(MINCCommandInputSpec):
     out_file = File( argstr="%s", position=-1, desc="image to operate on")
     in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
-    two= traits.Bool(argstr="-2",  default_value=False, desc="Convert from minc 1 to minc 2")
-
-
-####################
-# MINC 1 to MINC 2 #
-####################
+    two= traits.Bool(argstr="-2",  default_value=True, desc="Convert from minc 1 to minc 2")
 
 
 
-
-####################
-# MINC 2 to MINC 1 #
-####################
 class mincconvertCommand(MINCCommand):
     input_spec =  convertInput
     output_spec = convertOutput
@@ -85,12 +77,43 @@ def minctoecatWorkflow(name):
     outputNode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
 
     workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
-    workflow.connect(inputNode, 'header', sifNode, 'in_file')
+    workflow.connect(inputNode, 'in_file', sifNode, 'in_file')
+    workflow.connect(inputNode, 'header', sifNode, 'header')
     workflow.connect(conversionNode, 'out_file', eframeNode, 'in_file')
     workflow.connect(sifNode, 'out_file', eframeNode, 'frame_file')
     workflow.connect(eframeNode, 'out_file', outputNode, 'out_file')  
 
     return(workflow)
+
+def ecattomincWorkflow(name):
+    workflow = pe.Workflow(name=name)
+    #Define input node that will receive input from outside of workflow
+    inputNode = pe.Node(niu.IdentityInterface(fields=["in_file", "header"]), name='inputNode')
+    conversionNode = pe.Node(interface=ecattomincCommand(), name="conversionNode")
+    mincConversionNode = pe.Node(interface=mincconvertCommand(), name="mincConversionNode")
+    fixHeaderNode = pe.Node(interface=FixHeaderCommand(), name="fixHeaderNode")
+    paramNode = pe.Node(interface=param2xfmCommand(), name="param2xfmNode")
+    paramNode.inputs.rotation = "0 180 0"
+    resampleNode = pe.Node(interface=ResampleCommand(), name="resampleNode")
+    resampleNode.inputs.use_input_sampling=True
+    outputNode  = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
+
+    workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
+    
+    workflow.connect(conversionNode, 'out_file', fixHeaderNode, 'in_file')
+    workflow.connect(inputNode, 'header', fixHeaderNode, 'header')
+
+
+    workflow.connect(fixHeaderNode, 'out_file', resampleNode, 'in_file')
+    workflow.connect(paramNode, 'out_file', resampleNode, 'transformation')
+
+
+    workflow.connect(resampleNode, 'out_file', outputNode, 'out_file')  
+
+    return(workflow)
+
+
+
 
 class eframeOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="PET image with correct time frames.")
@@ -127,7 +150,8 @@ class sifOutput(TraitedSpec):
 
 class sifInput(MINCCommandInputSpec):
     out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
-    in_file= File(exists=True, argstr="%s", position=-2, desc="PET header file")
+    in_file = File(argstr="%s",  desc="Minc PET image.")
+    header= traits.Dict(exists=True, argstr="%s", desc="PET header file")
 
 
 class sifCommand(BaseInterface):
@@ -153,11 +177,9 @@ class sifCommand(BaseInterface):
 
         in_file = self.inputs.in_file
         out_file = self.inputs.out_file
-        print "\nHELLLO\n"; print in_file; print out_file; 
 
-        fp = file(in_file, 'r')
-        data = json.load(fp)
-        fp.close()
+        data = self.inputs.header
+
         start=np.array(data['time']['frames-time'], dtype=float)
         duration=np.array(data['time']['frames-length'], dtype=float    )
         end=start+duration

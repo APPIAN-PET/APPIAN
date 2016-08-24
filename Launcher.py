@@ -55,6 +55,8 @@ def runPipeline(opts,args):
 		print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
 		sys.exit(1)
 
+	#
+
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
 	conditions_ids=list(range(len(opts.condiList)))
 	conditions_ids=opts.condiList
@@ -213,6 +215,13 @@ def runPipeline(opts,args):
 	petSettings.inputs.run = opts.prun
 	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
+	node_name="petCenterSettings"
+	petCenterSettings = pe.Node(interface=init.MincHdrInfoRunning(), name=node_name)
+	petCenterSettings.inputs.verbose = opts.verbose
+	petCenterSettings.inputs.clobber = True
+	petCenterSettings.inputs.run = opts.prun
+	rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+
 	node_name="petMasking"
 	petMasking = pe.Node(interface=masking.PETheadMaskingRunning(), name=node_name)
 	petMasking.inputs.verbose = opts.verbose
@@ -249,11 +258,9 @@ def runPipeline(opts,args):
 	idSURFNode.inputs.lambda_var = opts.lambda_var
 	idSURFNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
 
-	node_name="results"
-	resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
-	#resultsReport.inputs.out_file = 'results_report.csv'
-	resultsReport.inputs.clobber = True
-	rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
+	#Define list of output files. This will be passed to results report #
+	out_node_list = [petCenter]
+	out_img_list = ['out_file']
 
 
 
@@ -307,6 +314,8 @@ def runPipeline(opts,args):
 
 	workflow.connect(rPetCenter, 'out_file', datasink, petCenter.name)
 
+	workflow.connect([(petCenter, petCenterSettings, [('out_file', 'in_file')])])
+
 	workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
 	
 	workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
@@ -334,6 +343,10 @@ def runPipeline(opts,args):
 	workflow.connect([(petVolume, petMasking, [('out_file', 'in_file')]),
 	                  (petSettings, petMasking, [('out_file','in_json')])
                     ])
+	
+
+
+	#
 	#
 	workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
 	workflow.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
@@ -537,6 +550,8 @@ def runPipeline(opts,args):
 	workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
 	if opts.pvc_method == "GTM":
 		workflow.connect(gtmNode, 'out_file', pvcnode, "pvc")
+		out_node_list += [gtmNode]
+		out_img_list += ['out_file']
 
 
 	if opts.pvc_method == "idSURF":
@@ -546,6 +561,9 @@ def runPipeline(opts,args):
     				  	])
 		workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
 		workflow.connect(idSURFNode, 'out_file', pvcnode, "pvc")
+		out_node_list += [idSURFNode]
+		out_img_list += ['out_file']
+
 
 
 	###########################
@@ -556,34 +574,52 @@ def runPipeline(opts,args):
 		#["in_file", "header", "reference", "mask", "out_file"]
 		tka_pve=tka.get_tka_workflow("tka_pve", opts)
 		workflow.connect(refMasking, 'RegionalMaskPET', tka_pve, "inputnode.reference")
-		workflow.connect(petSettings, 'out_file', tka_pve, "inputnode.header")
+		workflow.connect(petCenterSettings, 'header', tka_pve, "inputnode.header")
 		workflow.connect(roiMasking, 'RegionalMaskPET', tka_pve, "inputnode.mask")
 		workflow.connect(petCenter, 'out_file', tka_pve, "inputnode.in_file")
+
+
+
 		workflow.connect(tka_pve, 'outputnode.out_file', datasink, tka_pve.name)
+		out_node_list += [tka_pve]
+		out_img_list += ['outputnode.out_file']
+		if not opts.pvc_method == None:
+			#Perform TKA on PVC PET
+			tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
+			workflow.connect(refMasking, 'RegionalMaskPET', tka_pvc, "inputnode.reference")
+			workflow.connect(petCenterSettings, 'header', tka_pvc, "inputnode.header")
+			workflow.connect(roiMasking, 'RegionalMaskPET', tka_pvc, "inputnode.mask")
+			workflow.connect(pvcnode, 'pvc', tka_pvc, "inputnode.in_file")
+			workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
+			out_node_list += [tka_pvc]
+			out_img_list += ['outputnode.out_file']
 
-		#Perform TKA on PVC PET
-		tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-		workflow.connect(refMasking, 'RegionalMaskPET', tka_pvc, "inputnode.reference")
-		workflow.connect(petSettings, 'out_file', tka_pvc, "inputnode.header")
-		workflow.connect(roiMasking, 'RegionalMaskPET', tka_pvc, "inputnode.mask")
-		workflow.connect(pvcnode, 'pvc', tka_pvc, "inputnode.in_file")
-		#workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
 
-	
 	#######################################
 	# Connect nodes for reporting results #
 	#######################################
+	#Results report for PET
+	for node, img in zip(out_node_list, out_img_list):
 
-	#workflow.connect([(petCenter, resultsReport, [('out_file','image')]),
-	#				  (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
-    #				  ])
+		node_name="results_" + node.name
+		resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
+
+		rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
+
+
+		workflow.connect([(node, resultsReport, [(img,'image')]),
+						  (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
+	    				  ])
+		
+		workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
+		workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
+	                      (infosource, rresultsReport, [('sid', 'sid')]),
+	                      (infosource, rresultsReport, [('cid', 'cid')])
+	                    ])
+		workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
+
 	
-	#workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
-	#workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
-    #                  (infosource, rresultsReport, [('sid', 'sid')]),
-    #                  (infosource, rresultsReport, [('cid', 'cid')])
-    #                ])
-	#workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
+
 
 	printOptions(opts,subjects_ids)
 

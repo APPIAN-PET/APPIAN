@@ -2,6 +2,7 @@ import os
 import numpy as np
 import tempfile
 import shutil
+import json
 import nipype.interfaces.minc as minc
 
 import minc as pyezminc
@@ -24,6 +25,8 @@ from nipype.interfaces.minc.concat import ConcatCommand
 
 class MincHdrInfoOutput(TraitedSpec):
     out_file = File(desc="Output file")
+    header = traits.Dict(desc="Dictionary")
+
 
 class MincHdrInfoInput(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc="Native dynamic PET image")
@@ -37,7 +40,7 @@ class MincHdrInfoRunning(BaseInterface):
     input_spec = MincHdrInfoInput
     output_spec = MincHdrInfoOutput
     _suffix = ".info"
-   
+    _params={}
     # def _parse_inputs(self, skip=None):
     #     if skip is None:
     #         skip = []
@@ -49,6 +52,7 @@ class MincHdrInfoRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
+        
 
         if not isdefined(self.inputs.out_file):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
@@ -90,11 +94,22 @@ class MincHdrInfoRunning(BaseInterface):
         img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
         hd = img.get_MINC_header()
         for key in hd.keys():
+            self._params[key]={}
             for subkey in hd[key].keys():
+                self._params[key][subkey]={}
                 data_in = hd[key][subkey]
                 var = str(key)
                 attr = str(subkey)
+                #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
+                self._params[key][subkey]=data_in 
                 update_minchd_json(self.inputs.out_file, data_in, var, attr)
+        
+        
+        fp=open(self.inputs.out_file)
+        header = json.load(fp)
+        fp.close()
+
+        self._params=header
 
         return runtime
 
@@ -102,6 +117,7 @@ class MincHdrInfoRunning(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
+        outputs["header"] = self._params
         return outputs
 
 

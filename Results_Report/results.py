@@ -7,11 +7,8 @@ class groupstatsInput(MINCCommandInputSpec):
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
     surf_roi = traits.File(argstr="-s %s %s", desc="obj and txt files containing surface ROI")
-
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
 
-    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class groupstatsOutput(TraitedSpec):
     out_file = File(desc="Extract values from PET images based on ROI")

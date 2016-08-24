@@ -17,6 +17,7 @@ class ModifyHeaderInput(MINCCommandInputSpec):
     dappend = traits.Bool(argstr="-dappend", default_value=False, desc="Append a double precision attribute")
     delete = traits.Bool(argstr="-delete", default_value=False, desc="Delete an attribute")
     opt_string = traits.Str(argstr="%s", desc="Option defining the infos to print out")
+    header = traits.Dict(argstr="MINC header for PET image, stored as dictionary")
 
 class ModifyHeaderCommand(MINCCommand):
     _cmd = "minc_modify_header"
@@ -29,3 +30,29 @@ class ModifyHeaderCommand(MINCCommand):
         outputs["out_file"] = self.inputs.in_file
         return outputs
 
+
+
+class FixHeaderInput(ModifyHeaderInput):
+    zstart = traits.Float(argstr="-dinsert zspace:start=%f",  desc="Replace start value for zspace")
+    ystart = traits.Float(argstr="-dinsert yspace:start=%f",  desc="Replace start value for yspace")
+    xstart = traits.Float(argstr="-dinsert xspace:start=%f",  desc="Replace start value for xspace")
+    zstep = traits.Float(argstr="-dinsert zspace:step=%f",  desc="Replace start value for zstep")
+    ystep = traits.Float(argstr="-dinsert yspace:step=%f",  desc="Replace start value for ystep")
+    xstep = traits.Float(argstr="-dinsert xspace:step=%f",  desc="Replace start value for xstep")
+    header = traits.Dict(desc="MINC header for PET image stored in dictionary.")
+
+class FixHeaderCommand(ModifyHeaderCommand):
+    input_spec = FixHeaderInput
+
+    def _parse_inputs(self, skip=None):
+        header=self.inputs.header
+        if skip is None:
+            skip = []
+        self.inputs.zstart = header["zspace"]["start"][0]
+        self.inputs.ystart = header["yspace"]["start"][0]
+        self.inputs.xstart = header["xspace"]["start"][0]
+        self.inputs.zstep = header["zspace"]["step"][0]
+        self.inputs.ystep = header["yspace"]["step"][0]
+        self.inputs.xstep = header["xspace"]["step"][0]
+
+        return super(FixHeaderCommand, self)._parse_inputs(skip=skip)

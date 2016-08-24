@@ -11,7 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.minc.conversion import (ecattomincCommand, minctoecatCommand, minctoecatWorkflow)
+from nipype.interfaces.minc.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 import ntpath
 #  input image starttime resultimage
@@ -73,7 +73,7 @@ class ppInput(MINCCommandInputSpec):
 	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
 	reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
 	start_time=traits.Float(argstr="%s", position=-2, desc="Start time for regression in mtga.")
-	Ca=  traits.Float(argstr="-Ca %f", desc="Concentration of native substrate in arterial plasma (mM).")
+	Ca=traits.Float(argstr="-Ca %f", desc="Concentration of native substrate in arterial plasma (mM).")
 	LC=traits.Float(argstr="-LC %f", desc="Lumped constant in MR calculation; default is 1.0")
 	density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
 	thr=traits.Float(argstr="-thr %f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
@@ -166,7 +166,6 @@ def get_tka_workflow(name, opts):
 		if opts.tka_method == "lp":
 			#Define node for logan plot analysis 
 			tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
-
 			if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
 			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
 			if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
@@ -177,16 +176,16 @@ def get_tka_workflow(name, opts):
 
 		elif opts.tka_method == "pp":
 			tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
-			tkaNode.inputs.Ca=opts.tka_Ca
-			tkaNode.inputs.LC=opts.tka_LC
-			tkaNode.inputs.density=opts.tka_density
-			tkaNode.inputs.thr=opts.tka_thr
-			tkaNode.inputs.max=opts.tka_max
-			tkaNode.inputs.filter=opts.tka_filter
-			tkaNode.inputs.end=opts.tka_end
-			tkaNode.inputs.v=opts.tka_v
-			tkaNode.inputs.n=opts.tka_n
-			tkaNode.inputs.start_time=opts.tka_start_time
+			if opts.tka_Ca != None:	tkaNode.inputs.Ca=opts.tka_Ca
+			if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
+			if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
+			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+			if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
+			if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
+			if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+			if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+			if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
+			if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
 		elif opts.tka_method == 'srtm':
 			print "Error: SRTM not yet implemented."
 			exit(0)
@@ -197,9 +196,11 @@ def get_tka_workflow(name, opts):
 		#tacReference.reference --> tkaNode.reference
 		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
 
-		convertParametric=pe.Node(interface=ecattomincCommand(), name="convertParametric") 
-		workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
-		workflow.connect(convertParametric, 'out_file', outputnode, 'out_file')
+		convertParametric=ecattomincWorkflow("convertParametric") 
+		workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
+		workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
+
+		workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
 
 	else: #ROI-based
 		print "Error: No data type selected for tracer kinetic analysis."

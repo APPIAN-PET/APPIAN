@@ -20,7 +20,7 @@ fmlogger = logging.getLogger("filemanip")
 
 def update_minchd_json(filename, data_in, var, attr):
     fp = file(filename, 'r')
-    data=load_json(fp)
+    data=json.load(fp)
     fp.close()
     if data.get(var,'None') == 'None':
     	data[var]={attr:data_in}

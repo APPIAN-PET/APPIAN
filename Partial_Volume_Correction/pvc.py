@@ -103,3 +103,51 @@ class idSURFCommand(MINCCommand):
             self.inputs.out_file = self._gen_output(self.inputs.input_file, self._suffix)
         return super(idSURFCommand, self)._parse_inputs(skip=skip)
 
+
+
+
+def get_workflow(name, infosource, datasink, opts):
+
+    workflow = pe.Workflow(name=name)
+
+    #Define input node that will receive input from outside of workflow
+    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_center", "pet_mask"]), name='inputnode')
+
+    #Define empty node for output
+    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_pvc"]), name='outputnode')
+
+    node_name="GTM"
+    gtmNode = pe.Node(interface=pvc.GTMCommand(), name=node_name)
+    gtmNode.inputs.fwhm = opts.scanner_fwhm
+
+    node_name="idSURF"
+    idSURFNode = pe.Node(interface=pvc.idSURFCommand(), name=node_name)
+    idSURFNode.inputs.fwhm = opts.scanner_fwhm
+    idSURFNode.inputs.max_iterations = opts.max_iterations
+    idSURFNode.inputs.tolerance = opts.tolerance
+    idSURFNode.inputs.denoise_fwhm = opts.denoise_fwhm
+    idSURFNode.inputs.lambda_var = opts.lambda_var
+    idSURFNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
+
+    
+
+
+    workflow.connect([(inputnode, gtmNode, [('pet_center','input_file')]),
+                    (inputnode, gtmNode, [('pet_mask','mask')])
+                    ])
+    if opts.pvc_method == "GTM":
+        workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
+        workflow.connect(gtmNode, 'out_file', outputnode, "pvc")
+
+    if opts.pvc_method == "idSURF":
+        workflow.connect([(gtmNode, idSURFNode, [('out_file','first_guess')]),
+                        (inputnode, idSURFNode, [('pet_center','input_file')]),
+                        (inputnode, idSURFNode, [('pet_PVCMask','mask')])
+                        ])
+        workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
+        workflow.connect(idSURFNode, 'out_file', outputnode, "pvc")
+
+
+
+    return(workflow)
+

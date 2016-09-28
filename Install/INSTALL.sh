@@ -71,7 +71,7 @@ fi
 #Build and compile the turku programs
 if [ ! -f "$build_dir/v1/mtga/imgki" ]; then #FIXME: Not a good test to check if make was run
 	cd $build_dir
-	cmake -D CMAKE_INSTALL_PREFIX:STRING $turku_dir $src_dir
+	cmake -D CMAKE_INSTALL_PREFIX:STRING=$turku_dir $src_dir
 	make
 	sudo make install
 fi

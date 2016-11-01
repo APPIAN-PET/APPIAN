@@ -115,6 +115,110 @@ class ppCommand(MINCCommand):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         return super(ppCommand, self)._parse_inputs(skip=skip)
 
+
+class srtmOutput(TraitedSpec):
+	out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
+	out_file_t3map = File(argstr="-err=%s",desc="Theta3 image.")
+
+class srtmInput(MINCCommandInputSpec):
+	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
+	reference = File(exists=True,  position=-2, argstr="%s", desc="Reference file")
+	out_file = File(argstr="%s", position=-1, desc="image to operate on")
+	out_file_t3map = File(argstr="-err=%s", position=0, desc="Theta3 image.")
+	t3max = traits.Float(argstr="-max=%f", position=1, desc="Maximum value for theta3.")
+	t3min = traits.Float(argstr="-min=%f", position=2, desc="Minimum value for theta3.")
+	nBF = traits.Int(argstr="-nr=%d", position=3, desc="Number of basis functions.")
+
+
+class srtmCommand(MINCCommand):
+    input_spec =  srtmInput
+    output_spec = srtmOutput
+
+    _cmd = "imgbfbp" #input_spec.pvc_method 
+    _suffix = "_srtm" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        outputs["out_file_t3map"] = self.inputs.out_file_t3map
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        if name == "out_file_t3map":
+            return self._list_outputs()["out_file_t3map"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
+
+    def _parse_inputs(self, skip=None):
+		if skip is None:
+			skip = []
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+		if not isdefined(self.inputs.out_file_t3map):
+			self.inputs.out_file_t3map = self._gen_output(self.inputs.in_file, "_t3err")
+		return super(srtmCommand, self)._parse_inputs(skip=skip)
+
+
+
+
+
+class srtmROIOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="Result file.")
+    out_fit_file = File(argstr="%s",  desc="Fitting dft.")
+
+class srtmROIInput(MINCCommandInputSpec):
+	roi = File(exists=True,  position=-4, argstr="%s", desc="ROI file")
+	reference = File(exists=True,  position=-3, argstr="%s", desc="Reference file")
+	fit_time = traits.Int(position=-2, argstr="%d", usedefault=True, default_value=999, desc="Fit time")
+	out_file = File(argstr="%s", position=-1, desc="Result file")
+	out_fit_file = File(argstr="-fit=%s", position=2, desc="Fitting dft")
+	sd = traits.Bool(argstr="-SD=y", position=1, usedefault=True, default_value=True, desc="Calculation of standard deviations")
+
+class srtmROICommand(MINCCommand):
+    input_spec =  srtmROIInput
+    output_spec = srtmROIOutput
+
+    _cmd = "fit_srtm" #input_spec.pvc_method 
+    _suffix = "_srtmROI.res" 
+    _suffix2 = "_srtmROI.fit" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        outputs["out_fit_file"] = self.inputs.out_fit_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        if name == "out_fit_file":
+            return self._list_outputs()["out_fit_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix
+
+    def _parse_inputs(self, skip=None):
+		if skip is None:
+			skip = []
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.roi, self._suffix)
+		if not isdefined(self.inputs.out_fit_file):
+			self.inputs.out_fit_file = self._gen_output(self.inputs.roi, self._suffix2)
+		return super(srtmROICommand, self)._parse_inputs(skip=skip)
+
+
+
 standard_fields=["in_file", "header", "reference", "mask"] #NOTE: in_file and out_file must be defined in field
 tka_param={}
 tka_param["lp"]=standard_fields
@@ -138,8 +242,9 @@ def get_tka_workflow(name, opts):
 
 	#Define an empty node for reference region
 	tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
+
 	#Define empty node for output
-	outputnode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
+	outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_file_t3map"]), name='outputnode')
 
 	if not opts.tka_arterial:
 		#Extracting TAC from reference region and putting it into text file
@@ -186,11 +291,14 @@ def get_tka_workflow(name, opts):
 			if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
 			if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
 			if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+		
 		elif opts.tka_method == 'srtm':
-			print "Error: SRTM not yet implemented."
-			exit(0)
-		tkaNode.start_time = opts.tka_start_time
+			tkaNode = pe.Node(interface=srtmCommand(), name=opts.tka_method)
+			if opts.tka_t3max != None:	tkaNode.inputs.t3max=opts.tka_t3max
+			if opts.tka_t3min != None: tkaNode.inputs.t3min=opts.tka_t3min
+			if opts.tka_nBF != None: tkaNode.inputs.nBF=opts.tka_nBF
 
+	
 		#inputnode.in_file -->  tkaNode.in_file
 		workflow.connect(convertPET, 'outputNode.out_file', tkaNode, 'in_file')
 		#tacReference.reference --> tkaNode.reference
@@ -199,13 +307,29 @@ def get_tka_workflow(name, opts):
 		convertParametric=ecattomincWorkflow("convertParametric") 
 		workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
 		workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
-
 		workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
 
-	else: #ROI-based
-		print "Error: No data type selected for tracer kinetic analysis."
-		exit(1)
+		if opts.tka_method == 'srtm':
+			convertParametricT3=ecattomincWorkflow("convertParametricT3") 
+			workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'inputNode.in_file')
+			workflow.connect(inputnode, 'header', convertParametricT3, 'inputNode.header')
+			workflow.connect(convertParametricT3, 'outputNode.out_file', outputnode, 'out_file_t3map')
 
+	else: #ROI-based
+		tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
+		outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
+		convertROI=pe.Node(interface=minctoecatCommand(), name="minctoecat_roi") 
+		extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
+		tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
+
+		workflow.connect(inputnode, 'mask', convertROI, 'in_file')
+		workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
+		workflow.connect(convertPET, 'outputNode.out_file', extractROI, 'in_file')
+		workflow.connect(extractROI, 'out_file', tkaNode, 'roi')
+		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+		workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')
+		workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
+	
 	return(workflow)
 
 

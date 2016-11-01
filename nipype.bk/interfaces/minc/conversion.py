@@ -99,16 +99,18 @@ def ecattomincWorkflow(name):
     outputNode  = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
 
     workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
-    
     workflow.connect(conversionNode, 'out_file', fixHeaderNode, 'in_file')
     workflow.connect(inputNode, 'header', fixHeaderNode, 'header')
+    workflow.connect(fixHeaderNode, 'out_file', outputNode, 'out_file')
 
-
-    workflow.connect(fixHeaderNode, 'out_file', resampleNode, 'in_file')
-    workflow.connect(paramNode, 'out_file', resampleNode, 'transformation')
-
-
-    workflow.connect(resampleNode, 'out_file', outputNode, 'out_file')  
+    # workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
+    # workflow.connect(conversionNode, 'out_file', outputNode, 'out_file')
+    
+    # workflow.connect(inputNode, 'header', fixHeaderNode, 'header')
+    # workflow.connect(fixHeaderNode, 'out_file', resampleNode, 'in_file')
+    # workflow.connect(paramNode, 'out_file', resampleNode, 'transformation')
+    # workflow.connect(resampleNode, 'out_file', outputNode, 'out_file')  
+    # workflow.connect(fixHeaderNode, 'out_file', outputNode, 'out_file')
 
     return(workflow)
 

@@ -521,7 +521,7 @@ if __name__ == "__main__":
     ###Check PVC options and set defaults if necessary
 	if opts.scanner_fwhm == None and opts.pet_scanner == None:
 		print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--scanner_fwhm <float>\" option, or"
-		print "\t2) set the PET scanner type using the \"--pet_scanner <string>\" option."
+		print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
 		print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
 		exit(1)
 	if not opts.pet_scanner == None:

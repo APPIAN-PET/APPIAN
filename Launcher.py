@@ -81,12 +81,11 @@ def runPipeline(opts,args):
 	###Datasources###
 	#################
 	#PET datasource
-	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], 
-													   outfields=['pet'], sort_filelist=False), name="datasourceRaw")
+	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], outfields=['pet'], sort_filelist=False), name="datasourceRaw")
 	datasourceRaw.inputs.base_directory = opts.sourceDir
 	datasourceRaw.inputs.template = '*'
-	datasourceRaw.inputs.field_template = dict(pet='%s/%s_%s_%s_pet.mnc')
-	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'study_prefix', 'sid', 'cid']])	
+	datasourceRaw.inputs.field_template = dict(pet='%s_%s_%s_pet.mnc') #FIXME: No need to have prefix directory
+	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'sid', 'cid']])	
 
 	#Subject ROI datasource
 	
@@ -107,25 +106,25 @@ def runPipeline(opts,args):
 	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
-	datasourceCivet.inputs.field_template = dict(nativeT1='%s/%s/native/%s_%s_t1.mnc', 
-												 nativeT1nuc='%s/%s/native/%s_%s_t1_nuc.mnc', 
-												 T1Tal='%s/%s/final/%s_%s_t1_tal.mnc',
-												 xfmT1Tal='%s/%s/transforms/linear/%s_%s_t1_tal.xfm',
-												 xfmT1Talnl='%s/%s/transforms/nonlinear/%s_%s_nlfit_It.xfm',
-												 brainmaskTal='%s/%s/mask/%s_%s_brain_mask.mnc',
-												 headmaskTal='%s/%s/mask/%s_%s_skull_mask.mnc',
-												 clsmask='%s/%s/classify/%s_%s_pve_classify.mnc',
-												 animalmask='%s/%s/segment/%s_%s_animal_labels_masked.mnc'
+	datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s_t1.mnc', 
+												 nativeT1nuc='%s_%s/native/%s_%s_t1_nuc.mnc', 
+												 T1Tal='%s_%s/final/%s_%s_t1_tal.mnc',
+												 xfmT1Tal='%s_%s/transforms/linear/%s_%s_t1_tal.xfm',
+												 xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s_nlfit_It.xfm',
+												 brainmaskTal='%s_%s/mask/%s_%s_brain_mask.mnc',
+												 headmaskTal='%s_%s/mask/%s_%s_skull_mask.mnc',
+												 clsmask='%s_%s/classify/%s_%s_pve_classify.mnc',
+												 animalmask='%s_%s/segment/%s_%s_animal_labels_masked.mnc'
 												)
-	datasourceCivet.inputs.template_args = dict(nativeT1=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
-										   		nativeT1nuc=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
-										   		T1Tal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
-										   		xfmT1Tal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
-										   		xfmT1Talnl=[['study_prefix', 'sid', 'study_prefix', 'sid']], 
-										   		brainmaskTal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
-										   		headmaskTal=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
-										   		clsmask=[['study_prefix', 'sid', 'study_prefix', 'sid']], 										   		
-										   		animalmask=[['study_prefix', 'sid', 'study_prefix', 'sid']] 										   		
+	datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+										   		nativeT1nuc=[['sid', 'cid', 'study_prefix', 'sid']], 
+										   		T1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+										   		xfmT1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+										   		xfmT1Talnl=[['sid', 'cid', 'study_prefix', 'sid']], 
+										   		brainmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+										   		headmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+										   		clsmask=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+										   		animalmask=[['sid', 'cid', 'study_prefix', 'sid']] 										   		
 										   		)	
 
 	##############
@@ -194,8 +193,6 @@ def runPipeline(opts,args):
 	##################
 	# Coregistration #
 	##################
-
-
 	wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
 	workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
 	workflow.connect(datasourceCivet, 'nativeT1nuc', wf_pet2mri, "inputnode.nativeT1nuc")
@@ -490,15 +487,16 @@ if __name__ == "__main__":
 
 	(opts, args) = parser.parse_args()
 
-
 	opts.extension='mnc'
-
+	if isinstance(opts.condiList, list):
+		opts.condiList=','.join(opts.condiList)
+	
 	##########################################################
 	# Check inputs to make sure there are no inconsistencies #
 	##########################################################
 
 	if not opts.sourceDir or not opts.targetDir or not opts.civetDir or not opts.prefix:
-		print "\n\n*******ERROR******** \n     You must specify -sourcedir, -targetdir, -civetdir  and -prefix \n********************\n"
+		print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir, --civetdir  and --prefix \n********************\n"
 		parser.print_help()
 		sys.exit(1)
 

@@ -163,9 +163,7 @@ def runPipeline(opts,args):
 
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
-	#run the work flow
 	workflow.run(); exit(0)
-
 	###########
 	# Masking #
 	###########
@@ -186,11 +184,6 @@ def runPipeline(opts,args):
 		workflow.connect(datasourceROI, 'subjectROI', wf_masking, "inputnode.subjectROI")
 	workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
 	workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
-
-
-
-
-
 
 
 	##################

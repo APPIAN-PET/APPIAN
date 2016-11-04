@@ -98,7 +98,7 @@ def runPipeline(opts,args):
 		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
 	#CIVET datasource
-	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid'], 
+	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], 
 														 outfields=['nativeT1', 'nativeT1nuc', 
 														 			'T1Tal', 'xfmT1Tal','xfmT1Talnl',
 														 			'brainmaskTal', 'headmaskTal', 'clsmask', 'animalmask'], 
@@ -106,15 +106,15 @@ def runPipeline(opts,args):
 	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
-	datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s_t1.mnc', 
-												 nativeT1nuc='%s_%s/native/%s_%s_t1_nuc.mnc', 
-												 T1Tal='%s_%s/final/%s_%s_t1_tal.mnc',
-												 xfmT1Tal='%s_%s/transforms/linear/%s_%s_t1_tal.xfm',
-												 xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s_nlfit_It.xfm',
-												 brainmaskTal='%s_%s/mask/%s_%s_brain_mask.mnc',
-												 headmaskTal='%s_%s/mask/%s_%s_skull_mask.mnc',
-												 clsmask='%s_%s/classify/%s_%s_pve_classify.mnc',
-												 animalmask='%s_%s/segment/%s_%s_animal_labels_masked.mnc'
+	datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s*t1.mnc', 
+												 nativeT1nuc='%s_%s/native/%s_%s*t1_nuc.mnc', 
+												 T1Tal='%s_%s/final/%s_%s*t1_tal.mnc',
+												 xfmT1Tal='%s_%s/transforms/linear/%s_%s*t1_tal.xfm',
+												 xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s*nlfit_It.xfm',
+												 brainmaskTal='%s_%s/mask/%s_%s*brain_mask.mnc',
+												 headmaskTal='%s_%s/mask/%s_%s*skull_mask.mnc',
+												 clsmask='%s_%s/classify/%s_%s*pve_classify.mnc',
+												 animalmask='%s_%s/segment/%s_%s*animal_labels_masked.mnc'
 												)
 	datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
 										   		nativeT1nuc=[['sid', 'cid', 'study_prefix', 'sid']], 
@@ -143,9 +143,11 @@ def runPipeline(opts,args):
 	workflow.connect([(infosource, datasourceRaw, [('sid', 'sid')]),
                       (infosource, datasourceRaw, [('cid', 'cid')]),
                       (infosource, datasourceRaw, [('study_prefix', 'study_prefix')]),
+		      (infosource, datasourceCivet, [('cid', 'cid')]),
                       (infosource, datasourceCivet, [('sid', 'sid')]),
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
+
 
 
 
@@ -161,7 +163,8 @@ def runPipeline(opts,args):
 
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
-
+	#run the work flow
+	workflow.run(); exit(0)
 
 	###########
 	# Masking #
@@ -290,14 +293,12 @@ def runPipeline(opts,args):
 		                    ])
 			workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
-	
 
 
 	printOptions(opts,subjects_ids)
 
 	# #vizualization graph of the workflow
 	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
-
 	#run the work flow
 	workflow.run()
 

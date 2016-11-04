@@ -1,4 +1,10 @@
 import os
+import nipype.pipeline.engine as pe
+import nipype.interfaces.utility as niu
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+
 import numpy as np
 import ntpath
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
@@ -117,11 +123,11 @@ def get_workflow(name, infosource, datasink, opts):
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_pvc"]), name='outputnode')
 
     node_name="GTM"
-    gtmNode = pe.Node(interface=pvc.GTMCommand(), name=node_name)
+    gtmNode = pe.Node(interface=GTMCommand(), name=node_name)
     gtmNode.inputs.fwhm = opts.scanner_fwhm
 
     node_name="idSURF"
-    idSURFNode = pe.Node(interface=pvc.idSURFCommand(), name=node_name)
+    idSURFNode = pe.Node(interface=idSURFCommand(), name=node_name)
     idSURFNode.inputs.fwhm = opts.scanner_fwhm
     idSURFNode.inputs.max_iterations = opts.max_iterations
     idSURFNode.inputs.tolerance = opts.tolerance

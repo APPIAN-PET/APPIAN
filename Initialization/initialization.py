@@ -37,7 +37,7 @@ class MincHdrInfoInput(BaseInterfaceInputSpec):
     out_file = File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(usedefault=True, default_value=False, desc="Run the commands")
+    run = traits.Bool(usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class MincHdrInfoRunning(BaseInterface):
@@ -133,7 +133,7 @@ class VolCenteringInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
     out_file = File(argstr="%s", desc="Image after centering")
 
-    run = traits.Bool(argstr="-run", usedefault=True, default_value=False, desc="Run the commands")
+    run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class VolCenteringRunning(BaseInterface):
@@ -182,7 +182,7 @@ class PETexcludeFrInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
     out_file = File(argstr="%s", desc="Image after centering")
 
-    run = traits.Bool(argstr="-run", usedefault=True, default_value=False, desc="Run the commands")
+    run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class PETexcludeFrRunning(BaseInterface):
@@ -213,7 +213,9 @@ class PETexcludeFrRunning(BaseInterface):
             if self.inputs.verbose:
                 print run_mincreshape.cmdline
             if self.inputs.run:
+                print "Running "
                 run_mincreshape.run()
+            else: print "Not running ", self.inputs.run
             
             frames.append(frame)
         
@@ -224,8 +226,10 @@ class PETexcludeFrRunning(BaseInterface):
         if self.inputs.verbose:
             print run_concat.cmdline
         if self.inputs.run:
+            print "Okay running"
             run_concat.run()
-
+        
+        exit(1)
         shutil.rmtree(tmpDir)
         return runtime
 

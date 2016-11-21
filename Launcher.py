@@ -477,8 +477,8 @@ if __name__ == "__main__":
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Pipeline control")
-	group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true',default=False)
-	group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false',default=False)
+	group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true',default=True)
+	group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false',default=True)
 	group.add_option("","--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
 	group.add_option("","--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
 	parser.add_option_group(group)
@@ -532,18 +532,7 @@ if __name__ == "__main__":
 	opts.sourceDir = os.path.normpath(opts.sourceDir)
 	opts.civetDir = os.path.normpath(opts.civetDir)
 
-
-#	if opts.prun:
-#		runPipeline(opts,args)
-#	elif opts.pscan:
-#		printScan(opts,args)
-#	elif opts.pstages:
-#		printStages(opts,args)
-#	else:
-#		print "\n\n*******ERROR********: \n    The options -run, -print-scan or print-stages need to be chosen \n********************\n\n"
-#		parser.print_help()
-#		sys.exit(1)
-
+        print opts.prun, "prun"
 	if opts.pscan:
 		printScan(opts,args)
 	elif opts.pstages:

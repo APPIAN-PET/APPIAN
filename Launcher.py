@@ -24,7 +24,6 @@ import Partial_Volume_Correction.pvc as pvc
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
 # import nipype.interfaces.minc.results as results
-
 version = "1.0"
 
 

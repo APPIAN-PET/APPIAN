@@ -571,8 +571,6 @@ def get_workflow(name, infosource, datasink, opts):
     rPetPVCMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
-
-
     workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
                       (inputnode, pet2mri, [('pet_headMask', 'in_source_mask')]), 
                       (inputnode, pet2mri, [('t1_headMask',  'in_target_mask')]),

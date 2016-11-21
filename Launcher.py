@@ -39,8 +39,7 @@ def printOptions(opts,args):
 	print "* The target directory is : "+opts.targetDir+"\n"
 	print "* The Civet directory is : "+opts.civetDir+"\n"
 	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
-#	print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
-	print "* PET conditions : "+opts.condiList+"\n"
+	print ["* PET conditions : "]+opts.condiList #+"\n"
 	print "* ROI labels : "+str(', '.join(opts.ROIAtlasLabels))+"\n"
 
 
@@ -57,9 +56,10 @@ def runPipeline(opts,args):
 		sys.exit(1)
 
 	#
-
+	if isinstance(opts.condiList, str):
+		opts.condiList=opts.condiList.split(',')
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
-	conditions_ids=list(range(len(opts.condiList.split(','))))
+	conditions_ids=opts.condiList
 #	conditions_ids=opts.condiList
 
 
@@ -200,13 +200,6 @@ def runPipeline(opts,args):
 		workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
 
 
-
-
-
-
-
-
-
 	if not opts.pvcrun:
 
 		wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
@@ -289,6 +282,18 @@ def runPipeline(opts,args):
 
 
 	printOptions(opts,subjects_ids)
+        exit(0)
+
+        ##################
+        # Group level QC #
+        ##################
+        #JoinNode to join together workflows of multiple subjects for group level QC 
+        PETtoT1_group_qc = pe.JoinNode(interface=PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet", "t1"], name="PETtoT1_group_qc")
+        workflow.connect([(wf_init_pet, PETtoT1_group_qc, [('outputnode.pet_center', 'pet_images')]),
+                      (datasourceCivet, PETtoT1_group_qc, [( 'nativeT1', 't1_images')])
+                    ])
+
+        
 
 	# #vizualization graph of the workflow
 	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
@@ -482,8 +487,7 @@ if __name__ == "__main__":
 	(opts, args) = parser.parse_args()
 
 	opts.extension='mnc'
-	if isinstance(opts.condiList, list):
-		opts.condiList=','.join(opts.condiList)
+
 	
 	##########################################################
 	# Check inputs to make sure there are no inconsistencies #

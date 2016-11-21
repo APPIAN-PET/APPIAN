@@ -213,9 +213,7 @@ class PETexcludeFrRunning(BaseInterface):
             if self.inputs.verbose:
                 print run_mincreshape.cmdline
             if self.inputs.run:
-                print "Running "
                 run_mincreshape.run()
-            else: print "Not running ", self.inputs.run
             
             frames.append(frame)
         
@@ -226,10 +224,8 @@ class PETexcludeFrRunning(BaseInterface):
         if self.inputs.verbose:
             print run_concat.cmdline
         if self.inputs.run:
-            print "Okay running"
             run_concat.run()
         
-        exit(1)
         shutil.rmtree(tmpDir)
         return runtime
 

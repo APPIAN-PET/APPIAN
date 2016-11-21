@@ -22,8 +22,8 @@ class PETtoT1_group_qcOutput(TraitedSpec):
     out_file = File(desc="Output file")
 
 class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
-    pet_files = File(exists=True, mandatory=True, desc="Native dynamic PET image")
-    mri_files = File(exists=True, mandatory=True, desc="MRI image")
+    pet_images = File(exists=True, mandatory=True, desc="Native dynamic PET image")
+    t1_images = File(exists=True, mandatory=True, desc="MRI image")
     out_file = File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -31,14 +31,14 @@ class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
     verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class PETtoT1_group_qc(BaseInterface):
-    input_spec = PETtoT1LinRegInput
-    output_spec = PETtoT1LinRegOutput
+    input_spec = PETtoT1_group_qcInput
+    output_spec = PETtoT1_group_qcOutput
 
 
     def _run_interface(self, runtime):
         inputs = self.input_spec().get()
 	if inputs.out_file == None: inputs.out_file="PETtoT1_coreg_qc.png"
-	df=pet2t1_coreg_qc(pet_files, mri_files, alpha=0.05)
+	df=pet2t1_coreg_qc(pet_images, t1_images, alpha=0.05)
 	plot_pet2t1_coreg(df, inputs.out_file)
 
     def _list_outputs(self):
@@ -51,13 +51,13 @@ class PETtoT1_group_qc(BaseInterface):
 ### QC function to test if there are outliers in coregistered images
 ###
 
-def pet2t1_coreg_qc(pet_files, mri_files, alpha=0.05):
+def pet2t1_coreg_qc(pet_images, t1_images, alpha=0.05):
 	#pet_dir=argv[1]
 	#mri_dir=argv[2]
-	#pet_files=sorted(list_paths(pet_dir, "*.mnc"))
-	#mri_files=sorted(list_paths(mri_dir, "*.mnc"))
+	#pet_images=sorted(list_paths(pet_dir, "*.mnc"))
+	#t1_images=sorted(list_paths(mri_dir, "*.mnc"))
 
-	#mi_list=img_mi(pet_files, mri_files)
+	#mi_list=img_mi(pet_images, t1_images)
 
 	mi_list=pd.Series([1.94565299994 , 1.78677021816, 1.71681652919, 1.79284928896, 1.69685169594 , 1.8925707379, 1.91150087673, 1.91351946117, 1.68566111062, 1.39356149443, 1.5448906024, 1.5223863097, 1.82259812813, 1.37758014175, 1.91019564353, 1.9053690547, 1.91770161416, 1.62592415566, 1.88027600008 ,  1.89351525464, 2.06085761606, 1.85919235056, 1.774951614, 1.64781175331, 1.92539419348, 1.83281566499, 1.63495527526, 1.7754404866, 1.69857611697, 1.91274275946, 1.81477196656, 1.79953422437, 1.84789498858, 1.92349638563])
 
@@ -78,7 +78,7 @@ def pet2t1_coreg_qc(pet_files, mri_files, alpha=0.05):
 	C=c[alpha]*sqrt( (l0+l1) / (l0*l1))
 	C_list=np.repeat(C, len(mi_list))
 	x0=np.arange(0.,mi_max, mi_max/n)
-	df0=pd.DataFrame({"Value":mi_list, "p":pvalues, "D":dvalues, "MAD": mad_list }, 'C':C_list )
+	df0=pd.DataFrame({"Value":mi_list, "p":pvalues, "D":dvalues, "MAD": mad_list , 'C':C_list} )
 	y0=np.interp( x0, df0.Value, df0.p   )
 
 	for i in mi_list.index:
@@ -141,9 +141,9 @@ def img_mad(x):
     mad_list= abs(x - np.median(x)) / mad(x)
     return(mad_list)
 
-def img_mi(pet_files, mri_files):
+def img_mi(pet_images, t1_images):
     mi_list=[]
-    for pet_fn, mri_fn in zip(pet_files, mri_files):
+    for pet_fn, mri_fn in zip(pet_images, t1_images):
         print "PET:", pet_fn
         print "MRI:", mri_fn
         pet = pyminc.volumeFromFile(pet_fn)

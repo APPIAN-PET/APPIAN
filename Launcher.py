@@ -23,6 +23,7 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
+import Quality_Control as qc
 # import nipype.interfaces.minc.results as results
 version = "1.0"
 
@@ -80,28 +81,23 @@ def runPipeline(opts,args):
 	###Datasources###
 	#################
 	#PET datasource
-	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], outfields=['pet'], sort_filelist=False), name="datasourceRaw")
+	datasourceRaw = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], outfields=['pet'], raise_on_empty = True, sort_filelist=False), name="datasourceRaw")
 	datasourceRaw.inputs.base_directory = opts.sourceDir
 	datasourceRaw.inputs.template = '*'
-	datasourceRaw.inputs.field_template = dict(pet='%s_%s_%s_pet.mnc') #FIXME: No need to have prefix directory
+	datasourceRaw.inputs.field_template = dict(pet='%s_%s_%s_pet.mnc') 
 	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'sid', 'cid']])	
 
 	#Subject ROI datasource
 	
 	if os.path.exists(opts.roi_dir):
-		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'RoiSuffix'], 
-														   outfields=['subjectROI'], sort_filelist=False), name="datasourceROI")
+		datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'RoiSuffix'],  outfields=['subjectROI'], raise_on_empty = True, sort_filelist=False), name="datasourceROI")
 		datasourceROI.inputs.base_directory = opts.roi_dir
 		datasourceROI.inputs.template = '*'
 		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
 		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
 	#CIVET datasource
-	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'], 
-														 outfields=['nativeT1', 'nativeT1nuc', 
-														 			'T1Tal', 'xfmT1Tal','xfmT1Talnl',
-														 			'brainmaskTal', 'headmaskTal', 'clsmask', 'animalmask'], 
-														 sort_filelist=False), name="datasourceCivet")
+	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'],outfields=['nativeT1', 'nativeT1nuc','T1Tal', 'xfmT1Tal','xfmT1Talnl','brainmaskTal', 'headmaskTal', 'clsmask', 'animalmask'], raise_on_empty=True, sort_filelist=False), name="datasourceCivet")
 	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
@@ -162,7 +158,7 @@ def runPipeline(opts,args):
 
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
-	workflow.run(); exit(0)
+	workflow.run(); 
 	###########
 	# Masking #
 	###########
@@ -190,7 +186,8 @@ def runPipeline(opts,args):
 	##################
 	wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
 	workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
-	workflow.connect(datasourceCivet, 'nativeT1nuc', wf_pet2mri, "inputnode.nativeT1nuc")
+	#workflow.connect(datasourceCivet, 'nativeT1nuc', wf_pet2mri, "inputnode.nativeT1nuc")
+	workflow.connect(datasourceCivet, 'nativeT1', wf_pet2mri, "inputnode.nativeT1nuc")
 	workflow.connect(wf_masking, 'outputnode.pet_headMask', wf_pet2mri, "inputnode.pet_headMask")
 	workflow.connect(wf_masking, 'outputnode.t1_headMask', wf_pet2mri, "inputnode.t1_headMask")
 	workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
@@ -281,13 +278,12 @@ def runPipeline(opts,args):
 
 
 	printOptions(opts,subjects_ids)
-        exit(0)
 
         ##################
         # Group level QC #
         ##################
         #JoinNode to join together workflows of multiple subjects for group level QC 
-        PETtoT1_group_qc = pe.JoinNode(interface=PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet", "t1"], name="PETtoT1_group_qc")
+        PETtoT1_group_qc = pe.JoinNode(interface=qc.PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet_images", "t1_images"], name="PETtoT1_group_qc")
         workflow.connect([(wf_init_pet, PETtoT1_group_qc, [('outputnode.pet_center', 'pet_images')]),
                       (datasourceCivet, PETtoT1_group_qc, [( 'nativeT1', 't1_images')])
                     ])

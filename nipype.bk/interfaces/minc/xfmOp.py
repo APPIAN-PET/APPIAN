@@ -19,7 +19,7 @@ class ConcatInput(MINCCommandInputSpec):
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class ConcatOutput(TraitedSpec):
-    output_file = File(exists=True, desc="transformation matrix")
+    out_file = File(exists=True, desc="transformation matrix")
 
 class ConcatCommand(MINCCommand, Info):
     _cmd = "xfmconcat"

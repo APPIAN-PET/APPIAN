@@ -23,7 +23,8 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-import Quality_Control as qc
+import Quality_Control.group_qc_coreg as qc
+import Test.test_group_qc as tqc
 # import nipype.interfaces.minc.results as results
 version = "1.0"
 
@@ -48,6 +49,34 @@ def printOptions(opts,args):
 def test_get_inputs():
 	return 
 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+
+class myIdentOutput(TraitedSpec):
+    out_file = traits.Str(desc="Output file")
+
+class myIdentInput(BaseInterfaceInputSpec):
+    in_file = traits.Str( mandatory=True, desc="Input string")
+    out_file = traits.Str(desc="Output file")
+
+class myIdentity(BaseInterface):
+    input_spec = myIdentInput 
+    output_spec = myIdentInput
+   
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self.inputs.in_file
+        return(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+
+
+
+
 def runPipeline(opts,args):	
 	if args:
 		subjects_ids = args
@@ -60,7 +89,6 @@ def runPipeline(opts,args):
 		opts.condiList=opts.condiList.split(',')
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
 	conditions_ids=opts.condiList
-#	conditions_ids=opts.condiList
 
 
 	###Infosource###
@@ -129,9 +157,6 @@ def runPipeline(opts,args):
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-
-
-
 	workflow = pe.Workflow(name='preproc')
 	workflow.base_dir = opts.targetDir
 
@@ -143,27 +168,18 @@ def runPipeline(opts,args):
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
 
-
-
-
-
-
 	###################
 	# PET prelimaries #
 	###################
-
 	wf_init_pet=init.get_workflow("pet_prelimaries", infosource, datasink, opts)
 	workflow.connect(datasourceRaw, 'pet', wf_init_pet, "inputnode.pet")
-
-
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
 	workflow.run(); 
+
 	###########
 	# Masking #
 	###########
-
-
 	wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
 	workflow.connect(datasourceCivet, 'nativeT1', wf_masking, "inputnode.nativeT1nuc")
 	workflow.connect(datasourceCivet, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
@@ -245,6 +261,7 @@ def runPipeline(opts,args):
 			
 			out_node_list += [tka_pve]
 			out_img_list += ['outputnode.out_file']
+                        ut
 
 
 
@@ -275,23 +292,58 @@ def runPipeline(opts,args):
 		                    ])
 			workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
-
-
-	printOptions(opts,subjects_ids)
+        #####################
+        # Join Subject data #
+        #####################
+        ### Subject-level analysis finished. 
+        ### Create JoinNode to bring together all the data for group-level analysis and quality control
+        subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions"]
+        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="infosource", joinfield=subject_data, name="join_subjectsNode")
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
+        workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
+        workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
+        workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
+        workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
+        workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
 
         ##################
         # Group level QC #
         ##################
-        #JoinNode to join together workflows of multiple subjects for group level QC 
-        PETtoT1_group_qc = pe.JoinNode(interface=qc.PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet_images", "t1_images"], name="PETtoT1_group_qc")
-        workflow.connect([(wf_init_pet, PETtoT1_group_qc, [('outputnode.pet_center', 'pet_images')]),
-                      (datasourceCivet, PETtoT1_group_qc, [( 'nativeT1', 't1_images')])
-                    ])
+        ###JoinNode to join together workflows of multiple subjects for group level QC 
+        PETtoT1_group_qc = pe.JoinNode(interface=qc.PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet_images", "t1_images", "subjects", "conditions"], name="PETtoT1_group_qc")
+        workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
+        workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
+        workflow.connect(join_subjectsNode, 't1_brainMasks', PETtoT1_group_qc, 'brain_masks')
+        workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
+        workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
+        workflow.connect(infosource, 'study_prefix', PETtoT1_group_qc,'study_prefix')
 
-        
+
+        ##########################
+        # Apply test xfm to PET  #
+        ##########################
+        opts.test_group_qc=False
+        if opts.test_group_qc:
+            wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
+            workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
+            workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
+            workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
+            workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
+
+            test_group_coreg_qc = pe.JoinNode(interface=tqc.test_group_coreg_qcCommand(), joinsource="infosource", joinfield=['rotated_pet', 'translated_pet'], name="test_group_coreg_qc")
+            workflow.connect(wf_misalign_pet, 'outputnode.rotated_pet', test_group_coreg_qc, 'rotated_pet')
+            workflow.connect(wf_misalign_pet, 'outputnode.translated_pet', test_group_coreg_qc, 'translated_pet')
+            workflow.connect(join_subjectsNode, 't1_images',test_group_coreg_qc, 't1_images')
+            workflow.connect(join_subjectsNode, 'pet_images',test_group_coreg_qc, 'pet_images')
+            workflow.connect(join_subjectsNode, 't1_brainMasks',test_group_coreg_qc, 'brain_masks')
+            workflow.connect(join_subjectsNode, 'conditions', test_group_coreg_qc, 'conditions')
+            workflow.connect(join_subjectsNode, 'subjects', test_group_coreg_qc, 'subjects')
+            workflow.connect(infosource, 'study_prefix', test_group_coreg_qc,'study_prefix')
 
 	# #vizualization graph of the workflow
 	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
+
+	printOptions(opts,subjects_ids)
 	#run the work flow
 	workflow.run()
 
@@ -528,7 +580,6 @@ if __name__ == "__main__":
 	opts.sourceDir = os.path.normpath(opts.sourceDir)
 	opts.civetDir = os.path.normpath(opts.civetDir)
 
-        print opts.prun, "prun"
 	if opts.pscan:
 		printScan(opts,args)
 	elif opts.pstages:

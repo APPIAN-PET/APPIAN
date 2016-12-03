@@ -1,11 +1,12 @@
 import os
 import numpy as np
-
+import re
 from base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
 class ResampleOutput(TraitedSpec):
-    out_file = File(exists=True, desc="resampled image")
+#    out_file = File(exists=True, desc="resampled image")
+    out_file = File(desc="resampled image")
 
 class ResampleInput(MINCCommandInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="image to resample")
@@ -55,11 +56,11 @@ class param2xfmOutput(TraitedSpec):
 class param2xfmInput(MINCCommandInputSpec):
     out_file = File(position=-1, argstr="%s", desc="resampled image")
   
-    rotation = traits.Str(argstr="-rotation %s", desc="image rotation x,y,z")
-    translation = traits.Str(argstr="-translation %s", desc="image translation x,y,z")
-    shears = traits.Str(argstr="-shears %s", desc="image shears x,y,z")
-    scales = traits.Str(argstr="-scales %s", desc="image scales x,y,z")
-    center = traits.Str(argstr="-center %s", desc="image center x,y,z")
+    rotation = traits.Str(argstr="-rotation %s", mandatory=False, default=None, desc="image rotation x,y,z")
+    translation = traits.Str(argstr="-translation %s", mandatory=False, default=None, desc="image translation x,y,z")
+    shears = traits.Str(argstr="-shears %s",  mandatory=False, default=None, desc="image shears x,y,z")
+    scales = traits.Str(argstr="-scales %s",  mandatory=False, default=None, desc="image scales x,y,z")
+    center = traits.Str(argstr="-center %s",  mandatory=False, default=None, desc="image center x,y,z")
 
     clobber = traits.Bool(argstr="-clobber", position=1, usedefault=True, default_value=True, desc="Overwrite output file")
 
@@ -72,10 +73,24 @@ class param2xfmCommand(MINCCommand):
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
+
+
         if not isdefined(self.inputs.out_file):
             dname = os.getcwd()
-            self.inputs.out_file = dname + os.sep + "param.xfm"
-
+            params="" #Create label for output file based on the parameters applied to image
+            if isdefined(self.inputs.rotation): params = params + "_rtn="+self.inputs.rotation
+            if isdefined(self.inputs.translation): params = params + "_trn="+self.inputs.translation
+            if isdefined(self.inputs.shears): params = params + "_shr="+self.inputs.shears
+            if isdefined(self.inputs.scales): params = params + "_scl="+self.inputs.scales
+            if isdefined(self.inputs.center): params = params + "_cnt="+self.inputs.center
+            self.inputs.out_file = dname + os.sep + "param"+params+".xfm"
+        
+        comma=lambda x : re.sub(',', ' ', x)
+        if isdefined(self.inputs.rotation): self.inputs.rotation=comma(self.inputs.rotation)
+        if isdefined(self.inputs.translation): self.inputs.translation=comma(self.inputs.translation)
+        if isdefined(self.inputs.shears): self.inputs.shears=comma(self.inputs.shears)
+        if isdefined(self.inputs.scales): self.inputs.scales=comma(self.inputs.scales)
+        if isdefined(self.inputs.center): self.inputs.center=comma(self.inputs.center)
         return super(param2xfmCommand, self)._parse_inputs(skip=skip)
 
 

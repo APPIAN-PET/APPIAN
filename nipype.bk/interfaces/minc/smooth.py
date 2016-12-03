@@ -9,14 +9,14 @@ from ...utils.filemanip import (load_json, save_json, split_filename, fname_pres
 
  
 class SmoothInput(MINCCommandInputSpec):
-    in_file = File(position=0, argstr="%s", mandatory=True, desc="image to blur")
-    out_file = File(position=1, argstr="%s", desc="smoothed image")
+    in_file = File(position=-2, argstr="%s", mandatory=True, desc="image to blur")
+    out_file = File(position=-1, argstr="%s", desc="smoothed image")
     
-    fwhm = traits.Int(position=2, argstr="-fwhm %d", mandatory=True, desc="fwhm value")  
-    no_apodize = traits.Bool(position=-3, argstr="-no_apodize", usedefault=True, default_value=True, desc="Do not apodize the data before blurring")
+    fwhm = traits.Float(position=3, argstr="-fwhm %d", mandatory=True, desc="fwhm value")  
+    no_apodize = traits.Bool(position=0, argstr="-no_apodize", usedefault=True, default_value=True, desc="Do not apodize the data before blurring")
 
-    clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    clobber = traits.Bool(argstr="-clobber", position=1, usedefault=True, default_value=True, desc="Overwrite output file")
+    verbose = traits.Bool(argstr="-verbose", position=2, usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class SmoothOutput(TraitedSpec):
     out_file = File(exists=True, desc="smoothed image")
@@ -32,7 +32,10 @@ class SmoothCommand(MINCCommand, Info):
             skip = []
 
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix='_fwhm' + str(self.inputs.fwhm) + self._suffix)
+            path, ext = os.path.splitext(self.inputs.in_file)
+            fname=os.path.basename(path)
+            #self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix='_fwhm' + str(self.inputs.fwhm) + self._suffix)
+            self.inputs.out_file=os.getcwd()+os.sep+fname+'_fwhm' + str(self.inputs.fwhm)
 
         return super(SmoothCommand, self)._parse_inputs(skip=skip)
 

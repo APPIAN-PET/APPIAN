@@ -202,9 +202,9 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         if self.inputs.init_file_xfm:
             run_concat = ConcatCommand();
-            run_concat.inputs.in_file=self.inputs.init_xfm
+            run_concat.inputs.in_file=self.inputs.init_file_xfm
             run_concat.inputs.in_file_2=tmp_xfm
-            run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
+            run_concat.inputs.out_file=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_concat.cmdline
             if self.inputs.run:
@@ -539,6 +539,15 @@ def get_workflow(name, infosource, datasink, opts):
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img","petmri_xfm","petmri_xfm_invert","pet_refMask","pet_ROIMask","pet_PVCMask"]), name='outputnode')
 
+    node_name="pet2mri_withMask"
+    pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
+    pet2mri_withMask.inputs.clobber = True
+    pet2mri_withMask.inputs.verbose = opts.verbose
+    pet2mri_withMask.inputs.run = opts.prun
+    rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
+    rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
+    rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
+
     node_name="pet2mri"
     pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
     pet2mri.inputs.clobber = True
@@ -571,12 +580,18 @@ def get_workflow(name, infosource, datasink, opts):
     rPetPVCMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
-    workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
-                      (inputnode, pet2mri, [('pet_headMask', 'in_source_mask')]), 
-                      (inputnode, pet2mri, [('t1_headMask',  'in_target_mask')]),
-                      (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')])
+    workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
+                      (inputnode, pet2mri_withMask, [('pet_headMask', 'in_source_mask')]), 
+                      (inputnode, pet2mri_withMask, [('t1_headMask',  'in_target_mask')]),
+                      (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
                       ]) 
-    #
+
+    workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
+                      (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')]),
+                      (pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
+                      ]) 
+
+
     workflow.connect([(pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
     workflow.connect([(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriImg, [('sid', 'sid')]),
@@ -619,14 +634,6 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
 
-
-
-
-
-
-
-
-
     workflow.connect([(inputnode, petROIMask, [('t1_ROIMask', 'in_file' )]),
                       (inputnode, petROIMask, [('pet_volume', 'model_file')]), 
                       # (pet2mri, petROIMask, [('out_file_xfm', 'transformation')])
@@ -640,11 +647,6 @@ def get_workflow(name, infosource, datasink, opts):
                     ])
 
     workflow.connect(rPetROIMask, 'out_file', datasink, petROIMask.name)
-
-
-
-
-
 
     if not opts.pvcrun:
         workflow.connect([(inputnode, petPVCMask, [('t1_PVCMask', 'in_file' )]),

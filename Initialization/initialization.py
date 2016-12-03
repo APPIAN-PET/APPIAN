@@ -56,8 +56,6 @@ class MincHdrInfoRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-        
-
         if not isdefined(self.inputs.out_file):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
             dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
@@ -192,7 +190,7 @@ class PETexcludeFrRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-        tmpDir = tempfile.mkdtemp()
+        #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
     
@@ -201,32 +199,33 @@ class PETexcludeFrRunning(BaseInterface):
         nFrames = infile.sizes[infile.dimnames.index("time")]
         first=int(ceil(float(nFrames*rank)/100))
         last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
+        count=last-first
 
-        frames=[]
-        for ii in np.arange(first,last+1,1):
-            frame = tmpDir+os.sep+'frame'+str(ii)+'.mnc'
+        #frames=[]
+        #for ii in np.arange(first,last+1,1):
+        #    frame = tmpDir+os.sep+'frame'+str(ii)+'.mnc'
 
-            run_mincreshape=ReshapeCommand()
-            run_mincreshape.inputs.in_file = self.inputs.in_file
-            run_mincreshape.inputs.out_file = frame
-            run_mincreshape.inputs.dimrange = 'time='+str(ii)+',1'
-            if self.inputs.verbose:
-                print run_mincreshape.cmdline
-            if self.inputs.run:
-                run_mincreshape.run()
-            
-            frames.append(frame)
-        
-        run_concat=ConcatCommand()
-        run_concat.inputs.in_file = ' '.join(frames)
-        run_concat.inputs.out_file = self.inputs.out_file
-        run_concat.inputs.dimension = 'time'
+        run_mincreshape=ReshapeCommand()
+        run_mincreshape.inputs.in_file = self.inputs.in_file
+        run_mincreshape.inputs.out_file = self.inputs.out_file 
+        run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
         if self.inputs.verbose:
-            print run_concat.cmdline
+            print run_mincreshape.cmdline
         if self.inputs.run:
-            run_concat.run()
+            run_mincreshape.run()
         
-        shutil.rmtree(tmpDir)
+        #frames.append(frame)
+        
+        #run_concat=ConcatCommand()
+        #run_concat.inputs.in_file = ' '.join(frames)
+        #run_concat.inputs.out_file = self.inputs.out_file
+        #run_concat.inputs.dimension = 'time'
+        #if self.inputs.verbose:
+        #    print run_concat.cmdline
+        #if self.inputs.run:
+        #    run_concat.run()
+        
+        #shutil.rmtree(tmpDir)
         return runtime
 
 
@@ -261,6 +260,7 @@ def get_workflow(name, infosource, datasink, opts):
     petExFr.inputs.run = opts.prun
     rPetExFr=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
+
     node_name="petVolume"
     petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
     petVolume.inputs.avgdim = 'time'
@@ -268,6 +268,13 @@ def get_workflow(name, infosource, datasink, opts):
     petVolume.inputs.clobber = True
     petVolume.inputs.verbose = opts.verbose 
     rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+
+
+    node_name="petBlur"
+    petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
+    petBlur.inputs.fwhm = 3
+    petBlur.inputs.clobber = True
+    petBlur.inputs.verbose = opts.verbose 
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
@@ -307,13 +314,16 @@ def get_workflow(name, infosource, datasink, opts):
                     ])
     workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
 
-    workflow.connect([(petExFr, petVolume, [('out_file', 'in_file')])])
-    workflow.connect([(petVolume, rPetVolume, [('out_file', 'in_file')])])
+
+    workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])
+
+    workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
+    workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
     workflow.connect([(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetVolume, [('sid', 'sid')]),
                       (infosource, rPetVolume, [('cid', 'cid')])
                     ])
-    workflow.connect(rPetVolume, 'out_file', datasink, petVolume.name)
+    workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
 
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header')

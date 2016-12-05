@@ -388,7 +388,9 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
 	in_file = File(exists=True, mandatory=True, desc="PET volume")
 	in_json = File(exists=True, mandatory=True, desc="PET json file")
 	out_file = File(desc="Head mask")
-	
+	slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
+	total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
+
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
@@ -409,20 +411,38 @@ class PETheadMaskingRunning(BaseInterface):
 
     def _run_interface(self, runtime):
 
-		tmpDir = tempfile.mkdtemp()
-		print "\n\n"
-		print self.inputs.in_file
-		print "\n\n"
-
+		#tmpDir = tempfile.mkdtemp()
+		#print "\n\n"
+		#print self.inputs.in_file
+		#print "\n\n"
 		if not isdefined(self.inputs.out_file):
-			self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
-
-		#hd = load_json(self.inputs.in_json)
-		# dim = hd['xspace']['length']+hd['yspace']['length']+hd['zspace']['length']+hd['time']['length']
-		
+		    self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+                #Load PET 3D volume
 		infile = volumeFromFile(self.inputs.in_file)
+                zmax=infile.sizes[infile.dimnames.index("zspace")]
+                #Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)
+                slice_thresholds=np.amax(infile.data, axis=(1,2)) * self.inputs.slice_factor
+                #Get mean for all values above slice_max
+                slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]])) 
+                slice_mean = np.array([ slice_mean_f(slice_thresholds, infile.data, i)  for i in range(zmax) ])
+                #Remove nan from slice_mean
+                slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
+                #Calculate overall mean from mean of thresholded slices
+                overall_mean = np.mean(slice_mean)
+                #Calcuate threshold
+		threshold = overall_mean * self.inputs.total_factor
+                #Apply threshold
+                # and create and write outputfile
+                run_calc = CalcCommand();
+                run_calc.inputs.in_file = self.inputs.in_file 
+                run_calc.inputs.out_file = self.inputs.out_file
+                run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
+                if self.inputs.verbose:
+                        print run_calc.cmdline
+                if self.inputs.run:
+                        run_calc.run()
 
-		mean_slices = []
+		'''mean_slices = []
 		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
 			slice_tmp = tmpDir + '/pet_slice.mnc'
 
@@ -464,11 +484,9 @@ class PETheadMaskingRunning(BaseInterface):
 			mean_slice = pickle.load(file)
 
 			mean_slices.append(mean_slice)
+                        '''
 
-		threshold = np.mean(mean_slices)
-		threshold = threshold/3
-
-		mask_slices = []
+		'''mask_slices = []
 		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
 			slice_tmp = tmpDir + '/pet_slice.mnc'
 			mask_tmp = tmpDir + '/mask_slice' + str(ii) + '.mnc'
@@ -518,7 +536,7 @@ class PETheadMaskingRunning(BaseInterface):
 		if self.inputs.run:
 		    run_resample.run()
 
-		shutil.rmtree(tmpDir)
+		shutil.rmtree(tmpDir)'''
 		return runtime
 
 

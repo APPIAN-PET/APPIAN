@@ -35,8 +35,8 @@ def get_misalign_pet_workflow(name, opts):
     #Define input node that will receive input from outside of workflow
 
     #FIXME: Should have angles and offsets defined by user. Use ';' to seperate elements
-    angles=['2,0,0', '4,0,0', '8,0,0', '16,0,0', '32,0,0', '64,0,0'] #X,Y,Z angle of rotation
-    offsets=['2,0,0', '4,0,0', '8,0,0', '10,0,0', '12,0,0', '14,0,0' ] #X,Y,Z offset of translation (in mm)
+    angles=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,16', '0,0,32', '0,0,64'] #X,Y,Z angle of rotation
+    offsets=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,10', '0,0,12', '0,0,14' ] #X,Y,Z offset of translation (in mm)
     inputnode=pe.Node(interface=niu.IdentityInterface(fields=['pet', 'sid', 'cid', 'study_prefix']), name='inputnode')
     outputnode=pe.Node(interface=niu.IdentityInterface(fields=['translated_pet', 'rotated_pet']), name='outputnode')
     #########################
@@ -104,8 +104,10 @@ class test_group_coreg_qcInput(BaseInterfaceInputSpec):
     brain_masks = traits.List( mandatory=True, desc="Input list of brain masks images")
     subjects= traits.List( mandatory=True, desc="Input list of subjects")
     conditions= traits.List( mandatory=True, desc="List of conditions")
-    study_prefix= traits.Str( mandatory=True, desc="Prefix of study")
+    study_prefix= traits.List( mandatory=True, desc="Prefix of study")
     out_list = traits.List(desc="Output list")
+
+pd.set_option('display.width', 1000)
 
 class test_group_coreg_qcCommand(BaseInterface):
     input_spec = test_group_coreg_qcInput 
@@ -123,37 +125,67 @@ class test_group_coreg_qcCommand(BaseInterface):
         rotated_pet=self.inputs.rotated_pet
         study_prefix=self.inputs.study_prefix
         translated_pet=self.inputs.translated_pet
-    
+
+        metric_names=["Mutual.Information", "XCorr"]
+        outlier_measure_list=[qc.kolmogorov_smirnov, qc.img_mad]
+        outlier_measure_names=['KSD', 'MAD']
+        colnames= ["Subject", "Condition", "Error.Type", "Error" ] + metric_names + outlier_measure_names
+        df=pd.DataFrame(columns=colnames)
+        metrics=[ qc.mi, qc.xcorr ] #stochastic sign change
+        outlier_measure_list=[]
+        flatten = lambda  l: [ j for i in l for j in i]
+        rotated_pet = flatten(rotated_pet)
+        translated_pet=flatten(translated_pet)
+        misaligned=rotated_pet + translated_pet 
         for sub, cond in zip(subjects, conditions):
-            if sub != 'sub01': continue
-            print sub
-            index=subjects.index(sub) #FIXME: Won't work for subjects with multiple conditions
-            sub_misaligned=rotated_pet[index] + translated_pet[index]
-            cond=conditions[index]
-            normal = [ i for i in pet_images if not sub in i ]
-            #print 'Mis-aligned'
-            #print sub_misaligned
-            #print 'Normal'
-            #print normal
-            for mis in sub_misaligned:
-                path, ext = os.path.splitext(mis)
+            sub_misaligned=[ i for i in misaligned if sub in i  ]
+            pet_normal = [ i for i in pet_images if sub in i and cond in i ][0]
+            t1=[ i for i in t1_images if sub in i and cond in i ][0]
+            brain_mask=[ i for i in brain_masks if sub in i and cond in i ][0]
+            print pet_normal
+            print t1
+            print brain_mask
+            #Get the distance metrics for each subject for their normal PET image 
+
+            #Put distance metric values into a data frame
+            sub_df=pd.DataFrame(columns=colnames  )
+
+            #Get outlier metric for normal PET image
+            print sub_df
+            #Get distance metrics for each subject for their misaligned PET images
+            for pet_img in sub_misaligned:
+                print '\n', pet_img
+                print t1
+                print brain_mask
+                path, ext = os.path.splitext(pet_img)
                 base=basename(path)
                 param=base.split('_')[-1]
                 param_type=base.split('_')[-2]
                 label='_'+sub+'_'+cond+'_'+param_type+'_'+param
-                test_pet = [mis] + normal
-                test_pet = [ pet for (t1, pet) in sorted(zip(t1_images, test_pet))]
-                print mis
-                #print 'Test PET'
-                #print test_pet
-                qc.group_coreg_qc(test_pet, t1_images, brain_masks, subjects, conditions, study_prefix, label )
+                mis_metric=[]
+                ###Apply distance metrics
+                for m in metrics:
+                    mis_metric.append( m(pet_img, t1, brain_mask) )
+                #Append misaligned distance metrics to the subject data frame
+                temp=pd.DataFrame([[sub,cond,param_type,param]+mis_metric + [0,0]],columns=colnames ) 
+                sub_df = pd.concat([sub_df, temp])
+            df = pd.concat([df, sub_df])
+            df.to_csv('/data1/projects/scott/test_group_qc.csv', index=False )
+        print df
 
 
-            
+        '''normal_df=pd["Error.Type"=="Normal"]
+        #Calculate the outlier measures based on group values of each distance metric
+        for param_type in unique_param_types: #rotate and translate
+            for param in unique_params:
+                for sub in subjects:
+                    
+                    test_df=pd.concat(normal_df, mis_df)
+                    for outlier_measure in outlier_measure_list:
+                        outlier_measure(test_df)
 
         print "\n\n\nOkay whatever\n\n\n" 
-
-        
+        '''
         return(runtime)
 
     def _list_outputs(self):

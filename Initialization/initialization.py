@@ -24,6 +24,55 @@ from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand
 from nipype.interfaces.minc.reshape import ReshapeCommand
 from nipype.interfaces.minc.concat import ConcatCommand
 
+def gen_args(opts,conditions, subjects):
+    args=[]
+    for sub in subjects:
+        for cond in conditions:
+            pet_fn=opts.sourceDir + os.sep + opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
+            print pet_fn
+            if os.path.exists(pet_fn):
+                d={'cid':cond, 'sid':sub}
+                args.append(d)
+    return args
+
+            
+
+class SplitArgsOutput(TraitedSpec):
+    cid = traits.Str(mandatory=True, desc="Condition ID")
+    sid = traits.Str(mandatory=True, desc="Subject ID")
+    study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
+    RoiSuffix = traits.Str(desc="Suffix for subject ROI")
+
+class SplitArgsInput(BaseInterfaceInputSpec):
+    cid = traits.Str(desc="Condition ID")
+    sid = traits.Str(desc="Subject ID")
+    study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
+    RoiSuffix = traits.Str(desc="Suffix for subject ROI")
+    args = traits.Dict(mandatory=True, desc="Overwrite output file")
+
+class SplitArgsRunning(BaseInterface):
+    input_spec = SplitArgsInput
+    output_spec = SplitArgsOutput
+
+    def _run_interface(self, runtime):
+       self.inputs.cid=self.inputs.args['cid']
+       self.inputs.sid=self.inputs.args['sid']
+       if isdefined(self.inputs.RoiSuffix):
+           self.inputs.RoiSuffix=self.inputs.RoiSuffix
+
+       return runtime
+
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        
+        outputs["cid"] = self.inputs.cid
+        outputs["sid"] = self.inputs.sid
+        outputs["study_prefix"] = self.inputs.study_prefix
+        if isdefined(self.inputs.RoiSuffix):
+            outputs["RoiSuffix"]= self.inputs.RoiSuffix
+        return outputs
+
 
 
 

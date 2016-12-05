@@ -26,7 +26,7 @@ class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
     brain_masks = traits.List(exists=True, mandatory=True, desc="Binary images that mask out the brain")
     subjects = traits.List(exists=True, mandatory=True, desc="Subject names")
     conditions = traits.List(exists=True, mandatory=True, desc="Subject conditions")
-    study_prefix = traits.Str(mandatory=True, desc="Prefix of current study")
+    study_prefix = traits.List(mandatory=True, desc="Prefix of current study")
     out_files = traits.List(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -43,7 +43,7 @@ class PETtoT1_group_qc(BaseInterface):
         brain_masks=self.inputs.brain_masks
         subjects=self.inputs.subjects
         conditions=self.inputs.conditions
-        study_prefix=self.inputs.study_prefix
+        study_prefix=self.inputs.study_prefix[0]
 
         print pet_images
         print t1_images
@@ -92,8 +92,6 @@ def pet2t1_coreg_qc(subjects, pet_images, t1_images,brain_masks, alpha):
 	#pet_images=sorted(list_paths(pet_dir, "*.mnc"))
 	#t1_images=sorted(list_paths(mri_dir, "*.mnc"))
         names=pd.DataFrame({"Subjects": subjects})
-        print subjects
-        print names
 
 	mi_raw=img_mi(pet_images, t1_images, brain_masks)
         #print 'mi raw\n', mi_raw
@@ -112,10 +110,10 @@ def pet2t1_coreg_qc(subjects, pet_images, t1_images,brain_masks, alpha):
 
         mi=pd.concat([names, mi_raw, mi_ks, mi_mad], axis=1)
         mi.set_index('Subjects', inplace=True)
-        print 'mi\n',mi
+        #print 'mi\n',mi
         xcorr=pd.concat([names, xcorr_raw, xcorr_ks, xcorr_mad], axis=1)
         xcorr.set_index('Subjects', inplace=True)
-        print 'xcorr\n', xcorr
+        #print 'xcorr\n', xcorr
 
         return([mi, xcorr])
 
@@ -144,56 +142,63 @@ def img_mad(x):
     mad_list= pd.Series((x.values - x.median()) / mad(x), name='MAD')
     return(mad_list)
 
+def xcorr(pet_fn, mri_fn, brain_fn):
+    pet = pyminc.volumeFromFile(pet_fn)
+    mri = pyminc.volumeFromFile(mri_fn)
+    mask= pyminc.volumeFromFile(brain_fn)
+    pet_data=pet.data.flatten()
+    mri_data=mri.data.flatten()
+    mask_data=mask.data.flatten()
+    n=len(pet_data)
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    xcorr = max(np.correlate(masked_pet_data, masked_mri_data))
+    return(xcorr)
+
 
 #Calculate Cross-correlation (xcorr) between co-registered PET and MRI images
 def img_xcorr(pet_images, t1_images, brain_masks):
     xcorr_list=[]
     for pet_fn, mri_fn, brain_fn in zip(pet_images, t1_images, brain_masks):
-        print "PET:", pet_fn
-        print "MRI:", mri_fn
-        print "Brain Mask:", brain_fn
-        pet = pyminc.volumeFromFile(pet_fn)
-        mri = pyminc.volumeFromFile(mri_fn)
-        mask= pyminc.volumeFromFile(brain_fn)
-        pet_data=pet.data.flatten()
-        mri_data=mri.data.flatten()
-        mask_data=mask.data.flatten()
-        n=len(pet_data)
-        masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-        masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
-        print len(masked_mri_data)
-        print len(masked_pet_data)
-        xcorr = max(np.correlate(masked_pet_data, masked_mri_data))
-        print "Cross-correlation:", xcorr
-        xcorr_list.append(xcorr)
+        val=xcorr(pet_fn, mri_fn, brain_fn)
+        #print "Cross-correlation:", xcorr
+        xcorr_list.append(val)
     return(pd.Series(xcorr_list, name='Xcorr'))
+
+
+def mi(pet_fn, mri_fn, brain_fn):
+    pet = pyminc.volumeFromFile(pet_fn)
+    mri = pyminc.volumeFromFile(mri_fn)
+    mask= pyminc.volumeFromFile(brain_fn)
+    pet_data=pet.data.flatten()
+    mri_data=mri.data.flatten()
+    mask_data=mask.data.flatten()
+    n=len(pet_data)
+
+    nbins=int(round(sqrt(n/3))) #10000 #FIXME: need better way to calculate this
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    
+
+    del pet
+    del mri
+    del mask
+    del pet_data
+    del mri_data
+    del mask_data
+    val = my_mutual_information(masked_pet_data,masked_mri_data)
+    return(val)
 
 #Calculate mutual information between co-registered PET and MRI images
 def img_mi(pet_images, t1_images, brain_masks):
     mi_list=[]
     for pet_fn, mri_fn, brain_fn in zip(pet_images, t1_images, brain_masks):
-        print "PET:", pet_fn
-        print "MRI:", mri_fn
-        print "Brain Mask:", brain_fn
-        pet = pyminc.volumeFromFile(pet_fn)
-        mri = pyminc.volumeFromFile(mri_fn)
-        mask= pyminc.volumeFromFile(brain_fn)
-        pet_data=pet.data.flatten()
-        mri_data=mri.data.flatten()
-        mask_data=mask.data.flatten()
-        n=len(pet_data)
-        nbins=10000
-        masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-        masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
-        del pet
-        del mri
-        del mask
-        del pet_data
-        del mri_data
-        del mask_data
-        mi = my_mutual_information(masked_pet_data,masked_mri_data, nbins)
-        print "Mutual Information:", mi
-        mi_list += [mi]
+        #print "PET:", pet_fn
+        #print "MRI:", mri_fn
+        #print "Brain Mask:", brain_fn
+        mi_val=mi(pet_fn, mri_fn, brain_fn)
+        #print "Mutual Information:", mi
+        mi_list += [mi_val]
     return(pd.Series(mi_list, name='MI'))
 
 
@@ -260,7 +265,7 @@ def plot_pet2t1_coreg(mi, xcorr, alpha, out_file):
         xcorr['C'].plot(ax=axes[2,1], color='r', rot=90, fontsize=8); 
 
         print "\n\nSaving to ", os.getcwd(), out_file, "\n\n"
-	plt.savefig(out_file, dpi=1500,  bbox_inches='tight' )
+	plt.savefig(out_file, dpi=2000,  bbox_inches='tight' )
 	return(0)
 
 def log2(x):
@@ -277,45 +282,63 @@ def mutual_information(p1, p2, p12 ):
     else: 
         return(p12 * log2(p12/ d) )  
 
-def my_mutual_information(A, B, nbins):
+def my_mutual_information(A, B, nbins=0):
     a_max=max(A)
     b_max=max(B)
     a_min=min(A)
     b_min=min(B)
+
+    nvoxels=len(A)
+    if nbins==0:
+        #q75a, q25a = np.percentile(A, [75 ,25])
+        #q75b, q25b = np.percentile(B, [75 ,25])
+        #a_bins= int(round((2 * (q75a - q25a) / (nvoxels**(-1./3.))  )))
+        #b_bins= int(round((2 * (q75b - q25b) / (nvoxels**(-1./3.))  )))
+        #if a_bins > b_bins: 
+        #    nbins=a_bins 
+        #else: 
+        #    nbins=b_bins
+        nbins=nvoxels/50
     a_range=a_max-a_min
     b_range=a_max-a_min
     a_step=a_range/nbins
     b_step=b_range/nbins
-    mi=0.0
-    nmi=0.0
 
     code='''
     int i,j;
+    printf("Allocating (nbins=%d)  %f GB\\n", nbins, (nbins+1)*(nbins+1)*sizeof(float) * 0.000000001 );
     float** histo=(float**)malloc((nbins+1) * sizeof(float*));
     for(i=0; i< nbins+1; i++) histo[i]=(float*)calloc(nbins+1, sizeof(float));
     float a_entropy=0;
     float b_entropy=0;
     float x, y, xy;
-    for(i=0; i<nbins; i++){
-        A[i]=(int) round(( (float) A[i] - (float) a_min) / (float) a_step);
-        B[i]=(int) round(( (float) B[i] - (float) b_min) / (float) b_step);
+    float mi=0.0, nmi=0.0;
+    for(i=0; i<nvoxels; i++){
+        A[i]=(int) ceil(( (float) A[i] - (float) a_min) / (float) a_step);
+        B[i]=(int) ceil(( (float) B[i] - (float) b_min) / (float) b_step);
+        if((int) A[i] == (int) 0 ) A[i] = (int) 1; 
+        if((int) B[i] == (int) 0 ) B[i] = (int) 1; 
+        if((int) A[i] >= (int) nbins ) A[i] = (int) nbins-1; 
+        if((int) B[i] >= (int) nbins ) B[i] = (int) nbins-1; 
     }
-    int nless=(int) nbins - (int) 1; 
-    A[nless] =(int) A[nless] - (int) 1;
-    B[nless] =(int) B[nless] - (int)  1;
      
-    for(i=0; i<nbins; i++){
+    for(i=0; i<nvoxels; i++){
         int a=(int) A[i];
         int b=(int) B[i];
+        if(a > nbins) printf("a=%d\\n",a );
+        if(b > nbins) printf("b=%d\\n",b );
         histo[a][b] = histo[a][b] + 1;
         histo[a][nbins] = histo[a][nbins] + 1;
         histo[nbins][b] = histo[nbins][b] + 1;
         histo[nbins][nbins] = histo[nbins][nbins] + 1;
     }
+
     for(i=0; i<nbins+1; i++){
         for(j=0; j<nbins+1; j++){
             histo[i][j] = histo[i][j] / histo[nbins][nbins];
+            //printf("%1.4f ", histo[i][j]);
         }
+        //printf("\\n");
     }
 
     for(i=0; i<nbins; i++){
@@ -327,20 +350,25 @@ def my_mutual_information(A, B, nbins):
         a_entropy = a_entropy - a_new;
         b_entropy = b_entropy - b_new;
     }
+
     for(i=0; i< nbins; i++){
         for (j=0; j<nbins; j++){
             x=histo[i][nbins];
             y=histo[nbins][j];  
             xy=histo[i][j];
-            if( xy > 0  && x*y != 0) mi = mi + xy * log2f(xy / (x * y));
+            if( xy > 0  && x*y != 0){ 
+                float val= xy * log2f(xy / (x * y));
+                mi = mi + val;
+                //printf("%d %d, %f %f %f = %f\\n",i,j, x, y, xy,val );
+            }
         }
     }
-    nmi=(float) mi / (float) sqrt(a_entropy*b_entropy);
 
-    for(i=0; i< nbins; i++) free(histo[i]);
+    nmi=(float) mi / (float) sqrt(a_entropy*b_entropy);
+    for(i=0; i< nbins+1; i++) free(histo[i]);
     free(histo);
     return_val=nmi; 
     '''
-    nmi=weave.inline(code,arg_names=['a_min', 'b_min', 'a_step', 'b_step','nbins', 'mi', 'nmi', 'A', 'B'],compiler='gcc')
+    nmi=weave.inline(code,arg_names=['nvoxels', 'a_min', 'b_min', 'a_step', 'b_step','nbins', 'A', 'B'],compiler='gcc')
     return(nmi)
 

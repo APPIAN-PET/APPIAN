@@ -52,31 +52,6 @@ def test_get_inputs():
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
-class myIdentOutput(TraitedSpec):
-    out_file = traits.Str(desc="Output file")
-
-class myIdentInput(BaseInterfaceInputSpec):
-    in_file = traits.Str( mandatory=True, desc="Input string")
-    out_file = traits.Str(desc="Output file")
-
-class myIdentity(BaseInterface):
-    input_spec = myIdentInput 
-    output_spec = myIdentInput
-   
-    def _run_interface(self, runtime):
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self.inputs.in_file
-        return(runtime)
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-
-
-
-
 def runPipeline(opts,args):	
 	if args:
 		subjects_ids = args
@@ -90,16 +65,22 @@ def runPipeline(opts,args):
 #	subjects_ids=["%03d" % subjects_ids[subjects_ids.index(subj)] for subj in subjects_ids]
 	conditions_ids=opts.condiList
 
+        ###Define args with exiting subject and condition combinations
+        valid_args=init.gen_args(opts, conditions_ids, args)
+
+        ###Preinfosource###
+	#is_fields=['study_prefix', 'sid', 'cid']
+	#if opts.ROIMaskingType == "roi-user":
+	#	is_fields += ['RoiSuffix']
+
+	preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args']), name="preinfosource")
+	preinfosource.iterables = ( 'args', valid_args )
 
 	###Infosource###
-	is_fields=['study_prefix', 'sid', 'cid']
-	if opts.ROIMaskingType == "roi-user":
-		is_fields += ['RoiSuffix']
-
-	infosource = pe.Node(interface=util.IdentityInterface(fields=is_fields), name="infosource")
+	infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
 	infosource.inputs.study_prefix = opts.prefix
 	infosource.inputs.RoiSuffix = opts.RoiSuffix
-	infosource.iterables = [ ('sid', subjects_ids), ('cid', conditions_ids) ]
+
 
 	#cid = Condition ID
 	#sid = Subject ID
@@ -114,7 +95,6 @@ def runPipeline(opts,args):
 	datasourceRaw.inputs.template = '*'
 	datasourceRaw.inputs.field_template = dict(pet='%s_%s_%s_pet.mnc') 
 	datasourceRaw.inputs.template_args = dict(pet=[['study_prefix', 'sid', 'cid']])	
-
 	#Subject ROI datasource
 	
 	if os.path.exists(opts.roi_dir):
@@ -157,9 +137,14 @@ def runPipeline(opts,args):
 	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
 	datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
+        #############################################
+        ### Define Workflow and basic connections ###
+        #############################################
+        
 	workflow = pe.Workflow(name='preproc')
 	workflow.base_dir = opts.targetDir
 
+	workflow.connect(preinfosource, 'args', infosource, "args")
 	workflow.connect([(infosource, datasourceRaw, [('sid', 'sid')]),
                       (infosource, datasourceRaw, [('cid', 'cid')]),
                       (infosource, datasourceRaw, [('study_prefix', 'study_prefix')]),
@@ -175,7 +160,6 @@ def runPipeline(opts,args):
 	workflow.connect(datasourceRaw, 'pet', wf_init_pet, "inputnode.pet")
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
-	workflow.run(); 
 
 	###########
 	# Masking #
@@ -208,64 +192,55 @@ def runPipeline(opts,args):
 	workflow.connect(wf_masking, 'outputnode.t1_headMask', wf_pet2mri, "inputnode.t1_headMask")
 	workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
 	workflow.connect(wf_masking, 'outputnode.t1_ROIMask', wf_pet2mri, "inputnode.t1_ROIMask")
+	
+        if not opts.pvcrun:
+	    workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
 	if not opts.pvcrun:
-		workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
+            wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
+            workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pvc, "inputnode.pet_center")
+            workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")
 
+            out_node_list += [wf_pvc]
+            out_img_list += ['outputnode.out_file']
 
-	if not opts.pvcrun:
-
-		wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
-		workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pvc, "inputnode.pet_center")
-		workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")
-
-		out_node_list += [wf_pvc]
-		out_img_list += ['outputnode.out_file']
-
-
-
-		###########################
-		# Tracer kinetic analysis #
-		###########################
-		if not opts.tka_method == None:
-				#Perform TKA on PVC PET
-				tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-				workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
-				workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_pvc, "inputnode.header")
-				workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
-				workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
-				workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
-				if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-					workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
-				if opts.tka_type=="ROI":
-					workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
-				
-				out_node_list += [tka_pvc]
-				out_img_list += ['outputnode.out_file']
+        ###########################
+        # Tracer kinetic analysis #
+        ###########################
+        if not opts.tka_method == None:
+            #Perform TKA on PVC PET
+            tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
+            workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
+            workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_pvc, "inputnode.header")
+            workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
+            workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
+            workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
+            if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
+                    workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
+            if opts.tka_type=="ROI":
+                    workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
+            
+            out_node_list += [tka_pvc]
+            out_img_list += ['outputnode.out_file']
 
 	###########################
 	# Tracer kinetic analysis #
 	###########################
 	else :	
-		if not opts.tka_method == None:
-			#Perform TKA on uncorrected PET
-			tka_pve=tka.get_tka_workflow("tka_pve", opts)
-			workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
-			workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
-			workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
-			workflow.connect(wf_init_pet, 'outputnode.pet_center', tka_pve, "inputnode.in_file")
-			workflow.connect(tka_pve, "outputnode.out_file", datasink, tka_pve.name)
-			if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-				workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
-			if opts.tka_type=="ROI":
-				workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
-			
-			out_node_list += [tka_pve]
-			out_img_list += ['outputnode.out_file']
-                        ut
-
-
-
-
+            if not opts.tka_method == None:
+                #Perform TKA on uncorrected PET
+                tka_pve=tka.get_tka_workflow("tka_pve", opts)
+                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
+                workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
+                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
+                workflow.connect(wf_init_pet, 'outputnode.pet_center', tka_pve, "inputnode.in_file")
+                workflow.connect(tka_pve, "outputnode.out_file", datasink, tka_pve.name)
+                if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
+                        workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
+                if opts.tka_type=="ROI":
+                        workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
+                
+                out_node_list += [tka_pve]
+                out_img_list += ['outputnode.out_file']
 
 
 	#######################################
@@ -273,32 +248,32 @@ def runPipeline(opts,args):
 	#######################################
 	#Results report for PET
 	if opts.tka_type=="voxel":
-		for node, img in zip(out_node_list, out_img_list):
+            for node, img in zip(out_node_list, out_img_list):
 
-			node_name="results_" + node.name + "_" + opts.tka_method
-			resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
-			rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
+                    node_name="results_" + node.name + "_" + opts.tka_method
+                    resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
+                    rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
 
 
-			workflow.connect([(node, resultsReport, [(img,'image')]),
-							# (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
-							(wf_pet2mri, resultsReport, [('outputnode.pet_ROIMask','vol_roi')])
-		    				])
-			
-			workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
-			workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
-		                      (infosource, rresultsReport, [('sid', 'sid')]),
-		                      (infosource, rresultsReport, [('cid', 'cid')])
-		                    ])
-			workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
+                    workflow.connect([(node, resultsReport, [(img,'image')]),
+                                                    # (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
+                                                    (wf_pet2mri, resultsReport, [('outputnode.pet_ROIMask','vol_roi')])
+                                            ])
+                    
+                    workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
+                    workflow.connect([(infosource, rresultsReport, [('study_prefix', 'study_prefix')]),
+                                  (infosource, rresultsReport, [('sid', 'sid')]),
+                                  (infosource, rresultsReport, [('cid', 'cid')])
+                                ])
+                    workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
         #####################
         # Join Subject data #
         #####################
         ### Subject-level analysis finished. 
         ### Create JoinNode to bring together all the data for group-level analysis and quality control
-        subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions"]
-        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="infosource", joinfield=subject_data, name="join_subjectsNode")
+        subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions", "study_prefix"]
+        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
         workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
         workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
@@ -309,20 +284,25 @@ def runPipeline(opts,args):
         ##################
         # Group level QC #
         ##################
-        ###JoinNode to join together workflows of multiple subjects for group level QC 
-        PETtoT1_group_qc = pe.JoinNode(interface=qc.PETtoT1_group_qc(), joinsource="infosource", joinfield=["pet_images", "t1_images", "subjects", "conditions"], name="PETtoT1_group_qc")
-        workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
-        workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
-        workflow.connect(join_subjectsNode, 't1_brainMasks', PETtoT1_group_qc, 'brain_masks')
-        workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
-        workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
-        workflow.connect(infosource, 'study_prefix', PETtoT1_group_qc,'study_prefix')
+        opts.group_qc=False #FIXME Add to options
+        if opts.group_qc:
+            ###JoinNode to join together workflows of multiple subjects for group level QC 
+            PETtoT1_group_qc = pe.Node(interface=qc.PETtoT1_group_qc(),  name="PETtoT1_group_qc")
+            workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
+            workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
+            workflow.connect(join_subjectsNode, 't1_brainMasks', PETtoT1_group_qc, 'brain_masks')
+            workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
+            workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
+            workflow.connect(join_subjectsNode, 'study_prefix', PETtoT1_group_qc, 'study_prefix')
+            workflow.connect(PETtoT1_group_qc, 'out_files', datasink, PETtoT1_group_qc.name)
+
+
 
 
         ##########################
         # Apply test xfm to PET  #
         ##########################
-        opts.test_group_qc=False
+        opts.test_group_qc=True #FIXME Add to options
         if opts.test_group_qc:
             wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
             workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
@@ -330,7 +310,7 @@ def runPipeline(opts,args):
             workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
             workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
 
-            test_group_coreg_qc = pe.JoinNode(interface=tqc.test_group_coreg_qcCommand(), joinsource="infosource", joinfield=['rotated_pet', 'translated_pet'], name="test_group_coreg_qc")
+            test_group_coreg_qc = pe.JoinNode(interface=tqc.test_group_coreg_qcCommand(), joinsource="preinfosource", joinfield=['rotated_pet', 'translated_pet'], name="test_group_coreg_qc")
             workflow.connect(wf_misalign_pet, 'outputnode.rotated_pet', test_group_coreg_qc, 'rotated_pet')
             workflow.connect(wf_misalign_pet, 'outputnode.translated_pet', test_group_coreg_qc, 'translated_pet')
             workflow.connect(join_subjectsNode, 't1_images',test_group_coreg_qc, 't1_images')
@@ -338,7 +318,7 @@ def runPipeline(opts,args):
             workflow.connect(join_subjectsNode, 't1_brainMasks',test_group_coreg_qc, 'brain_masks')
             workflow.connect(join_subjectsNode, 'conditions', test_group_coreg_qc, 'conditions')
             workflow.connect(join_subjectsNode, 'subjects', test_group_coreg_qc, 'subjects')
-            workflow.connect(infosource, 'study_prefix', test_group_coreg_qc,'study_prefix')
+            workflow.connect(join_subjectsNode, 'study_prefix', test_group_coreg_qc,'study_prefix')
 
 	# #vizualization graph of the workflow
 	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')

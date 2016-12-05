@@ -58,11 +58,13 @@ class PETtoT1LinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
         if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
+            self.inputs.out_file_xfm = fname_presuffix(os.getcwd()+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_xfm_invert):
-            self.inputs.out_file_xfm_invert = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+t_base+"_TO_"+s_base, suffix=self._suffix+'.xfm', use_ext=False)
+            self.inputs.out_file_xfm_invert = fname_presuffix(os.getcwd()+os.sep+t_base+"_TO_"+s_base, suffix=self._suffix+'.xfm', use_ext=False)
+            #self.inputs.out_file_xfm_invert = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+t_base+"_TO_"+s_base, suffix=self._suffix+'.xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
+            self.inputs.out_file_img = fname_presuffix(os.getcwd()+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
+            #self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.mnc', use_ext=False)
             # self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+Info.ftypes['MINC'], use_ext=False)
 
 
@@ -163,7 +165,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_tracc.inputs.in_source_file=tmp_source_blur
             run_tracc.inputs.in_target_file=tmp_target_blur
             run_tracc.inputs.out_file_xfm=tmp_xfm
-            run_tracc.inputs.objective_func='mi'
+            run_tracc.inputs.objective_func='nmi'
             run_tracc.inputs.steps=confi.steps
             run_tracc.inputs.simplex=confi.simplex
             run_tracc.inputs.tolerance=confi.tolerance
@@ -199,7 +201,8 @@ class PETtoT1LinRegRunning(BaseInterface):
             print '\n'
 
 
-
+        ''' 
+        No need for this because the final xfm file includes the initial one
         if self.inputs.init_file_xfm:
             run_concat = ConcatCommand();
             run_concat.inputs.in_file=self.inputs.init_file_xfm
@@ -209,15 +212,12 @@ class PETtoT1LinRegRunning(BaseInterface):
                 print run_concat.cmdline
             if self.inputs.run:
                 run_concat.run()
-
-
-
-        else:
-            if self.inputs.verbose:
-                cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
-                print(cmd)
-            if self.inputs.run:
-                shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
+        else:'''
+        if self.inputs.verbose:
+            cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
+            print(cmd)
+        if self.inputs.run:
+            shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
 
 
         #Invert transformation
@@ -291,9 +291,11 @@ class nLinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
         if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
+            #self.inputs.out_file_xfm = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
+            self.inputs.out_file_xfm = fname_presuffix(os.getcwd()+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix)
+            #self.inputs.out_file_img = fname_presuffix(os.path.dirname(self.inputs.in_source_file)+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix)
+            self.inputs.out_file_img = fname_presuffix(os.getcwd()+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix)
 
         if os.path.exists(self.inputs.out_file_xfm):
             os.remove(self.inputs.out_file_xfm) 

@@ -109,33 +109,33 @@ def runPipeline(opts,args):
 	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
-	datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s*t1.mnc', 
-												 nativeT1nuc='%s_%s/native/%s_%s*t1_nuc.mnc', 
-												 T1Tal='%s_%s/final/%s_%s*t1_tal.mnc',
-												 xfmT1Tal='%s_%s/transforms/linear/%s_%s*t1_tal.xfm',
-												 xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s*nlfit_It.xfm',
-												 brainmaskTal='%s_%s/mask/%s_%s*brain_mask.mnc',
-												 headmaskTal='%s_%s/mask/%s_%s*skull_mask.mnc',
-												 clsmask='%s_%s/classify/%s_%s*pve_classify.mnc',
-												 animalmask='%s_%s/segment/%s_%s*animal_labels_masked.mnc'
-												)
-	datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-										   		nativeT1nuc=[['sid', 'cid', 'study_prefix', 'sid']], 
-										   		T1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-										   		xfmT1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-										   		xfmT1Talnl=[['sid', 'cid', 'study_prefix', 'sid']], 
-										   		brainmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-										   		headmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-										   		clsmask=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-										   		animalmask=[['sid', 'cid', 'study_prefix', 'sid']] 										   		
-										   		)	
+        datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s*t1.mnc', 
+                                                        nativeT1nuc='%s_%s/native/%s_%s*t1_nuc.mnc', 
+                                                        T1Tal='%s_%s/final/%s_%s*t1_tal.mnc',
+                                                        xfmT1Tal='%s_%s/transforms/linear/%s_%s*t1_tal.xfm',
+                                                        xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s*nlfit_It.xfm',
+                                                        brainmaskTal='%s_%s/mask/%s_%s*brain_mask.mnc',
+                                                        headmaskTal='%s_%s/mask/%s_%s*skull_mask.mnc',
+                                                        clsmask='%s_%s/classify/%s_%s*pve_classify.mnc',
+                                                        animalmask='%s_%s/segment/%s_%s*animal_labels_masked.mnc'
+                                                        )
+        datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+                                                    nativeT1nuc=[['sid', 'cid', 'study_prefix', 'sid']], 
+                                                    T1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+                                                    xfmT1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
+                                                    xfmT1Talnl=[['sid', 'cid', 'study_prefix', 'sid']], 
+                                                    brainmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+                                                    headmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+                                                    clsmask=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
+                                                    animalmask=[['sid', 'cid', 'study_prefix', 'sid']]
+                                                    )
 
-	##############
-	###Datasink###
-	##############
-	datasink=pe.Node(interface=nio.DataSink(), name="output")
-	datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
-	datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+        ##############
+        ###Datasink###
+        ##############
+        datasink=pe.Node(interface=nio.DataSink(), name="output")
+        datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
+        datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
         #############################################
         ### Define Workflow and basic connections ###
@@ -247,7 +247,7 @@ def runPipeline(opts,args):
 	# Connect nodes for reporting results #
 	#######################################
 	#Results report for PET
-	if opts.tka_type=="voxel":
+	if opts.tka_type=="voxel" and False:
             for node, img in zip(out_node_list, out_img_list):
 
                     node_name="results_" + node.name + "_" + opts.tka_method
@@ -272,14 +272,14 @@ def runPipeline(opts,args):
         #####################
         ### Subject-level analysis finished. 
         ### Create JoinNode to bring together all the data for group-level analysis and quality control
-        subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions", "study_prefix"]
-        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
-        workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
-        workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
-        workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
-        workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
-        workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
+        #subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions", "study_prefix"]
+        #join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
+        #workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
+        #workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
+        #workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
+        #workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
+        #workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
+        #workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
 
         ##################
         # Group level QC #
@@ -302,7 +302,7 @@ def runPipeline(opts,args):
         ##########################
         # Apply test xfm to PET  #
         ##########################
-        opts.test_group_qc=True #FIXME Add to options
+        opts.test_group_qc=False #FIXME Add to options
         if opts.test_group_qc:
             wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
             workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
@@ -321,7 +321,7 @@ def runPipeline(opts,args):
             workflow.connect(join_subjectsNode, 'study_prefix', test_group_coreg_qc,'study_prefix')
 
 	# #vizualization graph of the workflow
-	workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
+	#workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
 	printOptions(opts,subjects_ids)
 	#run the work flow

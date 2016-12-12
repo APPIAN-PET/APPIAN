@@ -5,6 +5,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 import weave
 from scipy.weave import converters
 import pyminc.volumes.factory as pyminc
+from sklearn.metrics import normalized_mutual_info_score
 import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
@@ -15,7 +16,7 @@ import os
 from math import sqrt, log
 from os import getcwd
 from sys import argv, exit
-
+    
 
 class PETtoT1_group_qcOutput(TraitedSpec):
     out_files = traits.List( desc="Output files")
@@ -138,9 +139,15 @@ def list_paths(mypath, string):
 def mad(data):
     return np.median(np.abs(data.values - data.median()))
 
-def img_mad(x):
-    mad_list= pd.Series((x.values - x.median()) / mad(x), name='MAD')
-    return(mad_list)
+#def img_mad(x, i):
+#    mad_list= pd.Series((x.values - x.median()) / mad(x), name='MAD')
+#    return(mad_list)
+
+def img_mad(x, i):
+    return ((x.values[i] - x.median()) / mad(x))
+
+
+
 
 def xcorr(pet_fn, mri_fn, brain_fn):
     pet = pyminc.volumeFromFile(pet_fn)
@@ -175,18 +182,16 @@ def mi(pet_fn, mri_fn, brain_fn):
     mask_data=mask.data.flatten()
     n=len(pet_data)
 
-    nbins=int(round(sqrt(n/3))) #10000 #FIXME: need better way to calculate this
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    masked_pet_data = [ int(round(pet_data[i])) for i in range(n) if int(mask_data[i])==1 ]
+    masked_mri_data = [ int(round(mri_data[i])) for i in range(n) if int(mask_data[i])==1 ]
     
-
     del pet
     del mri
     del mask
     del pet_data
     del mri_data
     del mask_data
-    val = my_mutual_information(masked_pet_data,masked_mri_data)
+    val = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
     return(val)
 
 #Calculate mutual information between co-registered PET and MRI images
@@ -203,7 +208,7 @@ def img_mi(pet_images, t1_images, brain_masks):
 
 
 #Calculate Kolmogorov-Smirnov's D
-def kolmogorov_smirnov( x, alpha):
+'''def kolmogorov_smirnov( x, alpha=0.05):
     c={0.05:1.36, 0.10:1.22, 0.025:1.48, 0.01:1.63, 0.005:1.73, 0.001:1.95}
     n=100
     x_max=max(x)
@@ -227,7 +232,34 @@ def kolmogorov_smirnov( x, alpha):
         df0.D[i]=d
     df0.sort_index(inplace=True)
     
-    return(df0)
+    return(df0.D)
+'''
+
+
+def kolmogorov_smirnov( x, i, alpha=0.05):
+    c={0.05:1.36, 0.10:1.22, 0.025:1.48, 0.01:1.63, 0.005:1.73, 0.001:1.95}
+    n=100
+    x_max=max(x)
+    x.sort_values(inplace=True)
+    l0=float(len(x))
+    l1=float(l0-1)
+    pvalues=np.repeat(1., l0).cumsum() / l0
+    dvalues=np.repeat(0., l0)
+    C=c[alpha]*sqrt( (l0+l1) / (l0*l1))
+    C_list=np.repeat(C, len(x))
+    x0=np.arange(0.,x_max, x_max/n)
+
+    df0=pd.concat( [ pd.Series(list(x.index), name='Index'), pd.Series(dvalues, name='D'), pd.Series(C_list, name='C' )], axis=1)
+    df0.set_index('Index', inplace=True)
+    y0=np.interp( x0, x.values, pvalues   )
+   
+    
+    x_temp=x.drop([i])
+    p1=np.repeat(1., len(x_temp)).cumsum() / len(x_temp)
+    y1=np.interp( x0, x_temp, p1 )
+    d=abs(max(y0-y1))
+    
+    return(d)
 
 
 ###
@@ -268,20 +300,6 @@ def plot_pet2t1_coreg(mi, xcorr, alpha, out_file):
 	plt.savefig(out_file, dpi=2000,  bbox_inches='tight' )
 	return(0)
 
-def log2(x):
-    try: 
-        y=log(x, 2)
-    except:
-        y=0 
-    return(y)
-
-def mutual_information(p1, p2, p12 ):
-    d=p1*p2
-    if d==0: 
-        return 0
-    else: 
-        return(p12 * log2(p12/ d) )  
-
 def my_mutual_information(A, B, nbins=0):
     a_max=max(A)
     b_max=max(B)
@@ -304,6 +322,16 @@ def my_mutual_information(A, B, nbins=0):
     a_step=a_range/nbins
     b_step=b_range/nbins
 
+    X=A
+    Y=B
+    c_XY = np.histogram2d(X,Y,bins)[0]
+    c_X = np.histogram(X,bins)[0]
+    c_Y = np.histogram(Y,bins)[0]
+
+    H_X = shan_entropy(c_X)
+    H_Y = shan_entropy(c_Y)
+    H_XY = shan_entropy(c_XY)
+    nmi = (H_X + H_Y - H_XY) / sqrt(H_X*H_Y)
     code='''
     int i,j;
     printf("Allocating (nbins=%d)  %f GB\\n", nbins, (nbins+1)*(nbins+1)*sizeof(float) * 0.000000001 );
@@ -369,6 +397,6 @@ def my_mutual_information(A, B, nbins=0):
     free(histo);
     return_val=nmi; 
     '''
-    nmi=weave.inline(code,arg_names=['nvoxels', 'a_min', 'b_min', 'a_step', 'b_step','nbins', 'A', 'B'],compiler='gcc')
+    #nmi=weave.inline(code,arg_names=['nvoxels', 'a_min', 'b_min', 'a_step', 'b_step','nbins', 'A', 'B'],compiler='gcc')
     return(nmi)
 

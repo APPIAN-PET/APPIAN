@@ -29,8 +29,8 @@ def gen_args(opts,conditions, subjects):
     for sub in subjects:
         for cond in conditions:
             pet_fn=opts.sourceDir + os.sep + opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
-            print pet_fn
             if os.path.exists(pet_fn):
+                print pet_fn
                 d={'cid':cond, 'sid':sub}
                 args.append(d)
     return args
@@ -372,7 +372,7 @@ def get_workflow(name, infosource, datasink, opts):
                       (infosource, rPetVolume, [('sid', 'sid')]),
                       (infosource, rPetVolume, [('cid', 'cid')])
                     ])
-    workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
+    #workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
 
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header')

@@ -153,6 +153,7 @@ def runPipeline(opts,args):
                       (infosource, datasourceCivet, [('study_prefix', 'study_prefix')]),
                 	 ])
 
+
 	###################
 	# PET prelimaries #
 	###################
@@ -160,6 +161,8 @@ def runPipeline(opts,args):
 	workflow.connect(datasourceRaw, 'pet', wf_init_pet, "inputnode.pet")
 	out_node_list = [wf_init_pet]
 	out_img_list = ['outputnode.pet_center']
+	#run the work flow
+
 
 	###########
 	# Masking #
@@ -180,6 +183,7 @@ def runPipeline(opts,args):
 	workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
 	workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
 
+  
 
 	##################
 	# Coregistration #
@@ -267,20 +271,21 @@ def runPipeline(opts,args):
                                 ])
                     workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
+
         #####################
         # Join Subject data #
         #####################
         ### Subject-level analysis finished. 
         ### Create JoinNode to bring together all the data for group-level analysis and quality control
-        #subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions", "study_prefix"]
-        #join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
-        #workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
-        #workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
-        #workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
-        #workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
-        #workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
-        #workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
-
+        subject_data=["pet_images", "t1_images", "t1_brainMasks", "subjects", "conditions", "study_prefix"]
+        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
+        workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
+        workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
+        workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
+        workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
+        workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
+        
         ##################
         # Group level QC #
         ##################
@@ -302,7 +307,7 @@ def runPipeline(opts,args):
         ##########################
         # Apply test xfm to PET  #
         ##########################
-        opts.test_group_qc=False #FIXME Add to options
+        opts.test_group_qc=True #FIXME Add to options
         if opts.test_group_qc:
             wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
             workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')

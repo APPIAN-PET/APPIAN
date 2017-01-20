@@ -246,7 +246,7 @@ def get_tka_workflow(name, opts):
 	#Define empty node for output
 	outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_file_t3map"]), name='outputnode')
 
-	if not opts.tka_arterial:
+	if not os.path.exists(opts.arterial_dir):
 		#Extracting TAC from reference region and putting it into text file
 		#Convert reference mask from minc to ecat
 		convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 

@@ -780,7 +780,7 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 
-	if not opts.pvcrun:
+	if not opts.nopvc:
 		workflow.connect([(inputnode, pvcMasking, [('nativeT1nuc','nativeT1')]),
 	                      (inputnode, pvcMasking, [('T1Tal','T1Tal')]),
 	                      # (inputnode, pvcMasking, [('xfmT1Tal','LinT1TalXfm')]),

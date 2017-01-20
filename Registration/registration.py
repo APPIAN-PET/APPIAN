@@ -650,7 +650,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect(rPetROIMask, 'out_file', datasink, petROIMask.name)
 
-    if not opts.pvcrun:
+    if not opts.nopvc:
         workflow.connect([(inputnode, petPVCMask, [('t1_PVCMask', 'in_file' )]),
                           (inputnode, petPVCMask, [('pet_volume', 'model_file')]), 
                           # (pet2mri, petPVCMask, [('out_file_xfm', 'transformation')])

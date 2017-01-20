@@ -104,30 +104,37 @@ def runPipeline(opts,args):
 		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
 		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
+        if os.path.exists(opts.arterial_dir):
+	    datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
+	    datasourceArterial.inputs.base_directory = opts.arterial_dir
+	    datasourceArterial.inputs.template = '*'
+	    datasourceArterial.inputs.field_template = dict(arterial_file='%s_%s_*.dft')
+	    datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])	
+
 	#CIVET datasource
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'],outfields=['nativeT1', 'nativeT1nuc','T1Tal', 'xfmT1Tal','xfmT1Talnl','brainmaskTal', 'headmaskTal', 'clsmask', 'animalmask'], raise_on_empty=True, sort_filelist=False), name="datasourceCivet")
-	datasourceCivet.inputs.base_directory = opts.civetDir
+        datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
-        datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/%s_%s*t1.mnc', 
-                                                        nativeT1nuc='%s_%s/native/%s_%s*t1_nuc.mnc', 
-                                                        T1Tal='%s_%s/final/%s_%s*t1_tal.mnc',
-                                                        xfmT1Tal='%s_%s/transforms/linear/%s_%s*t1_tal.xfm',
-                                                        xfmT1Talnl='%s_%s/transforms/nonlinear/%s_%s*nlfit_It.xfm',
-                                                        brainmaskTal='%s_%s/mask/%s_%s*brain_mask.mnc',
-                                                        headmaskTal='%s_%s/mask/%s_%s*skull_mask.mnc',
-                                                        clsmask='%s_%s/classify/%s_%s*pve_classify.mnc',
-                                                        animalmask='%s_%s/segment/%s_%s*animal_labels_masked.mnc'
+        datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/*t1.mnc', 
+                                                        nativeT1nuc='%s_%s/native/*t1_nuc.mnc', 
+                                                        T1Tal='%s_%s/final/*t1_tal.mnc',
+                                                        xfmT1Tal='%s_%s/transforms/linear/*t1_tal.xfm',
+                                                        xfmT1Talnl='%s_%s/transforms/nonlinear/*nlfit_It.xfm',
+                                                        brainmaskTal='%s_%s/mask/*brain_mask.mnc',
+                                                        headmaskTal='%s_%s/mask/*skull_mask.mnc',
+                                                        clsmask='%s_%s/classify/*pve_classify.mnc',
+                                                        animalmask='%s_%s/segment/*animal_labels_masked.mnc'
                                                         )
-        datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-                                                    nativeT1nuc=[['sid', 'cid', 'study_prefix', 'sid']], 
-                                                    T1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-                                                    xfmT1Tal=[[ 'sid', 'cid', 'study_prefix', 'sid']], 
-                                                    xfmT1Talnl=[['sid', 'cid', 'study_prefix', 'sid']], 
-                                                    brainmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-                                                    headmaskTal=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-                                                    clsmask=[['sid', 'cid', 'study_prefix', 'sid']], 										   		
-                                                    animalmask=[['sid', 'cid', 'study_prefix', 'sid']]
+        datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid']], 
+                                                    nativeT1nuc=[['sid', 'cid']], 
+                                                    T1Tal=[[ 'sid', 'cid']], 
+                                                    xfmT1Tal=[[ 'sid', 'cid']], 
+                                                    xfmT1Talnl=[['sid', 'cid']], 
+                                                    brainmaskTal=[['sid', 'cid']], 										   		
+                                                    headmaskTal=[['sid', 'cid']], 										   		
+                                                    clsmask=[['sid', 'cid']], 										   		
+                                                    animalmask=[['sid', 'cid']]
                                                     )
 
         ##############
@@ -163,7 +170,6 @@ def runPipeline(opts,args):
 	out_img_list = ['outputnode.pet_center']
 	#run the work flow
 
-
 	###########
 	# Masking #
 	###########
@@ -197,9 +203,18 @@ def runPipeline(opts,args):
 	workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
 	workflow.connect(wf_masking, 'outputnode.t1_ROIMask', wf_pet2mri, "inputnode.t1_ROIMask")
 	
-        if not opts.pvcrun:
-	    workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
-	if not opts.pvcrun:
+
+        #############################
+        # Partial-volume correction #
+        #############################
+        #if not opts.pvcrun:
+	#    workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
+        #FIXME: The above can probably be deleted
+
+	if not opts.nopvc:
+            print "Got here! " 
+            print opts.nopvc
+            exit(0)
             wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
             workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pvc, "inputnode.pet_center")
             workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")
@@ -211,29 +226,29 @@ def runPipeline(opts,args):
         # Tracer kinetic analysis #
         ###########################
         if not opts.tka_method == None:
-            #Perform TKA on PVC PET
-            tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-            workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
-            workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_pvc, "inputnode.header")
-            workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
-            workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
-            workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
-            if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-                    workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
-            if opts.tka_type=="ROI":
-                    workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
-            
-            out_node_list += [tka_pvc]
-            out_img_list += ['outputnode.out_file']
-
-	###########################
-	# Tracer kinetic analysis #
-	###########################
-	else :	
-            if not opts.tka_method == None:
+            if not opts.nopvc:
+                #Perform TKA on PVC PET
+                tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
+                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
+                workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_pvc, "inputnode.header")
+                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
+                workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
+                workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
+                if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
+                        workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
+                if opts.tka_type=="ROI":
+                        workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
+                
+                out_node_list += [tka_pvc]
+                out_img_list += ['outputnode.out_file']
+            else:    
                 #Perform TKA on uncorrected PET
                 tka_pve=tka.get_tka_workflow("tka_pve", opts)
-                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
+        
+                if os.path.exists(opts.arterial_dir):
+                    workflow.connect(datasourceArterial, 'datasourceArterial.arterial_file', tka_pve, "inputnode.reference")
+                else:
+                    workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
                 workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
                 workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
                 workflow.connect(wf_init_pet, 'outputnode.pet_center', tka_pve, "inputnode.in_file")
@@ -289,7 +304,8 @@ def runPipeline(opts,args):
         ##################
         # Group level QC #
         ##################
-        opts.group_qc=False #FIXME Add to options
+
+        
         if opts.group_qc:
             ###JoinNode to join together workflows of multiple subjects for group level QC 
             PETtoT1_group_qc = pe.Node(interface=qc.PETtoT1_group_qc(),  name="PETtoT1_group_qc")
@@ -299,7 +315,7 @@ def runPipeline(opts,args):
             workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
             workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
             workflow.connect(join_subjectsNode, 'study_prefix', PETtoT1_group_qc, 'study_prefix')
-            workflow.connect(PETtoT1_group_qc, 'out_files', datasink, PETtoT1_group_qc.name)
+            workflow.connect(PETtoT1_group_qc, 'out_file', datasink, PETtoT1_group_qc.name)
 
 
 
@@ -307,7 +323,6 @@ def runPipeline(opts,args):
         ##########################
         # Apply test xfm to PET  #
         ##########################
-        opts.test_group_qc=True #FIXME Add to options
         if opts.test_group_qc:
             wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
             workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
@@ -459,7 +474,7 @@ if __name__ == "__main__":
 
 	#PVC options
 	group= OptionGroup(parser,"Masking options","ROI for PVC")
-	group.add_option("","--no-pvc",dest="pvcrun",help="Don't run PVC.",action='store_true',default=False)
+	group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
 	group.add_option("","--pvc-roi-user",dest="PVCMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='civet')	
 	group.add_option("","--pvc-roi-animal",dest="PVCMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
 	group.add_option("","--pvc-roi-civet",dest="PVCMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='civet')
@@ -500,11 +515,18 @@ if __name__ == "__main__":
 	group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
 	group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
 	group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
-	group.add_option("","--arterial",dest="tka_arterial",help="Use arterial input input.",action='store_const', const=True, default=False)
+	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.", default=False)
 	group.add_option("","--start-time",dest="tka_start_time",help="Start time for regression in MTGA.",type='float', default=None)
 	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or ROI.",type='string', default=None)
 	parser.add_option_group(group)
 
+        #Quality Control 
+	qc_opts = OptionGroup(parser,"Tracer Kinetic analysis options")
+        qc_opts.add_option("","--group-qc",dest="group_qc",help="Perform quantitative group-wise quality control.", action='store_const', const=True, default=False)  #FIXME Add to options
+        qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
+	parser.add_option_group(qc_opts)
+
+        #
 	group= OptionGroup(parser,"Command control")
 	group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
 	parser.add_option_group(group)

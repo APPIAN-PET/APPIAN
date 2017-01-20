@@ -120,7 +120,7 @@ def get_workflow(name, infosource, datasink, opts):
     inputnode = pe.Node(niu.IdentityInterface(fields=["pet_center", "pet_mask"]), name='inputnode')
 
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_pvc"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
 
     node_name="GTM"
     gtmNode = pe.Node(interface=GTMCommand(), name=node_name)
@@ -143,7 +143,7 @@ def get_workflow(name, infosource, datasink, opts):
                     ])
     if opts.pvc_method == "GTM":
         workflow.connect(gtmNode, 'out_file', datasink, gtmNode.name)
-        workflow.connect(gtmNode, 'out_file', outputnode, "pvc")
+        workflow.connect(gtmNode, 'out_file', outputnode, "out_file")
 
     if opts.pvc_method == "idSURF":
         workflow.connect([(gtmNode, idSURFNode, [('out_file','first_guess')]),
@@ -151,7 +151,7 @@ def get_workflow(name, infosource, datasink, opts):
                         (inputnode, idSURFNode, [('pet_PVCMask','mask')])
                         ])
         workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
-        workflow.connect(idSURFNode, 'out_file', outputnode, "pvc")
+        workflow.connect(idSURFNode, 'out_file', outputnode, "out_file")
 
 
 

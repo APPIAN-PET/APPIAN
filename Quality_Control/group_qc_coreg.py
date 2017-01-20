@@ -9,6 +9,7 @@ from sklearn.metrics import normalized_mutual_info_score
 import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
+from scipy.stats.stats import pearsonr, kendalltau  
 import numpy as np
 import pandas as pd
 import fnmatch
@@ -19,7 +20,7 @@ from sys import argv, exit
     
 
 class PETtoT1_group_qcOutput(TraitedSpec):
-    out_files = traits.List( desc="Output files")
+    out_file = traits.File( desc="Output files")
 
 class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
     pet_images = traits.List(exists=True, mandatory=True, desc="Native dynamic PET image")
@@ -28,7 +29,7 @@ class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
     subjects = traits.List(exists=True, mandatory=True, desc="Subject names")
     conditions = traits.List(exists=True, mandatory=True, desc="Subject conditions")
     study_prefix = traits.List(mandatory=True, desc="Prefix of current study")
-    out_files = traits.List(desc="Output file")
+    out_file = traits.File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
     run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
@@ -45,20 +46,21 @@ class PETtoT1_group_qc(BaseInterface):
         subjects=self.inputs.subjects
         conditions=self.inputs.conditions
         study_prefix=self.inputs.study_prefix[0]
+        out_file="PETtoT1_group_qc.csv"
+        #print pet_images
+        #print t1_images
+        #print subjects 
+        #print conditions
 
-        print pet_images
-        print t1_images
-        print subjects 
-        print conditions
-
-        out_files=group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, study_prefix, '')
+        df=group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, study_prefix, '')
         
-        self.inputs.out_files=out_files
+        df.to_csv(out_file)
+        self.inputs.out_file=out_file
         return(runtime)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_files"] = self.inputs.out_files
+        outputs["out_file"] = self.inputs.out_file
         
         return(outputs)
 
@@ -70,53 +72,56 @@ def group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, stu
     nconditions=len(unique_conditions)
     
     combined=zip(subjects, conditions, pet_images, t1_images, brain_masks) #FIXME: Include sorting here, just in case
+    df=pet2t1_coreg_qc(subjects, conditions, pet_images, t1_images, brain_masks, alpha)
 
-    for condition in unique_conditions:
-        #condition_subjects, conditions, condition_pet, condition_t1=
-        cond_subj= [ x[0] for x in combined if condition in x ] #FIXME, doesn't work for multiple conditions with one t1
-        cond_pet = [ x[2] for x in combined if condition in x ]
-        cond_t1  = [ x[3] for x in combined if condition in x ]
-        cond_mask  = [ x[4] for x in combined if condition in x ]
-        out_fn=study_prefix+"_"+condition+label+"_coreg_qc.png"
-        out_files += out_fn
-        [mi, xcorr]=pet2t1_coreg_qc(cond_subj, cond_pet, cond_t1, cond_mask, alpha)
-        plot_pet2t1_coreg(mi, xcorr, alpha, out_fn)
-
-    return(out_files)
+    return(df)
 
 
 ###
 ### QC function to test if there are outliers in coregistered images
 ###
 
-def pet2t1_coreg_qc(subjects, pet_images, t1_images,brain_masks, alpha):
+def pet2t1_coreg_qc(subjects, conditions, pet_images, t1_images,brain_masks, alpha):
 	#pet_images=sorted(list_paths(pet_dir, "*.mnc"))
 	#t1_images=sorted(list_paths(mri_dir, "*.mnc"))
+        colnames= ["Subject", "Condition", "Metric", "Value"] 
+
         names=pd.DataFrame({"Subjects": subjects})
 
-	mi_raw=img_mi(pet_images, t1_images, brain_masks)
-        #print 'mi raw\n', mi_raw
-        xcorr_raw=img_xcorr(pet_images, t1_images, brain_masks)
-        #print 'xcorr raw\n', xcorr_raw
-	###Calculate Mean Absolute Difference
-	mi_mad=img_mad(mi_raw)
-        #print 'mi mad\n',mi_mad
-        xcorr_mad=img_mad(xcorr_raw)
-        #print 'xcorr mad\n', xcorr_mad
-	###Calculate Kolmogorov-Smirnov D
-        mi_ks=kolmogorov_smirnov(mi_raw, alpha)
-        #print 'mi ks\n',mi_ks
-        xcorr_ks=kolmogorov_smirnov(xcorr_raw, alpha)
-        #print 'xcorr ks\n', xcorr_ks
+        outlier_measures={'MAD':img_mad}
+        distance_metrics={'NMI':mi} #, 'XCorr':qc.xcorr }
+       
+        metric_df = pd.DataFrame(columns=colnames)
+        outlier_df = pd.DataFrame(columns=colnames)
 
-        mi=pd.concat([names, mi_raw, mi_ks, mi_mad], axis=1)
-        mi.set_index('Subjects', inplace=True)
-        #print 'mi\n',mi
-        xcorr=pd.concat([names, xcorr_raw, xcorr_ks, xcorr_mad], axis=1)
-        xcorr.set_index('Subjects', inplace=True)
-        #print 'xcorr\n', xcorr
 
-        return([mi, xcorr])
+        ###Get distance metrics
+        for metric_name, metric in zip(distance_metrics.keys(), distance_metrics.values()):
+            for sub,cond, pet, t1, brain in zip(subjects,conditions, pet_images, t1_images, brain_masks):
+                m=metric(pet, t1, brain)
+                temp=pd.DataFrame([[sub,cond, metric_name, m]],columns=colnames  )
+                metric_df = pd.concat([metric_df, temp ])
+                
+
+        n=metric_df.shape[0]
+        empty_df = pd.DataFrame(np.zeros([n,1]), columns=['Score'], index=[0]*n) 
+        df2 = pd.DataFrame([])
+        for measure in outlier_measures.keys():
+            m=pd.DataFrame( { 'Measure':[measure] * n} , index=[0]*n )
+            d=pd.concat([metric_df, m, empty_df], axis=1)
+            df2=pd.concat([df2,d], axis=0)
+        outlier_df=df2
+        ###Get outlier measures
+        for measure_name, measure in zip(outlier_measures.keys(), outlier_measures.values()):
+            print outlier_df.Subject
+            for n in range(len(outlier_df.Subject)):
+                x=pd.Series(outlier_df.Value)
+                r=measure(x,n)
+                target_row=(outlier_df.Subject == outlier_df.Subject.iloc[n]) & (outlier_df.Metric == metric_name ) & (outlier_df.Measure == measure_name ) 
+                #Insert r into the data frame
+                outlier_df.loc[ target_row, 'Score' ] =r
+
+        return(outlier_df)
 
 
 ###
@@ -144,7 +149,8 @@ def mad(data):
 #    return(mad_list)
 
 def img_mad(x, i):
-    return ((x.values[i] - x.median()) / mad(x))
+    r=(x.values[i] - x.median()) / mad(x)
+    return(r)
 
 
 
@@ -159,7 +165,10 @@ def xcorr(pet_fn, mri_fn, brain_fn):
     n=len(pet_data)
     masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
     masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
-    xcorr = max(np.correlate(masked_pet_data, masked_mri_data))
+    #xcorr = max(np.correlate(masked_pet_data, masked_mri_data))
+    xcorr = pearsonr(masked_pet_data, masked_mri_data)[0]
+    #xcorr = kendalltau(masked_pet_data, masked_mri_data)[0]
+    print pet_fn, xcorr
     return(xcorr)
 
 
@@ -182,7 +191,7 @@ def mi(pet_fn, mri_fn, brain_fn):
     mask_data=mask.data.flatten()
     n=len(pet_data)
 
-    masked_pet_data = [ int(round(pet_data[i])) for i in range(n) if int(mask_data[i])==1 ]
+    masked_pet_data =  [ int(round(pet_data[i])) for i in range(n) if int(mask_data[i])==1 ]
     masked_mri_data = [ int(round(mri_data[i])) for i in range(n) if int(mask_data[i])==1 ]
     
     del pet

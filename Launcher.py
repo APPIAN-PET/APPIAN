@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 import os
 import sys
 import argparse
@@ -80,6 +80,10 @@ def runPipeline(opts,args):
 	infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
 	infosource.inputs.study_prefix = opts.prefix
 	infosource.inputs.RoiSuffix = opts.RoiSuffix
+	
+	workflow = pe.Workflow(name='preproc')
+	workflow.base_dir = opts.targetDir
+
 
 
 	#cid = Condition ID
@@ -104,19 +108,22 @@ def runPipeline(opts,args):
 		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
 		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
-        if os.path.exists(opts.arterial_dir):
-	    datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
+	if os.path.exists(opts.arterial_dir):
+	    datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['sid', 'cid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
 	    datasourceArterial.inputs.base_directory = opts.arterial_dir
 	    datasourceArterial.inputs.template = '*'
 	    datasourceArterial.inputs.field_template = dict(arterial_file='%s_%s_*.dft')
-	    datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])	
+	    datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])
+        workflow.connect([(infosource, datasourceArterial, [('sid', 'sid')]), (infosource, datasourceArterial, [('cid', 'cid')])])
+
+
 
 	#CIVET datasource
 	datasourceCivet = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'cid'],outfields=['nativeT1', 'nativeT1nuc','T1Tal', 'xfmT1Tal','xfmT1Talnl','brainmaskTal', 'headmaskTal', 'clsmask', 'animalmask'], raise_on_empty=True, sort_filelist=False), name="datasourceCivet")
-        datasourceCivet.inputs.base_directory = opts.civetDir
+	datasourceCivet.inputs.base_directory = opts.civetDir
 	datasourceCivet.inputs.roi_dir = opts.roi_dir
 	datasourceCivet.inputs.template = '*'
-        datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/*t1.mnc', 
+	datasourceCivet.inputs.field_template = dict(nativeT1='%s_%s/native/*t1.mnc', 
                                                         nativeT1nuc='%s_%s/native/*t1_nuc.mnc', 
                                                         T1Tal='%s_%s/final/*t1_tal.mnc',
                                                         xfmT1Tal='%s_%s/transforms/linear/*t1_tal.xfm',
@@ -126,7 +133,7 @@ def runPipeline(opts,args):
                                                         clsmask='%s_%s/classify/*pve_classify.mnc',
                                                         animalmask='%s_%s/segment/*animal_labels_masked.mnc'
                                                         )
-        datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid']], 
+	datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid']], 
                                                     nativeT1nuc=[['sid', 'cid']], 
                                                     T1Tal=[[ 'sid', 'cid']], 
                                                     xfmT1Tal=[[ 'sid', 'cid']], 
@@ -148,9 +155,6 @@ def runPipeline(opts,args):
         ### Define Workflow and basic connections ###
         #############################################
         
-	workflow = pe.Workflow(name='preproc')
-	workflow.base_dir = opts.targetDir
-
 	workflow.connect(preinfosource, 'args', infosource, "args")
 	workflow.connect([(infosource, datasourceRaw, [('sid', 'sid')]),
                       (infosource, datasourceRaw, [('cid', 'cid')]),
@@ -246,7 +250,7 @@ def runPipeline(opts,args):
                 tka_pve=tka.get_tka_workflow("tka_pve", opts)
         
                 if os.path.exists(opts.arterial_dir):
-                    workflow.connect(datasourceArterial, 'datasourceArterial.arterial_file', tka_pve, "inputnode.reference")
+                    workflow.connect(datasourceArterial, 'arterial_file', tka_pve, "inputnode.reference")
                 else:
                     workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
                 workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
@@ -517,7 +521,7 @@ if __name__ == "__main__":
 	group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
 	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.", default=False)
 	group.add_option("","--start-time",dest="tka_start_time",help="Start time for regression in MTGA.",type='float', default=None)
-	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or ROI.",type='string', default=None)
+	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
 	parser.add_option_group(group)
 
         #Quality Control 

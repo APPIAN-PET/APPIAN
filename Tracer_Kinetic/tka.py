@@ -25,10 +25,10 @@ class lpInput(MINCCommandInputSpec):
 	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
 	reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
 	start_time=traits.Float(argstr="%s", position=-2, desc="Start time for regression in mtga.")
-	k2=  traits.Float(argstr="-k2 %f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
-	thr=traits.Float(argstr="-thr %f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
-	Max=traits.Float(argstr="-max %f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
-	Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
+	k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
+	thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
+	Max=traits.Float(argstr="-max=%f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
+	Min=traits.Float(argstr="-min=%f", desc="Lower limit for Vt or DVR values, 0 by default")
 	Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
 	end=traits.Float(argstr="-end %f", desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
 	v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
@@ -73,23 +73,23 @@ class ppInput(MINCCommandInputSpec):
 	in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
 	reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
 	start_time=traits.Float(argstr="%s", position=-2, desc="Start time for regression in mtga.")
-	Ca=traits.Float(argstr="-Ca %f", desc="Concentration of native substrate in arterial plasma (mM).")
-	LC=traits.Float(argstr="-LC %f", desc="Lumped constant in MR calculation; default is 1.0")
+	Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
+	LC=traits.Float(argstr="-LC=%f", desc="Lumped constant in MR calculation; default is 1.0")
 	density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
-	thr=traits.Float(argstr="-thr %f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
-	Max=traits.Float(argstr="-max %f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
+	thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
+	Max=traits.Float(argstr="-max=%f", desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
 	#Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
 	Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
-	end=traits.Float(argstr="-end %f", desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+	end=traits.Float(argstr="-end=%f", desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
 	v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
 	n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
 
 
 class ppCommand(MINCCommand):
-    input_spec =  lpInput
-    output_spec = lpOutput
+    input_spec =  ppInput
+    output_spec = ppOutput
 
-    _cmd = "imgdv" #input_spec.pvc_method 
+    _cmd = "imgki" #input_spec.pvc_method 
     _suffix = "_pp" 
 
     def _list_outputs(self):
@@ -264,7 +264,6 @@ def get_tka_workflow(name, opts):
 		#Using arterial input file (which must be provided by user). No conversion or extraction necessary
 		# inputnode --> tacReference
 		workflow.connect(inputnode, 'reference', tacReference, 'reference')
-		
 	if opts.tka_type=="voxel":
 		#Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric map
 

@@ -275,7 +275,7 @@ def runPipeline(opts,args):
 	if opts.tka_type=="voxel":
             for node, img in zip(out_node_list, out_img_list):
 
-                    node_name="results_" + node.name + "_" + opts.tka_method
+                    node_name="results_" + node.name #+ "_" + opts.tka_method
                     resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
                     rresultsReport=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
 

@@ -229,11 +229,17 @@ def runPipeline(opts,args):
             if not opts.nopvc:
                 #Perform TKA on PVC PET
                 tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
-                workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_pvc, "inputnode.header")
+                #workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
+                workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pvc, "inputnode.header")
                 workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
                 workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
                 workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
+
+                if os.path.exists(opts.arterial_dir):
+                    workflow.connect(datasourceArterial, 'arterial_file', tka_pvc, "inputnode.reference")
+                else:
+                    workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
+
                 if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
                         workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
                 if opts.tka_type=="ROI":
@@ -266,7 +272,7 @@ def runPipeline(opts,args):
 	# Connect nodes for reporting results #
 	#######################################
 	#Results report for PET
-	if opts.tka_type=="voxel" and False:
+	if opts.tka_type=="voxel":
             for node, img in zip(out_node_list, out_img_list):
 
                     node_name="results_" + node.name + "_" + opts.tka_method
@@ -306,7 +312,7 @@ def runPipeline(opts,args):
         ##################
 
         
-        if opts.group_qc:
+        if opts.group_qc and False:
             ###JoinNode to join together workflows of multiple subjects for group level QC 
             PETtoT1_group_qc = pe.Node(interface=qc.PETtoT1_group_qc(),  name="PETtoT1_group_qc")
             workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
@@ -319,11 +325,13 @@ def runPipeline(opts,args):
 
 
 
+	###############################
+	# Testing nodes and workflows #
+	###############################
 
-        ##########################
-        # Apply test xfm to PET  #
-        ##########################
+
         if opts.test_group_qc:
+            ### Test group qc for coregistration using misaligned images  
             wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
             workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
             workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
@@ -481,6 +489,7 @@ if __name__ == "__main__":
 	group.add_option("","--pvc-roi-icbm152",dest="PVCMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
 	group.add_option("","--pvc-roi-atlas",dest="PVCMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='civet')	
 	group.add_option("","--pvc-roi-labels",dest="PVCAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
+	#FIXME --pvc-roi-labels should be mandatory if any of the pvc mask options set
 
 	group.add_option("","--pvc-roi-template",dest="pvcTemplate",help="Template to segment the ROI.",default=icbm152)
 	group.add_option("","--pvc-roi-mask",dest="pvcMask",help="ROI mask on the template",default=default_atlas)	
@@ -541,7 +550,6 @@ if __name__ == "__main__":
 	(opts, args) = parser.parse_args()
 
 	opts.extension='mnc'
-
 	
 	##########################################################
 	# Check inputs to make sure there are no inconsistencies #

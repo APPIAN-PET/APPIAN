@@ -266,13 +266,12 @@ class RegionalMaskingRunning(BaseInterface):
 			image_string=" || ".join([ 'A[0] == ' + str(labels) + ' ' for labels in self.inputs.segLabels ])
 			#run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'  
 			# run_calc.inputs.expression = image_string + ' ? A[0] : 0'  
-			run_calc.inputs.expression = image_string + ' ? 1 : 0'  
+			run_calc.inputs.expression = image_string + ' ? A[0] : 0'  
 			if self.inputs.verbose:
 				print run_calc.cmdline
 			if self.inputs.run:
 				run_calc.run()
-
-
+			
 			#If we need to close the region, use mincmorph.
 			#QUESTION: Why have the option to close all regions regardless of whether its an ROI
 			#			or a reference region? Shouldn't there be a distrinction between the ROI

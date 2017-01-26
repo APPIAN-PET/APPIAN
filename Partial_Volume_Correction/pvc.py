@@ -1,5 +1,6 @@
-import os
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import nipype.pipeline.engine as pe
+import os
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
@@ -126,18 +127,6 @@ def get_workflow(name, infosource, datasink, opts):
     gtmNode = pe.Node(interface=GTMCommand(), name=node_name)
     gtmNode.inputs.fwhm = opts.scanner_fwhm
 
-    node_name="idSURF"
-    idSURFNode = pe.Node(interface=idSURFCommand(), name=node_name)
-    idSURFNode.inputs.fwhm = opts.scanner_fwhm
-    idSURFNode.inputs.max_iterations = opts.max_iterations
-    idSURFNode.inputs.tolerance = opts.tolerance
-    idSURFNode.inputs.denoise_fwhm = opts.denoise_fwhm
-    idSURFNode.inputs.lambda_var = opts.lambda_var
-    idSURFNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
-
-    
-
-
     workflow.connect([(inputnode, gtmNode, [('pet_center','input_file')]),
                     (inputnode, gtmNode, [('pet_mask','mask')])
                     ])
@@ -146,9 +135,17 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(gtmNode, 'out_file', outputnode, "out_file")
 
     if opts.pvc_method == "idSURF":
+ 	node_name="idSURF"
+    	idSURFNode = pe.Node(interface=idSURFCommand(), name=node_name)
+    	idSURFNode.inputs.fwhm = opts.scanner_fwhm
+    	idSURFNode.inputs.max_iterations = opts.max_iterations
+    	idSURFNode.inputs.tolerance = opts.tolerance
+    	idSURFNode.inputs.denoise_fwhm = opts.denoise_fwhm
+    	idSURFNode.inputs.lambda_var = opts.lambda_var
+    	idSURFNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
         workflow.connect([(gtmNode, idSURFNode, [('out_file','first_guess')]),
                         (inputnode, idSURFNode, [('pet_center','input_file')]),
-                        (inputnode, idSURFNode, [('pet_PVCMask','mask')])
+                        (inputnode, idSURFNode, [('pet_mask','mask')])
                         ])
         workflow.connect(idSURFNode, 'out_file', datasink, idSURFNode.name)
         workflow.connect(idSURFNode, 'out_file', outputnode, "out_file")

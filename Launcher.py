@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import os
 import sys
 import argparse
@@ -211,14 +211,10 @@ def runPipeline(opts,args):
         #############################
         # Partial-volume correction #
         #############################
-        #if not opts.pvcrun:
-	#    workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
-        #FIXME: The above can probably be deleted
 
 	if not opts.nopvc:
-            print "Got here! " 
-            print opts.nopvc
-            exit(0)
+
+	    workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
             wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
             workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pvc, "inputnode.pet_center")
             workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")

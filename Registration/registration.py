@@ -299,8 +299,8 @@ class nLinRegRunning(BaseInterface):
 
         if os.path.exists(self.inputs.out_file_xfm):
             os.remove(self.inputs.out_file_xfm) 
-        if os.path.exists(self.inputs.out_file_xfm_invert):
-            os.remove(self.inputs.out_file_xfm_invert) 
+        #if os.path.exists(self.inputs.out_file_xfm_invert):
+        #    os.remove(self.inputs.out_file_xfm_invert) 
  
         prev_xfm = None
         if self.inputs.init_file_xfm:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4 mouse=a
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import os
 import sys
 import argparse
@@ -7,6 +7,8 @@ import commands
 import shutil
 import tempfile
 import time
+import pyminc.volumes.factory as pyminc
+import numpy as np
 
 from optparse import OptionParser
 from optparse import OptionGroup
@@ -27,6 +29,27 @@ import Quality_Control.group_qc_coreg as qc
 import Test.test_group_qc as tqc
 # import nipype.interfaces.minc.results as results
 version = "1.0"
+
+
+def set_default_atlas_labels(roi_labels, masks):
+#The default setting for "atlas" ROI needs to be set.
+#This is done by finding the unique values (with get_mask_list)
+#in the atlas volume
+	for item in roi_labels.items():
+		mask_type = item[0]
+		for key, value in item[1].items():
+			if key == 'atlas':
+				mask = masks[mask_type]
+				label_values=get_mask_list( mask )
+				roi_labels[item[0]][key] = label_values
+	return(roi_labels)
+
+def get_mask_list( ROIMask ):
+#Load in volume and get unique values
+	mask= pyminc.volumeFromFile(ROIMask)
+	mask_flat=mask.data.flatten()
+	labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
+	return(labels)
 
 
 
@@ -372,17 +395,20 @@ def get_opt_list(option,opt,value,parser):
 #Set defaults for labels
 roi_labels={} 
 roi_labels["ROI"]={	"roi-user":['1'],
-			      	"icbm152":['39','53','16','14','25','72'],
-					"civet":['1','2','3'],
-					"animal":['1','2','3']} #FIXME, these values are not correct for animal
+			"icbm152":['39','53','16','14','25','72'],
+			"civet":['1','2','3'],
+			"animal":['1','2','3'],
+			"atlas":[]} #FIXME, these values are not correct for animal
 roi_labels["REF"]={	"roi-user":['1'],
-		      		"icbm152":['39','53','16','14','25','72'],
-					"civet":['3'],
-					"animal":['3']} #FIXME, these values are not correct for animal
+		      	"icbm152":['39','53','16','14','25','72'],
+			"civet":['3'],
+			"animal":['3'],
+			"atlas":[]} #FIXME, these values are not correct for animal
 roi_labels["PVC"]={	"roi-user":['1'],
-		      		"icbm152":['39','53','16','14','25','72'],
-					"civet":['2','3'],
-					"animal":['2','3']} #FIXME, these values are not correct for animal
+		      	"icbm152":['39','53','16','14','25','72'],
+			"civet":['2','3'],
+			"animal":['2','3'],
+			"atlas":[]} #FIXME, these values are not correct for animal
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":2.5,"HR+":6.5} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -454,6 +480,7 @@ if __name__ == "__main__":
 	group.add_option("","--ref-labels",dest="RefAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
 	group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default=icbm152)
 
+	group.add_option("","--ref-mask",dest="refMask",help="Ref mask on the template",type='string',default=default_atlas)
 	group.add_option("","--ref-suffix",dest="refSuffix",help="ROI suffix",default='striatal_6lbl')	
 	group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
 	group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
@@ -461,7 +488,6 @@ if __name__ == "__main__":
 	group.add_option("","--ref-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
 	group.add_option("","--ref-dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
 	group.add_option("","--ref-template-suffix",dest="templateRefSuffix",help="Suffix for the Ref template.",default='icbm152')
-	group.add_option("","--ref-mask",dest="refMask",help="Ref mask on the template",type='string',default=default_atlas)
 	parser.add_option_group(group)
 
 	group= OptionGroup(parser,"Masking options","Region Of Interest")
@@ -567,8 +593,13 @@ if __name__ == "__main__":
 	#Check inputs for PVC masking
 	check_masking_options(opts.PVCMaskingType, opts.pvc_roi_dir, opts.pvcSuffix, opts.pvcMask, opts.pvcTemplate)
 
+	#Set default labels for atlas ROI
+	masks={ "REF":opts.refMask, "PVC":opts.pvcMask, "ROI":opts.ROIMask }
+	roi_labels = set_default_atlas_labels(roi_labels, masks)
+
 	#Set default labels for ROI mask
-	if(opts.ROIAtlasLabels ==None): opts.ROIAtlasLabels=roi_labels["ROI"][opts.ROIMaskingType]
+	if(opts.ROIAtlasLabels ==None): 
+		opts.ROIAtlasLabels=roi_labels["ROI"][opts.ROIMaskingType]
 	#If no labels given by user, set default labels for Ref mask
 	if(opts.RefAtlasLabels ==None): opts.RefAtlasLabels=roi_labels["REF"][opts.RefMaskingType]
 	#If no labels given by user, set default labels for PVC mask
@@ -578,7 +609,7 @@ if __name__ == "__main__":
 	
     ###Check PVC options and set defaults if necessary
 	if opts.scanner_fwhm == None and opts.pet_scanner == None:
-		print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--scanner_fwhm <float>\" option, or"
+		print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
 		print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
 		print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
 		exit(1)
@@ -601,3 +632,5 @@ if __name__ == "__main__":
 		printStages(opts,args)
 	else:
 		runPipeline(opts,args)
+
+

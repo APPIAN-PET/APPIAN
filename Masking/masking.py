@@ -229,8 +229,9 @@ class RegionalMaskingRunning(BaseInterface):
 			run_nlinreg.inputs.verbose = self.inputs.verbose;
 			run_nlinreg.inputs.run = self.inputs.run;
 			# run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
-			if self.inputs.verbose:
-			    print run_nlinreg.cmdline
+
+			#if self.inputs.verbose:
+			#    print run_nlinreg.cmdline
 			if self.inputs.run:
 			    run_nlinreg.run() #Resample the template atlas to subject stereotaxic space 
 			

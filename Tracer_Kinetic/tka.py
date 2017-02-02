@@ -13,8 +13,54 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.minc.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
+from Extra.extra import subject_parameterCommand
 import ntpath
-#  input image starttime resultimage
+
+
+class suvOutput(TraitedSpec):
+    out_file = File(argstr="%s", position=-1, desc="Output SUV image.")
+
+class suvInput(MINCCommandInputSpec):
+	
+	in_file= File(exists=True, position=-6, argstr="%s", desc="PET file")
+	start_time=traits.String(argstr="%s", position=-5, desc="Start time (minutes).")
+	end_time=traits.String(argstr="%s", position=-4, desc="End time (minutes).")
+	radiotracer_dose=traits.String(argstr="%s", position=-3, desc="Injected radiotracer dose (MBq).")
+	body_weight=traits.String(argstr="%s", position=-2, desc="Patient weight (kg).")
+	out_file = File(argstr="%s", position=-1, desc="Output SUV image")
+
+class suvCommand(MINCCommand):
+    input_spec =  suvInput
+    output_spec = suvOutput
+
+    _cmd = "imgsuv" #input_spec.pvc_method 
+    _suffix = "_suv" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        return super(suvCommand, self)._parse_inputs(skip=skip)
+
+
+
 
 
 class lpOutput(TraitedSpec):
@@ -224,6 +270,8 @@ tka_param={}
 tka_param["lp"]=standard_fields
 tka_param["pp"]=standard_fields
 tka_param["srtm"]=standard_fields
+tka_param["suv"]=["in_file", "header"]
+tka_methods=["pp", "lp", "srtm"]
 
 
 def get_tka_workflow(name, opts):
@@ -231,7 +279,7 @@ def get_tka_workflow(name, opts):
 	workflow = pe.Workflow(name=name)
 	
 	#Define input node that will receive input from outside of workflow
-	inputnode = pe.Node(niu.IdentityInterface(fields=tka_param[opts.tka_method]), name='inputnode')
+	inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
 
 	#Define node to convert the input file from minc to ecat
 	convertPET=minctoecatWorkflow("minctoecat_PET")
@@ -246,7 +294,7 @@ def get_tka_workflow(name, opts):
 	#Define empty node for output
 	outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_file_t3map"]), name='outputnode')
 
-	if not os.path.exists(opts.arterial_dir):
+	if not opts.arterial_dir == None:
 		#Extracting TAC from reference region and putting it into text file
 		#Convert reference mask from minc to ecat
 		convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 
@@ -260,48 +308,67 @@ def get_tka_workflow(name, opts):
 		workflow.connect(convertPET, 'outputNode.out_file', extractReference, 'in_file')
 		# extractReference --> tacReference
 		workflow.connect(extractReference, 'out_file', tacReference, 'reference')
-	else:
+	elif opts.tka_method in tka_methods:
 		#Using arterial input file (which must be provided by user). No conversion or extraction necessary
 		# inputnode --> tacReference
 		workflow.connect(inputnode, 'reference', tacReference, 'reference')
+
 	if opts.tka_type=="voxel":
 		#Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric map
+		if opts.tka_method in tka_methods: 
+			if opts.tka_method == "lp":
+				#Define node for logan plot analysis 
+				tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
+				if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
+				if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+				if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
+				if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
+				if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+				if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+				if opts.tka_start_time != None:tkaNode.inputs.start_time=opts.tka_start_time
 
-		if opts.tka_method == "lp":
-			#Define node for logan plot analysis 
-			tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
-			if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
-			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-			if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
-			if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
-			if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-			if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-			if opts.tka_start_time != None:tkaNode.inputs.start_time=opts.tka_start_time
-
-		elif opts.tka_method == "pp":
-			tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
-			if opts.tka_Ca != None:	tkaNode.inputs.Ca=opts.tka_Ca
-			if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
-			if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
-			if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-			if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
-			if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
-			if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-			if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-			if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
-			if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+			elif opts.tka_method == "pp":
+				tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
+				if opts.tka_Ca != None:	tkaNode.inputs.Ca=opts.tka_Ca
+				if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
+				if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
+				if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+				if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
+				if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
+				if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+				if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+				if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
+				if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+			
+			elif opts.tka_method == 'srtm':
+				tkaNode = pe.Node(interface=srtmCommand(), name=opts.tka_method)
+				if opts.tka_t3max != None: tkaNode.inputs.t3max=opts.tka_t3max
+				if opts.tka_t3min != None: tkaNode.inputs.t3min=opts.tka_t3min
+				if opts.tka_nBF != None: tkaNode.inputs.nBF=opts.tka_nBF
+			workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+		elif opts.tka_method == 'suv':
+			#Get Body Weight from header or .csv file
+			body_weightNode=pe.Node(interface=subject_parameterCommand(), name="body_weight")
+			body_weightNode.inputs.parameter_name=opts.body_weight
+			workflow.connect(inputnode, 'header', body_weightNode, 'header')
+			workflow.connect(inputnode, 'sid', body_weightNode, 'sid')
+			#Get radiotracer dose from header or .csv file
+			radiotracer_doseNode=pe.Node(interface=subject_parameterCommand(), name="radiotracer_dose")
+			radiotracer_doseNode.inputs.parameter_name=opts.radiotracer_dose
+			workflow.connect(inputnode, 'header', radiotracer_doseNode, 'header')
+			workflow.connect(inputnode, 'sid', radiotracer_doseNode, 'sid')
+			#Create a node for SUV
+			tkaNode = pe.Node(interface=suvCommand(), name=opts.tka_method)
+			tkaNode.inputs.start_time=opts.tka_start_time
+			tkaNode.inputs.end_time=opts.tka_end_time
+			workflow.connect(body_weightNode, 'parameter', tkaNode, 'body_weight')
+			workflow.connect(radiotracer_doseNode, 'parameter', tkaNode, 'radiotracer_dose')
+			
 		
-		elif opts.tka_method == 'srtm':
-			tkaNode = pe.Node(interface=srtmCommand(), name=opts.tka_method)
-			if opts.tka_t3max != None:	tkaNode.inputs.t3max=opts.tka_t3max
-			if opts.tka_t3min != None: tkaNode.inputs.t3min=opts.tka_t3min
-			if opts.tka_nBF != None: tkaNode.inputs.nBF=opts.tka_nBF
-
-	
 		#inputnode.in_file -->  tkaNode.in_file
 		workflow.connect(convertPET, 'outputNode.out_file', tkaNode, 'in_file')
 		#tacReference.reference --> tkaNode.reference
-		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+
 
 		convertParametric=ecattomincWorkflow("convertParametric") 
 		workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')

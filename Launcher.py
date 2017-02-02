@@ -25,6 +25,7 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
+from Tracer_Kinetic import tka_methods
 import Quality_Control.group_qc_coreg as qc
 import Test.test_group_qc as tqc
 # import nipype.interfaces.minc.results as results
@@ -131,13 +132,13 @@ def runPipeline(opts,args):
 		datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
 		datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
 
-	if os.path.exists(opts.arterial_dir):
+	if opts.arterial_dir != None:
 	    datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['sid', 'cid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
 	    datasourceArterial.inputs.base_directory = opts.arterial_dir
 	    datasourceArterial.inputs.template = '*'
 	    datasourceArterial.inputs.field_template = dict(arterial_file='%s_%s_*.dft')
 	    datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])
-        workflow.connect([(infosource, datasourceArterial, [('sid', 'sid')]), (infosource, datasourceArterial, [('cid', 'cid')])])
+            workflow.connect([(infosource, datasourceArterial, [('sid', 'sid')]), (infosource, datasourceArterial, [('cid', 'cid')])])
 
 
 
@@ -252,15 +253,16 @@ def runPipeline(opts,args):
             if not opts.nopvc:
                 #Perform TKA on PVC PET
                 tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-                #workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
                 workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pvc, "inputnode.header")
-                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
+                workflow.connect(infosource, 'sid', tka_pvc, "inputnode.sid")
+                if opts.tka_method in tka_methods:
+		    workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
                 workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
                 workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
 
-                if os.path.exists(opts.arterial_dir):
+                if opts.arterial_dir != None :
                     workflow.connect(datasourceArterial, 'arterial_file', tka_pvc, "inputnode.reference")
-                else:
+                elif opts.tka_method in tka_methods:
                     workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
 
                 if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
@@ -274,12 +276,15 @@ def runPipeline(opts,args):
                 #Perform TKA on uncorrected PET
                 tka_pve=tka.get_tka_workflow("tka_pve", opts)
         
+                workflow.connect(infosource, 'sid', tka_pve, "inputnode.sid")
                 if os.path.exists(opts.arterial_dir):
                     workflow.connect(datasourceArterial, 'arterial_file', tka_pve, "inputnode.reference")
-                else:
+                elif opts.tka_method in tka_methods:
                     workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
+                
                 workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
-                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
+		if opts.tka_method in tka_methods:
+                	workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
                 workflow.connect(wf_init_pet, 'outputnode.pet_center', tka_pve, "inputnode.in_file")
                 workflow.connect(tka_pve, "outputnode.out_file", datasink, tka_pve.name)
                 if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
@@ -550,8 +555,12 @@ if __name__ == "__main__":
 	group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
 	group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
 	group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
-	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.", default=False)
-	group.add_option("","--start-time",dest="tka_start_time",help="Start time for regression in MTGA.",type='float', default=None)
+	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.", default=None)
+	group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=0)
+	group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=0)
+	group.add_option("","--body-weight",dest="body_weight",help="Either name of subject body weight (kg) in header or path to .csv file containing subject names and body weight (separated by comma).",type='string', default="Patient_Weight")
+	group.add_option("","--radiotracer-dose",dest="radiotracer_dose",help="Either name of subject's injected radiotracer dose (MBq) in header or path to .csv file containing subject names and injected radiotracer dose (MBq).",type='string', default="injection_dose")
+
 	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
 	parser.add_option_group(group)
 

@@ -176,28 +176,42 @@ def mi(pet_fn, mri_fn, brain_fn):
 
 
 def cc(pet_fn, mri_fn, brain_fn):
-	cc=0.
-	pet = pyminc.volumeFromFile(pet_fn)
-	mri = pyminc.volumeFromFile(mri_fn)
-	mask= pyminc.volumeFromFile(brain_fn)
-	pet_data=pet.data.flatten()
-	mri_data=mri.data.flatten()
-	mask_data=mask.data.flatten()
-	n=len(pet_data)
-	masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-	masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
-	n2=len(masked_pet_data)
-	h=numpy.histogram2d(x, y)
-	x_bin = np.digitize(x,h[1])
-	y_bin = np.digitize(y,h[2])
-	for i in range(n2):
-		for j in range(n2):
-			xval=(x[i]-x_mean)
-			yval=(y[j]-y_mean)
-			p=h[0][x_bin[i]][y_bin[j]]
-			cc += xval * yval * p  / (xval**2 * yval**2)	
+    cc=0.0
+    xd=0.0
+    yd=0.0
+    pet = pyminc.volumeFromFile(pet_fn)
+    mri = pyminc.volumeFromFile(mri_fn)
+    mask= pyminc.volumeFromFile(brain_fn)
+    pet_data=pet.data.flatten()
+    mri_data=mri.data.flatten()
+    mask_data=mask.data.flatten()
+    n=len(pet_data)
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    n2=len(masked_pet_data)
+    h=np.histogram2d(masked_pet_data, masked_mri_data)
+    
+    x_bin = np.digitize(masked_pet_data, h[1]) - 1
+    y_bin = np.digitize(masked_mri_data, h[2]) - 1
 
-	return(cc)
+    print max(x_bin), len(h[1])
+    print max(y_bin), len(h[2])
+    raw_input()
+
+    pet_mean=np.mean(masked_pet_data)
+    mri_mean=np.mean(masked_mri_data)
+    for i in range(n2):
+        for j in range(n2):
+            xval=(masked_pet_data[i]-pet_mean)
+            yval=(masked_mri_data[j]-mri_mean)
+            p=h[0][x_bin[i]][y_bin[j]]
+            cc += xval * yval 
+            xd += p * xval**2
+            yd += p * yval**2
+    
+    cc = cc / sqrt(xd*yd)
+
+    return(cc)
 
 
 ###

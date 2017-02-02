@@ -6,7 +6,6 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.minc.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 import ntpath
 import pandas as pd
 import os
@@ -46,7 +45,6 @@ class subject_parameterCommand(BaseInterface ):
 	parameter_name = self.inputs.parameter_name
 	header = self.inputs.header
 	sid = self.inputs.sid
-	print(parameter_name)
 	if  os.path.exists(parameter_name):
 	#Case 1: paramter_name is a file name containing the subjects and parameters
 	#	--> attempt to extract parameter from header
@@ -60,11 +58,10 @@ class subject_parameterCommand(BaseInterface ):
 			parameter=parameter[0]
 		#convert scientific notation number to floating point number, stored as string
 		try: 
-			parameter=format(float('5e-06'), 'f')	
+			parameter=format(float(parameter), 'f')	
 		except ValueError: pass
 	self.inputs.parameter=str(parameter)
 
-	print parameter
 	return(runtime)
 
     def _list_outputs(self):

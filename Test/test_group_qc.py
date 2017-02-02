@@ -5,7 +5,6 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  
 import pyminc.volumes.factory as pyminc
 
 import matplotlib
-matplotlib.use('Agg') 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
@@ -138,7 +137,7 @@ class test_group_coreg_qcCommand(BaseInterface):
 
         outlier_measures={'MAD':qc.img_mad}
         outlier_threshold={ 'MAD':[-6,-5,-4,-3,-2,-1,0, 1,2,3,4,5,6]}
-        distance_metrics={'NMI':qc.mi} #, 'XCorr':qc.xcorr }
+        distance_metrics={'NMI':qc.mi, 'CC':qc.cc} 
         error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
         error_type_name={"angle":'rotation',  "offset":'translation'} 
         colnames= ["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 

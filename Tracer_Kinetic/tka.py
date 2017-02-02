@@ -14,6 +14,7 @@ from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.minc.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
+from Extra.turku import imgunitCommand
 import ntpath
 
 

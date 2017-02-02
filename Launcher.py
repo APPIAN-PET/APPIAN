@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import os
 import sys
 import argparse

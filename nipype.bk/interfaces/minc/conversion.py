@@ -17,6 +17,9 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.minc.resample import ResampleCommand, param2xfmCommand
 from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand, FixHeaderCommand
+from Extra.turku import imgunitCommand
+
+
 
 class convertOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")
@@ -25,8 +28,6 @@ class convertInput(MINCCommandInputSpec):
     out_file = File( argstr="%s", position=-1, desc="image to operate on")
     in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
     two= traits.Bool(argstr="-2",  default_value=True, desc="Convert from minc 1 to minc 2")
-
-
 
 class mincconvertCommand(MINCCommand):
     input_spec =  convertInput
@@ -75,13 +76,16 @@ def minctoecatWorkflow(name):
     sifNode = pe.Node(interface=sifCommand(), name="sifNode")
     eframeNode = pe.Node(interface=eframeCommand(), name="eframeNode")
     outputNode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
-
+    imgunitNode = pe.Node(interface=imgunitCommand(), name="imgunitCommand")
+    imgunitNode.inputs.u = "Bq/cc"
+    
     workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
     workflow.connect(inputNode, 'in_file', sifNode, 'in_file')
     workflow.connect(inputNode, 'header', sifNode, 'header')
     workflow.connect(conversionNode, 'out_file', eframeNode, 'in_file')
     workflow.connect(sifNode, 'out_file', eframeNode, 'frame_file')
-    workflow.connect(eframeNode, 'out_file', outputNode, 'out_file')  
+    workflow.connect(eframeNode, 'out_file', imgunitNode, 'in_file')
+    workflow.connect(imgunitNode, 'in_file', outputNode, 'out_file') 
 
     return(workflow)
 

@@ -4,7 +4,8 @@ import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import pyminc.volumes.factory as pyminc
 
-import matplotlib
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
@@ -96,12 +97,19 @@ def get_misalign_pet_workflow(name, opts):
     return(workflow)
 
 
+############################################################################
+# Workflow to calculate distance metrics, outlier measures, and ROC curves #
+############################################################################
 
+### NODES
 
-class test_group_coreg_qcOutput(TraitedSpec):
+#
+# Distance metric
+#
+class distance_metricOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
 
-class test_group_coreg_qcInput(BaseInterfaceInputSpec):
+class distance_metricInput(BaseInterfaceInputSpec):
     rotated_pet = traits.List( mandatory=True, desc="Input list of translated PET images")
     translated_pet = traits.List( mandatory=True, desc="Input list of rotated PET images")
     t1_images = traits.List( mandatory=True, desc="Input list of T1 images")
@@ -110,13 +118,13 @@ class test_group_coreg_qcInput(BaseInterfaceInputSpec):
     subjects= traits.List( mandatory=True, desc="Input list of subjects")
     conditions= traits.List( mandatory=True, desc="List of conditions")
     study_prefix= traits.List( mandatory=True, desc="Prefix of study")
+    distance_metrics = traits.Dict(mandatory=True,desc="Dictionary with distance metrics")
+    colnames = traits.List(mandatory=True,desc="Column names for Pandas DataFrame")
     out_file = traits.File(desc="Output file")
 
-pd.set_option('display.width', 1000)
-
-class test_group_coreg_qcCommand(BaseInterface):
-    input_spec = test_group_coreg_qcInput 
-    output_spec = test_group_coreg_qcOutput
+class distance_metricCommand(BaseInterface):
+    input_spec = distance_metricInput 
+    output_spec = distance_metricOutput
    
     def _run_interface(self, runtime):
         #######################################################
@@ -130,17 +138,9 @@ class test_group_coreg_qcCommand(BaseInterface):
         rotated_pet=self.inputs.rotated_pet
         study_prefix=self.inputs.study_prefix
         translated_pet=self.inputs.translated_pet
-        n=len(subjects)
-        n0=n-1
-        z=sqrt((n+n0)/(n*n0))
-        normal_param='0,0,0'
+        distance_metrics = self.inputs.distance_metrics
+        colnames = list(self.inputs.colnames)
 
-        outlier_measures={'MAD':qc.img_mad}
-        outlier_threshold={ 'MAD':[-6,-5,-4,-3,-2,-1,0, 1,2,3,4,5,6]}
-        distance_metrics={'NMI':qc.mi, 'CC':qc.cc} 
-        error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
-        error_type_name={"angle":'rotation',  "offset":'translation'} 
-        colnames= ["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
         df=pd.DataFrame(columns=colnames)
 
         outlier_measure_list=[]
@@ -149,39 +149,77 @@ class test_group_coreg_qcCommand(BaseInterface):
         rotated_pet = flatten(rotated_pet)
         translated_pet=flatten(translated_pet)
         misaligned=rotated_pet + translated_pet 
-        label='v2' #sub01_no_brain_mask
         home_dir=os.getcwd()
-        test_group_qc_csv=home_dir+"test_group_qc_"+label+"_metric.csv"
-        test_group_qc_full_csv=home_dir+"test_group_qc_"+label+"_outliers.csv"
-        test_group_qc_roc_csv=home_dir+"test_group_qc_"+ label+"_roc.csv"
+        self.inputs.out_file=home_dir+os.sep+"test_group_qc_metric.csv"
 
-        self.inputs.out_file=test_group_qc_csv
-        #print test_group_qc_csv
-        if os.path.exists(test_group_qc_csv) == False : #FIXME: Needs to be spread among nodes
-            df=calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, distance_metrics,test_group_qc_csv )
-            #df.to_csv(test_group_qc_csv, index=False )
-        else:
-            df=pd.read_csv(test_group_qc_csv)
+        df=calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, distance_metrics )
+        df.to_csv(self.inputs.out_file, index=False)
+        return runtime
 
-        #print test_group_qc_full_csv
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+#
+# Outlier measures 
+#
+
+class outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class outlier_measuresInput(BaseInterfaceInputSpec):
+    outlier_measures = traits.Dict(mandatory=True, desc="Dictionary with outlier measures")
+    distance_metrics = traits.Dict(mandatory=True, desc="Dictionary with distance metrics")
+    normal_param = traits.Str(mandatory=True, desc="Normal alignment parameter (eg 0,0,0)")
+    out_file = traits.File(desc="Output file")
+    in_file = traits.File(exists=True,mandatory=True,desc="In file")
+
+class outlier_measuresCommand(BaseInterface):
+    input_spec = outlier_measuresInput 
+    output_spec= outlier_measuresOutput
+   
+    def _run_interface(self, runtime):
+        #######################################################
+        outlier_measures= self.inputs.outlier_measures
+        distance_metrics = self.inputs.distance_metrics
+        normal_param = self.inputs.normal_param
+
+        df=pd.read_csv(self.inputs.in_file)
         #Calculate the outlier measures based on group values of each distance metric
-        if os.path.exists(test_group_qc_full_csv) == False:
-            df=calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param)
-            df.to_csv(test_group_qc_full_csv, index=False )
-        else:
-            df=pd.read_csv(test_group_qc_full_csv)
+        df=calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param)
+        self.inputs.out_file=os.getcwd()+os.sep+"test_group_qc_outliers.csv"
+        df.to_csv(self.inputs.out_file, index=False )
+        return(runtime)
 
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+#
+# Outlier measures ROC
+#
+
+class outlier_measures_rocOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class outlier_measures_rocInput(BaseInterfaceInputSpec):
+    outlier_threshold = traits.Dict(mandatory=True, desc="List of thresholds for outlier measures")
+    normal_param = traits.Str(mandatory=True,desc="Normal alignment parameter (eg 0,0,0)")
+    out_file = traits.File(desc="Output file")
+    in_file = traits.File(exists=True,mandatory=True,desc="Input file")
+class outlier_measures_rocCommand(BaseInterface):
+    input_spec = outlier_measures_rocInput 
+    output_spec= outlier_measures_rocOutput
+   
+    def _run_interface(self, runtime):
         #Calculate ROC curves based on outlier measures
-        if os.path.exists(test_group_qc_roc_csv) == False:
-            roc_df=outlier_measure_roc(df, outlier_threshold, normal_param)
-            roc_df.to_csv(test_group_qc_roc_csv, index=False) 
-        else:
-            roc_df=pd.read_csv(test_group_qc_roc_csv)
-        
-        plot_outlier_measures(df, outlier_measures, distance_metrics, color=cm.spectral)
-        plot_roc(roc_df, error_type_unit, error_type_name)
-
-
+        outlier_threshold = self.inputs.outlier_threshold
+        normal_param = self.inputs.normal_param
+        df=pd.read_csv(self.inputs.in_file)
+        roc_df=outlier_measure_roc(df, outlier_threshold, normal_param)
+        self.inputs.out_file = os.getcwd()+os.sep+"test_group_qc_roc.csv"
+        roc_df.to_csv(self.inputs.out_file, index=False) 
         return(runtime)
 
     def _list_outputs(self):
@@ -190,8 +228,138 @@ class test_group_coreg_qcCommand(BaseInterface):
         return outputs
 
 
+#
+# Plot outlier measures
+#
+
+class plot_outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class plot_outlier_measuresInput(BaseInterfaceInputSpec):
+    outlier_measures = traits.Dict(mandatory=True, desc="Dictionary with outlier measures")
+    distance_metrics = traits.Dict(mandatory=True,desc="Dictionary with distance metrics")
+    out_file = traits.File(desc="Output file")
+    in_file = traits.File(exists=True, mandatory=True,desc="Input file")
+
+class plot_outlier_measuresCommand(BaseInterface):
+    input_spec = plot_outlier_measuresInput 
+    output_spec= plot_outlier_measuresOutput
+   
+    def _run_interface(self, runtime):
+        outlier_measures= self.inputs.outlier_measures
+        distance_metrics = self.inputs.distance_metrics
+        #Calculate ROC curves based on outlier measures
+        df=pd.read_csv(self.inputs.in_file)
+
+        self.inputs.out_file = os.getcwd()+os.sep+'outlier_measures.png'
+        plot_outlier_measures(df, outlier_measures, distance_metrics, self.inputs.out_file, color=cm.spectral)
+
+        return(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+#
+# Plot ROC curves
+#
+
+class plot_rocOutput(TraitedSpec):
+    out_files = traits.List(desc="Output file")
+
+class plot_rocInput(BaseInterfaceInputSpec):
+    error_type_unit=traits.Dict(desc="Error units")
+    error_type_name=traits.Dict(desc="Error type")
+    out_files = traits.List(desc="Output file")
+    in_file = traits.File(desc="Input file")
+
+class plot_rocCommand(BaseInterface):
+    input_spec = plot_rocInput 
+    output_spec= plot_rocOutput
+   
+    def _run_interface(self, runtime):
+        #Calculate ROC curves based on outlier measures
+        df=pd.read_csv(self.inputs.in_file)
+        error_type_unit=self.inputs.error_type_unit
+        error_type_name=self.inputs.error_type_name
+        self.inputs.out_files=plot_roc(df, error_type_unit, error_type_name)
+
+        return(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_files"] = self.inputs.out_files
+        return outputs
+
+
+### WORKFLOW
+
+def get_test_group_coreg_qc_workflow(name, opts):
+
+    workflow = pe.Workflow(name=name)
+    params=['subjects','study_prefix', 'conditions', 'pet_images', 't1_images','brain_masks', 'rotated_pet', 'translated_pet']
+    inputnode=pe.Node(interface=niu.IdentityInterface(fields=params) , name='inputnode')
+    outputnode=pe.Node(interface=niu.IdentityInterface(fields=['outlier_measures_df', 'outlier_measures_plot', 'outlier_measures_roc_plot']), name='outputnode')
+
+
+    normal_param='0,0,0'
+    outlier_measures={'MAD':qc.img_mad}
+    outlier_threshold={ 'MAD':[-6,-5,-4,-3,-2,-1,0, 1,2,3,4,5,6]}
+    distance_metrics={'NMI':qc.mi, 'CC':qc.cc} 
+    error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
+    error_type_name={"angle":'rotation',  "offset":'translation'} 
+    colnames= ["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
+    
+    #calculate distance metric node
+    distance_metricNode=pe.Node(interface=distance_metricCommand(), name="distance_metricNode")
+    workflow.connect(inputnode, 'rotated_pet', distance_metricNode, 'rotated_pet')
+    workflow.connect(inputnode, 'translated_pet', distance_metricNode, 'translated_pet')
+    workflow.connect(inputnode, 't1_images', distance_metricNode, 't1_images')
+    workflow.connect(inputnode, 'pet_images', distance_metricNode, 'pet_images')
+    workflow.connect(inputnode, 'brain_masks', distance_metricNode, 'brain_masks')
+    workflow.connect(inputnode, 'conditions', distance_metricNode, 'conditions')
+    workflow.connect(inputnode, 'study_prefix', distance_metricNode, 'study_prefix')
+    workflow.connect(inputnode, 'subjects', distance_metricNode, 'subjects')
+    distance_metricNode.inputs.distance_metrics=distance_metrics
+    distance_metricNode.inputs.colnames = colnames
+    
+    #calculate outlier measures node
+    outlier_measuresNode=pe.Node(interface=outlier_measuresCommand(), name="outlier_measuresCommand")
+    workflow.connect(distance_metricNode, 'out_file', outlier_measuresNode, 'in_file')
+    outlier_measuresNode.inputs.outlier_measures = outlier_measures
+    outlier_measuresNode.inputs.distance_metrics = distance_metrics
+    outlier_measuresNode.inputs.normal_param = normal_param
+    
+    #plot outlier measures node
+    plot_outlier_measuresNode=pe.Node(plot_outlier_measuresCommand(), name="plot_outlier_measuresCommand")
+    plot_outlier_measuresNode.inputs.distance_metrics=distance_metrics
+    plot_outlier_measuresNode.inputs.outlier_measures=outlier_measures
+    workflow.connect(outlier_measuresNode, 'out_file', plot_outlier_measuresNode, 'in_file')
+
+    #calculate ROC for outlier measures
+     
+    rocNode=pe.Node(outlier_measures_rocCommand(), name="rocNode")
+    rocNode.inputs.outlier_threshold=outlier_threshold
+    rocNode.inputs.normal_param = normal_param
+    workflow.connect(outlier_measuresNode, 'out_file', rocNode, 'in_file')
+
+    #plot roc node
+    plot_rocNode=pe.Node(plot_rocCommand(), name="plot_rocNode")
+    plot_rocNode.inputs.error_type_unit = error_type_unit
+    plot_rocNode.inputs.error_type_name = error_type_name
+    workflow.connect(rocNode, 'out_file', plot_rocNode, 'in_file')
+
+    workflow.connect(outlier_measuresNode, 'out_file', outputnode, 'outlier_measures_df')
+    workflow.connect(plot_outlier_measuresNode, 'out_file', outputnode, 'outlier_measures_plot')
+    workflow.connect(plot_rocNode, 'out_files', outputnode, 'outlier_measures_roc_plot')
+    return workflow
+    
+### FUNCTIONS
+
+
 def plot_roc(df, error_type_unit, error_type_name, color=cm.spectral, DPI=1000):
     figs=[]
+    fn_list=[]
     n=1
     nMeasure=len(np.unique(df.Measure))
     nMetric=len(np.unique(df.Metric))
@@ -230,10 +398,12 @@ def plot_roc(df, error_type_unit, error_type_name, color=cm.spectral, DPI=1000):
                 n += 1
                 
         error_names=error_type.Error.unique()
-        fn='/data1/projects/ohbm2017/'+error_type_key + '_roc.png'
+        fn=os.getcwd() + os.sep + error_type_key + '_roc.png'
+        fn_list += fn
         print  'saving roc to ' + fn
         figs[nFig].savefig(fn, width=200*nMetric, dpi=DPI)
         nFig += 1
+        return(fn_list)
 
 def  outlier_measure_roc(df, outlier_threshold, normal_error):
     subjects=np.unique(df.Subject)
@@ -292,7 +462,7 @@ def estimate_roc(test, control, threshold, nRep=5000):
 
         
 
-def calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, distance_metrics, test_group_qc_csv):
+def calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, distance_metrics):
     print subjects
     print conditions
     for sub, cond in zip(subjects, conditions):
@@ -327,7 +497,6 @@ def calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_i
                 temp=pd.DataFrame([[sub,cond,param_type,param, metric_name, m]],columns=df.columns  ) 
                 sub_df = pd.concat([sub_df, temp])
         df = pd.concat([df, sub_df])
-        df.to_csv(test_group_qc_csv, index=False)
     df.index=range(df.shape[0])
     return(df)
 
@@ -340,14 +509,24 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
 
     unique_error_types=np.unique(df.ErrorType) #List of errors types in PET mis-alignmenta
     n=df.shape[0]
-    empty_df = pd.DataFrame(np.zeros([n,1]), columns=['Score'] , index=[0]*n)
-    df2 = pd.DataFrame([])
-    for measure in outlier_measure_names:
-        m=pd.DataFrame( { 'Measure':[measure] * n}, index=[0]*n  )
-        d=pd.concat([df,m,empty_df], axis=1)
-        df2=pd.concat([df2,d])
-    del df
-    df=df2
+    #empty_df = pd.DataFrame(np.zeros([n,1]), columns=['Score'] , index=[0]*n)
+    #df2 = pd.DataFrame([])
+    #print empty_df
+    #for measure in outlier_measure_names:
+    #    m=pd.DataFrame( { 'Measure':[measure] * n}, index=[0]*n  )
+    #    print(m)
+    #    d=pd.concat([df,m,empty_df], axis=1)
+    #    print(d)
+    #    df2=pd.concat([df2,d])
+    #    print(df2)
+    no=len(outlier_measure_names)
+    n2 = n * no
+    df2 = pd.concat([df]*no, ignore_index=True)
+    mdf = pd.DataFrame( {'Measure': sum([ [x] * n for x in outlier_measure_names  ],[]), 'Score':np.zeros(n2)  } )
+    d=pd.concat([df2,mdf], axis=1)
+    df=d
+    #print d
+    #print d[ (d.shape[0]-20):d.shape[0] ]
     #for error_type in unique_error_types:
     for error_type, error_type_df in df.groupby(['ErrorType']):
         unique_errors = np.unique( df.Error[df.ErrorType == error_type ] )#Get list of error parameters for error type 
@@ -398,7 +577,7 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
 
 
 
-def plot_outlier_measures(df, outlier_measures, distance_metrics, color=cm.spectral):
+def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=cm.spectral):
     f=lambda x: float(str(x).split(',')[-1])
 
     df.Error = df.Error.apply(f)
@@ -432,7 +611,6 @@ def plot_outlier_measures(df, outlier_measures, distance_metrics, color=cm.spect
             #ax.legend(loc="best", fontsize=7)
             n+=1
     #plt.show()
-    out_fn=os.getcwd()+'outlier_measures.png'
     print 'saving outlier plot to', out_fn
     plt.savefig(out_fn,width=1000*nMeasure, dpi=1000)
 

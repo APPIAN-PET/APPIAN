@@ -299,7 +299,7 @@ def runPipeline(opts,args):
 	# Connect nodes for reporting results #
 	#######################################
 	#Results report for PET
-	if opts.tka_type=="voxel":
+	if opts.tka_type=="voxel" and opts.results_report:
             for node, img in zip(out_node_list, out_img_list):
 
                     node_name="results_" + node.name #+ "_" + opts.tka_method
@@ -340,7 +340,6 @@ def runPipeline(opts,args):
 
         
         if opts.group_qc and False:
-            ###JoinNode to join together workflows of multiple subjects for group level QC 
             PETtoT1_group_qc = pe.Node(interface=qc.PETtoT1_group_qc(),  name="PETtoT1_group_qc")
             workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
             workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
@@ -365,15 +364,25 @@ def runPipeline(opts,args):
             workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
             workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
 
-            test_group_coreg_qc = pe.JoinNode(interface=tqc.test_group_coreg_qcCommand(), joinsource="preinfosource", joinfield=['rotated_pet', 'translated_pet'], name="test_group_coreg_qc")
-            workflow.connect(wf_misalign_pet, 'outputnode.rotated_pet', test_group_coreg_qc, 'rotated_pet')
-            workflow.connect(wf_misalign_pet, 'outputnode.translated_pet', test_group_coreg_qc, 'translated_pet')
-            workflow.connect(join_subjectsNode, 't1_images',test_group_coreg_qc, 't1_images')
-            workflow.connect(join_subjectsNode, 'pet_images',test_group_coreg_qc, 'pet_images')
-            workflow.connect(join_subjectsNode, 't1_brainMasks',test_group_coreg_qc, 'brain_masks')
-            workflow.connect(join_subjectsNode, 'conditions', test_group_coreg_qc, 'conditions')
-            workflow.connect(join_subjectsNode, 'subjects', test_group_coreg_qc, 'subjects')
-            workflow.connect(join_subjectsNode, 'study_prefix', test_group_coreg_qc,'study_prefix')
+            #
+            misaligned_petNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['rotated_pet', 'translated_pet']), joinsource="preinfosource", joinfield=['rotated_pet', 'translated_pet'], name="misaligned_petNode")
+            workflow.connect(wf_misalign_pet, 'outputnode.rotated_pet', misaligned_petNode, 'rotated_pet')
+            workflow.connect(wf_misalign_pet, 'outputnode.translated_pet', misaligned_petNode, 'translated_pet')
+            
+            #
+            wf_test_group_coreg_qc = tqc.get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
+            workflow.connect(misaligned_petNode, 'rotated_pet', wf_test_group_coreg_qc, 'inputnode.rotated_pet')
+            workflow.connect(misaligned_petNode, 'translated_pet', wf_test_group_coreg_qc, 'inputnode.translated_pet')
+            workflow.connect(join_subjectsNode, 't1_images', wf_test_group_coreg_qc, 'inputnode.t1_images')
+            workflow.connect(join_subjectsNode, 'pet_images', wf_test_group_coreg_qc, 'inputnode.pet_images')
+            workflow.connect(join_subjectsNode, 't1_brainMasks', wf_test_group_coreg_qc, 'inputnode.brain_masks')
+            workflow.connect(join_subjectsNode, 'conditions', wf_test_group_coreg_qc, 'inputnode.conditions')
+            workflow.connect(join_subjectsNode, 'subjects', wf_test_group_coreg_qc, 'inputnode.subjects')
+            workflow.connect(join_subjectsNode, 'study_prefix', wf_test_group_coreg_qc,'inputnode.study_prefix')
+
+            workflow.connect(wf_test_group_coreg_qc, 'outputnode.outlier_measures_df', datasink, 'outlier_measures_df')
+            workflow.connect(wf_test_group_coreg_qc, 'outputnode.outlier_measures_plot', datasink, 'outlier_measures_plot')
+            #workflow.connect(wf_test_group_coreg_qc, 'outputnode.outlier_measures_roc_plot', datasink, 'outlier_measures_roc_plot')
 
 	# #vizualization graph of the workflow
 	#workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
@@ -563,11 +572,16 @@ if __name__ == "__main__":
 	group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
 	parser.add_option_group(group)
 
-        #Quality Control 
+    #Quality Control 
 	qc_opts = OptionGroup(parser,"Tracer Kinetic analysis options")
         qc_opts.add_option("","--group-qc",dest="group_qc",help="Perform quantitative group-wise quality control.", action='store_const', const=True, default=False)  #FIXME Add to options
         qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
 	parser.add_option_group(qc_opts)
+
+    #Results reporting
+    	qc_opts.add_option("","--report-results",dest="results_report",help="Write results from output files to .csv files (default)", action='store_const', const=True, default=True)   
+    	qc_opts.add_option("","--no-report-results",dest="results_report",help="Don't write results from output files to .csv files", action='store_const', const=False, default=True)   
+
 
         #
 	group= OptionGroup(parser,"Command control")

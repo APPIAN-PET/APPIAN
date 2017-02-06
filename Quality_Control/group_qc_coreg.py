@@ -6,6 +6,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 import pyminc.volumes.factory as pyminc
 from sklearn.metrics import normalized_mutual_info_score
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import ks_2samp
 from scipy.stats.stats import pearsonr, kendalltau  
@@ -16,7 +17,7 @@ import os
 from math import sqrt, log
 from os import getcwd
 from sys import argv, exit
-    
+from itertools import product
 
 class PETtoT1_group_qcOutput(TraitedSpec):
     out_file = traits.File( desc="Output files")
@@ -189,27 +190,31 @@ def cc(pet_fn, mri_fn, brain_fn):
     masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
     masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
     n2=len(masked_pet_data)
-    h=np.histogram2d(masked_pet_data, masked_mri_data)
-    
+    nbins=int(sqrt(n2))
+    h=np.histogram2d(masked_pet_data, masked_mri_data, bins=nbins)
+    nbins = h[0].shape[0] * h[0].shape[1]
+    hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
     x_bin = np.digitize(masked_pet_data, h[1]) - 1
     y_bin = np.digitize(masked_mri_data, h[2]) - 1
 
-    print max(x_bin), len(h[1])
-    print max(y_bin), len(h[2])
-    raw_input()
+    x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
+    y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
 
+
+    x_idx=x_bin #v[:,0]
+    y_idx=y_bin #v[:,1]
+    p=h[0][x_idx,y_idx]
     pet_mean=np.mean(masked_pet_data)
     mri_mean=np.mean(masked_mri_data)
-    for i in range(n2):
-        for j in range(n2):
-            xval=(masked_pet_data[i]-pet_mean)
-            yval=(masked_mri_data[j]-mri_mean)
-            p=h[0][x_bin[i]][y_bin[j]]
-            cc += xval * yval 
-            xd += p * xval**2
-            yd += p * yval**2
+    xval=(masked_pet_data-pet_mean)
+    yval=(masked_mri_data-mri_mean)
     
-    cc = cc / sqrt(xd*yd)
+    num = sum( xval * yval * p)
+    xd = sum( p * xval**2)
+    yd = sum( p * yval**2)
+    den=sqrt(xd*yd)
+    cc = num / den 
+    print "CC = " + str(cc)
 
     return(cc)
 

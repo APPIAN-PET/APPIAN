@@ -180,7 +180,7 @@ def mi(masked_pet_data, masked_mri_data):
     
     nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
     print "NMI:", nmi
-    return(val)
+    return(nmi)
 
 
 #def cc(pet_fn, mri_fn, brain_fn):
@@ -192,7 +192,7 @@ def cc(masked_pet_data, masked_mri_data):
     cc=0.0
     xd=0.0
     yd=0.0
-    p=joint_dist(masked_pet_data, masked_mri_data,nbins )[0]
+    p=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )[0]
 
     pet_mean=np.mean(masked_pet_data)
     mri_mean=np.mean(masked_mri_data)
@@ -202,7 +202,8 @@ def cc(masked_pet_data, masked_mri_data):
     xd = np.sum( p * xval**2)
     yd = np.sum( p * yval**2)
     den=sqrt(xd*yd)
-    cc = num / den 
+    cc = num / den
+    print 'CC0:', pearsonr(masked_pet_data, masked_mri_data)[0]
     print "CC = " + str(cc)
 
     return(cc)

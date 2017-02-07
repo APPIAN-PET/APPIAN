@@ -154,17 +154,26 @@ def img_mad(x, i):
 # Distance Metrics #
 ####################
 
-def mi(pet_fn, mri_fn, brain_fn):
+
+
+def distance(pet_fn, mri_fn, brain_fn, dist_f):
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
     mask= pyminc.volumeFromFile(brain_fn)
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
     mask_data=mask.data.flatten()
-    n=len(pet_data)
 
-    masked_pet_data =  [ int(round(pet_data[i])) for i in range(n) if int(mask_data[i])==1 ]
-    masked_mri_data = [ int(round(mri_data[i])) for i in range(n) if int(mask_data[i])==1 ]
+    n=len(pet_data)
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    dist=dist_f(masked_pet_data, masked_mri_data)
+    return(dist)
+
+
+def mi(masked_pet_data, masked_mri_data):
+    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
+    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
     
     del pet
     del mri
@@ -174,50 +183,107 @@ def mi(pet_fn, mri_fn, brain_fn):
     del mask_data
     val = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
     return(val)
-
-
-def cc(pet_fn, mri_fn, brain_fn):
+__NBINS=-1
+#def cc(pet_fn, mri_fn, brain_fn):
+def cc(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    if __NBINS == -1:
+        nbins=len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
+    else: 
+        nbins=__NBINS
     cc=0.0
     xd=0.0
     yd=0.0
-    pet = pyminc.volumeFromFile(pet_fn)
-    mri = pyminc.volumeFromFile(mri_fn)
-    mask= pyminc.volumeFromFile(brain_fn)
-    pet_data=pet.data.flatten()
-    mri_data=mri.data.flatten()
-    mask_data=mask.data.flatten()
-    n=len(pet_data)
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
-    n2=len(masked_pet_data)
-    nbins=int(sqrt(n2))
+    p=joint_dist(masked_pet_data, masked_mri_data,nbins )[0]
+
+    pet_mean=np.mean(masked_pet_data)
+    mri_mean=np.mean(masked_mri_data)
+    xval=(masked_pet_data-pet_mean)
+    yval=(masked_mri_data-mri_mean)
+    num = np.sum( xval * yval * p)
+    xd = np.sum( p * xval**2)
+    yd = np.sum( p * yval**2)
+    den=sqrt(xd*yd)
+    cc = num / den 
+    #print "CC = " + str(cc)
+
+    return(cc)
+
+#%run mytest.py /data1/projects/Stroke/CIVET1.12/GPI-P02_S_Cortical_I/native/GPI_2MEDA45Initial_t1.mnc /data1/projects/Stroke/results/10480/pet/GPI-P02_S_Cortical_I_pet-coreg2t1-sum.mnc /data1/projects/Stroke/results/10480/srv/GPI-P02_S_Cortical_I_brain_mask_nat.mnc
+
+
+def iv(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    if __NBINS == -1:
+        nbins=500 #len(masked_mri_data)/10
+    else: 
+        nbins=__NBINS
+
+    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, nbins)
+    df=pd.DataFrame({ 'Value':masked_pet_data , 'p':p, 'Label':mri_bin})
+
+
+    #Intensity variation:
+    #
+    #              p(n,m)(n - mean{n}(m))^2
+    #sum{sqrt(sum[ ------------------------ ]) * p(m)}
+    #                   mean{n}(m)^2
+    #
+
+
+    # 1)
+    #      p(n,m)(n - mean{n}(m))^2
+    # X =  ------------------------
+    #           mean{n}(m)^2
+    df["Normed"]=df.groupby(["Label"])['Value'].transform( lambda x: (x - x.mean())**2 / x.mean()**2 ) * df.p
+
+    # 2)
+    #          
+    #sum{sqrt(sum[ X ]) * p(m)}
+    #
+    mri_dist = np.histogram(masked_mri_data, nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    iv = np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0])
+    print "IV:", iv
+    return iv
+
+
+
+def fse(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    if __NBINS == -1:
+        nbins=500 #len(masked_mri_data)/10
+    else: 
+        nbins=__NBINS
+
+    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, nbins)
+    fse=-np.sum(p*map(np.log, p))
+    return fse
+
+
+
+
+def joint_dist(masked_pet_data, masked_mri_data, nbins=0):
+    #return joint probability for pair of pet and mri value
+    n=len(masked_pet_data)
+    if nbins==0:
+        nbins=100 
+        #n/10 #sqrt(n) #int(sqrt(n))
     h=np.histogram2d(masked_pet_data, masked_mri_data, bins=nbins)
     nbins = h[0].shape[0] * h[0].shape[1]
     hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
     x_bin = np.digitize(masked_pet_data, h[1]) - 1
     y_bin = np.digitize(masked_mri_data, h[2]) - 1
-
     x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
     y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
-
+    pet_bin=x_bin
+    mri_bin=y_bin
 
     x_idx=x_bin #v[:,0]
     y_idx=y_bin #v[:,1]
-    p=h[0][x_idx,y_idx]
-    pet_mean=np.mean(masked_pet_data)
-    mri_mean=np.mean(masked_mri_data)
-    xval=(masked_pet_data-pet_mean)
-    yval=(masked_mri_data-mri_mean)
-    
-    num = sum( xval * yval * p)
-    xd = sum( p * xval**2)
-    yd = sum( p * yval**2)
-    den=sqrt(xd*yd)
-    cc = num / den 
-    print "CC = " + str(cc)
+    p=hi[x_idx,y_idx]
 
-    return(cc)
-
+    return [p, pet_bin, x_bin]
 
 ###
 ## Code not used and can potentially be deleted

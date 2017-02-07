@@ -305,7 +305,7 @@ def get_test_group_coreg_qc_workflow(name, opts):
     normal_param='0,0,0'
     outlier_measures={'MAD':qc.img_mad}
     outlier_threshold={ 'MAD':[-6,-5,-4,-3,-2,-1,0, 1,2,3,4,5,6]}
-    distance_metrics={'NMI':qc.mi, 'CC':qc.cc} 
+    distance_metrics={'NMI':qc.mi, 'CC':qc.cc, 'IV':qc.iv, 'FSE':qc.fse} 
     error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
     error_type_name={"angle":'rotation',  "offset":'translation'} 
     colnames= ["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
@@ -492,7 +492,7 @@ def calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_i
             mis_metric=[]
             ###Apply distance metrics
             for  metric_name,metric_func in distance_metrics.iteritems():
-                m=metric_func(pet_img, t1, brain_mask) 
+                m=qc.distance(pet_img, t1, brain_mask, metric_func) 
                 #Append misaligned distance metrics to the subject data frame
                 temp=pd.DataFrame([[sub,cond,param_type,param, metric_name, m]],columns=df.columns  ) 
                 sub_df = pd.concat([sub_df, temp])
@@ -576,25 +576,46 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
     return(df)
 
 
-
+from matplotlib.lines import Line2D
 def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=cm.spectral):
     f=lambda x: float(str(x).split(',')[-1])
-
+    nMetric=len(df.Metric.unique())
+    nMeasure=len(df.Measure.unique())
     df.Error = df.Error.apply(f)
 
     color=cm.spectral
-    
-    nUnique=float(len(df.Subject.unique()))
-    d = {key : color(value/nUnique) for (value, key) in enumerate(df.Subject.unique()) }
-    nMetric=len(df.Metric.unique())
-    nMeasure=len(df.Measure.unique())
+  
+    #linestyles = ['_', '-', '--', ':']
+    #markers = []
+    #for m in Line2D.markers:
+    #    try:
+    #        if len(m) == 1 and m != ' ': markers.append(m)
+    #    except TypeError: pass
+            
+
+    sub_cond=np.array([ str(a)+'_'+str(b) for a,b in  zip(df.Subject, df.Condition) ])
+    sub_cond_unique = np.unique(sub_cond)
+    print sub_cond_unique
+    nUnique=float(len(sub_cond_unique))
+    #d = {key : color(value/nUnique) for (value, key) in enumerate(sub_cond_unique) }
+    #print d
+
+    #styles = markers + [r'$\lambda$', r'$\bowtie$', r'$\circlearrowleft$', r'$\clubsuit$', r'$\checkmark$']
+    #nStyles=len(styles)
+    #if nStyles < len(distance_metrics):
+    #    print "Warning: too many distance metrics!\nMore distance metrics than unique marker styles for plot."
+    #marker_style = { distance_metrics.keys()[i] : styles[i % nStyles] for i in range(len(distance_metrics)) }
+    #print marker_style 
+
+    d = { key : color(value/float(nMetric)) for (value, key) in enumerate(distance_metrics.keys()) }
+
+
     ax_list=[]
     measures=outlier_measures.keys()
     nErrorType=len(np.unique(df.ErrorType))
     plt.clf()
     fig=plt.figure(1)
     fig.suptitle('Outlier detection of misaligned PET images')
-
     n=1
     for key, group in df.groupby(['ErrorType']):
         for measure, group2 in group.groupby(['Measure']): 
@@ -604,12 +625,19 @@ def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=
             ax.set_xlabel('Error in '+key)
 
             for metric, group3 in group2.groupby(['Metric']):
-                for key4, group4 in group3.groupby(['Subject']):
-                    for key5, group5 in group3.groupby(['Condition']):
-                        group5
-                        ax.plot(group5.Error, group5.Score, c=d[key4], label=key4+'_'+key5)
-            #ax.legend(loc="best", fontsize=7)
-            n+=1
+                #for key4, group4 in group3.groupby(['Subject']):
+                    #for key5, group5 in group3.groupby(['Subject', 'Condition']):
+                    #    
+                    #    sub_cond_key = key5[0] + '_' + key5[1]
+                    #    print marker_style[metric]
+                    #    
+                    #    ax.plot(group5.Error, group5.Score, linestyle='-', marker=marker_style[metric], c=d[sub_cond_key], label=sub_cond_key)
+                y=group3.groupby(['Error']).Score.mean()
+                ax.plot(y.index, y, c=d[metric], label=metric)
+
+
+        ax.legend(loc="best", fontsize=7)
+        n+=1
     #plt.show()
     print 'saving outlier plot to', out_fn
     plt.savefig(out_fn,width=1000*nMeasure, dpi=1000)

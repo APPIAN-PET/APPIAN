@@ -167,6 +167,10 @@ def distance(pet_fn, mri_fn, brain_fn, dist_f):
     n=len(pet_data)
     masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
     masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    del pet
+    del mri
+    del mask
+    del mask_data
     dist=dist_f(masked_pet_data, masked_mri_data)
     return(dist)
 
@@ -175,12 +179,6 @@ def mi(masked_pet_data, masked_mri_data):
     masked_pet_data = [int(round(x)) for x in masked_pet_data ]
     masked_mri_data = [int(round(x)) for x in masked_mri_data ]
     
-    del pet
-    del mri
-    del mask
-    del pet_data
-    del mri_data
-    del mask_data
     val = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
     return(val)
 __NBINS=-1
@@ -188,9 +186,10 @@ __NBINS=-1
 def cc(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
     if __NBINS == -1:
-        nbins=len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
+        nbins=500 #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
     else: 
         nbins=__NBINS
+
     cc=0.0
     xd=0.0
     yd=0.0
@@ -205,7 +204,7 @@ def cc(masked_pet_data, masked_mri_data):
     yd = np.sum( p * yval**2)
     den=sqrt(xd*yd)
     cc = num / den 
-    #print "CC = " + str(cc)
+    print "CC = " + str(cc)
 
     return(cc)
 
@@ -258,6 +257,7 @@ def fse(masked_pet_data, masked_mri_data):
 
     p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, nbins)
     fse=-np.sum(p*map(np.log, p))
+    print "FSE:", fse
     return fse
 
 

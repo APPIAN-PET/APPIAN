@@ -154,33 +154,59 @@ def img_mad(x, i):
 # Distance Metrics #
 ####################
 __NBINS=-1
-
+import copy
 def distance(pet_fn, mri_fn, brain_fn, dist_f):
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
     mask= pyminc.volumeFromFile(brain_fn)
+
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
     mask_data=mask.data.flatten()
+    
+    #Create a PET brain mask on the fly
+    petmask_data=copy.copy(pet.data.flatten())
+    t25=np.percentile(petmask_data, 70)
+    petmask_data2 = petmask_data[ petmask_data > t25 ]
+    t50 = np.mean(petmask_data2)
+    a=petmask_data >= t50
+    b=petmask_data < t50
+    petmask_data[ a ] = 1
+    petmask_data[ b ] = 0
 
     n=len(pet_data)
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(mask_data[i])==1 ]
-    masked_mri_data = [ mri_data[i] for i in range(n) if int(mask_data[i])==1 ]
+    overlap =  mask_data * petmask_data
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i]) == 1 ] 
+    masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
     del pet
     del mri
     del mask
     del mask_data
+    del petmask_data
+    del petmask_data2
     dist=dist_f(masked_pet_data, masked_mri_data)
     return(dist)
 
+def mse(masked_pet_data, masked_mri_data):
+    mse=np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data)
+    return mse
 
 def mi(masked_pet_data, masked_mri_data):
     masked_pet_data = [int(round(x)) for x in masked_pet_data ]
     masked_mri_data = [int(round(x)) for x in masked_mri_data ]
     
-    nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
-    print "NMI:", nmi
-    return(nmi)
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+    #nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
+    p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
+    mri_dist = np.histogram(masked_mri_data, mri_nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    pet_dist = np.histogram(masked_pet_data, pet_nbins)
+    pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
+    mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
+    
+    print "MI:", mi
+    return(mi)
 
 
 #def cc(pet_fn, mri_fn, brain_fn):
@@ -203,10 +229,12 @@ def cc(masked_pet_data, masked_mri_data):
     yd = np.sum( p * yval**2)
     den=sqrt(xd*yd)
     cc = num / den
-    print 'CC0:', pearsonr(masked_pet_data, masked_mri_data)[0]
+    r=pearsonr(masked_pet_data, masked_mri_data)[0]
+
+    print 'CC0:', r
     print "CC = " + str(cc)
 
-    return(cc)
+    return([cc, r])
 
 #%run mytest.py /data1/projects/Stroke/CIVET1.12/GPI-P02_S_Cortical_I/native/GPI_2MEDA45Initial_t1.mnc /data1/projects/Stroke/results/10480/pet/GPI-P02_S_Cortical_I_pet-coreg2t1-sum.mnc /data1/projects/Stroke/results/10480/srv/GPI-P02_S_Cortical_I_brain_mask_nat.mnc
 
@@ -240,7 +268,7 @@ def iv(masked_pet_data, masked_mri_data):
     #
     mri_dist = np.histogram(masked_mri_data, mri_nbins)
     mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
-    iv = np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0])
+    iv = 1/ float(np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0]))
     print "IV:", iv
     return iv
 
@@ -263,23 +291,24 @@ def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
     #return joint probability for pair of pet and mri value
     n=len(masked_pet_data)
     h=np.histogram2d(masked_pet_data, masked_mri_data, [pet_nbins, mri_nbins])
+    #print h
     nbins = h[0].shape[0] * h[0].shape[1]
     hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
     x_bin = np.digitize(masked_pet_data, h[1]) - 1
     y_bin = np.digitize(masked_mri_data, h[2]) - 1
+
     x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
     y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
     pet_bin=x_bin
     mri_bin=y_bin
-
     x_idx=x_bin #v[:,0]
     y_idx=y_bin #v[:,1]
     p=hi[x_idx,y_idx]
 
-    return [p, pet_bin, x_bin]
+    return [p, pet_bin, mri_bin]
 
 def find_nbins(array):
-    r=max(array) - min(array)
+    r=float(max(array)) - min(array)
     
     n=ceil(-np.log2(16/r))
     return n

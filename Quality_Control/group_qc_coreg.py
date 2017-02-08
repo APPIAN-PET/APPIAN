@@ -234,7 +234,7 @@ def cc(masked_pet_data, masked_mri_data):
     print 'CC0:', r
     print "CC = " + str(cc)
 
-    return([cc, r])
+    return(cc)
 
 #%run mytest.py /data1/projects/Stroke/CIVET1.12/GPI-P02_S_Cortical_I/native/GPI_2MEDA45Initial_t1.mnc /data1/projects/Stroke/results/10480/pet/GPI-P02_S_Cortical_I_pet-coreg2t1-sum.mnc /data1/projects/Stroke/results/10480/srv/GPI-P02_S_Cortical_I_brain_mask_nat.mnc
 

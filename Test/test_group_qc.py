@@ -305,7 +305,7 @@ def get_test_group_coreg_qc_workflow(name, opts):
     normal_param='0,0,0'
     outlier_measures={'MAD':qc.img_mad}
     outlier_threshold={ 'MAD':[-6,-5,-4,-3,-2,-1,0, 1,2,3,4,5,6]}
-    distance_metrics={'NMI':qc.mi, 'CC':qc.cc, 'IV':qc.iv, 'FSE':qc.fse} 
+    distance_metrics={'MI':qc.mi, 'CC':qc.cc, 'IV':qc.iv, 'FSE':qc.fse, 'MSE':qc.mse } 
     error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
     error_type_name={"angle":'rotation',  "offset":'translation'} 
     colnames= ["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 

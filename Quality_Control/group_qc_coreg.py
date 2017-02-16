@@ -155,27 +155,19 @@ def img_mad(x, i):
 ####################
 __NBINS=-1
 import copy
-def distance(pet_fn, mri_fn, brain_fn, dist_f):
+def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f):
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
-    mask= pyminc.volumeFromFile(brain_fn)
+    t1_mask= pyminc.volumeFromFile(brain_fn)
+    pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
-    mask_data=mask.data.flatten()
+    t1_mask_data=t1_mask.data.flatten()
+    pet_mask_data=pet_mask.data.flatten()
     
-    #Create a PET brain mask on the fly
-    petmask_data=copy.copy(pet.data.flatten())
-    t25=np.percentile(petmask_data, 70)
-    petmask_data2 = petmask_data[ petmask_data > t25 ]
-    t50 = np.mean(petmask_data2)
-    a=petmask_data >= t50
-    b=petmask_data < t50
-    petmask_data[ a ] = 1
-    petmask_data[ b ] = 0
-
     n=len(pet_data)
-    overlap =  mask_data * petmask_data
+    overlap =  t1_mask_data * pet_mask_data
     masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i]) == 1 ] 
     masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
     del pet
@@ -203,6 +195,9 @@ def mi(masked_pet_data, masked_mri_data):
     mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
     pet_dist = np.histogram(masked_pet_data, pet_nbins)
     pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
+    print len(p), len((pet_dist[pet_bins] * mri_dist[mri_bins]))
+    print len(p/(pet_dist[pet_bins] * mri_dist[mri_bins]))
+    raw_input()
     mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
     
     print "MI:", mi
@@ -228,7 +223,7 @@ def cc(masked_pet_data, masked_mri_data):
     xd = np.sum( p * xval**2)
     yd = np.sum( p * yval**2)
     den=sqrt(xd*yd)
-    cc = num / den
+    cc = abs(num / den)
     r=pearsonr(masked_pet_data, masked_mri_data)[0]
 
     print 'CC0:', r

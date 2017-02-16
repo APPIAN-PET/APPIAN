@@ -14,7 +14,7 @@ import pandas as pd
 import fnmatch
 import os
 import shutil
-from math import sqrt, floor
+from math import sqrt, floor, ceil
 from os import getcwd
 from os.path import basename
 from sys import argv, exit
@@ -41,8 +41,8 @@ def get_misalign_pet_workflow(name, opts):
     #FIXME: Should have angles and offsets defined by user. Use ';' to seperate elements
     angles=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,16', '0,0,32', '0,0,64'] #X,Y,Z angle of rotation
     offsets=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,10', '0,0,12', '0,0,14' ] #X,Y,Z offset of translation (in mm)
-    inputnode=pe.Node(interface=niu.IdentityInterface(fields=['pet', 'sid', 'cid', 'study_prefix']), name='inputnode')
-    outputnode=pe.Node(interface=niu.IdentityInterface(fields=['translated_pet', 'rotated_pet']), name='outputnode')
+    inputnode=pe.Node(interface=niu.IdentityInterface(fields=['pet', 'brainmask', 'sid', 'cid', 'study_prefix']), name='inputnode')
+    outputnode=pe.Node(interface=niu.IdentityInterface(fields=['translated_pet', 'rotated_pet', 'rotated_brainmask', 'translated_brainmask']), name='outputnode')
     #########################
     # 1. Create param files #
     #########################
@@ -62,11 +62,23 @@ def get_misalign_pet_workflow(name, opts):
     rrotate_resampleNode=pe.Node(interface=myIdent(param_type='angle'),  name="rrotate_resampleNode")
     workflow.connect(rotate_resampleNode, 'out_file', rrotate_resampleNode, 'in_file')
     workflow.connect(angle_splitNode, 'angle', rrotate_resampleNode, 'param')
+    ###Rotate brain mask
+    rotate_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="rotate_brainmaskNode" )
+    rotate_brainmaskNode.inputs.use_input_sampling=True;
+    workflow.connect(rotateNode, 'out_file', rotate_resampleNode, 'transformation')
+    workflow.connect(inputnode, 'brainmask', rotate_resampleNode, 'in_file')   
+    ###Rename rotated  brain mask 
+    rrotate_brainmaskNode=pe.Node(interface=myIdent(param_type='angle'),  name="rrotate_brainmaskNode")
+    workflow.connect(rotate_brainmaskNode, 'out_file', rrotate_brainmaskNode, 'in_file')
+    workflow.connect(angle_splitNode, 'angle', rrotate_brainmaskNode, 'param')
+
     ###Join the rotation nodes back together
-    join_rotationsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=["angle"]), joinsource="angle_splitNode", joinfield=["angle"], name="join_rotationsNode")
+    join_rotationsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=["angle","rotated_brainmask"]), joinsource="angle_splitNode", joinfield=["angle", "rotated_brainmask"], name="join_rotationsNode")
     join_rotationsNode.inputs.angle=[]
     workflow.connect(rrotate_resampleNode, 'out_file', join_rotationsNode, 'angle')
-    ###Send rotated pet images to output node 
+    workflow.connect(rrotate_brainmaskNode, 'out_file', join_rotationsNode, 'brainmask')
+    ###Send rotated pet images to output node
+    workflow.connect(join_rotationsNode, 'rotated_brainmask', outputnode, 'rotated_pet')
     workflow.connect(join_rotationsNode, 'angle', outputnode, 'rotated_pet')
 
     ### B. Translate
@@ -86,13 +98,26 @@ def get_misalign_pet_workflow(name, opts):
     rtranslate_resampleNode=pe.Node(interface=myIdent(param_type='offset'),  name="rtranslate_resampleNode")
     workflow.connect(translate_resampleNode, 'out_file', rtranslate_resampleNode, 'in_file')
     workflow.connect(offset_splitNode, 'offset', rtranslate_resampleNode, 'param')
-    #workflow.connect(offset_concatNode, 'param', rtranslate_resampleNode, 'offset')
+    ###Apply translation to brain mask image
+    translate_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="translate_brainmaskNode" )
+    translate_brainmaskNode.inputs.use_input_sampling=True;
+    workflow.connect(inputnode, 'pet', translate_brainmaskNode, 'in_file')
+    workflow.connect(inputnode, 'pet', translate_brainmaskNode, 'model_file')
+    workflow.connect(translateNode, 'out_file', translate_brainmaskNode, 'transformation')
+    ###Rename translated brain mask
+    rtranslate_brainmaskNode=pe.Node(interface=myIdent(param_type='offset'),  name="rtranslate_resampleNode")
+    workflow.connect(translate_brainmaskNode, 'out_file', rtranslate_brainmaskNode, 'in_file')
+    workflow.connect(offset_brainmaskNode, 'offset', rtranslate_brainmaskNode, 'param')
+
     ###Join the translations nodes back together
-    join_translateNode = pe.JoinNode(interface=niu.IdentityInterface(fields=["offset"]), joinsource="offset_splitNode", joinfield=["offset"], name="join_translateNode")
+    join_translateNode = pe.JoinNode(interface=niu.IdentityInterface(fields=["offset", "translated_brainmask"]), joinsource="offset_splitNode", joinfield=["offset"], name="join_translateNode")
+
     join_translateNode.inputs.offset=[]
     workflow.connect(rtranslate_resampleNode, 'out_file', join_translateNode, 'offset')
+    workflow.connect(rtranslate_brainmaskNode, 'out_file', join_translateNode, 'translated_brainmask')
     ###Send translated pet images to output node 
     workflow.connect(join_translateNode, 'offset', outputnode, 'translated_pet')
+    workflow.connect(join_translateNode, 'translated_brainmask', outputnode, 'translated_brainmask')
 
     return(workflow)
 
@@ -111,7 +136,9 @@ class distance_metricOutput(TraitedSpec):
 
 class distance_metricInput(BaseInterfaceInputSpec):
     rotated_pet = traits.List( mandatory=True, desc="Input list of translated PET images")
-    translated_pet = traits.List( mandatory=True, desc="Input list of rotated PET images")
+    translated_pet = traits.List( mandatory=True, desc="Input list of rotated PET images") 
+    rotated_brainmask = traits.List( mandatory=True, desc="Input list of translated brain mask images")
+    translated_brainmask = traits.List( mandatory=True, desc="Input list of rotated brain mask images")
     t1_images = traits.List( mandatory=True, desc="Input list of T1 images")
     pet_images = traits.List( mandatory=True, desc="Input list of PET images")
     brain_masks = traits.List( mandatory=True, desc="Input list of brain masks images")
@@ -134,10 +161,12 @@ class distance_metricCommand(BaseInterface):
         conditions=self.inputs.conditions
         pet_images=self.inputs.pet_images
         t1_images=self.inputs.t1_images
-        brain_masks=self.inputs.brain_masks
+        t1_brain_masks=self.inputs.brain_masks
         rotated_pet=self.inputs.rotated_pet
         study_prefix=self.inputs.study_prefix
         translated_pet=self.inputs.translated_pet
+        rotated_brainmask=self.inputs.rotated_brainmask
+        translated_brainmask=self.inputs.translated_brainmask
         distance_metrics = self.inputs.distance_metrics
         colnames = list(self.inputs.colnames)
 
@@ -149,10 +178,15 @@ class distance_metricCommand(BaseInterface):
         rotated_pet = flatten(rotated_pet)
         translated_pet=flatten(translated_pet)
         misaligned=rotated_pet + translated_pet 
+
+        rotated_brainmask    = flatten(rotated_brainmask)
+        translated_brainmask = flatten(translated_brainmask)
+        misaligned_brainmask = rotated_brainmask + translated_brainmask 
+
         home_dir=os.getcwd()
         self.inputs.out_file=home_dir+os.sep+"test_group_qc_metric.csv"
 
-        df=calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, distance_metrics )
+        df=calc_distance_metrics(df, subjects, conditions, misaligned, pet_images, t1_images, brain_masks, misaligned_brainmasks, distance_metrics)
         df.to_csv(self.inputs.out_file, index=False)
         return runtime
 
@@ -297,7 +331,7 @@ class plot_rocCommand(BaseInterface):
 def get_test_group_coreg_qc_workflow(name, opts):
 
     workflow = pe.Workflow(name=name)
-    params=['subjects','study_prefix', 'conditions', 'pet_images', 't1_images','brain_masks', 'rotated_pet', 'translated_pet']
+    params=['subjects','study_prefix', 'conditions', 'pet_images', 't1_images','brain_masks', 'rotated_pet', 'translated_pet', 'rotated_brainmask', 'translated_brainmask']
     inputnode=pe.Node(interface=niu.IdentityInterface(fields=params) , name='inputnode')
     outputnode=pe.Node(interface=niu.IdentityInterface(fields=['outlier_measures_df', 'outlier_measures_plot', 'outlier_measures_roc_plot']), name='outputnode')
 
@@ -314,6 +348,8 @@ def get_test_group_coreg_qc_workflow(name, opts):
     distance_metricNode=pe.Node(interface=distance_metricCommand(), name="distance_metricNode")
     workflow.connect(inputnode, 'rotated_pet', distance_metricNode, 'rotated_pet')
     workflow.connect(inputnode, 'translated_pet', distance_metricNode, 'translated_pet')
+    workflow.connect(inputnode, 'rotated_brainmask', distance_metricNode, 'rotated_brainmask')
+    workflow.connect(inputnode, 'translated_brainmask', distance_metricNode, 'translated_brainmask')
     workflow.connect(inputnode, 't1_images', distance_metricNode, 't1_images')
     workflow.connect(inputnode, 'pet_images', distance_metricNode, 'pet_images')
     workflow.connect(inputnode, 'brain_masks', distance_metricNode, 'brain_masks')
@@ -559,8 +595,6 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
                             #Get the series with the 
                             x=pd.Series(test_df.Value)
                             #Calculate the distance measure for the current measure
-                            print "test_df"
-                            print test_df
                             r=measure(x,n)
                             #Identify the target row where the outlier measure, r, needs to be inserted
                             target_row=(df.Subject == sub) & (df.ErrorType == error_type) & (df.Error == error) & (df.Metric == metric_name ) & (df.Measure == measure_name ) 
@@ -572,40 +606,24 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
     #g=lambda x: df.columns.get_loc(x)
     #imin=min(map(g, metric_names))
     #list(df.columns[0:imin])
-    print 'Okay!'              
     return(df)
 
 
 from matplotlib.lines import Line2D
 def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=cm.spectral):
-    f=lambda x: float(str(x).split(',')[-1])
+    f=lambda x: float(str(x).split(',')[-1])#FIXME: Will only print last error term
+
     nMetric=len(df.Metric.unique())
     nMeasure=len(df.Measure.unique())
     df.Error = df.Error.apply(f)
 
     color=cm.spectral
   
-    #linestyles = ['_', '-', '--', ':']
-    #markers = []
-    #for m in Line2D.markers:
-    #    try:
-    #        if len(m) == 1 and m != ' ': markers.append(m)
-    #    except TypeError: pass
-            
-
     sub_cond=np.array([ str(a)+'_'+str(b) for a,b in  zip(df.Subject, df.Condition) ])
     sub_cond_unique = np.unique(sub_cond)
     print sub_cond_unique
     nUnique=float(len(sub_cond_unique))
-    #d = {key : color(value/nUnique) for (value, key) in enumerate(sub_cond_unique) }
-    #print d
 
-    #styles = markers + [r'$\lambda$', r'$\bowtie$', r'$\circlearrowleft$', r'$\clubsuit$', r'$\checkmark$']
-    #nStyles=len(styles)
-    #if nStyles < len(distance_metrics):
-    #    print "Warning: too many distance metrics!\nMore distance metrics than unique marker styles for plot."
-    #marker_style = { distance_metrics.keys()[i] : styles[i % nStyles] for i in range(len(distance_metrics)) }
-    #print marker_style 
 
     d = { key : color(value/float(nMetric)) for (value, key) in enumerate(distance_metrics.keys()) }
 
@@ -625,13 +643,6 @@ def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=
             ax.set_xlabel('Error in '+key)
 
             for metric, group3 in group2.groupby(['Metric']):
-                #for key4, group4 in group3.groupby(['Subject']):
-                    #for key5, group5 in group3.groupby(['Subject', 'Condition']):
-                    #    
-                    #    sub_cond_key = key5[0] + '_' + key5[1]
-                    #    print marker_style[metric]
-                    #    
-                    #    ax.plot(group5.Error, group5.Score, linestyle='-', marker=marker_style[metric], c=d[sub_cond_key], label=sub_cond_key)
                 y=group3.groupby(['Error']).Score.mean()
                 ax.plot(y.index, y, c=d[metric], label=metric)
 
@@ -642,10 +653,49 @@ def plot_outlier_measures(df, outlier_measures, distance_metrics, out_fn, color=
     print 'saving outlier plot to', out_fn
     plt.savefig(out_fn,width=1000*nMeasure, dpi=1000)
 
+def plot_distance_metrics(df,distance_metrics, out_fn, color=cm.spectral):
+    f=lambda x: float(str(x).split(',')[-1]) #FIXME: Will only print last error term
+    nMetric=len(df.Metric.unique())
+    df.Error = df.Error.apply(f)
 
-                    
-                #for outlier_measure in outlier_measure_list:
-                #    outlier_measure(test_df)
+    color=cm.spectral
+ 
+    sub_cond=np.array([ str(a)+'_'+str(b) for a,b in  zip(df.Subject, df.Condition) ])
+    sub_cond_unique = np.unique(sub_cond)
+    nUnique=float(len(sub_cond_unique))
+
+
+    d = { key : color(value/float(nMetric)) for (value, key) in enumerate(sub_cond_unique) }
+    print d
+
+    ax_list=[]
+    nErrorType=len(np.unique(df.ErrorType))
+    nn = int(ceil(sqrt( nMetric  )))
+    print nn
+    for key, group in df.groupby(['ErrorType']):
+        plt.clf()
+        fig=plt.figure(1)
+        fig.suptitle('Distance metric ' + key)
+        n=1
+        for metric, group2 in group.groupby(['Metric']): 
+            ax=plt.subplot(nn, nn, n)
+            ax.set_ylabel(metric)
+            ax.set_xlabel('Error in '+key)
+            for sub_cond_key, group3 in group2.groupby(['Subject','Condition']): 
+                print sub_cond_key
+                print group3
+                sub_cond = sub_cond_key[0] + '_' + sub_cond_key[1]
+                ax.plot(group3.Error, group3.Value, c=d[sub_cond], label=sub_cond)
+                #ax.legend(loc="best", fontsize=7)
+            n+=1
+        #plt.show()
+        print 'saving outlier plot to', out_fn
+        out2_fn=sub('.png','_'+key+'.png', out_fn)
+
+        plt.tight_layout()
+        plt.savefig(out2_fn,width=3000*nMetric, dpi=1000)
+
+
 
 class myIdentOutput(TraitedSpec):
     out_file = traits.Str(desc="Output file")

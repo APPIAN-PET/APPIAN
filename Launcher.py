@@ -365,14 +365,18 @@ def runPipeline(opts,args):
             workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
 
             #
-            misaligned_petNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['rotated_pet', 'translated_pet']), joinsource="preinfosource", joinfield=['rotated_pet', 'translated_pet'], name="misaligned_petNode")
+            misaligned_petNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['rotated_pet', 'translated_pet', 'rotated_brainmask', 'translated_pet']), joinsource="preinfosource", joinfield=['rotated_pet', 'translated_pet', 'rotated_brainmask', 'translated_pet'], name="misaligned_petNode")
             workflow.connect(wf_misalign_pet, 'outputnode.rotated_pet', misaligned_petNode, 'rotated_pet')
             workflow.connect(wf_misalign_pet, 'outputnode.translated_pet', misaligned_petNode, 'translated_pet')
+            workflow.connect(wf_misalign_pet, 'outputnode.rotated_brainmask', misaligned_petNode, 'rotated_brainmask')
+            workflow.connect(wf_misalign_pet, 'outputnode.translated_brainmask', misaligned_petNode, 'translated_brainmask')
             
             #
             wf_test_group_coreg_qc = tqc.get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
             workflow.connect(misaligned_petNode, 'rotated_pet', wf_test_group_coreg_qc, 'inputnode.rotated_pet')
             workflow.connect(misaligned_petNode, 'translated_pet', wf_test_group_coreg_qc, 'inputnode.translated_pet')
+            workflow.connect(misaligned_petNode, 'rotated_brainmask', wf_test_group_coreg_qc, 'inputnode.rotated_brainmask')
+            workflow.connect(misaligned_petNode, 'translated_brainmask', wf_test_group_coreg_qc, 'inputnode.translated_brainmask')
             workflow.connect(join_subjectsNode, 't1_images', wf_test_group_coreg_qc, 'inputnode.t1_images')
             workflow.connect(join_subjectsNode, 'pet_images', wf_test_group_coreg_qc, 'inputnode.pet_images')
             workflow.connect(join_subjectsNode, 't1_brainMasks', wf_test_group_coreg_qc, 'inputnode.brain_masks')

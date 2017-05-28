@@ -19,6 +19,7 @@ class ResampleInput(MINCCommandInputSpec):
     
     use_input_sampling = traits.Bool(argstr="-use_input_sampling",  default_value=False, desc="Use sampling of input image")
     tfm_input_sampling = traits.Bool(argstr="-tfm_input_sampling", default_value=False, desc="Use sampling of transformation")
+    step = traits.Str(argstr="-step %s", desc="Step size in (X, Y, Z) dims.")
 
     clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")

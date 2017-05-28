@@ -18,7 +18,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.utils.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
-
+from nipype.interfaces.minc.resample import ResampleCommand
 from nipype.interfaces.minc.info import InfoCommand
 from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand
 from nipype.interfaces.minc.reshape import ReshapeCommand
@@ -29,10 +29,14 @@ def gen_args(opts,conditions, subjects):
     for sub in subjects:
         for cond in conditions:
             pet_fn=opts.sourceDir + os.sep + opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
-            if os.path.exists(pet_fn):
+            civet_fn=opts.civetDir+os.sep+sub +'_'+cond
+            if os.path.exists(pet_fn) and os.path.exists(civet_fn):
                 print pet_fn
+                print civet_fn
                 d={'cid':cond, 'sid':sub}
                 args.append(d)
+            else:
+                print "Could not find PET or CIVET for ", sub, cond
     return args
 
             
@@ -220,6 +224,34 @@ class VolCenteringRunning(BaseInterface):
 
         return outputs
 
+class get_stepOutput(TraitedSpec):
+    step =traits.Str(desc="Step size (X, Y, Z)")
+
+class get_stepInput(BaseInterfaceInputSpec):
+    in_file = File(position=0, argstr="%s", mandatory=True, desc="Step size (X, Y, Z)")
+    step = traits.Str( desc="Image after centering")
+
+
+class get_stepCommand(BaseInterface):
+    input_spec = get_stepInput
+    output_spec = get_stepOutput
+
+    def _run_interface(self, runtime):
+    	img = volumeFromFile(self.inputs.in_file)
+        zi=img.dimnames.index('zspace')
+        yi=img.dimnames.index('yspace')
+        xi=img.dimnames.index('xspace')
+        zstep = img.separations[zi]
+        ystep = img.separations[yi]
+        xstep = img.separations[xi]
+        self.inputs.step = str(xstep) +' ' + str(ystep) +' '+str(zstep)
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["step"] = self.inputs.step
+        return outputs
+
 
 
 class PETexcludeFrOutput(TraitedSpec):
@@ -281,7 +313,6 @@ class PETexcludeFrRunning(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        
         return outputs
 
 
@@ -291,11 +322,22 @@ def get_workflow(name, infosource, datasink, opts):
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["pet"]), name='inputnode')
+    default_field=["pet"] # ["pet", "t1"]
+    inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
 
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header","pet_json","pet_center","pet_volume"]), name='outputnode')
 
+    #get_steps = pe.Node(interface=get_stepCommand(), name="get_steps")
+    #workflow.connect(inputnode, 't1', get_steps, 'in_file')
+    
+    #node_name="petResample"
+    #petResample= pe.Node(interface=ResampleCommand(), name=node_name)
+    #petResample.inputs.interpolation = 'trilinear'
+	#petResample.inputs.tfm_input_sampling = True
+    #workflow.connect(inputnode, 'pet', petResample, 'in_file')
+    #workflow.connect(get_steps, 'step', petResample, 'step')
+	
 
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
@@ -338,8 +380,6 @@ def get_workflow(name, infosource, datasink, opts):
     # petCenterSettings.inputs.clobber = True
     # petCenterSettings.inputs.run = opts.prun
     # rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
 
 
     # workflow.connect([(inputnode, petSettings, [('pet', 'in_file')])])

@@ -536,10 +536,10 @@ def get_workflow(name, infosource, datasink, opts):
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","nativeT1nuc","pet_headMask","t1_headMask","t1_refMask","t1_ROIMask","t1_PVCMask"]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","nativeT1nuc","pet_headMask","t1_headMask","t1_refMask","t1_ROIMask","t1_PVCMask", "t1_brain_mask"]), name='inputnode')
 
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img","petmri_xfm","petmri_xfm_invert","pet_refMask","pet_ROIMask","pet_PVCMask"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img","petmri_xfm","petmri_xfm_invert","pet_refMask","pet_ROIMask","pet_PVCMask", "pet_brain_mask"]), name='outputnode')
 
     node_name="pet2mri_withMask"
     pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
@@ -566,6 +566,13 @@ def get_workflow(name, infosource, datasink, opts):
     # petRefMask.inputs.invert = 'invert_transformation'
     petRefMask.inputs.clobber = True
     rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+
+    node_name="pet_brain_mask"
+    pet_brain_mask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+    pet_brain_mask.inputs.interpolation = 'nearest_neighbour'
+    # petRefMask.inputs.invert = 'invert_transformation'
+    pet_brain_mask.inputs.clobber = True
+    rpet_brain_mask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petROIMask"
     petROIMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
@@ -620,7 +627,19 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 
+    workflow.connect([(inputnode, pet_brain_mask, [('t1_brain_mask', 'in_file' )]),
+                      (inputnode, pet_brain_mask, [('pet_volume', 'model_file')]), 
+                      # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+                      (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
+                    ]) 
 
+    workflow.connect([(pet_brain_mask, rpet_brain_mask, [('out_file', 'in_file')])])
+    workflow.connect([(infosource, rpet_brain_mask, [('study_prefix', 'study_prefix')]),
+                      (infosource, rpet_brain_mask, [('sid', 'sid')]),
+                      (infosource, rpet_brain_mask, [('cid', 'cid')])
+                    ])
+
+    workflow.connect(rpet_brain_mask, 'out_file', datasink, pet_brain_mask.name)
 
     workflow.connect([(inputnode, petRefMask, [('t1_refMask', 'in_file' )]),
                       (inputnode, petRefMask, [('pet_volume', 'model_file')]), 
@@ -677,5 +696,5 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(rPet2MriImg, 'out_file', outputnode, 'petmri_img')
     workflow.connect(rPetRefMask, 'out_file', outputnode, 'pet_refMask')
     workflow.connect(rPetROIMask, 'out_file', outputnode, 'pet_ROIMask')
-
+    workflow.connect(rpet_brain_mask, 'out_file', outputnode, 'pet_brain_mask')
     return(workflow)

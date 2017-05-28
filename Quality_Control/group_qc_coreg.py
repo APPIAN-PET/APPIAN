@@ -80,6 +80,7 @@ def group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, stu
 ###
 ### QC function to test if there are outliers in coregistered images
 ###
+ 
 
 def pet2t1_coreg_qc(subjects, conditions, pet_images, t1_images,brain_masks, alpha):
 	#pet_images=sorted(list_paths(pet_dir, "*.mnc"))
@@ -155,10 +156,15 @@ def img_mad(x, i):
 ####################
 __NBINS=-1
 import copy
-def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f):
+def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
+    #print pet_fn
+    #print mri_fn
+    #print t1_brain_fn
+    #print pet_brain_fn, '\n\n\n\n'
+
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
-    t1_mask= pyminc.volumeFromFile(brain_fn)
+    t1_mask= pyminc.volumeFromFile(t1_brain_fn)
     pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
     pet_data=pet.data.flatten()
@@ -168,19 +174,21 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f):
     
     n=len(pet_data)
     overlap =  t1_mask_data * pet_mask_data
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i]) == 1 ] 
+    masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
     masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
     del pet
     del mri
-    del mask
-    del mask_data
-    del petmask_data
-    del petmask_data2
-    dist=dist_f(masked_pet_data, masked_mri_data)
-    return(dist)
+    del t1_mask
+    del pet_mask
+    del t1_mask_data
+    del pet_mask_data
+    dist_list=[]
+    for dist_f in dist_f_list:
+        dist_list.append(dist_f(masked_pet_data, masked_mri_data))
+    return(dist_list)
 
 def mse(masked_pet_data, masked_mri_data):
-    mse=np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data)
+    mse=-(np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data))
     return mse
 
 def mi(masked_pet_data, masked_mri_data):
@@ -197,14 +205,11 @@ def mi(masked_pet_data, masked_mri_data):
     pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
     print len(p), len((pet_dist[pet_bins] * mri_dist[mri_bins]))
     print len(p/(pet_dist[pet_bins] * mri_dist[mri_bins]))
-    raw_input()
     mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
     
     print "MI:", mi
     return(mi)
 
-
-#def cc(pet_fn, mri_fn, brain_fn):
 def cc(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
     pet_nbins=find_nbins(masked_pet_data) #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
@@ -224,15 +229,12 @@ def cc(masked_pet_data, masked_mri_data):
     yd = np.sum( p * yval**2)
     den=sqrt(xd*yd)
     cc = abs(num / den)
-    r=pearsonr(masked_pet_data, masked_mri_data)[0]
+    #r=pearsonr(masked_pet_data, masked_mri_data)[0]
 
-    print 'CC0:', r
+    #print 'CC0:', r
     print "CC = " + str(cc)
 
     return(cc)
-
-#%run mytest.py /data1/projects/Stroke/CIVET1.12/GPI-P02_S_Cortical_I/native/GPI_2MEDA45Initial_t1.mnc /data1/projects/Stroke/results/10480/pet/GPI-P02_S_Cortical_I_pet-coreg2t1-sum.mnc /data1/projects/Stroke/results/10480/srv/GPI-P02_S_Cortical_I_brain_mask_nat.mnc
-
 
 def iv(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
@@ -263,11 +265,9 @@ def iv(masked_pet_data, masked_mri_data):
     #
     mri_dist = np.histogram(masked_mri_data, mri_nbins)
     mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
-    iv = 1/ float(np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0]))
+    iv = - float(np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0]))
     print "IV:", iv
     return iv
-
-
 
 def fse(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
@@ -340,34 +340,7 @@ def img_mi(pet_images, t1_images, brain_masks):
 
 
 #Calculate Kolmogorov-Smirnov's D
-'''def kolmogorov_smirnov( x, alpha=0.05):
-    c={0.05:1.36, 0.10:1.22, 0.025:1.48, 0.01:1.63, 0.005:1.73, 0.001:1.95}
-    n=100
-    x_max=max(x)
-    x.sort_values(inplace=True)
-    l0=float(len(x))
-    l1=float(l0-1)
-    pvalues=np.repeat(1., l0).cumsum() / l0
-    dvalues=np.repeat(0., l0)
-    C=c[alpha]*sqrt( (l0+l1) / (l0*l1))
-    C_list=np.repeat(C, len(x))
-    x0=np.arange(0.,x_max, x_max/n)
-
-    df0=pd.concat( [ pd.Series(list(x.index), name='Index'), pd.Series(dvalues, name='D'), pd.Series(C_list, name='C' )], axis=1)
-    df0.set_index('Index', inplace=True)
-    y0=np.interp( x0, x.values, pvalues   )
-    for i in x.index:
-        x_temp=x.drop([i])
-        p1=np.repeat(1., len(x_temp)).cumsum() / len(x_temp)
-        y1=np.interp( x0, x_temp, p1 )
-        d=abs(max(y0-y1))
-        df0.D[i]=d
-    df0.sort_index(inplace=True)
-    
-    return(df0.D)
 '''
-
-
 def kolmogorov_smirnov( x, i, alpha=0.05):
     c={0.05:1.36, 0.10:1.22, 0.025:1.48, 0.01:1.63, 0.005:1.73, 0.001:1.95}
     n=100
@@ -431,4 +404,4 @@ def plot_pet2t1_coreg(mi, xcorr, alpha, out_file):
         print "\n\nSaving to ", os.getcwd(), out_file, "\n\n"
 	plt.savefig(out_file, dpi=2000,  bbox_inches='tight' )
 	return(0)
-
+'''

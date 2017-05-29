@@ -172,8 +172,8 @@ def runPipeline(opts,args):
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
     #############################################
-        ### Define Workflow and basic connections ###
-        #############################################
+    ### Define Workflow and basic connections ###
+    #############################################
         
     workflow.connect(preinfosource, 'args', infosource, "args")
     workflow.connect([(infosource, datasourceRaw, [('sid', 'sid')]),
@@ -194,9 +194,9 @@ def runPipeline(opts,args):
     out_node_list = [wf_init_pet]
     out_img_list = ['outputnode.pet_center']
         
-	###########
-	# Masking #
-	###########
+    ###########
+    # Masking #
+    ###########
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
     workflow.connect(datasourceCivet, 'nativeT1', wf_masking, "inputnode.nativeT1nuc")
     workflow.connect(datasourceCivet, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
@@ -214,8 +214,8 @@ def runPipeline(opts,args):
     workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
 
     ##################
-	# Coregistration #
-	##################
+    # Coregistration #
+    ##################
     wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     #workflow.connect(datasourceCivet, 'nativeT1nuc', wf_pet2mri, "inputnode.nativeT1nuc")
@@ -527,8 +527,28 @@ if __name__ == "__main__":
 	group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
 	group.add_option("","--roi-dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default="")
 	parser.add_option_group(group)
+       
+        ##########################
+        # PET Brain Mask Options #
+        ##########################
+	group= OptionGroup(parser,"Coregistation options")
+        group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
+        group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", action='store_false', default=True)
+	parser.add_option_group(group)
 
-	#PVC options
+
+
+        ##########################
+        # Coregistration Options #
+        ##########################
+	group= OptionGroup(parser,"Coregistation options")
+        group.add_option("","--coregistration-target-mask",dest="coregistration_target_mask",help="Target T1 mask for coregistration: \'skull\' or \'mask\'",type='string', default='skull')
+        group.add_option("","--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
+	parser.add_option_group(group)
+
+        ###############
+	# PVC options #
+        ###############
 	group= OptionGroup(parser,"Masking options","ROI for PVC")
 	group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
 	group.add_option("","--pvc-roi-user",dest="PVCMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='civet')	

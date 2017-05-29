@@ -79,7 +79,7 @@ class T1maskingRunning(BaseInterface):
 		if not isdefined(self.inputs.T1brainmask):
 			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
 			dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname + os.sep + fname + "_braimmask.mnc"
+			self.inputs.T1brainmask = dname + os.sep + fname + "_brainmask.mnc"
 
 		run_resample = ResampleCommand();
 		run_resample.inputs.in_file = model_headmask
@@ -389,7 +389,7 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
 	in_json = File(exists=True, mandatory=True, desc="PET json file")
 	out_file = File(desc="Head mask")
 	#slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
-	slice_factor = traits.Float(usedefault=True, default_value=0.35, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
+	slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
 	total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
 
 	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -442,102 +442,7 @@ class PETheadMaskingRunning(BaseInterface):
             if self.inputs.run:
                 run_calc.run()
 
-		'''mean_slices = []
-		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
-			slice_tmp = tmpDir + '/pet_slice.mnc'
-
-			run_mincreshape=ReshapeCommand()
-			run_mincreshape.inputs.in_file = self.inputs.in_file
-			run_mincreshape.inputs.out_file = slice_tmp
-			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
-			if self.inputs.verbose:
-			    print run_mincreshape.cmdline
-			if self.inputs.run:
-			    run_mincreshape.run()
-
-
-			run_stats=StatsCommand()
-			run_stats.inputs.in_file = slice_tmp;
-			run_stats.inputs.opt_string = '-max';
-			if self.inputs.verbose:
-			    print run_stats.cmdline
-			if self.inputs.run:
-			    run_stats.run()
-
-
-			outfile = os.path.join(os.getcwd(), 'stat_result.pck')
-			file = open(outfile, "r")
-			max_slice = pickle.load(file)
-			max_slice = max_slice/4
-
-
-			run_stats=StatsCommand()
-			run_stats.inputs.in_file = slice_tmp;
-			run_stats.inputs.opt_string = '-floor '+str(max_slice)+' -mean ';
-			if self.inputs.verbose:
-			    print run_stats.cmdline
-			if self.inputs.run:
-			    run_stats.run()
-
-			outfile = os.path.join(os.getcwd(), 'stat_result.pck')
-			file = open(outfile, "r")
-			mean_slice = pickle.load(file)
-
-			mean_slices.append(mean_slice)
-                        '''
-
-		'''mask_slices = []
-		for ii in np.arange(1,infile.sizes[infile.dimnames.index("zspace")],1):
-			slice_tmp = tmpDir + '/pet_slice.mnc'
-			mask_tmp = tmpDir + '/mask_slice' + str(ii) + '.mnc'
-
-			run_mincreshape=ReshapeCommand()
-			run_mincreshape.inputs.in_file = self.inputs.in_file
-			run_mincreshape.inputs.out_file = slice_tmp
-			run_mincreshape.inputs.dimrange = 'zspace='+str(ii)
-			if self.inputs.verbose:
-			    print run_mincreshape.cmdline
-			if self.inputs.run:
-			    run_mincreshape.run()
-
-			run_calc = CalcCommand();
-			run_calc.inputs.in_file = slice_tmp
-			run_calc.inputs.out_file = mask_tmp
-			run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
-			if self.inputs.verbose:
-				print run_calc.cmdline
-			if self.inputs.run:
-				run_calc.run()
-
-			mask_slices.append(mask_tmp)
-
-		mask_tmp = tmpDir + '/headmask.mnc'
-
-		run_concat=ConcatCommand()
-		run_concat.inputs.in_file = mask_slices
-		run_concat.inputs.out_file = mask_tmp
-		run_concat.inputs.dimension = 'zspace'
-		# run_concat.inputs.start = hd['zspace']['start'][0]
-		# run_concat.inputs.step = hd['zspace']['step'][0]
-		run_concat.inputs.start = infile.starts[infile.dimnames.index("zspace")]
-		run_concat.inputs.step = infile.separations[infile.dimnames.index("zspace")]
-		if self.inputs.verbose:
-		    print run_concat.cmdline
-		if self.inputs.run:
-		    run_concat.run()
-
-		run_resample = ResampleCommand();
-		run_resample.inputs.in_file = mask_tmp
-		run_resample.inputs.out_file = self.inputs.out_file
-		run_resample.inputs.model_file = self.inputs.in_file
-		run_resample.inputs.interpolation = 'trilinear'
-		if self.inputs.verbose:
-		    print run_resample.cmdline
-		if self.inputs.run:
-		    run_resample.run()
-
-		shutil.rmtree(tmpDir)'''
-		return runtime
+	    return runtime
 
 
     def _list_outputs(self):
@@ -553,8 +458,7 @@ def get_workflow(name, infosource, datasink, opts):
 	workflow = pe.Workflow(name=name)
 
 	#Define input node that will receive input from outside of workflow
-	inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1nuc","xfmT1Tal","T1Tal","brainmaskTal",
-													"clsmask","animalmask","subjectROI","pet_volume","pet_json"]), name='inputnode')
+	inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1nuc","xfmT1Tal","T1Tal","brainmaskTal", "clsmask","animalmask","subjectROI","pet_volume","pet_json"]), name='inputnode')
 
 	#Define empty node for output
 	outputnode = pe.Node(niu.IdentityInterface(fields=["t1_brainMask","t1_headMask","pet_headMask","tal_refMask", "t1_refMask","tal_ROIMask","t1_ROIMask","tal_PVCMask","t1_PVCMask"]), name='outputnode')
@@ -574,6 +478,8 @@ def get_workflow(name, infosource, datasink, opts):
 	petMasking = pe.Node(interface=PETheadMaskingRunning(), name=node_name)
 	petMasking.inputs.verbose = opts.verbose
 	petMasking.inputs.run = opts.prun
+        petMasking.inputs.slice_factor = opts.slice_factor
+        petMasking.inputs.total_factor = opts.total_factor
 	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
@@ -622,10 +528,6 @@ def get_workflow(name, infosource, datasink, opts):
 	invert_Tal2T1.inputs.clobber = True
 	invert_Tal2T1.inputs.verbose = opts.verbose
 	rInvert_Tal2T1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name)
-	
-
-
-
 
 	workflow.connect([(inputnode, invert_Tal2T1, [('xfmT1Tal', 'in_file')])])
 
@@ -636,8 +538,6 @@ def get_workflow(name, infosource, datasink, opts):
 					  (infosource, rInvert_Tal2T1, [('cid','cid')])])
 
 	workflow.connect(rInvert_Tal2T1, 'out_file', datasink, invert_Tal2T1.name)
-
-
 
 
 	workflow.connect([(inputnode, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
@@ -655,32 +555,17 @@ def get_workflow(name, infosource, datasink, opts):
 	 				  (infosource, rT1MaskingHead, [('sid', 'sid')]),
 	 				  (infosource, rT1MaskingHead, [('cid','cid')])])
 
-	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Head")
-	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Brain")
-
-
-
-
-
-
+	workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
+	workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
 
 	workflow.connect([(inputnode, petMasking, [('pet_volume', 'in_file')]), 
 					  (inputnode, petMasking, [('pet_json', 'in_json')])])
-
 	workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
-
 	workflow.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
 					(infosource, rPetMasking, [('sid', 'sid')]),
 					(infosource, rPetMasking, [('cid', 'cid')])
 					])
-
 	workflow.connect(rPetMasking, 'out_file', datasink, petMasking.name)
-
-
-
-
-
-
 
 	workflow.connect([(inputnode, roiMasking, [('nativeT1nuc','nativeT1')]),
                       (inputnode, roiMasking, [('T1Tal','T1Tal')]),
@@ -717,11 +602,6 @@ def get_workflow(name, infosource, datasink, opts):
 	workflow.connect(rROIMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
 	# workflow.connect(rROIMaskingPET, 'out_file', datasink, roiMasking.name+"PET")
 
-
-
-
-
-
 	workflow.connect([(inputnode, refMasking, [('nativeT1nuc','nativeT1')]),
                       (inputnode, refMasking, [('T1Tal','T1Tal')]),
                       # (inputnode, refMasking, [('xfmT1Tal','LinT1TalXfm')]),
@@ -739,13 +619,8 @@ def get_workflow(name, infosource, datasink, opts):
 		workflow.connect([(inputnode, refMasking, [('clsmask','ROIMask')]) ])
 	elif opts.RefMaskingType in [ "icbm152", "atlas"] :
 		refMasking.inputs.ROIMask=opts.ROIMask
-
-
-
-
-
-
-	workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
+	
+        workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
 	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingTal, [('sid', 'sid')]),
                       (infosource, rRefMaskingTal, [('cid', 'cid')])

@@ -51,12 +51,12 @@ class PETtoT1LinRegRunning(BaseInterface):
 
     def _run_interface(self, runtime):
         tmpDir = tempfile.mkdtemp()
-
-
         source = self.inputs.in_source_file
         target = self.inputs.in_target_file
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
+
+
         if not isdefined(self.inputs.out_file_xfm):
             self.inputs.out_file_xfm = fname_presuffix(os.getcwd()+os.sep+s_base+"_TO_"+t_base, suffix=self._suffix+'.xfm', use_ext=False)
         if not isdefined(self.inputs.out_file_xfm_invert):
@@ -76,6 +76,8 @@ class PETtoT1LinRegRunning(BaseInterface):
         target = self.inputs.in_target_file
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
+        
+
 
         if self.inputs.in_source_mask and self.inputs.in_target_mask:
             if os.path.isfile(self.inputs.in_source_mask):
@@ -83,6 +85,8 @@ class PETtoT1LinRegRunning(BaseInterface):
                 run_calc = CalcCommand();
                 run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
                 run_calc.inputs.out_file = source
+
+                print 'Source Mask:', source
                 # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
                 if self.inputs.verbose:
@@ -95,6 +99,8 @@ class PETtoT1LinRegRunning(BaseInterface):
                 target = tmpDir+"/"+t_base+"_masked.mnc"
                 run_calc.inputs.in_file = [self.inputs.in_target_file, self.inputs.in_target_mask]
                 run_calc.inputs.out_file = target
+
+                print 'Target Mask:', target
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
                 if self.inputs.verbose:
                     print run_calc.cmdline
@@ -550,11 +556,15 @@ def get_workflow(name, infosource, datasink, opts):
     rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
     rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
 
-    node_name="pet2mri"
-    pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
-    pet2mri.inputs.clobber = True
-    pet2mri.inputs.verbose = opts.verbose
-    pet2mri.inputs.run = opts.prun
+    if opts.no_mask :
+        node_name="pet2mri"
+        pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
+        pet2mri.inputs.clobber = True
+        pet2mri.inputs.verbose = opts.verbose
+        pet2mri.inputs.run = opts.prun
+    else : 
+        pet2mri = pet2mri_withMask
+
     rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
     rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
     rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
@@ -591,14 +601,20 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
                       (inputnode, pet2mri_withMask, [('pet_headMask', 'in_source_mask')]), 
-                      (inputnode, pet2mri_withMask, [('t1_headMask',  'in_target_mask')]),
+                      #(inputnode, pet2mri_withMask, [('t1_headMask',  'in_target_mask')]),
                       (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
                       ]) 
 
-    workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
-                      (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')]),
-                      (pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
-                      ]) 
+    if opts.coregistration_target_mask == 'skull': 
+        workflow.connect(inputnode, 't1_headmask',  pet2mri_withMask, 'in_target_mask')
+    elif opts.coregistration_target_mask == 'brain' :
+        workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
+
+    if opts.no_mask :
+        workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
+                          (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')]),
+                          (pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
+                          ]) 
 
 
     workflow.connect([(pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])

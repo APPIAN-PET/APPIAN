@@ -8,6 +8,7 @@ import tempfile
 import time
 import pyminc.volumes.factory as pyminc
 import numpy as np
+import pdb
 
 from optparse import OptionParser
 from optparse import OptionGroup
@@ -107,6 +108,9 @@ def runPipeline(opts,args):
     workflow = pe.Workflow(name='preproc')
     workflow.base_dir = opts.targetDir
 
+    t1_type='nativeT1nuc'
+    if opts.coregistration_target_image == 'raw':
+        t1_type='nativeT1'
     #cid = Condition ID
     #sid = Subject ID
     #sp = Study Prefix
@@ -150,7 +154,7 @@ def runPipeline(opts,args):
                                                         xfmT1Talnl='%s_%s/transforms/nonlinear/*nlfit_It.xfm',
                                                         brainmaskTal='%s_%s/mask/*brain_mask.mnc',
                                                         headmaskTal='%s_%s/mask/*skull_mask.mnc',
-                                                        clsmask='%s_%s/classify/*pve_classify.mnc',
+                                                        clsmask='%s_%s/classify/*_classify.mnc',
                                                         animalmask='%s_%s/segment/*animal_labels_masked.mnc'
                                                         )
     datasourceCivet.inputs.template_args = dict(nativeT1=[[ 'sid', 'cid']], 
@@ -193,12 +197,11 @@ def runPipeline(opts,args):
     #workflow.connect(datasourceCivet, 'nativeT1', wf_init_pet, "inputnode")
     out_node_list = [wf_init_pet]
     out_img_list = ['outputnode.pet_center']
-        
     ###########
     # Masking #
     ###########
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
-    workflow.connect(datasourceCivet, 'nativeT1', wf_masking, "inputnode.nativeT1nuc")
+    workflow.connect(datasourceCivet, t1_type, wf_masking, "inputnode.nativeT1nuc")
     workflow.connect(datasourceCivet, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
     workflow.connect(datasourceCivet, 'T1Tal', wf_masking, "inputnode.T1Tal")
     workflow.connect(datasourceCivet, 'brainmaskTal', wf_masking, "inputnode.brainmaskTal")
@@ -218,14 +221,14 @@ def runPipeline(opts,args):
     ##################
     wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
-    #workflow.connect(datasourceCivet, 'nativeT1nuc', wf_pet2mri, "inputnode.nativeT1nuc")
     workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_pet2mri, "inputnode.t1_brain_mask")
-    workflow.connect(datasourceCivet, 'nativeT1', wf_pet2mri, "inputnode.nativeT1nuc")
+    workflow.connect(datasourceCivet, t1_type , wf_pet2mri, "inputnode.nativeT1nuc")
     workflow.connect(wf_masking, 'outputnode.pet_headMask', wf_pet2mri, "inputnode.pet_headMask")
     workflow.connect(wf_masking, 'outputnode.t1_headMask', wf_pet2mri, "inputnode.t1_headMask")
     workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
     workflow.connect(wf_masking, 'outputnode.t1_ROIMask', wf_pet2mri, "inputnode.t1_ROIMask")
 	
+
 
     #############################
     # Partial-volume correction #
@@ -287,7 +290,6 @@ def runPipeline(opts,args):
                 out_node_list += [tka_pve]
                 out_img_list += ['outputnode.out_file']
 
-
 	#######################################
 	# Connect nodes for reporting results #
 	#######################################
@@ -311,91 +313,103 @@ def runPipeline(opts,args):
                         ])
             workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
 
+    #####################
+    # Join Subject data #
+    #####################
+    ### Subject-level analysis finished. 
+    ### Create JoinNode to bring together all the data for group-level analysis and quality control
+    #subject_data=["pet_images", "t1_images", "t1_brainMasks", "pet_brain_masks", "subjects", "conditions", "study_prefix"]
+    #join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
+    #workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
+    #workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', join_subjectsNode, 'pet_brain_masks')
+    #workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
+    #workflow.connect(datasourceCivet, 'nativeT1nuc', join_subjectsNode, 't1_images')
+    #workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
+    #workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
+    #workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
+    
+    ##################
+    # Group level QC #
+    ##################
+    
+    if opts.group_qc :
+        distance_metricNode = pe.Node(interface=qc.calc_distance_metricsCommand(),  name="distance_metric")
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
+        workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
+        workflow.connect(datasourceCivet, t1_type,  distance_metricNode, 't1')
+        workflow.connect(wf_masking, 'outputnode.t1_brainMask',  distance_metricNode, 't1_brain_mask')
+        workflow.connect(infosource, 'cid', distance_metricNode, 'condition')
+        workflow.connect(infosource, 'sid', distance_metricNode, 'subject')
+        workflow.connect(infosource, 'study_prefix', distance_metricNode, 'study_prefix')
 
-        #####################
-        # Join Subject data #
-        #####################
-        ### Subject-level analysis finished. 
-        ### Create JoinNode to bring together all the data for group-level analysis and quality control
-        subject_data=["pet_images", "t1_images", "t1_brainMasks", "pet_brain_masks", "subjects", "conditions", "study_prefix"]
-        join_subjectsNode=pe.JoinNode(interface=niu.IdentityInterface(fields=subject_data), joinsource="preinfosource", joinfield=subject_data, name="join_subjectsNode")
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', join_subjectsNode, 'pet_images')
-        workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', join_subjectsNode, 'pet_brain_masks')
-        workflow.connect(wf_masking, 'outputnode.t1_brainMask', join_subjectsNode, 't1_brainMasks')
-        workflow.connect(datasourceCivet, 'nativeT1', join_subjectsNode, 't1_images')
-        workflow.connect(infosource, 'cid', join_subjectsNode, 'conditions')
-        workflow.connect(infosource, 'sid', join_subjectsNode, 'subjects')
-        workflow.connect(infosource, 'study_prefix', join_subjectsNode, 'study_prefix')
+
+        join_dist_metricsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['in_file']), joinsource="preinfosource", joinfield=['in_file'], name="join_dist_metricsNode")
+        workflow.connect(distance_metricNode, 'out_file', join_dist_metricsNode, 'in_file')
+
+        concat_dist_metricsNode=pe.Node(interface=tqc.concat_df(), name="concat_dist_metrics")
+        concat_dist_metricsNode.inputs.out_file = opts.prefix+'_distance_metrics.csv'
+        workflow.connect(join_dist_metricsNode, 'in_file', concat_dist_metricsNode, 'in_list')
         
-        ##################
-        # Group level QC #
-        ##################
+        outlier_measureNode = pe.Node(interface=qc.calc_outlier_measuresCommand(),  name="outlier_measure")
+        workflow.connect(concat_dist_metricsNode, 'in_file', outlier_measureNode, 'in_file')
         
-        if opts.group_qc and False:
-            PETtoT1_group_qc = pe.Node(interface=qc.PETtoT1_group_qc(),  name="PETtoT1_group_qc")
-            workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
-            workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
-            workflow.connect(join_subjectsNode, 't1_brainMasks', PETtoT1_group_qc, 'brain_masks')
-            workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
-            workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
-            workflow.connect(join_subjectsNode, 'study_prefix', PETtoT1_group_qc, 'study_prefix')
-            workflow.connect(PETtoT1_group_qc, 'out_file', datasink, PETtoT1_group_qc.name)
+        #workflow.connect(join_subjectsNode, 'pet_images',  PETtoT1_group_qc, 'pet_images')
+        #workflow.connect(join_subjectsNode, 't1_images',  PETtoT1_group_qc, 't1_images')
+        #workflow.connect(join_subjectsNode, 't1_brainMasks', PETtoT1_group_qc, 'brain_masks')
+        #workflow.connect(join_subjectsNode, 'conditions', PETtoT1_group_qc, 'conditions')
+        #workflow.connect(join_subjectsNode, 'subjects', PETtoT1_group_qc, 'subjects')
+        #workflow.connect(join_subjectsNode, 'study_prefix', PETtoT1_group_qc, 'study_prefix')
+        #workflow.connect(PETtoT1_group_qc, 'out_file', datasink, PETtoT1_group_qc.name)
 
 	###############################
 	# Testing nodes and workflows #
 	###############################
 
+    if opts.test_group_qc:
+        ###
+        ### Nodes are at subject level (not joined yet)
+        ###
+        wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
+        workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_misalign_pet, 'inputnode.brainmask')
+        workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
+        workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
+        workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
 
-        if opts.test_group_qc:
-            ###
-            ### Nodes are at subject level (not joined yet)
-            ###
-            wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
-            workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
-            workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_misalign_pet, 'inputnode.brainmask')
-            workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
-            workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
-            workflow.connect(infosource, 'study_prefix', wf_misalign_pet, 'inputnode.study_prefix')
+        #calculate distance metric node
+        distance_metricsNode=pe.Node(interface=tqc.distance_metricCommand(), name="distance_metrics")
+        colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
+        distance_metricsNode.inputs.colnames = colnames
+        distance_metricsNode.inputs.clobber = False 
 
+        workflow.connect(wf_misalign_pet,'outputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
+        workflow.connect(wf_misalign_pet,'outputnode.translated_pet',distance_metricsNode, 'translated_pet')
+        workflow.connect(wf_misalign_pet,'outputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
+        workflow.connect(wf_misalign_pet,'outputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
+        workflow.connect(datasourceCivet, t1_type, distance_metricsNode, 't1_images')
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', distance_metricsNode, 'pet_images')
+        workflow.connect(wf_masking, 'outputnode.t1_brainMask', distance_metricsNode, 'brain_masks')
+        workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
+        workflow.connect(infosource, 'study_prefix', distance_metricsNode, 'study_prefix')
+        workflow.connect(infosource, 'sid', distance_metricsNode, 'subjects')
+        
+        ###
+        ### Join subject nodes together
+        ###
+        join_dist_metricsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['in_file']), joinsource="preinfosource", joinfield=['in_file'], name="join_dist_metricsNode")
+        workflow.connect(distance_metricsNode, 'out_file', join_dist_metricsNode, 'in_file')
+        concat_dist_metricsNode=pe.Node(interface=tqc.concat_df(), name="concat_dist_metrics")
+        concat_dist_metricsNode.inputs.out_file = opts.prefix+'_distance_metrics.csv'
+        workflow.connect(join_dist_metricsNode, 'in_file', concat_dist_metricsNode, 'in_list')
 
-            #calculate distance metric node
-            distance_metricsNode=pe.Node(interface=tqc.distance_metricCommand(), name="distance_metrics")
-            colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
-            distance_metricsNode.inputs.colnames = colnames
-            distance_metricsNode.inputs.clobber = False 
-
-            workflow.connect(wf_misalign_pet,'outputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
-            workflow.connect(wf_misalign_pet,'outputnode.translated_pet',distance_metricsNode, 'translated_pet')
-            workflow.connect(wf_misalign_pet,'outputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
-            workflow.connect(wf_misalign_pet,'outputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
-            workflow.connect(datasourceCivet, 'nativeT1', distance_metricsNode, 't1_images')
-            workflow.connect(wf_pet2mri, 'outputnode.petmri_img', distance_metricsNode, 'pet_images')
-            workflow.connect(wf_masking, 'outputnode.t1_brainMask', distance_metricsNode, 'brain_masks')
-            workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
-            workflow.connect(infosource, 'study_prefix', distance_metricsNode, 'study_prefix')
-            workflow.connect(infosource, 'sid', distance_metricsNode, 'subjects')
-            
-            ###
-            ### Join subject nodes together
-            ###
-            join_dist_metricsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['in_file']), joinsource="preinfosource", joinfield=['in_file'], name="join_dist_metricsNode")
-            
-            workflow.connect(distance_metricsNode, 'out_file', join_dist_metricsNode, 'in_file')
-            
-            concat_dist_metricsNode=pe.Node(interface=tqc.concat_df(), name="concat_dist_metrics")
-            concat_dist_metricsNode.inputs.out_file = opts.prefix+'_distance_metrics.csv'
-
-            workflow.connect(join_dist_metricsNode, 'in_file', concat_dist_metricsNode, 'in_list')
-
-            ### Test group qc for coregistration using misaligned images 
-            wf_test_group_coreg_qc = tqc.get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
-            workflow.connect(concat_dist_metricsNode, 'out_file', wf_test_group_coreg_qc, 'inputnode.distance_metrics_df')
+        ### Test group qc for coregistration using misaligned images 
+        wf_test_group_coreg_qc = tqc.get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
+        workflow.connect(concat_dist_metricsNode, 'out_file', wf_test_group_coreg_qc, 'inputnode.distance_metrics_df')
 
 		#'''
 	# #vizualization graph of the workflow
 	#workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
-    print 'hello'
     printOptions(opts,subjects_ids)
     #run the work flow
     workflow.run()
@@ -433,7 +447,7 @@ roi_labels["PVC"]={	"roi-user":['1'],
 			"atlas":[]} #FIXME, these values are not correct for animal
 
 #Default FWHM for PET scanners
-pet_scanners={"HRRT":2.5,"HR+":6.5} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
+pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
 def check_masking_options(ROIMaskingType, roi_dir, RoiSuffix, ROIMask, ROITemplate):
@@ -532,8 +546,8 @@ if __name__ == "__main__":
         # PET Brain Mask Options #
         ##########################
 	group= OptionGroup(parser,"Coregistation options")
+        group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type='float', default=0.25)
         group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
-        group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", action='store_false', default=True)
 	parser.add_option_group(group)
 
 
@@ -543,12 +557,13 @@ if __name__ == "__main__":
         ##########################
 	group= OptionGroup(parser,"Coregistation options")
         group.add_option("","--coregistration-target-mask",dest="coregistration_target_mask",help="Target T1 mask for coregistration: \'skull\' or \'mask\'",type='string', default='skull')
+        group.add_option("","--coregistration-target-image",dest="coregistration_target_image",help="Target T1 for coregistration: \'raw\' or \'nuc\'",type='string', default='nuc')
         group.add_option("","--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
 	parser.add_option_group(group)
 
-        ###############
+    ###############
 	# PVC options #
-        ###############
+    ###############
 	group= OptionGroup(parser,"Masking options","ROI for PVC")
 	group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
 	group.add_option("","--pvc-roi-user",dest="PVCMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='civet')	
@@ -567,7 +582,7 @@ if __name__ == "__main__":
 
 	group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
 	group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
-	group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner.",type='float', default=None)
+	group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', action='callback', callback=get_opt_list,default=None)
 	group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
 	group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
 	group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=1)
@@ -592,7 +607,7 @@ if __name__ == "__main__":
 	group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
 	group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
 	group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
-	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.", default=None)
+	group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.",type='string', default=None)
 	group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=0)
 	group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=0)
 	group.add_option("","--body-weight",dest="body_weight",help="Either name of subject body weight (kg) in header or path to .csv file containing subject names and body weight (separated by comma).",type='string', default="Patient_Weight")

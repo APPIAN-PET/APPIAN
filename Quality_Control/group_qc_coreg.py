@@ -19,138 +19,6 @@ from os import getcwd
 from sys import argv, exit
 from itertools import product
 
-class PETtoT1_group_qcOutput(TraitedSpec):
-    out_file = traits.File( desc="Output files")
-
-class PETtoT1_group_qcInput(BaseInterfaceInputSpec):
-    pet_images = traits.List(exists=True, mandatory=True, desc="Native dynamic PET image")
-    t1_images = traits.List(exists=True, mandatory=True, desc="MRI image")
-    brain_masks = traits.List(exists=True, mandatory=True, desc="Binary images that mask out the brain")
-    subjects = traits.List(exists=True, mandatory=True, desc="Subject names")
-    conditions = traits.List(exists=True, mandatory=True, desc="Subject conditions")
-    study_prefix = traits.List(mandatory=True, desc="Prefix of current study")
-    out_file = traits.File(desc="Output file")
-
-    clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
-    verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
-
-class PETtoT1_group_qc(BaseInterface):
-    input_spec = PETtoT1_group_qcInput
-    output_spec = PETtoT1_group_qcOutput
-
-    def _run_interface(self, runtime):
-        pet_images=self.inputs.pet_images
-        t1_images=self.inputs.t1_images
-        brain_masks=self.inputs.brain_masks
-        subjects=self.inputs.subjects
-        conditions=self.inputs.conditions
-        study_prefix=self.inputs.study_prefix[0]
-        out_file="PETtoT1_group_qc.csv"
-        #print pet_images
-        #print t1_images
-        #print subjects 
-        #print conditions
-
-        df=group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, study_prefix, '')
-        
-        df.to_csv(out_file)
-        self.inputs.out_file=out_file
-        return(runtime)
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        
-        return(outputs)
-
-
-def group_coreg_qc(pet_images, t1_images, brain_masks, subjects, conditions, study_prefix, label):
-    alpha=0.05
-    out_files=[]
-    unique_conditions=np.unique(conditions)
-    nconditions=len(unique_conditions)
-    
-    combined=zip(subjects, conditions, pet_images, t1_images, brain_masks) #FIXME: Include sorting here, just in case
-    df=pet2t1_coreg_qc(subjects, conditions, pet_images, t1_images, brain_masks, alpha)
-
-    return(df)
-
-
-###
-### QC function to test if there are outliers in coregistered images
-###
- 
-
-def pet2t1_coreg_qc(subjects, conditions, pet_images, t1_images,brain_masks, alpha):
-	#pet_images=sorted(list_paths(pet_dir, "*.mnc"))
-	#t1_images=sorted(list_paths(mri_dir, "*.mnc"))
-	colnames= ["Subject", "Condition", "Metric", "Value"] 
-	print(subjects)
-	d={"Subjects": list(subjects)}
-	print(d)
-	names=pd.DataFrame(d)
-
-	outlier_measures={'MAD':img_mad}
-	distance_metrics={'NMI':mi} #, 'XCorr':qc.xcorr }
-
-	metric_df = pd.DataFrame(columns=colnames)
-	outlier_df = pd.DataFrame(columns=colnames)
-
-
-	###Get distance metrics
-	for metric_name, metric in zip(distance_metrics.keys(), distance_metrics.values()):
-		for sub,cond, pet, t1, brain in zip(subjects,conditions, pet_images, t1_images, brain_masks):
-			m=metric(pet, t1, brain)
-			temp=pd.DataFrame([[sub,cond, metric_name, m]],columns=colnames  )
-			metric_df = pd.concat([metric_df, temp ])
-		
-
-	n=metric_df.shape[0]
-	empty_df = pd.DataFrame(np.zeros([n,1]), columns=['Score'], index=[0]*n) 
-	df2 = pd.DataFrame([])
-	for measure in outlier_measures.keys():
-		m=pd.DataFrame( { 'Measure':[measure] * n} , index=[0]*n )
-		d=pd.concat([metric_df, m, empty_df], axis=1)
-		df2=pd.concat([df2,d], axis=0)
-	outlier_df=df2
-	###Get outlier measures
-	for measure_name, measure in zip(outlier_measures.keys(), outlier_measures.values()):
-		print outlier_df.Subject
-		for n in range(len(outlier_df.Subject)):
-			x=pd.Series(outlier_df.Value)
-			r=measure(x,n)
-			target_row=(outlier_df.Subject == outlier_df.Subject.iloc[n]) & (outlier_df.Metric == metric_name ) & (outlier_df.Measure == measure_name ) 
-		#Insert r into the data frame
-			outlier_df.loc[ target_row, 'Score' ] =r
-
-	return(outlier_df)
-
-
-###
-### Some extra helper functions
-###
-
-def list_paths(mypath, string):
-    output=[]
-    try: files=os.listdir(mypath)
-    except:
-        print "Path does not exist:", mypath
-        return output
-    for f in files:
-        if fnmatch.fnmatch(f, string):
-            output.append(f)
-        #files = [ f for f in os.listdir(mypath) if fnmatch.fnmatch(f, string) ]
-    output=[mypath+"/"+f for f in output]
-    return output
-
-def mad(data):
-    return np.median(np.abs(data.values - data.median()))
-
-def img_mad(x, i):
-    r=(x.values[i] - x.median()) / mad(x)
-    return(r)
-
 ####################
 # Distance Metrics #
 ####################
@@ -203,17 +71,16 @@ def mi(masked_pet_data, masked_mri_data):
     mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
     pet_dist = np.histogram(masked_pet_data, pet_nbins)
     pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
-    print len(p), len((pet_dist[pet_bins] * mri_dist[mri_bins]))
-    print len(p/(pet_dist[pet_bins] * mri_dist[mri_bins]))
     mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
     
     print "MI:", mi
     return(mi)
 
+
 def cc(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
-    pet_nbins=find_nbins(masked_pet_data) #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
-    mri_nbins=find_nbins(masked_mri_data)
+    pet_nbins=find_nbins(masked_pet_data)*2 #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
+    mri_nbins=find_nbins(masked_mri_data)*2
 
     cc=0.0
     xd=0.0
@@ -235,6 +102,35 @@ def cc(masked_pet_data, masked_mri_data):
     print "CC = " + str(cc)
 
     return(cc)
+
+def iecc(masked_pet_data, masked_mri_data):
+    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
+    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
+    
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+    #nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
+    p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
+    mri_dist = np.histogram(masked_mri_data, mri_nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    pet_dist = np.histogram(masked_pet_data, pet_nbins)
+    pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
+    num=p*np.log2( p / (pet_dist[pet_bins] * mri_dist[mri_bins]) )
+    den=pet_dist[pet_bins]*np.log2(pet_dist[pet_bins]) + mri_dist[mri_bins]*np.log2(mri_dist[mri_bins])
+    iecc = np.sum(num / den) 
+    print "IEEC:", num, '/', den, '=', iecc
+    return(iecc)
+
+def ec(masked_pet_data, masked_mri_data):
+    ###Ref: Kalinic, 2011. A novel image similarity measure for image registration. IEEE ISPA
+    pet_mean=np.mean(masked_pet_data)
+    mri_mean=np.mean(masked_mri_data)
+    xval=np.exp(masked_pet_data-pet_mean)-1
+    yval=np.exp(masked_mri_data-mri_mean)-1
+    ec = np.sum((xval*yval)) / (len(xval) * len(yval))
+    print "EC = " + str(ec)
+
+    return(ec)
 
 def iv(masked_pet_data, masked_mri_data):
     ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
@@ -289,11 +185,14 @@ def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
     #print h
     nbins = h[0].shape[0] * h[0].shape[1]
     hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
+    #Binarized PET data
     x_bin = np.digitize(masked_pet_data, h[1]) - 1
+    #Binarized MRI data
     y_bin = np.digitize(masked_mri_data, h[2]) - 1
-
+    #Reduce max bins by 1
     x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
     y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
+
     pet_bin=x_bin
     mri_bin=y_bin
     x_idx=x_bin #v[:,0]
@@ -310,98 +209,92 @@ def find_nbins(array):
 
 
 
-###
-## Code not used and can potentially be deleted
-###
+class calc_distance_metricsOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
 
+class calc_distance_metricsInput(BaseInterfaceInputSpec):
+    pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
+    t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    sid = traits.Str(desc="Subject")
+    cid = traits.Str(desc="Condition")
+    study_prefix = traits.Str(desc="Study Prefix")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
 
-#Calculate Cross-correlation (xcorr) between co-registered PET and MRI images
-def img_xcorr(pet_images, t1_images, brain_masks):
-    xcorr_list=[]
-    for pet_fn, mri_fn, brain_fn in zip(pet_images, t1_images, brain_masks):
-        val=xcorr(pet_fn, mri_fn, brain_fn)
-        #print "Cross-correlation:", xcorr
-        xcorr_list.append(val)
-    return(pd.Series(xcorr_list, name='Xcorr'))
+class calc_distance_metricsCommand(BaseInterface):
+    input_spec = calc_distance_metricsInput 
+    output_spec = calc_distance_metricsOutput
+  
+    def _gen_output(self, sid, cid, study_prefix, fname ="distance_metric.csv"):
+        dname = os.getcwd() 
+        return dname + os.sep + study_prefix + '_' + sid + '_' + cid + '_' + fname
 
+    def _run_interface(self, runtime):
+        colnames=["Subject", "Condition", "Metric", "Value"] 
+        sub_df=pd.DataFrame(columns=colnames)
+        pet = self.inputs.pet
+        t1 = self.inputs.t1
+        t1_brain_mask = self.inputs.t1_brain_mask
+        pet_brain_mask = self.inputs.pet_brain_mask
 
-
-#Calculate mutual information between co-registered PET and MRI images
-def img_mi(pet_images, t1_images, brain_masks):
-    mi_list=[]
-    for pet_fn, mri_fn, brain_fn in zip(pet_images, t1_images, brain_masks):
-        #print "PET:", pet_fn
-        #print "MRI:", mri_fn
-        #print "Brain Mask:", brain_fn
-        mi_val=mi(pet_fn, mri_fn, brain_fn)
-        #print "Mutual Information:", mi
-        mi_list += [mi_val]
-    return(pd.Series(mi_list, name='MI'))
-
-
-#Calculate Kolmogorov-Smirnov's D
-'''
-def kolmogorov_smirnov( x, i, alpha=0.05):
-    c={0.05:1.36, 0.10:1.22, 0.025:1.48, 0.01:1.63, 0.005:1.73, 0.001:1.95}
-    n=100
-    x_max=max(x)
-    x.sort_values(inplace=True)
-    l0=float(len(x))
-    l1=float(l0-1)
-    pvalues=np.repeat(1., l0).cumsum() / l0
-    dvalues=np.repeat(0., l0)
-    C=c[alpha]*sqrt( (l0+l1) / (l0*l1))
-    C_list=np.repeat(C, len(x))
-    x0=np.arange(0.,x_max, x_max/n)
-
-    df0=pd.concat( [ pd.Series(list(x.index), name='Index'), pd.Series(dvalues, name='D'), pd.Series(C_list, name='C' )], axis=1)
-    df0.set_index('Index', inplace=True)
-    y0=np.interp( x0, x.values, pvalues   )
-   
-    
-    x_temp=x.drop([i])
-    p1=np.repeat(1., len(x_temp)).cumsum() / len(x_temp)
-    y1=np.interp( x0, x_temp, p1 )
-    d=abs(max(y0-y1))
-    
-    return(d)
-
-
-###
-###Function to plot the results of 
-###
-def plot_pet2t1_coreg(mi, xcorr, alpha, out_file):
-	plt.close()
-	font_size=8
-	fig, ax = plt.subplots()
-	plt.figure(1)
-        font_size=7 
-        fig, axes = plt.subplots(nrows=3, ncols=2)
-        #Mutual Information Raw
-        mi['MI'].plot(ax=axes[0,0], subplots=True, sharex=True, fontsize=8); 
-        axes[0,0].set_title('Mutual Information')
-
-
-        #Xcorr Raw
-        xcorr['Xcorr'].plot(ax=axes[0,1], color='g', fontsize=8); 
-        axes[0,1].set_title('Cross-correlation')
-        #Mutual Information - Median Average Difference
-
-        mi['MAD'].plot(ax=axes[1,0], fontsize=8); 
-        axes[1,0].set_ylabel('MAD')
-
-        #Cross-correlation - Median Average Difference
-
-        xcorr['MAD'].plot(ax=axes[1,1], color='g', fontsize=8); 
-
-        mi['D'].plot(ax=axes[2,0], fontsize=8); 
-        mi['C'].plot(ax=axes[2,0], color='r', rot=90, fontsize=8); 
-        axes[2,0].set_ylabel('Kolmogorov\nSmirnov\'s D')
+        path, ext = os.path.splitext(pet)
+        base=basename(path)
+        param=base.split('_')[-1]
+        param_type=base.split('_')[-2]
+        mis_metric=qc.distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
+        for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
+            temp=pd.DataFrame([[subject,condition,metric_name,m]],columns=df.columns  ) 
+            sub_df = pd.concat([sub_df, temp])
         
-        xcorr['D'].plot(ax=axes[2,1], color='g'); 
-        xcorr['C'].plot(ax=axes[2,1], color='r', rot=90, fontsize=8); 
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        
+        sub_df.to_csv(self.inputs.out_file, self.inputs.sid, self.inputs.cid, self.inputs.study_prefix, index=False)
+        return runtime
 
-        print "\n\nSaving to ", os.getcwd(), out_file, "\n\n"
-	plt.savefig(out_file, dpi=2000,  bbox_inches='tight' )
-	return(0)
-'''
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+class calc_outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class calc_outlier_measuresInput(BaseInterfaceInputSpec):
+    in_file = traits.File(desc="Input file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+class calc_outlier_measuresCommand(BaseInterface):
+    input_spec = calc_outlier_measuresInput 
+    output_spec = calc_outlier_measuresOutput
+  
+    def _gen_output(self, sid, cid, study_prefix, fname ="distance_metric.csv"):
+        dname = os.getcwd() 
+        return dname + os.sep + study_prefix + '_' + sid + '_' + cid + '_' + fname
+
+    def _run_interface(self, runtime):
+        df = pd.read_csv( self.inputs.in_file  )
+        for measure, measure_name in zip(outlier_measure_list, outlier_measure_names):
+            #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has
+            #Get the series with the calculate the distance measure for the current measure
+            r=measure(df.Value)
+            df[measure_name] = r
+
+        df_out = pd.concat([df_out, row],axis=0)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+

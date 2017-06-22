@@ -36,7 +36,10 @@ def gen_args(opts,conditions, subjects):
                 d={'cid':cond, 'sid':sub}
                 args.append(d)
             else:
-                print "Could not find PET or CIVET for ", sub, cond
+                if not os.path.exists(pet_fn) :
+                    print "Could not find PET for ", sub, cond, pet_fn
+                if not os.path.exists(civet_fn) :
+                    print "Could not find CIVET for ", sub, cond, civet_fn
     return args
 
             

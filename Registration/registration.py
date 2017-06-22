@@ -606,7 +606,7 @@ def get_workflow(name, infosource, datasink, opts):
                       ]) 
 
     if opts.coregistration_target_mask == 'skull': 
-        workflow.connect(inputnode, 't1_headmask',  pet2mri_withMask, 'in_target_mask')
+        workflow.connect(inputnode, 't1_headMask',  pet2mri_withMask, 'in_target_mask')
     elif opts.coregistration_target_mask == 'brain' :
         workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
 

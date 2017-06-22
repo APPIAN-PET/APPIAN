@@ -19,7 +19,7 @@ from os import getcwd
 from os.path import basename
 from sys import argv, exit
 from re import sub
-from Quality_Control.outlier import lof
+from Quality_Control.outlier import lof, kde, MAD, lcf
 import nipype.interfaces.minc.resample as rsl
 import Quality_Control as qc
 import random
@@ -33,13 +33,17 @@ import random
 #          affects group qc metrics.
 
 
+normal_param='0 0 0'
 def get_misalign_pet_workflow(name, opts):
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
     #FIXME: Should have angles and offsets defined by user. Use ';' to seperate elements
-    angles=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,16', '0,0,32', '0,0,64'] #X,Y,Z angle of rotation
-    offsets=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,10', '0,0,12', '0,0,14' ] #X,Y,Z offset of translation (in mm)
+    angles=['0 0 0', '0 0 2', '0 0 4', '0 0 8', '0 0 16', '0 0 32', '0 0 64'] #X,Y,Z angle of rotation
+    #angles=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,16'#, '0,0,32', '0,0,64'] #X,Y,Z angle of rotation
+    offsets=['0 0 0', '0 0 2', '0 0 4', '0 0 8', '0 0 10', '0 0 12', '0 0 14' ] #X,Y,Z offset of translation (in mm)
+    #offsets=['0,0,0', '0,0,2', '0,0,4', '0,0,8', '0,0,10']#, '0,0,12', '0,0,14' ] #X,Y,Z offset of translation (in mm)
+    
     inputnode=pe.Node(interface=niu.IdentityInterface(fields=['pet', 'brainmask', 'sid', 'cid', 'study_prefix']), name='inputnode')
     outputnode=pe.Node(interface=niu.IdentityInterface(fields=['translated_pet', 'rotated_pet', 'rotated_brainmask', 'translated_brainmask']), name='outputnode')
     #########################
@@ -124,9 +128,13 @@ def get_misalign_pet_workflow(name, opts):
 ############################################################################
 # Workflow to calculate distance metrics, outlier measures, and ROC curves #
 ############################################################################
-distance_metrics={'MI':qc.mi, 'FSE':qc.fse }  
-outlier_measures={"LOF":lof} 
-outlier_threshold={"LOF":np.arange(0,1,0.05) } 
+distance_metrics={'MI':qc.mi, 'FSE':qc.fse, 'CC':qc.cc }  
+#distance_metrics={'FSE':qc.fse }  
+#outlier_measures={"LOF":lof} 
+#outlier_threshold={"LOF":np.arange(0,1,0.05) } 
+
+outlier_measures={'LCF':lcf, "KDE":kde , 'MAD':MAD} #, 'LCF':lcf}
+outlier_threshold={"KDE":np.arange(0,1,0.05), 'LCF':np.arange(-2,2,0.05),"MAD":np.arange(-10,10,1) } 
 
 ### NODES
 
@@ -187,7 +195,6 @@ class distance_metricCommand(BaseInterface):
 
         
         
-        distance_metrics={'MI':qc.mi, 'FSE':qc.fse }  
         colnames = list(self.inputs.colnames)
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
@@ -289,11 +296,11 @@ class outlier_measures_rocCommand(BaseInterface):
 # Plot distance metrics
 #
 class plot_distance_metricsOutput(TraitedSpec):
-    out_file = traits.File(desc="Output file")
+    out_files = traits.List(desc="Output file")
 
 class plot_distance_metricsInput(BaseInterfaceInputSpec):
     #distance_metrics = traits.Dict(mandatory=True,desc="Dictionary with distance metrics")
-    out_file = traits.File(desc="Output file")
+    out_files = traits.List(desc="Output file")
     in_file = traits.File(exists=True, mandatory=True,desc="Input file")
 
 class plot_distance_metricsCommand(BaseInterface):
@@ -306,19 +313,16 @@ class plot_distance_metricsCommand(BaseInterface):
 
     def _run_interface(self, runtime):
         #distance_metrics = self.inputs.distance_metrics
-        distance_metrics={'MI':qc.mi, 'FSE':qc.fse }  
-        outlier_measures={"LOF":lof} 
-        outlier_threshold={"LOF":np.arange(0,1,0.05) } 
 
         df=pd.read_csv(self.inputs.in_file)
 
-        self.inputs.out_file = self._gen_output()
-        plot_distance_metrics(df, distance_metrics, self.inputs.out_file, color=cm.spectral)
+        out_file  = self._gen_output()
+        self.inputs.out_files =  plot_distance_metrics(df, distance_metrics, out_file, color=cm.spectral)
         return(runtime)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
+        outputs["out_files"] = self.inputs.out_files
         return outputs
 
 #
@@ -326,12 +330,12 @@ class plot_distance_metricsCommand(BaseInterface):
 #
 
 class plot_outlier_measuresOutput(TraitedSpec):
-    out_file = traits.File(desc="Output file")
+    out_files = traits.List(desc="Output file")
 
 class plot_outlier_measuresInput(BaseInterfaceInputSpec):
     #outlier_measures = traits.Dict(mandatory=True, desc="Dictionary with outlier measures")
     #distance_metrics = traits.Dict(mandatory=True,desc="Dictionary with distance metrics")
-    out_file = traits.File(desc="Output file")
+    out_files = traits.List(desc="Output file")
     in_file = traits.File(exists=True, mandatory=True,desc="Input file")
 
 class plot_outlier_measuresCommand(BaseInterface):
@@ -344,20 +348,16 @@ class plot_outlier_measuresCommand(BaseInterface):
 
     def _run_interface(self, runtime):
         #outlier_measures= self.inputs.outlier_measures
-        #distance_metrics = self.inputs.distance_metrics
-        distance_metrics={'MI':qc.mi, 'FSE':qc.fse }  
-        outlier_measures={"LOF":lof} 
-        outlier_threshold={"LOF":np.arange(0,1,0.05) } 
         #Calculate ROC curves based on outlier measures
         df=pd.read_csv(self.inputs.in_file)
-        self.inputs.out_file = self._gen_output()
-        plot_outlier_measures(df, outlier_measures, self.inputs.out_file, color=cm.spectral)
+        out_file = self._gen_output()
+        self.inputs.out_files = plot_outlier_measures(df, outlier_measures, out_file, color=cm.spectral)
 
         return(runtime)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
+        outputs["out_files"] = self.inputs.out_files
         return outputs
 
 #
@@ -365,12 +365,12 @@ class plot_outlier_measuresCommand(BaseInterface):
 #
 
 class plot_rocOutput(TraitedSpec):
-    out_files = traits.List(desc="Output file")
+    out_files = traits.List(desc="Output files")
 
 class plot_rocInput(BaseInterfaceInputSpec):
     error_type_unit=traits.Dict(desc="Error units")
     error_type_name=traits.Dict(desc="Error type")
-    out_files = traits.List(desc="Output file")
+    out_files = traits.List(desc="Output files")
     in_file = traits.File(desc="Input file")
     auc_file = traits.File(desc="AUC input file")
 
@@ -402,7 +402,6 @@ def get_test_group_coreg_qc_workflow(name, opts):
     params=['distance_metrics_df']
     inputnode=pe.Node(interface=niu.IdentityInterface(fields=params) , name='inputnode')
     outputnode=pe.Node(interface=niu.IdentityInterface(fields=['outlier_measures_df', 'roc_df', 'distance_metrics_plot', 'outlier_measures_plot', 'roc_plot']), name='outputnode')
-    normal_param='0,0,0'
     error_type_unit={"angle":"(degrees)",  "offset":'(mm)'} 
     error_type_name={"angle":'rotation',  "offset":'translation'} 
     colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
@@ -436,8 +435,8 @@ def get_test_group_coreg_qc_workflow(name, opts):
 
     workflow.connect(outlier_measuresNode, 'out_file', outputnode, 'outlier_measures_df')
     workflow.connect(rocNode, 'out_file', outputnode, 'roc_df')
-    workflow.connect(plot_distance_metricsNode, 'out_file', outputnode, 'distance_metrics_plot')
-    workflow.connect(plot_outlier_measuresNode, 'out_file', outputnode, 'outlier_measures_plot')
+    workflow.connect(plot_distance_metricsNode, 'out_files', outputnode, 'distance_metrics_plot')
+    workflow.connect(plot_outlier_measuresNode, 'out_files', outputnode, 'outlier_measures_plot')
     workflow.connect(plot_rocNode, 'out_files', outputnode, 'outlier_measures_roc_plot')
 
     return workflow
@@ -450,78 +449,83 @@ def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.spectral, D
     nMeasure=len(np.unique(df.Measure))
     #nMetric=len(np.unique(df.Metric))
     
-    f=lambda x: float( str(x).split(',')[-1] )
+    f=lambda x: float( str(x).split(' ')[-1] )
 
     df.Error = df.Error.apply(f)
     df_auc.Error = df_auc.Error.apply(f)
     nErrorType = len(np.unique(df.ErrorType) )
-    for measure_type_key, measure_type in df.groupby(['Measure']):
-    #    for metric_type_key, metric_type in measure_type.groupby(['Metric']):
-        nUnique = float(len(measure_type.Error.unique() ))
-        d = {key : color(value/nUnique) for (value, key) in enumerate(measure_type.Error.unique()) }
+    for metric_name, metric in df.groupby(['Metric']):
+        for measure_type_key, measure_type in metric.groupby(['Measure']):
+        #    for metric_type_key, metric_type in measure_type.groupby(['Metric']):
+            nUnique = float(len(measure_type.Error.unique() ))
+            d = {key : color(value/nUnique) for (value, key) in enumerate(measure_type.Error.unique()) }
 
-        for error_type_key, error_type in measure_type.groupby(['ErrorType']):
-            plt.clf()
-            fig=plt.figure()
-            #ax = plt.subplot(nErrorType,1, 1)
-            plt.title('ROC for outlier detection for error in ' +error_type_name[error_type_key])
-            plt.ylabel('True positive rate')
-            plt.xlabel('False positive rate')
-            plt.plot([0,1], [0,1], 'k--', c='red')
-            for key, test in error_type.groupby(['Error']):
-                x=test.FalsePositive#.append(pts)
-                y=test.TruePositive #.append(pts)
-                plt.plot(x,y, c=d[key], label=key  ) 
-                plt.xlim(0,1)
-                plt.ylim(0,1)
-                #fig.alpha(0.25)
-                plt.legend(loc="lower right", fontsize=8, title='Error '+ error_type_unit[error_type_key])
-            fn=os.getcwd()+os.sep+error_type_key+'_'+measure_type_key+'_roc.png'
-            fn_list += fn
-            print  'saving roc plot to ' + fn
-            plt.savefig(fn, width=1000, dpi=DPI)
-    for measure_type_key, measure_type in df.groupby(['Measure']):
-        for error_type_key, error_type in df_auc.groupby(['ErrorType']):
-            plt.clf()
-            plt.title('AUC for outlier detection '+ measure_type_key +' for error in ' + error_type_key)
-            plt.ylabel('AUC')
-            plt.xlabel('Error')
-            plt.scatter( error_type.Error, error_type.AUC)
+            for error_type_key, error_type in measure_type.groupby(['ErrorType']):
+                plt.clf()
+                fig=plt.figure()
+                #ax = plt.subplot(nErrorType,1, 1)
+                plt.title('ROC for outlier detection for error in ' +error_type_name[error_type_key])
+                plt.ylabel('True positive rate')
+                plt.xlabel('False positive rate')
+                plt.plot([0,1], [0,1], 'k--', c='red')
+                for key, test in error_type.groupby(['Error']):
+                    x=test.FalsePositive#.append(pts)
+                    y=test.TruePositive #.append(pts)
+                    plt.plot(x,y, c=d[key], label=key)
+                    plt.xlim(0,1)
+                    plt.ylim(0,1)
+                    #fig.alpha(0.25)
+                    plt.legend(loc="lower right", fontsize=8, title='Error '+ error_type_unit[error_type_key])
+                fn=os.getcwd()+os.sep + metric_name+'_'+error_type_key+'_'+measure_type_key+'_roc.png'
+                fn_list += fn
+                print  'saving roc plot to ' + fn
+                plt.savefig(fn, width=1000, dpi=DPI)
 
-            auc_fn=os.getcwd()+os.sep+measure_type_key+'_'+error_type_key+'_auc.png'
-            plt.savefig(auc_fn, width=1000, dpi=DPI)
+    for metric_name, metric in df_auc.groupby(['Metric']):
+        for measure_type_key, measure_type in metric.groupby(['Measure']):
+            for error_type_key, error_type in measure_type.groupby(['ErrorType']):
+                plt.clf()
+                plt.title('AUC for outlier detection '+ measure_type_key +' for error in ' + error_type_key)
+                plt.ylabel('AUC')
+                plt.xlabel('Error')
+                plt.scatter( error_type.Error, error_type.AUC)
+
+                auc_fn=os.getcwd()+os.sep+metric_name+'_'+measure_type_key+'_'+error_type_key+'_auc.png'
+                plt.savefig(auc_fn, width=1000, dpi=DPI)
+                fn_list += auc_fn
     return(fn_list)
+
 
 def  outlier_measure_roc(df, outlier_threshold, normal_error):
     subjects=np.unique(df.Subject)
-    roc_columns=['ErrorType', 'Measure', 'Error','Threshold', 'FalsePositive', 'TruePositive' ]
-    auc_columns=['ErrorType', 'Measure', 'Error', 'AUC' ]
+    roc_columns=['ErrorType', 'Measure','Metric', 'Error','Threshold', 'FalsePositive', 'TruePositive' ]
+    auc_columns=['ErrorType', 'Measure','Metric', 'Error', 'AUC' ]
     roc_df=pd.DataFrame(columns=roc_columns )
     auc_df=pd.DataFrame(columns=auc_columns )
-    for error_type_key, error_type in df.groupby(['ErrorType']):
-        for measure_type_key, measure_type in error_type.groupby(['Measure']):
-            #for metric_type_key, metric_type in measure_type.groupby(['Metric']):
-            #print measure_type
-            normal=measure_type[measure_type.Error == normal_error]
-            misaligned=measure_type[ ~(measure_type.Error == normal_error) ]
-            for key, test in misaligned.groupby(['Error']):
-                last_fp=0
-                last_tp=0  
-                auc = 0
-                for threshold in outlier_threshold[measure_type_key]:
-                    #Given an error type (e.g., rotation), an error parameter (e.g., degrees of rotation), a distance metric (e.g., mutual information ),
-                    #that defines a set of misaligned PET images, if we take all of the normal (i.e., correctly aligned data) and pool it with the misaligned data
-                    [tp, fp] = estimate_roc(test, normal, threshold)
-                    temp=pd.DataFrame([[error_type_key, measure_type_key, key, threshold, fp, tp]], columns=roc_columns)
-                    roc_df=pd.concat([roc_df, temp])
-
-                    dfp = fp - last_fp
-                    dtp = (tp + last_tp)/2
-                    last_fp = fp
-                    last_tp = tp
-                    auc += dfp * dtp
-                temp = pd.DataFrame( [[error_type_key, measure_type_key, key, auc]], columns=auc_columns)
-                auc_df=pd.concat([auc_df, temp])
+    for metric_name, metric in df.groupby(['Metric']):
+        for error_type_key, error_type in metric.groupby(['ErrorType']):
+            for measure_type_key, measure_type in error_type.groupby(['Measure']):
+                #for metric_type_key, metric_type in measure_type.groupby(['Metric']):
+                #print measure_type
+                normal=measure_type[measure_type.Error == normal_error]
+                misaligned=measure_type[ ~(measure_type.Error == normal_error) ]
+                for key, test in misaligned.groupby(['Error']):
+                    last_fp=0
+                    last_tp=0  
+                    auc = 0
+                    for threshold in outlier_threshold[measure_type_key]:
+                        #Given an error type (e.g., rotation), an error parameter (e.g., degrees of rotation), a distance metric (e.g., mutual information ),
+                        #that defines a set of misaligned PET images, if we take all of the normal (i.e., correctly aligned data) and pool it with the misaligned data
+                        [tp, fp] = estimate_roc(test, normal, threshold)
+                        temp=pd.DataFrame([[error_type_key, measure_type_key,metric_name, key, threshold, fp, tp]], columns=roc_columns)
+                        roc_df=pd.concat([roc_df, temp])
+                        dfp = fp - last_fp
+                        dtp = (tp + last_tp)/2
+                        last_fp = fp
+                        last_tp = tp
+                        auc += dfp * dtp
+                    temp = pd.DataFrame( [[error_type_key, measure_type_key,metric_name, key, auc]], columns=auc_columns)
+                    auc_df=pd.concat([auc_df, temp])
     return([roc_df,auc_df])
 
 
@@ -534,8 +538,8 @@ def estimate_roc(test, control, threshold, nRep=5000):
     #FPlist=[]
     test.index=range_n
     control.index=range_n
-    test_classify=pd.Series([ 1 if test.Score[i] < threshold else 0 for i in range_n ])
-    control_classify=pd.Series([ 1 if control.Score[i] < threshold else 0 for i in range_n ])
+    test_classify=pd.Series([ 1 if test.Value[i] < threshold else 0 for i in range_n ])
+    control_classify=pd.Series([ 1 if control.Value[i] < threshold else 0 for i in range_n ])
 
     #for i in range(nRep):
     #    idx_inc=random.sample(range_n, nTest)
@@ -577,71 +581,63 @@ def calc_distance_metrics(df, subject, condition, misaligned, pet_images,t1_imag
     
 
 def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
-    outlier_measure_list=outlier_measures.values()#List of functions calculating outlier measure  
     outlier_measure_names=outlier_measures.keys() #List of names of outlier measures
+    outlier_measures_list=outlier_measures.values() #List of names of outlier measures
     metric_names=distance_metrics.keys() #List of names for distance metrics
-
     subjects=np.unique(df.Subject) #List of subjects
-
     unique_error_types=np.unique(df.ErrorType) #List of errors types in PET mis-alignmenta
-    n=df.shape[0]
-  
-    no=len(outlier_measure_names)
-    n2 = n * no
-    df2 = pd.concat([df]*no, ignore_index=True)
-    mdf = pd.DataFrame( {'Measure': sum([ [x] * n for x in outlier_measure_names  ],[]), 'Score':np.zeros(n2)  } )
-    d=pd.concat([df2,mdf], axis=1)
-    df=d
-    #df_out = df.drop(['Metric', 'Value'],axis=1).drop_duplicates(['Subject', 'Condition'])
-    out_columns=['Subject','Condition','ErrorType','Error','Measure','Score']
-
+    out_columns=['Subject','Condition','ErrorType','Error','Measure','Metric', 'Value'] 
     df_out = pd.DataFrame(columns=out_columns)
     for error_type, error_type_df in df.groupby(['ErrorType']):
-        unique_errors = np.unique( df.Error[df.ErrorType == error_type ] )#Get list of error parameters for error type 
-        normal_df=df[ ( df.Error == normal_param ) & (df.ErrorType == error_type) ] #Get list of normal subjects for this error type
+        normal_df=error_type_df[  error_type_df.Error == normal_param  ]  #Get list of normal subjects for this error type
+        #if error_type != 'offset': continue
         for error, error_df in error_type_df.groupby(['Error']):
+            #if not error in ['0 0 0' , '0 0 2', '0 0 4', '0 0 8']: continue
             for sub, sub_df in error_df.groupby(['Subject']):
                 #Remove the current subject from the data frame containing normal subjects
                 temp_df=normal_df[ ~ (normal_df.Subject == sub) ]
+                #if sub != 'sub03': continue
+
                 for cond, mis_df in sub_df.groupby(['Condition']):
                     #Create data frame of a single row for this subject, error type and error parameter
                     #Combine the data frame with normal PET images with that of the mis-aligned PET image
-
                     test_df=pd.concat([temp_df, mis_df])
-                    test_df=pd.crosstab(rows=[test_df['Subject'],test_df['Condition'],test_df['ErrorType'],test_df['Error']], cols=test_df['Metric'], values=test_df['Value'], aggfunc=sum)
-                    #For new version of Pandas
-                    for measure, measure_name in zip(outlier_measure_list, outlier_measure_names):
-                        #Get column number of the current outlier measure
-                        #Reindex the test_df from 0 to the number of rows it has
-                        #Get the series with the 
-                        #Calculate the distance measure for the current measure
-                        r=measure(test_df.values)
-                        score=r[ test_df.index.get_level_values(0) == sub ][0][0]
-                        #score=r[ test_df.index.get_level_values(0) == sub ][0]
-                        
-                        if sub == 'P18' : 
-                            plt.clf()
-                            plt.scatter(test_df.values[:,0],test_df.values[:,1], c=r, cmap='hot'  );
-                            fn='/data1/projects/fmz/temp/'+sub+'_'+cond+'_'+error_type+'_'+error+'_'+measure_name+'.png'
-                            plt.savefig( fn)
-                            print fn
-                        
-                        #Identify the target row where the outlier measure, r, needs to be inserted
-                        target_row=(df.Subject == sub) & (df.ErrorType == error_type) & (df.Error == error)  & (df.Measure == measure_name )
-                        row=pd.DataFrame([[sub,cond,error_type,error,measure_name,score]], columns=out_columns  )
-                        #Insert r into the data frame
+                    for measure, measure_name in zip(outlier_measures_list, outlier_measure_names):
+                        s_list = []
+                        combined = test_df.pivot_table(rows=["Subject","Condition","ErrorType","Error"],cols=['Metric'],values="Value")
+                        combined.reset_index(inplace=True)
+                        r=measure(combined.loc[:,metric_names])
+                        idx = combined[ combined.Subject == sub  ].index[0]
+                        s= r[idx][0]
+                        row_args = [sub,cond,error_type,error,measure_name,'All',s]
+                        row=pd.DataFrame([row_args], columns=out_columns  )
                         df_out = pd.concat([df_out, row],axis=0)
 
-    #g=lambda x: df.columns.get_loc(x)
-    #imin=min(map(g, metric_names))
-    #list(df.columns[0:imin])
+                        for metric_name, metric_df in test_df.groupby(['Metric']):
+                            #if metric_name != 'FSE': continue
+                            #Get column number of the current outlier measure
+                            #Reindex the test_df from 0 to the number of rows it has
+                            #Get the series with the calculate the distance measure for the current measurae
+                            metric_df.index = range(metric_df.shape[0])
+                            r=measure(metric_df.Value.values)
+                            idx = metric_df[ metric_df.Subject == sub  ].index[0]
+                            s= r[idx][0]
+                            #print error,':', s
+                            plt.clf()
+                            plt.scatter(metric_df.Value.values, r)
+                            plt.savefig(metric_name+'_'+error+'.png')
+                            s_list.append(s)
+                            row_args = [sub,cond,error_type,error,measure_name,metric_name,s]
+                            row=pd.DataFrame([row_args], columns=out_columns  )
+                            df_out = pd.concat([df_out, row],axis=0)
     return(df_out)
 
 
 from matplotlib.lines import Line2D
 def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
+    file_list = []
     df = dfi.copy()
-    f=lambda x: float(str(x).split(',')[-1])#FIXME: Will only print last error term
+    f=lambda x: float(str(x).split(' ')[-1])#FIXME: Will only print last error term
 
     nMeasure=len(df.Measure.unique())
     df.Error = df.Error.apply(f)
@@ -649,43 +645,44 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
     sub_cond=np.array([ str(a)+'_'+str(b) for a,b in  zip(df.Subject, df.Condition) ])
     sub_cond_unique = np.unique(sub_cond)
     nUnique=float(len(sub_cond_unique))
-
-
     #d = { key : color(value/float(nMetric)) for (value, key) in enumerate(distance_metrics.keys()) }
-
     ax_list=[]
     measures=outlier_measures.keys()
     nErrorType=len(np.unique(df.ErrorType))
-    plt.clf()
-    fig=plt.figure(1)
-    fig.suptitle('Outlier detection of misaligned PET images')
-    n=1
-    for key, group in df.groupby(['ErrorType']):
-        for measure, group2 in group.groupby(['Measure']): 
-            ax=plt.subplot(nErrorType, nMeasure, n)
-            #ax.set_title('Outlier detection based on '+measure)
-            ax.set_ylabel(measure)
-            ax.set_xlabel('Error in '+key)
+    for metric, group in df.groupby(['Metric']): 
+        plt.clf()
+        fig=plt.figure(1)
+        fig.suptitle('Outlier detection of misaligned PET images')
+        n=1
 
-            y=group2.groupby(['Error']).Score.mean()
-            #ax.plot(y.index, y, c=d[metric], label=metric)
-            ax.plot(y.index, y)
+        for key, group1 in group.groupby(['ErrorType']):
+            for measure, group2 in group1.groupby(['Measure']): 
+                ax=plt.subplot(nErrorType, nMeasure, n)
+                #ax.set_title('Outlier detection based on '+measure)
+                ax.set_ylabel(measure)
+                ax.set_xlabel('Error in '+key)
+
+                y=group2.groupby(['Error']).Value.mean()
+                #ax.plot(y.index, y, c=d[metric], label=metric)
+                ax.plot(y.index, y)
 
 
-        ax.legend(loc="best", fontsize=7)
-        n+=1
-    #plt.show()
+            ax.legend(loc="best", fontsize=7)
+            n+=1
 
-    #plt.tight_layout()
-    print 'saving outlier plot to', out_fn
-    plt.savefig(out_fn,width=1000*nMeasure, dpi=1000)
+        temp_fn = os.path.splitext(out_fn)
+        temp_out_fn = temp_fn[0] + '_' + metric + temp_fn[1]
+        print 'saving outlier plot to', out_fn
+        file_list += temp_out_fn
+        plt.savefig(temp_out_fn,width=1000*nMeasure, dpi=1000)
+    return(file_list)
 
 def plot_distance_metrics(dfi,distance_metrics, out_fn, color=cm.spectral):
     df=dfi.copy()
-    f=lambda x: float(str(x).split(',')[-1]) #FIXME: Will only print last error term
+    f=lambda x: float(str(x).split(' ')[-1]) #FIXME: Will only print last error term
     nMetric=len(df.Metric.unique())
     df.Error = df.Error.apply(f)
-
+    files_list = []
     sub_cond=np.array([ str(a)+'_'+str(b) for a,b in  zip(df.Subject, df.Condition) ])
     sub_cond_unique = np.unique(sub_cond)
     nUnique=float(len(sub_cond_unique))
@@ -700,13 +697,11 @@ def plot_distance_metrics(dfi,distance_metrics, out_fn, color=cm.spectral):
         for metric, group2 in group.groupby(['Metric']): 
             plt.clf()
             fig=plt.figure(1)
-            #fig.suptitle('Distance metric ' + key)
             n=1
-            #ax=plt.subplot(nn, nn, n)
             plt.ylabel(metric)
             plt.xlabel('Error in '+key)
             for sub_cond_key, group3 in group2.groupby(['Subject','Condition']): 
-                sub_cond = sub_cond_key[0] + '_' + sub_cond_key[1]
+                sub_cond = str(sub_cond_key[0]) + '_' + str(sub_cond_key[1])
                 plt.plot(group3.Error, group3.Value, c=d[sub_cond], label=sub_cond)
                 #ax.legend(loc="best", fontsize=7)
             n+=1
@@ -714,7 +709,10 @@ def plot_distance_metrics(dfi,distance_metrics, out_fn, color=cm.spectral):
             out2_fn=sub('.png','_'+key+'_'+metric+'.png', out_fn)
             print 'saving outlier plot to', out2_fn
             #plt.tight_layout()
+            print out2_fn
+            files_list += out2_fn
             plt.savefig(out2_fn,width=1000, dpi=500)
+    return(files_list)
 
 
 

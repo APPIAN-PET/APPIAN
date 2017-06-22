@@ -388,7 +388,6 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
 	in_file = File(exists=True, mandatory=True, desc="PET volume")
 	in_json = File(exists=True, mandatory=True, desc="PET json file")
 	out_file = File(desc="Head mask")
-	#slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
 	slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
 	total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
 
@@ -417,21 +416,29 @@ class PETheadMaskingRunning(BaseInterface):
         #print self.inputs.in_file
         #print "\n\n"
         if not isdefined(self.inputs.out_file):
+            #print 'Slice Factor:', self.inputs.slice_factor
+            #print 'Total Factor:', self.inputs.total_factor
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
             #Load PET 3D volume
             infile = volumeFromFile(self.inputs.in_file)
             zmax=infile.sizes[infile.dimnames.index("zspace")]
+            #print 'Zmax', zmax
             #Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)
             slice_thresholds=np.amax(infile.data, axis=(1,2)) * self.inputs.slice_factor
+            #print slice_thresholds
             #Get mean for all values above slice_max
             slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]])) 
             slice_mean = np.array([ slice_mean_f(slice_thresholds, infile.data, i)  for i in range(zmax) ])
+            #print slice_mean
             #Remove nan from slice_mean
             slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
             #Calculate overall mean from mean of thresholded slices
+            #print 'Slice Mean', slice_mean
             overall_mean = np.mean(slice_mean)
             #Calcuate threshold
+            #print 'Overall Mean', overall_mean
             threshold = overall_mean * self.inputs.total_factor
+            #print 'Threshold', threshold
             #Apply threshold and create and write outputfile
             run_calc = CalcCommand();
             run_calc.inputs.in_file = self.inputs.in_file 

@@ -16,7 +16,7 @@ def k_dist(p1, k=0):
     n=len(p1)
     if k ==0:
         if n==2: k=1
-        else: k=1+ceil(n * 0.05)
+        else: k=1+ceil(n * 0.15)
     kd=np.zeros(n)
     minPts=[]
     idx=[]
@@ -61,25 +61,63 @@ def local_outlier_factor(lrd, idx, minPts):
     lcf = np.array(lcf).reshape(-1,1)
     return(lcf)
 
-def lof(z, k=0):
-    z= (z - z.mean(axis=0)) /  z.std(axis=0) 
- 
+def fix_lcf(euc_dist, lcf, euc_dist_mean, lcf_mean):
+    if euc_dist > euc_dist_mean and lcf < lcf_mean:
+        lcf = lcf_mean +  np.abs(lcf_mean - lcf)
+    return(lcf)
+def kde(z, k=0, bandwidth=0.3):
+    z = np.array(z)
+    z= (z - z.mean(axis=0)) /  z.std(axis=0)
+
+    euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
+
+    kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
+    density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
+    factor=1.5
+    min_euc_dist = max(euc_dist) * -factor #0
+    max_euc_dist = max(euc_dist) * factor
+    n=int(len(density)*factor)
+    dd = np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
+
+    ddx=(max_euc_dist-min_euc_dist)/n
+    lin_density=np.exp(kde.score_samples(dd)).reshape(-1,1)
+    n=len(density)
+    cum_dense=np.zeros(n).reshape(-1,1)
+    dd_range = range(len(dd))
+    for ed,i in zip(euc_dist,range(n)):
+        cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
+    return(cum_dense)
+
+def lcf(z, k=0 ):
+    z = np.array(z)
+    z= (z - z.mean(axis=0)) /  z.std(axis=0)
+    [kd,idx, minPts ] = k_dist(z, k)
+    lrd = local_reach_dist(z, idx, minPts, kd)
+    lcf = np.log10( local_outlier_factor(lrd, idx, minPts))
+    #print lcf
+    return(lcf)
+
+
+def lof(z, k=0, bandwidth=0.3, factor=2 ):
+    z = np.array(z)
+    z= (z - z.mean(axis=0)) /  z.std(axis=0)
     [kd,idx, minPts ] = k_dist(z, k)
     lrd = local_reach_dist(z, idx, minPts, kd)
     lcf = local_outlier_factor(lrd, idx, minPts)
     lcf = -np.log10( lcf )
     out = np.array(lcf)
+    #euc_dist = np.array( [ np.sqrt(np.sum((p)**2))  for p in z] ).reshape(-1,1)
     euc_dist = np.array( [ np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
-    euc_dist /= np.max(euc_dist)
+    #euc_dist /= np.max(euc_dist)
     #euc_dist = np.random.normal(0, 1, len(euc_dist)).reshape(-1,1)
     temp=np.array(np.concatenate([lcf,euc_dist],axis=1))
+
     #kde0 = KernelDensity(bandwidth=0.9).fit(lcf)
-    #kde1 = KernelDensity(bandwidth=0.9).fit(euc_dist)
-    #density = np.exp(kde.score_samples(lcf)).reshape(-1,1)
-    kde = KernelDensity(bandwidth=0.9).fit(temp)
-    #kde = gaussian_kde(temp)
+    #kde1 = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
+    #density1 = np.exp(kde1.score_samples(euc_dist)).reshape(-1,1)
+
+    kde = KernelDensity(bandwidth=bandwidth).fit(temp)
     density = np.exp(kde.score_samples(temp)).reshape(-1,1)
-    factor=1.5
     if min(lcf) < 0: min_lcf=min(lcf) * factor
     elif min(lcf) > 0: min_lcf = min(lcf)  * (1/factor)
     else : min_lcf=-max(lcf)
@@ -88,9 +126,9 @@ def lof(z, k=0):
     elif max(lcf) > 0: max_lcf = max(lcf) * factor
     else : max_lcf= -min_lcf
 
-    min_euc_dist =0
-    max_euc_dist = max(euc_dist)
-    n=len(density)*2
+    min_euc_dist = -max(euc_dist) * factor
+    max_euc_dist = max(euc_dist) * factor
+    n=len(density)*factor
     xlin =np.linspace(min_lcf,max_lcf,n).reshape(-1,1)
     dlin =np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
     xx,dd = np.meshgrid(xlin, dlin)
@@ -99,11 +137,24 @@ def lof(z, k=0):
     lin = np.concatenate([xx,dd],axis=1) #.reshape(-1,1)
     #lin = xx
     ddx=(max_lcf-min_lcf)*(max_euc_dist-min_euc_dist)/n**2
-    #ddx=(max_lcf-min_lcf)/n
+    #ddx1=(max_euc_dist-min_euc_dist)/n
     lin_density=np.exp(kde.score_samples(lin)).reshape(-1,1)
+    #lin_density1=np.exp(kde1.score_samples(dlin)).reshape(-1,1)
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
+    #euc_cum_dense=np.zeros(n).reshape(-1,1)
     for l,ed,i in zip(lcf,euc_dist,range(n)):
         cum_dense[i] = np.sum([ lin_density[j] for j in range(len(xx)) if dd[j] < ed ]) * ddx 
+        #euc_cum_dense[i] = np.sum([ lin_density1[j] for j in range(len(dlin)) if  dlin[j] < ed ]) * ddx1
+    
+    #print np.array(np.concatenate([euc_cum_dense[-1], cum_dense[-1]],axis=1))
     return(cum_dense)
+#'''
 
+
+def MAD(z):
+    z = np.array(z)
+    z= (z - z.mean(axis=0)) /  z.std(axis=0)
+
+    x = np.array( [ np.sqrt(np.sum(p**2))  for p in z] ).reshape(-1,1)
+    return -(x - np.median(x)) / np.median(np.abs(x - np.median(x)))

@@ -75,9 +75,9 @@ def minctoecatWorkflow(name):
     conversionNode = pe.Node(interface=minctoecatCommand(), name="conversionNode")
     sifNode = pe.Node(interface=sifCommand(), name="sifNode")
     eframeNode = pe.Node(interface=eframeCommand(), name="eframeNode")
-    outputNode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
     imgunitNode = pe.Node(interface=imgunitCommand(), name="imgunitCommand")
     imgunitNode.inputs.u = "Bq/cc"
+    outputNode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputNode')
     
     workflow.connect(inputNode, 'in_file', conversionNode, 'in_file')
     workflow.connect(inputNode, 'in_file', sifNode, 'in_file')

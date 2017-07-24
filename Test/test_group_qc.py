@@ -133,8 +133,8 @@ distance_metrics={'MI':qc.mi, 'FSE':qc.fse, 'CC':qc.cc }
 #outlier_measures={"LOF":lof} 
 #outlier_threshold={"LOF":np.arange(0,1,0.05) } 
 
-outlier_measures={'LCF':lcf, "KDE":kde , 'MAD':MAD} #, 'LCF':lcf}
-outlier_threshold={"KDE":np.arange(0,1,0.05), 'LCF':np.arange(-2,2,0.05),"MAD":np.arange(-10,10,1) } 
+outlier_measures={"KDE":kde } #{'LCF':lcf, "KDE":kde , 'MAD':MAD} #, 'LCF':lcf}
+outlier_threshold={"KDE":np.arange(0,1,0.05)}#, 'LCF':np.arange(-2,2,0.05),"MAD":np.arange(-10,10,1) } 
 
 ### NODES
 
@@ -592,18 +592,17 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
         normal_df=error_type_df[  error_type_df.Error == normal_param  ]  #Get list of normal subjects for this error type
         #if error_type != 'offset': continue
         for error, error_df in error_type_df.groupby(['Error']):
-            #if not error in ['0 0 0' , '0 0 2', '0 0 4', '0 0 8']: continue
+            #if not error in ['0 0 0']: continue
             for sub, sub_df in error_df.groupby(['Subject']):
                 #Remove the current subject from the data frame containing normal subjects
                 temp_df=normal_df[ ~ (normal_df.Subject == sub) ]
-                #if sub != 'sub03': continue
+                #if sub != 'P28': continue
 
                 for cond, mis_df in sub_df.groupby(['Condition']):
                     #Create data frame of a single row for this subject, error type and error parameter
                     #Combine the data frame with normal PET images with that of the mis-aligned PET image
                     test_df=pd.concat([temp_df, mis_df])
                     for measure, measure_name in zip(outlier_measures_list, outlier_measure_names):
-                        s_list = []
                         combined = test_df.pivot_table(rows=["Subject","Condition","ErrorType","Error"],cols=['Metric'],values="Value")
                         combined.reset_index(inplace=True)
                         r=measure(combined.loc[:,metric_names])
@@ -614,19 +613,22 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
                         df_out = pd.concat([df_out, row],axis=0)
 
                         for metric_name, metric_df in test_df.groupby(['Metric']):
-                            #if metric_name != 'FSE': continue
+                            #if metric_name != 'MI': continue
                             #Get column number of the current outlier measure
                             #Reindex the test_df from 0 to the number of rows it has
                             #Get the series with the calculate the distance measure for the current measurae
+                            #print metric_df[ metric_df.Subject == "P28"  ]
                             metric_df.index = range(metric_df.shape[0])
                             r=measure(metric_df.Value.values)
                             idx = metric_df[ metric_df.Subject == sub  ].index[0]
                             s= r[idx][0]
+                            #metric_df['KDE'] = r
+                            #print metric_df.sort('Value')
+                            #exit(0)
                             #print error,':', s
-                            plt.clf()
-                            plt.scatter(metric_df.Value.values, r)
-                            plt.savefig(metric_name+'_'+error+'.png')
-                            s_list.append(s)
+                            #plt.clf()
+                            #plt.scatter(metric_df.Value.values, r)
+                            #plt.savefig(metric_name+'_'+error+'.png')
                             row_args = [sub,cond,error_type,error,measure_name,metric_name,s]
                             row=pd.DataFrame([row_args], columns=out_columns  )
                             df_out = pd.concat([df_out, row],axis=0)

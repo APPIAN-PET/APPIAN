@@ -12,20 +12,20 @@ from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
 class PVCInput(MINCCommandInputSpec):
-    out_file = File(position=3, argstr="%s",desc="image to operate on")
+    out_file = File(position=3, argstr="-o %s",desc="image to operate on")
     mask = File( position=2, argstr="-mask %s", desc="Integer mask file")
-    input_file = File(exists=True, position=1, argstr="%s", desc="PET file")
+    input_file = File(exists=True, position=1, argstr="-pet %s", desc="PET file")
     z_fwhm = traits.Float( argstr="-z %f", desc="FWHM of PSF along z-axis")
     y_fwhm = traits.Float( argstr="-y %f", desc="FWHM of PSF along y-axis")
     x_fwhm = traits.Float( argstr="-x %f", desc="FWHM of PSF along x-axis")
+    fwhm = traits.Float( argstr="-fwhm %f", desc="FWHM of PSF all axes")
      
     max_iterations = traits.Int(argstr="-max-iterations %d", desc="Maximum number of iterations")
     tolerance = traits.Float( argstr="-tolerance %f", desc="Tolerance")
     denoise_fwhm = traits.Float( argstr="-denoise_fwhm %f", desc="FWHM for denoising image")
     lambda_var = traits.Float( argstr="-lambda %f", desc="Lambda for controlling smoothing across regions")
     nvoxel_to_average = traits.Int( argstr="-nvoxel-to-average %f", desc="Number of voxels to average over.")
-    pvc_method = traits.Str(argstr="--pvc %s",mandatory=True, desc="PVC type")
-
+    pvc_method = traits.Str(argstr="--pvc %s",mandatory=False, desc="PVC type")
   
 class PVCOutput(TraitedSpec):
     out_file = File(argstr="-o %s", exists=True, desc="Output PET image")
@@ -33,10 +33,12 @@ class PVCOutput(TraitedSpec):
 class PVCCommand(MINCCommand):
     input_spec =  PVCInput
     output_spec = PVCOutput
-    
-    def __init__(self, pvc_method):
-        self._cmd = pvc_method 
-        self._suffix = "_" + _cmd 
+    _cmd='gtm'
+    _suffix='_gtm'
+    #def __init__(self, pvc_method):
+    #    pass
+    #self._cmd = pvc_method 
+    #    self._suffix = "_" + self._cmd 
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -59,7 +61,7 @@ class PVCCommand(MINCCommand):
             skip = []
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.input_file, self._suffix)
-        return super(GTMCommand, self)._parse_inputs(skip=skip)
+        return super(PVCCommand, self)._parse_inputs(skip=skip)
 
 
 def get_workflow(name, infosource, datasink, opts):
@@ -72,17 +74,21 @@ def get_workflow(name, infosource, datasink, opts):
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
     node_name=opts.pvc_method
-    PVCNode = pe.Node(interface=PVCCommand(opts.pvc_method), name=node_name)
-    PVCNode.inputs.z_fwhm = opts.scanner_fwhm[0]
-    PVCNode.inputs.y_fwhm = opts.scanner_fwhm[1]
-    PVCNode.inputs.x_fwhm = opts.scanner_fwhm[2]
-    PVCNode.inputs.pvc_method = opts.pvc_method
-    if opts.pvc_method == "idSURF":
+    #PVCNode = pe.Node(interface=PVCCommand(opts.pvc_method), name=node_name)
+    PVCNode = pe.Node(interface=PVCCommand(), name=node_name)
+    if opts.pvc_method == "gtm":
+        PVCNode.inputs.fwhm = opts.scanner_fwhm[0]
+    elif opts.pvc_method == "idSURF":
         PVCNode.inputs.max_iterations = opts.max_iterations
         PVCNode.inputs.tolerance = opts.tolerance
         PVCNode.inputs.denoise_fwhm = opts.denoise_fwhm
         PVCNode.inputs.lambda_var = opts.lambda_var
         PVCNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
+    else:
+        PVCNode.inputs.z_fwhm = opts.scanner_fwhm[0]
+        PVCNode.inputs.y_fwhm = opts.scanner_fwhm[1]
+        PVCNode.inputs.x_fwhm = opts.scanner_fwhm[2]
+        PVCNode.inputs.pvc_method = opts.pvc_method
     workflow.connect([
                     (inputnode, PVCNode, [('pet_center','input_file')]),
                     (inputnode, PVCNode, [('pet_mask','mask')])

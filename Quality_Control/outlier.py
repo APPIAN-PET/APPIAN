@@ -65,25 +65,66 @@ def fix_lcf(euc_dist, lcf, euc_dist_mean, lcf_mean):
     if euc_dist > euc_dist_mean and lcf < lcf_mean:
         lcf = lcf_mean +  np.abs(lcf_mean - lcf)
     return(lcf)
+
+def kde2(z, k=0, bandwidth=0.3):
+    z = np.array(z)
+    z= (z - z.mean(axis=0)) /  z.std(axis=0)
+    ndim=z.shape[1]
+    nrow=z.shape[0]
+    factor=1.5
+
+    zyxr = [ np.arange(min(z[i])*factor, max(z[i])*factor, factor*(max(z[i]) - min(z[i]))/nrow)  for i in range(ndim) ]
+    ZYXR = np.meshgrid(*zyxr)
+    ZYXR2 = [ ZYXR[i].flatten() for i in range(ndim) ]
+    ZYXR3 = [ [ZYXR2[0][i], ZYXR2[1][i], ZYXR2[2][i]] for i in range(len(ZYXR2)) ]
+    #print ZYXR3
+
+    euc_dist = z # np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
+
+    kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
+    density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
+    #min_euc_dist = max(euc_dist) * -factor #0
+    #max_euc_dist = max(euc_dist) * factor
+    #n=int(len(density)*factor)
+    #dd = np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
+
+    #ddx=(max_euc_dist-min_euc_dist)/n
+    #xx,dd = np.meshgrid(xlin, dlin)
+    #lin_density=np.exp(kde.score_samples(dd)).reshape(-1,1)
+    lin_density=np.exp(kde.score_samples(ZYXR3)).reshape(-1,1)
+    n=len(density)
+    cum_dense=np.zeros(n).reshape(-1,1)
+    #dd_range = range(len(dd))
+    dd_range = range(len(ZYXR3))
+    for ed,i in zip(euc_dist,range(n)):
+        cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
+    return(cum_dense)
+
+
+
+
 def kde(z, k=0, bandwidth=0.3):
     z = np.array(z)
     z= (z - z.mean(axis=0)) /  z.std(axis=0)
+    factor=5
 
     euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
 
     kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
     density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
-    factor=1.5
     min_euc_dist = max(euc_dist) * -factor #0
     max_euc_dist = max(euc_dist) * factor
     n=int(len(density)*factor)
     dd = np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
 
     ddx=(max_euc_dist-min_euc_dist)/n
+    #xx,dd = np.meshgrid(xlin, dlin)
     lin_density=np.exp(kde.score_samples(dd)).reshape(-1,1)
+    #lin_density=np.exp(kde.score_samples(ZYXR3)).reshape(-1,1)
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
     dd_range = range(len(dd))
+    #dd_range = range(len(ZYXR3))
     for ed,i in zip(euc_dist,range(n)):
         cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
     return(cum_dense)

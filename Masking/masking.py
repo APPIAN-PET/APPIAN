@@ -465,7 +465,7 @@ def get_workflow(name, infosource, datasink, opts):
 	workflow = pe.Workflow(name=name)
 
 	#Define input node that will receive input from outside of workflow
-	inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1nuc","xfmT1Tal","T1Tal","brainmaskTal", "clsmask","animalmask","subjectROI","pet_volume","pet_json"]), name='inputnode')
+	inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1nuc","xfmT1Tal","T1Tal","brainmaskTal", "clsmask","segmentation","subjectROI","pet_volume","pet_json"]), name='inputnode')
 
 	#Define empty node for output
 	outputnode = pe.Node(niu.IdentityInterface(fields=["t1_brainMask","t1_headMask","pet_headMask","tal_refMask", "t1_refMask","tal_ROIMask","t1_ROIMask","tal_PVCMask","t1_PVCMask"]), name='outputnode')
@@ -477,8 +477,8 @@ def get_workflow(name, infosource, datasink, opts):
 	t1Masking.inputs.clobber = True
 	t1Masking.inputs.verbose = opts.verbose
 	t1Masking.inputs.run = opts.prun
-	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
-	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
+	rT1MaskingHead=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
+	rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
 
 
 	node_name="petMasking"
@@ -487,7 +487,7 @@ def get_workflow(name, infosource, datasink, opts):
 	petMasking.inputs.run = opts.prun
         petMasking.inputs.slice_factor = opts.slice_factor
         petMasking.inputs.total_factor = opts.total_factor
-	rPetMasking=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+	rPetMasking=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
 	node_name="refMasking"
@@ -502,8 +502,8 @@ def get_workflow(name, infosource, datasink, opts):
 	refMasking.inputs.clobber = True
 	refMasking.inputs.verbose = opts.verbose
 	refMasking.inputs.run = opts.prun
-	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rRefMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rRefMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
 	node_name="roiMasking"
 	roiMasking = pe.Node(interface=RegionalMaskingRunning(), name=node_name)
@@ -514,8 +514,8 @@ def get_workflow(name, infosource, datasink, opts):
 	roiMasking.inputs.clobber = True
 	roiMasking.inputs.verbose = opts.verbose
 	roiMasking.inputs.run = opts.prun
-	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rROIMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rROIMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
 	node_name="pvcMasking"
 	pvcMasking = pe.Node(interface=RegionalMaskingRunning(), name=node_name)
@@ -525,8 +525,8 @@ def get_workflow(name, infosource, datasink, opts):
 	pvcMasking.inputs.clobber = True
 	pvcMasking.inputs.verbose = opts.verbose
 	pvcMasking.inputs.run = opts.prun
-	rPVCMaskingTal=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-	rPVCMaskingT1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+	rPVCMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
+	rPVCMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
 
 
 
@@ -534,13 +534,13 @@ def get_workflow(name, infosource, datasink, opts):
 	invert_Tal2T1 = pe.Node(interface=InvertCommand(), name=node_name)
 	invert_Tal2T1.inputs.clobber = True
 	invert_Tal2T1.inputs.verbose = opts.verbose
-	rInvert_Tal2T1=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name)
+	rInvert_Tal2T1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name)
 
 	workflow.connect([(inputnode, invert_Tal2T1, [('xfmT1Tal', 'in_file')])])
 
 	workflow.connect([(invert_Tal2T1, rInvert_Tal2T1, [('out_file', 'in_file')])])
 
-	workflow.connect([(infosource, rInvert_Tal2T1, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rInvert_Tal2T1, [('study_prefix', 'study_prefix')]),
 					  (infosource, rInvert_Tal2T1, [('sid', 'sid')]),
 					  (infosource, rInvert_Tal2T1, [('cid','cid')])])
 
@@ -555,10 +555,10 @@ def get_workflow(name, infosource, datasink, opts):
 	workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
 	workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
 
-	workflow.connect([(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
 					  (infosource, rT1MaskingBrain, [('sid', 'sid')]),
 					  (infosource, rT1MaskingBrain, [('cid','cid')])])
-	workflow.connect([(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
 	 				  (infosource, rT1MaskingHead, [('sid', 'sid')]),
 	 				  (infosource, rT1MaskingHead, [('cid','cid')])])
 
@@ -568,7 +568,7 @@ def get_workflow(name, infosource, datasink, opts):
 	workflow.connect([(inputnode, petMasking, [('pet_volume', 'in_file')]), 
 					  (inputnode, petMasking, [('pet_json', 'in_json')])])
 	workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
-	workflow.connect([(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
 					(infosource, rPetMasking, [('sid', 'sid')]),
 					(infosource, rPetMasking, [('cid', 'cid')])
 					])
@@ -580,13 +580,13 @@ def get_workflow(name, infosource, datasink, opts):
                       (invert_Tal2T1, roiMasking, [('out_file', 'LinTalT1Xfm')]),
                       (inputnode, roiMasking, [('brainmaskTal','brainmaskTal')]),
                       (inputnode, roiMasking, [('clsmask','clsmaskTal')]),
-                      (inputnode, roiMasking, [('animalmask','segMaskTal')])
+                      (inputnode, roiMasking, [('segmentation','segMaskTal')])
                     ])
 
 	if opts.ROIMaskingType == "roi-user":
 		workflow.connect([(inputnode, roiMasking, [('subjectROI','ROIMask')])])	
 	elif opts.ROIMaskingType in [ "animal" ]:
-		workflow.connect([(inputnode, roiMasking, [('animalmask','ROIMask')])]) 
+		workflow.connect([(inputnode, roiMasking, [('segmentation','ROIMask')])]) 
 	elif opts.ROIMaskingType in [ "civet" ]:
 		workflow.connect([(inputnode, roiMasking, [('clsmask','ROIMask')])])
 	elif opts.ROIMaskingType in [ "icbm152", "atlas"] :
@@ -594,13 +594,13 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 	workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
-	workflow.connect([(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
                       (infosource, rROIMaskingTal, [('sid', 'sid')]),
                       (infosource, rROIMaskingTal, [('cid', 'cid')])
                     ])
 
 	workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
-	workflow.connect([(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
                       (infosource, rROIMaskingT1, [('sid', 'sid')]),
                       (infosource, rROIMaskingT1, [('cid', 'cid')])
                     ])
@@ -615,26 +615,26 @@ def get_workflow(name, infosource, datasink, opts):
                       (invert_Tal2T1, refMasking, [('out_file', 'LinTalT1Xfm')]),
                       (inputnode, refMasking, [('brainmaskTal','brainmaskTal' )]),
                       (inputnode, refMasking, [('clsmask','clsmaskTal')]),
-                      (inputnode, refMasking, [('animalmask','segMaskTal' )])
+                      (inputnode, refMasking, [('segmentation','segMaskTal' )])
                     ])
   
 	if opts.RefMaskingType == "roi-user":
 		workflow.connect([(inputnode, refMasking, [('subjectROI','ROIMask')]) ])	
 	elif opts.RefMaskingType in [ "animal" ]:
-		workflow.connect([(inputnode, refMasking, [('animalmask','ROIMask')]) ]) 
+		workflow.connect([(inputnode, refMasking, [('segmentation','ROIMask')]) ]) 
 	elif opts.RefMaskingType in [ "civet" ]:
 		workflow.connect([(inputnode, refMasking, [('clsmask','ROIMask')]) ])
 	elif opts.RefMaskingType in [ "icbm152", "atlas"] :
 		refMasking.inputs.ROIMask=opts.ROIMask
 	
         workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
-	workflow.connect([(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingTal, [('sid', 'sid')]),
                       (infosource, rRefMaskingTal, [('cid', 'cid')])
                     ])	
 
 	workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
-	workflow.connect([(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
+	workflow.connect([#(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
                       (infosource, rRefMaskingT1, [('sid', 'sid')]),
                       (infosource, rRefMaskingT1, [('cid', 'cid')])
                     ])
@@ -668,27 +668,27 @@ def get_workflow(name, infosource, datasink, opts):
 	                      (invert_Tal2T1, pvcMasking, [('out_file', 'LinTalT1Xfm')]),
 	                      (inputnode, pvcMasking, [('brainmaskTal','brainmaskTal' )]),
 	                      (inputnode, pvcMasking, [('clsmask','clsmaskTal')]),
-	                      (inputnode, pvcMasking, [('animalmask','segMaskTal' )])
+	                      (inputnode, pvcMasking, [('segmentation','segMaskTal' )])
 	                    ])
 
 
 		if opts.PVCMaskingType == "roi-user":
 			workflow.connect([(inputnode, pvcMasking, [('subjectROI','ROIMask')]) ])	
 		elif opts.PVCMaskingType in [ "animal" ]:
-			workflow.connect([(inputnode, pvcMasking, [('animalmask','ROIMask')]) ]) 
+			workflow.connect([(inputnode, pvcMasking, [('segmentation','ROIMask')]) ]) 
 		elif opts.PVCMaskingType in [ "civet" ]:
 			workflow.connect([(inputnode, pvcMasking, [('clsmask','ROIMask')]) ])
 		elif opts.PVCMaskingType in [ "icbm152", "atlas"] :
 			pvcMasking.inputs.ROIMask=opts.ROIMask
 
 		workflow.connect([(pvcMasking, rPVCMaskingTal, [('RegionalMaskTal', 'in_file')])])
-		workflow.connect([(infosource, rPVCMaskingTal, [('study_prefix', 'study_prefix')]),
+		workflow.connect([#(infosource, rPVCMaskingTal, [('study_prefix', 'study_prefix')]),
 	                      (infosource, rPVCMaskingTal, [('sid', 'sid')]),
 	                      (infosource, rPVCMaskingTal, [('cid', 'cid')])
 	                    ])
 
 		workflow.connect([(pvcMasking, rPVCMaskingT1, [('RegionalMaskT1', 'in_file')])])
-		workflow.connect([(infosource, rPVCMaskingT1, [('study_prefix', 'study_prefix')]),
+		workflow.connect([#(infosource, rPVCMaskingT1, [('study_prefix', 'study_prefix')]),
 	                      (infosource, rPVCMaskingT1, [('sid', 'sid')]),
 	                      (infosource, rPVCMaskingT1, [('cid', 'cid')])
 	                    ])

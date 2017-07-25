@@ -552,9 +552,9 @@ def get_workflow(name, infosource, datasink, opts):
     pet2mri_withMask.inputs.clobber = True
     pet2mri_withMask.inputs.verbose = opts.verbose
     pet2mri_withMask.inputs.run = opts.prun
-    rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
-    rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
-    rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
+    rPet2MriImg=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
+    rPet2MriXfm=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
+    rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
 
     if opts.no_mask :
         node_name="pet2mri"
@@ -565,9 +565,9 @@ def get_workflow(name, infosource, datasink, opts):
     else : 
         pet2mri = pet2mri_withMask
 
-    rPet2MriImg=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
-    rPet2MriXfm=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
-    rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
+    rPet2MriImg=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
+    rPet2MriXfm=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
+    rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
 
 
     node_name="petRefMask"
@@ -575,28 +575,28 @@ def get_workflow(name, infosource, datasink, opts):
     petRefMask.inputs.interpolation = 'nearest_neighbour'
     # petRefMask.inputs.invert = 'invert_transformation'
     petRefMask.inputs.clobber = True
-    rPetRefMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetRefMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="pet_brain_mask"
     pet_brain_mask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
     pet_brain_mask.inputs.interpolation = 'nearest_neighbour'
     # petRefMask.inputs.invert = 'invert_transformation'
     pet_brain_mask.inputs.clobber = True
-    rpet_brain_mask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rpet_brain_mask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petROIMask"
     petROIMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
     petROIMask.inputs.interpolation = 'nearest_neighbour'
     # petROIMask.inputs.invert = 'invert_transformation'
     petROIMask.inputs.clobber = True
-    rPetROIMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetROIMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petPVCMask"
     petPVCMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
     petPVCMask.inputs.interpolation = 'nearest_neighbour'
     # petPVCMask.inputs.invert = 'invert_transformation'
     petPVCMask.inputs.clobber = True
-    rPetPVCMask=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetPVCMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
     workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
@@ -618,19 +618,19 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     workflow.connect([(pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
-    workflow.connect([(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPet2MriImg, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriImg, [('sid', 'sid')]),
                       (infosource, rPet2MriImg, [('cid', 'cid')])
                     ])
 
     workflow.connect([(pet2mri, rPet2MriXfm, [('out_file_xfm_invert', 'in_file')])])
-    workflow.connect([(infosource, rPet2MriXfm, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPet2MriXfm, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriXfm, [('sid', 'sid')]),
                       (infosource, rPet2MriXfm, [('cid', 'cid')])
                     ])
 
     workflow.connect([(pet2mri, rPet2MriXfmInvert, [('out_file_xfm_invert', 'in_file')])])
-    workflow.connect([(infosource, rPet2MriXfmInvert, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPet2MriXfmInvert, [('study_prefix', 'study_prefix')]),
                       (infosource, rPet2MriXfmInvert, [('sid', 'sid')]),
                       (infosource, rPet2MriXfmInvert, [('cid', 'cid')])
                     ])
@@ -650,7 +650,7 @@ def get_workflow(name, infosource, datasink, opts):
                     ]) 
 
     workflow.connect([(pet_brain_mask, rpet_brain_mask, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rpet_brain_mask, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rpet_brain_mask, [('study_prefix', 'study_prefix')]),
                       (infosource, rpet_brain_mask, [('sid', 'sid')]),
                       (infosource, rpet_brain_mask, [('cid', 'cid')])
                     ])
@@ -664,7 +664,7 @@ def get_workflow(name, infosource, datasink, opts):
                     ]) 
 
     workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetRefMask, [('sid', 'sid')]),
                       (infosource, rPetRefMask, [('cid', 'cid')])
                     ])
@@ -678,7 +678,7 @@ def get_workflow(name, infosource, datasink, opts):
                     ]) 
 
     workflow.connect([(petROIMask, rPetROIMask, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetROIMask, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPetROIMask, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetROIMask, [('sid', 'sid')]),
                       (infosource, rPetROIMask, [('cid', 'cid')])
                     ])
@@ -693,7 +693,7 @@ def get_workflow(name, infosource, datasink, opts):
                         ]) 
 
         workflow.connect([(petPVCMask, rPetPVCMask, [('out_file', 'in_file')])])
-        workflow.connect([(infosource, rPetPVCMask, [('study_prefix', 'study_prefix')]),
+        workflow.connect([#(infosource, rPetPVCMask, [('study_prefix', 'study_prefix')]),
                           (infosource, rPetPVCMask, [('sid', 'sid')]),
                           (infosource, rPetPVCMask, [('cid', 'cid')])
                         ])

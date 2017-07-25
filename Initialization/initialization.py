@@ -23,37 +23,63 @@ from nipype.interfaces.minc.info import InfoCommand
 from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand
 from nipype.interfaces.minc.reshape import ReshapeCommand
 from nipype.interfaces.minc.concat import ConcatCommand
+from glob import glob
 
-def gen_args(opts,conditions, subjects):
+def unique_file(files, attributes):
+    if len(files) == 1:
+        return(files[0])
+    files = [ f for f in files if attributes[0] in f ]
+    return( unique_file(files, attributes[1:]) ) 
+
+
+def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
     args=[]
+    print subjects
     for sub in subjects:
-        for cond in conditions:
-            pet_fn=opts.sourceDir + os.sep + opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
-            civet_fn=opts.civetDir+os.sep+sub +'_'+cond
-            if os.path.exists(pet_fn) and os.path.exists(civet_fn):
-                print pet_fn
-                print civet_fn
-                d={'cid':cond, 'sid':sub}
-                args.append(d)
-            else:
-                if not os.path.exists(pet_fn) :
-                    print "Could not find PET for ", sub, cond, pet_fn
-                if not os.path.exists(civet_fn) :
-                    print "Could not find CIVET for ", sub, cond, civet_fn
+        for ses in session_ids:
+            for task in task_ids:
+                sub_arg='sub-'+sub
+                ses_arg=task_arg=rec_arg=acq_arg=""
+                #if not ses == None: ses_arg='ses-'+ses
+                #if not task == None: task_arg='task-'+task
+                if not acq == None: acq_arg='acq-'+acq
+                if not rec == None: rec_arg='rec-'+rec
+
+                pet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/pet/*_pet.mnc' )
+                pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
+
+                civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
+                civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
+                
+                # opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
+                #civet_fn=opts.civetDir+os.sep+sub +'_'+cond
+                if os.path.exists(pet_fn) and os.path.exists(civet_fn):
+                    d={'task':task, 'ses':ses, 'sid':sub}
+                    args.append(d)
+                    print d
+                else:
+                    if not os.path.exists(pet_fn) :
+                        print "Could not find PET for ", sub, cond, pet_fn
+                    if not os.path.exists(civet_fn) :
+                        print "Could not find CIVET for ", sub, cond, civet_fn
     return args
 
             
 
 class SplitArgsOutput(TraitedSpec):
     cid = traits.Str(mandatory=True, desc="Condition ID")
-    sid = traits.Str(mandatory=True, desc="Subject ID")
-    study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
+    sid = traits.Str(mandatory=True, desc="Subject ID") 
+    task = traits.Str(desc="Task ID")
+    ses = traits.Str(desc="Session ID")
+    #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
-    cid = traits.Str(desc="Condition ID")
+    task = traits.Str(desc="Task ID")
+    ses = traits.Str(desc="Session ID")
     sid = traits.Str(desc="Subject ID")
-    study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
+    cid = traits.Str(desc="Condition ID")
+    #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
     args = traits.Dict(mandatory=True, desc="Overwrite output file")
 
@@ -62,7 +88,12 @@ class SplitArgsRunning(BaseInterface):
     output_spec = SplitArgsOutput
 
     def _run_interface(self, runtime):
-       self.inputs.cid=self.inputs.args['cid']
+       self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
+       print '\n\n\n'
+       print self.inputs.cid
+       print '\n\n\n'
+       self.inputs.task=self.inputs.args['task']
+       self.inputs.ses=self.inputs.args['ses']
        self.inputs.sid=self.inputs.args['sid']
        if isdefined(self.inputs.RoiSuffix):
            self.inputs.RoiSuffix=self.inputs.RoiSuffix
@@ -72,10 +103,11 @@ class SplitArgsRunning(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        
         outputs["cid"] = self.inputs.cid
         outputs["sid"] = self.inputs.sid
-        outputs["study_prefix"] = self.inputs.study_prefix
+        outputs["ses"] = self.inputs.ses
+        outputs["task"] = self.inputs.task
+        #outputs["study_prefix"] = self.inputs.study_prefix
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
@@ -346,13 +378,13 @@ def get_workflow(name, infosource, datasink, opts):
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
     petCenter.inputs.run = opts.prun    
-    rPetCenter=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetCenter=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petExcludeFr"
     petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
     petExFr.inputs.verbose = opts.verbose   
     petExFr.inputs.run = opts.prun
-    rPetExFr=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
     node_name="petVolume"
@@ -361,7 +393,7 @@ def get_workflow(name, infosource, datasink, opts):
     petVolume.inputs.width_weighted = True
     petVolume.inputs.clobber = True
     petVolume.inputs.verbose = opts.verbose 
-    rPetVolume=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
     node_name="petBlur"
@@ -375,7 +407,7 @@ def get_workflow(name, infosource, datasink, opts):
     petSettings.inputs.verbose = opts.verbose
     petSettings.inputs.clobber = True
     petSettings.inputs.run = opts.prun
-    rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     # node_name="petCenterSettings"
     # petCenterSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
@@ -389,7 +421,7 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
 
     workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetCenter, [('sid', 'sid')]),
                       (infosource, rPetCenter, [('cid', 'cid')])
                     ])
@@ -400,7 +432,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
     workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetExFr, [('sid', 'sid')]),
                       (infosource, rPetExFr, [('cid', 'cid')])
                     ])
@@ -411,7 +443,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
     workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
+    workflow.connect([#(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetVolume, [('sid', 'sid')]),
                       (infosource, rPetVolume, [('cid', 'cid')])
                     ])

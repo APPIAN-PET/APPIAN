@@ -26,9 +26,11 @@ from nipype.interfaces.minc.concat import ConcatCommand
 from glob import glob
 
 def unique_file(files, attributes):
+    print files
     if len(files) == 1:
         return(files[0])
     files = [ f for f in files if attributes[0] in f ]
+    print files
     return( unique_file(files, attributes[1:]) ) 
 
 
@@ -47,10 +49,10 @@ def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
 
                 pet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/pet/*_pet.mnc' )
                 pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
-
+                
                 civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
                 civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
-                
+                 
                 # opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
                 #civet_fn=opts.civetDir+os.sep+sub +'_'+cond
                 if os.path.exists(pet_fn) and os.path.exists(civet_fn):
@@ -63,8 +65,6 @@ def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
                     if not os.path.exists(civet_fn) :
                         print "Could not find CIVET for ", sub, cond, civet_fn
     return args
-
-            
 
 class SplitArgsOutput(TraitedSpec):
     cid = traits.Str(mandatory=True, desc="Condition ID")
@@ -97,9 +97,7 @@ class SplitArgsRunning(BaseInterface):
        self.inputs.sid=self.inputs.args['sid']
        if isdefined(self.inputs.RoiSuffix):
            self.inputs.RoiSuffix=self.inputs.RoiSuffix
-
        return runtime
-
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -111,6 +109,7 @@ class SplitArgsRunning(BaseInterface):
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
+
 
 
 

@@ -228,6 +228,38 @@ class minctoecatCommand(MINCCommand):
         	self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(minctoecatCommand, self)._parse_inputs(skip=skip)
 
+class nii2mncOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="convert from nifti to minc")
+
+class nii2mncInput(MINCCommandInputSpec):
+    out_file = File( argstr="%s", position=-1, desc="minc file")
+    in_file= File(exists=True, argstr="%s", position=-2, desc="nifti file")
+
+class nii2mncCommand(MINCCommand):
+    input_spec =  nii2mncInput
+    output_spec = nii2mncOutput
+
+    _cmd = "nii2mnc"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + ".mnc"
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+        	self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        return super(nii2mncCommand, self)._parse_inputs(skip=skip)
+
+
 ##################
 ### ecattominc ###
 ##################

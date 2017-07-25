@@ -19,6 +19,8 @@ import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 from nipype.interfaces.utility import Rename
 
+from nipype.interfaces.minc import conversion # nii2mncCommand
+
 from Masking import masking as masking
 import Registration.registration as reg
 import Initialization.initialization as init
@@ -28,6 +30,7 @@ import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import tka_methods
 import Quality_Control.group_qc_coreg as qc
 import Test.test_group_qc as tqc
+
 # import nipype.interfaces.minc.results as results
 version = "1.0"
 
@@ -127,9 +130,8 @@ def runPipeline(opts,args):
         datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['sid', 'RoiSuffix'],  outfields=['subjectROI'], raise_on_empty = True, sort_filelist=False), name="datasourceROI")
         datasourceROI.inputs.base_directory = opts.roi_dir
         datasourceROI.inputs.template = '*'
-        datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s.mnc')
-        #datasourceROI.inputs.template_args = dict(subjectROI=[['study_prefix', 'sid', 'RoiSuffix']])	
-        datasourceROI.inputs.template_args = dict(subjectROI=[['sid', 'RoiSuffix']])	
+        datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s_%s.'+opt.img_ext)
+        datasourceROI.inputs.template_args = dict(subjectROI=[['sid', 'cid', 'RoiSuffix']])	
 
     if opts.arterial_dir != None:
         datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['sid', 'cid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
@@ -141,22 +143,26 @@ def runPipeline(opts,args):
 
 
     ### Datasource for raw T1w image
-    datasource = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=['nativeT1','nativeT1nuc', 'T1Tal' , 'xfmT1Tal' ,'xfmT1Talnl' ,'brainmaskTal', 'headmaskTal', 'clsmask', 'segmentation', 'pet' ], raise_on_empty=True, sort_filelist=False), name="datasource")
+
+    base_images=['nativeT1',  'nativeT1nuc',  'T1Tal',  'brainmaskTal',  'headmaskTal',  'clsmask', 'segmentation', 'pet']
+    base_transforms=[ 'xfmT1Tal' ,'xfmT1Talnl']
+    base_inputs = base_images + base_transforms
+    datasource = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=base_inputs, raise_on_empty=True, sort_filelist=False), name="datasource")
     datasource.inputs.base_directory = opts.sourceDir
     datasource.inputs.template = '*'
     datasource.inputs.acq=opts.acq
     datasource.inputs.rec=opts.rec
     datasource.inputs.field_template =dict(
-        nativeT1='sub-%s/ses-%s/anat/sub-%s_ses-%s*T1w.mnc',
-        nativeT1nuc='sub-%s/ses-%s/anat/sub-%s_ses-%s*T1w_nuc.mnc', 
-        T1Tal='sub-%s/ses-%s/final/sub-%s_ses-%s*T1w_mni.mnc',
-        xfmT1Tal='sub-%s/ses-%s/transforms/sub-%s_ses-%s*nat2mni-lin.xfm',
-        xfmT1Talnl='sub-%s/ses-%s/transforms/sub-%s_ses-%s*nat2mni-nl.xfm',
-        brainmaskTal='sub-%s/ses-%s/mask/sub-%s_ses-%s*brain_mask.mnc',
-        headmaskTal='sub-%s/ses-%s/mask/sub-%s_ses-%s*skull_mask.mnc',
-        clsmask='sub-%s/ses-%s/mask/sub-%s_ses-%s*classify.mnc',
-        segmentation='sub-%s/ses-%s/mask/sub-%s_ses-%s*segmentation.mnc',
-        pet='sub-%s/ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.mnc' 
+        nativeT1='sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.'+opts.img_ext,
+        nativeT1nuc='sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.*'+opts.img_ext, 
+        T1Tal='sub-%s/_ses-%s/final/sub-%s_ses-%s*_T1w_space-mni.*'+opts.img_ext,
+        xfmT1Tal='sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm',
+        xfmT1Talnl='sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_warp.xfm',
+        brainmaskTal='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_brainmask.*'+opts.img_ext,
+        headmaskTal='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_skullmask.*'+opts.img_ext,
+        clsmask='sub-%s/_ses-%s/anat/sub-%s_ses-%s*space-mni_variant-cls_dtissue.*'+opts.img_ext,
+        segmentation='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_variant-seg_dtissue.*'+opts.img_ext,
+        pet='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.*'+opts.img_ext 
     )
     datasource.inputs.template_args = dict(
         nativeT1=[[ 'sid', 'ses', 'sid', 'ses']],
@@ -170,7 +176,50 @@ def runPipeline(opts,args):
         segmentation=[[ 'sid', 'ses', 'sid', 'ses']],
         pet = [['sid', 'ses', 'sid', 'ses', 'task', 'acq', 'rec']]
     )
+    if opts.use_surfaces:
+        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
+        datasourceSurf.inputs.base_directory = opts.sourceDir
+        datasourceSurf.inputs.template = '*'
+        datasourceSurf.inputs.acq=opts.acq
+        datasourceSurf.inputs.rec=opts.rec
+        datasourceSurf.inputs.field_template =dict(
+            gm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial."+opt.surf_ext,
+            wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opt.surf_ext,
+            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opt.surf_ext
+        )
+        datasourceSurf.inputs.template_args = dict(
+            gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
+            wm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
+            mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
+        )
 
+    #############################################
+    ### Define Workflow and basic connections ###
+    #############################################
+    workflow.connect(preinfosource, 'args', infosource, "args")
+    workflow.connect([
+                    (infosource, datasource, [('sid', 'sid')]),
+                    (infosource, datasource, [('cid', 'cid')]),
+                    (infosource, datasource, [('task', 'task')]),
+                    (infosource, datasource, [('ses', 'ses')]),
+                     ])
+
+    ############################################################
+    ### Convert NII to MINC if necessary.                      # 
+    ### Pass to identity node that serves as pseudo-datasource #
+    ############################################################
+    datasourceMINC = pe.Node(niu.IdentityInterface(fields=base_inputs), name='datasourceMINC')
+    for i in range(len(base_transforms)):
+        workflow.connect(datasource, base_transforms[i] , datasourceMINC, base_transforms[i] )
+
+    for i in range(len(base_images)):
+        if opts.img_ext == 'nii':
+            nii2mncNode = pe.Node(interface=conversion.nii2mncCommand, name=base_images[i]+'_nii2mncNode')
+            workflow.connect(datasource, base_images[i], nii2mncNodes, "in_file")
+            workflow.connect(nii2mncNodes, 'out_file', datasourceMINC, base_images[i])
+        else:
+            workflow.connect(datasource, base_images[i], datasourceMINC, base_images[i])
+        i += 1
     t1_type='nativeT1nuc'
     if opts.coregistration_target_image == 'raw':
         t1_type='nativeT1'
@@ -181,27 +230,11 @@ def runPipeline(opts,args):
     datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-    #############################################
-    ### Define Workflow and basic connections ###
-    #############################################
-    workflow.connect(preinfosource, 'args', infosource, "args")
-    
-    workflow.connect([
-                    (infosource, datasource, [('sid', 'sid')]),
-                    (infosource, datasource, [('cid', 'cid')]),
-                    (infosource, datasource, [('task', 'task')]),
-                    (infosource, datasource, [('ses', 'ses')]),
-                    #(infosource, datasource, [('study_prefix', 'study_prefix')]),
-                    #(infosource, datasource, [('cid', 'cid')]),
-                    #(infosource, datasource, [('sid', 'sid')]),
-                    #(infosource, datasource, [('study_prefix', 'study_prefix')]),
-                     ])
-
     ###################
     # PET prelimaries #
     ###################
     wf_init_pet=init.get_workflow("pet_prelimaries", infosource, datasink, opts)
-    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+    workflow.connect(datasourceMINC, 'pet', wf_init_pet, "inputnode.pet")
     #workflow.connect(datasource, 'nativeT1', wf_init_pet, "inputnode")
     out_node_list = [wf_init_pet]
     out_img_list = ['outputnode.pet_center']
@@ -209,12 +242,12 @@ def runPipeline(opts,args):
     # Masking #
     ###########
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
-    workflow.connect(datasource, t1_type, wf_masking, "inputnode.nativeT1nuc")
-    workflow.connect(datasource, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
-    workflow.connect(datasource, 'T1Tal', wf_masking, "inputnode.T1Tal")
-    workflow.connect(datasource, 'brainmaskTal', wf_masking, "inputnode.brainmaskTal")
-    workflow.connect(datasource, 'clsmask', wf_masking, "inputnode.clsmask")
-    workflow.connect(datasource, 'segmentation', wf_masking, "inputnode.segmentation")
+    workflow.connect(datasourceMINC, t1_type, wf_masking, "inputnode.nativeT1nuc")
+    workflow.connect(datasourceMINC, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
+    workflow.connect(datasourceMINC, 'T1Tal', wf_masking, "inputnode.T1Tal")
+    workflow.connect(datasourceMINC, 'brainmaskTal', wf_masking, "inputnode.brainmaskTal")
+    workflow.connect(datasourceMINC, 'clsmask', wf_masking, "inputnode.clsmask")
+    workflow.connect(datasourceMINC, 'segmentation', wf_masking, "inputnode.segmentation")
     if opts.ROIMaskingType == "roi-user":
         workflow.connect([#(infosource, datasourceROI, [('study_prefix', 'study_prefix')]),
                           (infosource, datasourceROI, [('sid', 'sid')]),
@@ -230,7 +263,7 @@ def runPipeline(opts,args):
     wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_pet2mri, "inputnode.t1_brain_mask")
-    workflow.connect(datasource, t1_type , wf_pet2mri, "inputnode.nativeT1nuc")
+    workflow.connect(datasourceMINC, t1_type , wf_pet2mri, "inputnode.nativeT1nuc")
     workflow.connect(wf_masking, 'outputnode.pet_headMask', wf_pet2mri, "inputnode.pet_headMask")
     workflow.connect(wf_masking, 'outputnode.t1_headMask', wf_pet2mri, "inputnode.t1_headMask")
     workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
@@ -345,7 +378,7 @@ def runPipeline(opts,args):
         distance_metricNode = pe.Node(interface=qc.calc_distance_metricsCommand(),  name="distance_metric")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
         workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
-        workflow.connect(datasource, t1_type,  distance_metricNode, 't1')
+        workflow.connect(datasourceMINC, t1_type,  distance_metricNode, 't1')
         workflow.connect(wf_masking, 'outputnode.t1_brainMask',  distance_metricNode, 't1_brain_mask')
         workflow.connect(infosource, 'cid', distance_metricNode, 'condition')
         workflow.connect(infosource, 'sid', distance_metricNode, 'subject')
@@ -387,7 +420,7 @@ def runPipeline(opts,args):
         workflow.connect(wf_misalign_pet,'outputnode.translated_pet',distance_metricsNode, 'translated_pet')
         workflow.connect(wf_misalign_pet,'outputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
         workflow.connect(wf_misalign_pet,'outputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
-        workflow.connect(datasource, t1_type, distance_metricsNode, 't1_images')
+        workflow.connect(datasourceMINC, t1_type, distance_metricsNode, 't1_images')
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img', distance_metricsNode, 'pet_images')
         workflow.connect(wf_masking, 'outputnode.t1_brainMask', distance_metricsNode, 'brain_masks')
         workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
@@ -494,14 +527,15 @@ if __name__ == "__main__":
     group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
     group.add_option("-p","--prefix",dest="prefix",type='string',help="Study name")
     
-    
     group.add_option("-a","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
+    group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
+    group.add_option("--img_ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
+    group.add_option("--surf_ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     #group.add_option("-c","--civetdir",dest="civetDir",  help="Civet directory")
     parser.add_option_group(group)		
 
     group= OptionGroup(parser,"Scan options","***if not, only baseline condition***")
-    #group.add_option("","--condition",dest="condiList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
     group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
     parser.add_option_group(group)		
@@ -509,7 +543,6 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"Registration options")
     group.add_option("","--modelDir",dest="modelDir",help="Models directory",default=atlas_dir)
     parser.add_option_group(group)		
-
     group= OptionGroup(parser,"PET acquisition options")
 
 

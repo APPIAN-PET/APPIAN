@@ -25,7 +25,7 @@ def new_paths(files,attributes, out_dir, image_type, folder_name, l):
         new_pet = out_dir + os.sep + d['sub'] + os.sep
         if not os.path.exists(new_pet) : os.mkdir(new_pet)
         if d['ses'] != None:
-            new_pet = new_pet + d['ses'] +  os.sep
+            new_pet = new_pet + '_' + d['ses'] +  os.sep
         if not os.path.exists(new_pet) : os.mkdir(new_pet)    
         new_pet +=  folder_name + os.sep
         if not os.path.exists(new_pet) : os.mkdir(new_pet)    
@@ -48,15 +48,15 @@ out_dir = argv[3] + os.sep
 
 pet_attributes = ['sub', 'ses', 'task', 'acq', 'rec']
 t1_attributes = [ 'sub', 'ses', 'task']
-input_image_suffixes = ['pet', 't1', 't1_nuc',  't1_tal', 'brain_mask', 'skull_mask', 't1_tal', 'nlfit_It', 'classify', 'labels_masked'  ]
-output_image_suffixes=['pet', 'T1w', 'T1w_nuc', 'T1w_mni', 'brain_mask', 'skull_mask', 'nat2mni-lin', 'nat2mni-nl', 'classify', 'segmentation' ]
-input_dirs = [ pet_dir, civet_dir+'*/native/', civet_dir+'*/native/', civet_dir+'*/final/', civet_dir+'*/mask/', civet_dir+'*/mask/', civet_dir+'*/transforms/linear/', civet_dir+'*/transforms/nonlinear/', civet_dir+'*/classify/' , civet_dir+'*/segment/' ]
-folder_names = ['pet', 'anat', 'anat', 'final', 'mask', 'mask', 'transforms', 'transforms', 'mask', 'mask' ]
+input_image_suffixes = ['pet', 't1', 't1_nuc',  't1_tal', 'brain_mask', 'skull_mask', 't1_tal', 'nlfit_It', 'classify', 'labels_masked', 'gray_surface_*', 'white_surface_*', 'mid_surface_*'  ]
+output_image_suffixes=['pet', 'T1w', 'T1w_nuc', 'T1w_space-mni', 'T1w_space-mni_brainmask', 'T1w_space-mni_skullmask', 'target-MNI_affine', 'target-MNI_warp', 'space-mni_variant-cls_dtissue', 'space-mni_variant-seg_dtissue', 'pial', 'wmsmooth', 'midthickness' ]
+input_dirs = [ pet_dir, civet_dir+'*/native/', civet_dir+'*/native/', civet_dir+'*/final/', civet_dir+'*/mask/', civet_dir+'*/mask/', civet_dir+'*/transforms/linear/', civet_dir+'*/transforms/nonlinear/', civet_dir+'*/classify/' , civet_dir+'*/segment/', civet_dir+'*/surfaces/', civet_dir+'*/surfaces/', civet_dir+'*/surfaces/'  ]
+folder_names = ['pet', 'anat', 'anat', 'final', 'anat', 'anat', 'transforms', 'transforms', 'anat', 'anat' ]
 n = len(input_image_suffixes) - 1
 attributes_list = [ pet_attributes ] + [ t1_attributes ] * n
 
 if not os.path.exists(out_dir) : os.mkdir(out_dir)    
-
 for input_dir, attributes, input_image_suffix, output_image_suffix, folder_name in zip(input_dirs, attributes_list, input_image_suffixes, output_image_suffixes, folder_names ):
+    print input_image_suffix
     copy_paths(input_dir, out_dir, attributes, input_image_suffix, output_image_suffix, folder_name)
 

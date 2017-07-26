@@ -68,15 +68,19 @@ class InfoCommand(MINCCommand):
 		
                     if self.inputs.json_type == 'float':
                         if len(values) > 1:
-                            out_info.append([float(val) for val in values])
+                            #out_info.append([float(val) for val in values])
+                            out_info.append([val for val in values])
                         else:
-                            out_info.extend([float(val) for val in values])
+                            #out_info.extend([float(val) for val in values])
+                            out_info.extend([val for val in values])
 
                     elif self.inputs.json_type == 'integer':
                         if len(values) > 1:
-                            out_info.append([int(val) for val in values])
+                            #out_info.append([int(val) for val in values])
+                            out_info.append([val for val in values])
                         else:
-                            out_info.extend([int(val) for val in values])
+                            #out_info.extend([int(val) for val in values])
+                            out_info.extend([val for val in values])
 
                     else:
                         if len(values) > 1:

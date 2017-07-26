@@ -13,6 +13,8 @@ from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
 from nipype.interfaces.utility import Rename
 
 import nipype.interfaces.minc as minc
+import nipype.interfaces.minc2 as minc2
+
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
 from nipype.interfaces.minc.tracc import TraccCommand
@@ -82,9 +84,12 @@ class PETtoT1LinRegRunning(BaseInterface):
         if self.inputs.in_source_mask and self.inputs.in_target_mask:
             if os.path.isfile(self.inputs.in_source_mask):
                 source = tmpDir+"/"+s_base+"_masked.mnc"
-                run_calc = CalcCommand();
-                run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
-                run_calc.inputs.out_file = source
+                #run_calc = CalcCommand();
+                run_calc = minc2.Calc();
+                #MIC run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
+                run_calc.inputs.input_files = [self.inputs.in_source_file, self.inputs.in_source_mask]
+                #MIC run_calc.inputs.out_file = source
+                run_calc.inputs.output_file = source
 
                 print 'Source Mask:', source
                 # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
@@ -97,8 +102,9 @@ class PETtoT1LinRegRunning(BaseInterface):
 
             if os.path.isfile(self.inputs.in_target_mask):
                 target = tmpDir+"/"+t_base+"_masked.mnc"
-                run_calc.inputs.in_file = [self.inputs.in_target_file, self.inputs.in_target_mask]
-                run_calc.inputs.out_file = target
+                run_calc.inputs.input_files = [self.inputs.in_target_file, self.inputs.in_target_mask]
+                #run_calc.inputs.out_file = target
+                run_calc.inputs.output_file = target
 
                 print 'Target Mask:', target
                 run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
@@ -148,24 +154,29 @@ class PETtoT1LinRegRunning(BaseInterface):
             print '       | out : \t\t\t'+ tmp_rspl_vol
             print '\n'
 
-            run_smooth = SmoothCommand();
-            run_smooth.inputs.in_file=target
+            #run_smooth = SmoothCommand();
+            run_smooth = minc2.Blur();
+            #MIC run_smooth.inputs.in_file=target
+            run_smooth.inputs.input_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm_target
-            run_smooth.inputs.out_file=tmp_target_blur_base
+            #MIC run_smooth.inputs.out_file=tmp_target_blur_base
+            run_smooth.inputs.output_file_base=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
                 run_smooth.run()
 
-            run_smooth = SmoothCommand();
-            run_smooth.inputs.in_file=source
+            #run_smooth = SmoothCommand();
+            run_smooth = minc2.Blur();
+            #run_smooth.inputs.in_file=source
+            run_smooth.inputs.input_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm_source
-            run_smooth.inputs.out_file=tmp_source_blur_base
+            #run_smooth.inputs.out_file=tmp_source_blur_base
+            run_smooth.inputs.output_file_base=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
                 run_smooth.run()
-
 
             run_tracc = TraccCommand();
             run_tracc.inputs.in_source_file=tmp_source_blur
@@ -189,12 +200,14 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.run:
                 run_tracc.run()
 
-            
-
-            run_resample = ResampleCommand();
-            run_resample.inputs.in_file=source
-            run_resample.inputs.out_file=tmp_rspl_vol
-            run_resample.inputs.model_file=target
+            #MIC run_resample = ResampleCommand();
+            run_resample = minc2.Resample();
+            #run_resample.inputs.in_file=source
+            run_resample.inputs.input_file=source
+            #run_resample.inputs.out_file=tmp_rspl_vol
+            run_resample.inputs.output_file=tmp_rspl_vol
+            #run_resample.inputs.model_file=target
+            run_resample.inputs.like=target
             run_resample.inputs.transformation=tmp_xfm
             if self.inputs.verbose:
                 print run_resample.cmdline
@@ -227,9 +240,12 @@ class PETtoT1LinRegRunning(BaseInterface):
 
 
         #Invert transformation
-        run_xfmpetinvert = InvertCommand();
-        run_xfmpetinvert.inputs.in_file = self.inputs.out_file_xfm
-        run_xfmpetinvert.inputs.out_file = self.inputs.out_file_xfm_invert
+        #MIC run_xfmpetinvert = InvertCommand();
+        run_xfmpetinvert = minc2.XfmInvert();
+        #MIC run_xfmpetinvert.inputs.in_file = self.inputs.out_file_xfm
+        run_xfmpetinvert.inputs.input_file = self.inputs.out_file_xfm
+        #MIC run_xfmpetinvert.inputs.out_file = self.inputs.out_file_xfm_invert
+        run_xfmpetinvert.inputs.output_file = self.inputs.out_file_xfm_invert
         if self.inputs.verbose:
             print run_xfmpetinvert.cmdline
         if self.inputs.run:
@@ -239,10 +255,14 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         if self.inputs.out_file_img:
             print '\n-+- creating $outfile using $outxfm -+-\n'
-            run_resample = ResampleCommand();
-            run_resample.inputs.in_file=self.inputs.in_source_file
-            run_resample.inputs.out_file=self.inputs.out_file_img
-            run_resample.inputs.model_file=self.inputs.in_target_file
+            #MIC run_resample = ResampleCommand();
+            run_resample = minc2.Resample();
+            #MIC run_resample.inputs.in_file=self.inputs.in_source_file
+            run_resample.inputs.input_file=self.inputs.in_source_file
+            #MIC run_resample.inputs.out_file=self.inputs.out_file_img
+            run_resample.inputs.output_file=self.inputs.out_file_img
+            #MIC run_resample.inputs.model_file=self.inputs.in_target_file
+            run_resample.inputs.like=self.inputs.in_target_file
             run_resample.inputs.transformation=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_resample.cmdline
@@ -316,10 +336,14 @@ class nLinRegRunning(BaseInterface):
             inorm_target = tmpDir+"/"+t_base+"_inorm.mnc"
             inorm_source = tmpDir+"/"+s_base+"_inorm.mnc"
 
-            run_resample = ResampleCommand();
+            #MIC run_resample = ResampleCommand();
+            run_resample = minc2.Resample();
+            #MIC run_resample.inputs.in_file=target
             run_resample.inputs.in_file=target
+            #MIC run_resample.inputs.out_file=inorm_target
             run_resample.inputs.out_file=inorm_target
-            run_resample.inputs.model_file=source
+            #run_resample.inputs.model_file=source
+            run_resample.inputs.like=source
             if self.inputs.verbose:
                 print run_resample.cmdline
             if self.inputs.run:
@@ -397,9 +421,12 @@ class nLinRegRunning(BaseInterface):
             if self.inputs.in_source_mask and self.inputs.in_target_mask:
                 if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpDir+"/"+s_base+"_masked.mnc"):
                     source = tmpDir+"/"+s_base+"_masked.mnc"
-                    run_calc = CalcCommand();
-                    run_calc.inputs.in_file = [inorm_source, self.inputs.in_source_mask]
-                    run_calc.inputs.out_file = source
+                    #MIC run_calc = CalcCommand();
+                    run_calc = minc2.Calc();
+                    #MIC run_calc.inputs.in_file = [inorm_source, self.inputs.in_source_mask]
+                    run_calc.inputs.input_files = [inorm_source, self.inputs.in_source_mask]
+                    #MIC run_calc.inputs.out_file = source
+                    run_calc.inputs.output_file = source
                     # run_calc.inputs.expression='if(A[1]>0.5){out=A[0];}else{out=A[1];}'
                     run_calc.inputs.expression='A[1] > 0.5 ? A[0] : A[1]'
                     if self.inputs.verbose:
@@ -422,24 +449,29 @@ class nLinRegRunning(BaseInterface):
 
 
 
-            run_smooth = SmoothCommand();
-            run_smooth.inputs.in_file=target
+            #run_smooth = SmoothCommand();
+            run_smooth = minc2.Blur();
+            #run_smooth.inputs.in_file=target
+            run_smooth.inputs.input_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm
-            run_smooth.inputs.out_file=tmp_target_blur_base
+            #run_smooth.inputs.out_file=tmp_target_blur_base
+            run_smooth.inputs.output_file=tmp_target_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
                 run_smooth.run()
 
-            run_smooth = SmoothCommand();
-            run_smooth.inputs.in_file=source
+            #run_smooth = SmoothCommand();
+            run_smooth = minc2.Blur();
+            #run_smooth.inputs.in_file=source
+            run_smooth.inputs.input_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm
-            run_smooth.inputs.out_file=tmp_source_blur_base
+            #run_smooth.inputs.out_file=tmp_source_blur_base
+            run_smooth.inputs.output_file=tmp_source_blur_base
             if self.inputs.verbose:
                 print run_smooth.cmdline
             if self.inputs.run:
                 run_smooth.run()
-
 
             run_tracc = TraccCommand();
             run_tracc.inputs.in_source_file=tmp_source_blur
@@ -476,10 +508,14 @@ class nLinRegRunning(BaseInterface):
                 prev_xfm = self.inputs.out_file_xfm
             else :
                 prev_xfm = tmp_xfm
-            run_resample = ResampleCommand();
-            run_resample.inputs.in_file=source
-            run_resample.inputs.out_file=tmp_rspl_vol
-            run_resample.inputs.model_file=target
+            #run_resample = ResampleCommand();
+            run_resample = minc2.Resample();
+            #run_resample.inputs.in_file=source
+            run_resample.inputs.input_file=source
+            #run_resample.inputs.out_file=tmp_rspl_vol
+            run_resample.inputs.output_file=tmp_rspl_vol
+            #run_resample.inputs.model_file=target
+            run_resample.inputs.like=target
             run_resample.inputs.transformation=run_tracc.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_resample.cmdline
@@ -492,10 +528,13 @@ class nLinRegRunning(BaseInterface):
 
 
         if self.inputs.init_file_xfm:
-            run_concat = ConcatCommand();
-            run_concat.inputs.in_file=self.inputs.init_xfm
-            run_concat.inputs.in_file_2=prev_xfm
-            run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
+            #run_concat = ConcatCommand();
+            run_concat = minc2.XfmConcat();
+            #run_concat.inputs.in_file=self.inputs.init_xfm
+            #run_concat.inputs.in_file_2=prev_xfm
+            run_concat.inputs.input_files=[ self.inputs.init_xfm, prev_xfm  ]
+            #run_concat.inputs.out_file_xfm=self.inputs.out_file_xfm
+            run_concat.inputs.output_file=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_concat.cmdline
             if self.inputs.run:
@@ -514,10 +553,14 @@ class nLinRegRunning(BaseInterface):
 
         if self.inputs.out_file_img:
             print '\n-+- creating '+self.inputs.out_file_img+' using '+self.inputs.out_file_xfm+' -+-\n'
-            run_resample = ResampleCommand();
-            run_resample.inputs.in_file=self.inputs.in_source_file
-            run_resample.inputs.out_file=self.inputs.out_file_img
-            run_resample.inputs.model_file=self.inputs.in_target_file
+            #run_resample = ResampleCommand();
+            run_resample = minc2.Resample();
+            #run_resample.inputs.in_file=self.inputs.in_source_file
+            run_resample.inputs.input_file=self.inputs.in_source_file
+            #run_resample.inputs.out_file=self.inputs.out_file_img
+            run_resample.inputs.output_file=self.inputs.out_file_img
+            #run_resample.inputs.model_file=self.inputs.in_target_file
+            run_resample.inputs.like=self.inputs.in_target_file
             run_resample.inputs.transformation=self.inputs.out_file_xfm
             if self.inputs.verbose:
                 print run_resample.cmdline
@@ -571,30 +614,36 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     node_name="petRefMask"
-    petRefMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petRefMask.inputs.interpolation = 'nearest_neighbour'
+    #petRefMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+    petRefMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    #petRefMask.inputs.interpolation = 'nearest_neighbour'
+    petRefMask.inputs.nearest_neighbour_interpolation = True
     # petRefMask.inputs.invert = 'invert_transformation'
     petRefMask.inputs.clobber = True
     rPetRefMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="pet_brain_mask"
-    pet_brain_mask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    pet_brain_mask.inputs.interpolation = 'nearest_neighbour'
+    #pet_brain_mask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+    pet_brain_mask = pe.Node(interface=minc2.Resample(), name=node_name)
+    #pet_brain_mask.inputs.interpolation = 'nearest_neighbour'
+    pet_brain_mask.inputs.nearest_neighbour_interpolation = True
     # petRefMask.inputs.invert = 'invert_transformation'
     pet_brain_mask.inputs.clobber = True
     rpet_brain_mask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petROIMask"
-    petROIMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petROIMask.inputs.interpolation = 'nearest_neighbour'
-    # petROIMask.inputs.invert = 'invert_transformation'
+    #petROIMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+    petROIMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    #petROIMask.inputs.interpolation = 'nearest_neighbour'
+    petROIMask.inputs.nearest_neighbour_interpolation = True
     petROIMask.inputs.clobber = True
     rPetROIMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petPVCMask"
-    petPVCMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petPVCMask.inputs.interpolation = 'nearest_neighbour'
-    # petPVCMask.inputs.invert = 'invert_transformation'
+    #petPVCMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
+    petPVCMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    #petPVCMask.inputs.interpolation = 'nearest_neighbour'
+    petPVCMask.inputs.nearest_neighbour_interpolation = True
     petPVCMask.inputs.clobber = True
     rPetPVCMask=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
@@ -643,13 +692,16 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 
-    workflow.connect([(inputnode, pet_brain_mask, [('t1_brain_mask', 'in_file' )]),
-                      (inputnode, pet_brain_mask, [('pet_volume', 'model_file')]), 
-                      # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
-                      (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
+    workflow.connect([#(inputnode, pet_brain_mask, [('t1_brain_mask', 'in_file' )]),
+                        (inputnode, pet_brain_mask, [('t1_brain_mask', 'input_file' )]),
+                        #(inputnode, pet_brain_mask, [('pet_volume', 'model_file')]), 
+                        (inputnode, pet_brain_mask, [('pet_volume', 'like')]), 
+                        # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+                        (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
                     ]) 
 
-    workflow.connect([(pet_brain_mask, rpet_brain_mask, [('out_file', 'in_file')])])
+    #workflow.connect([(pet_brain_mask, rpet_brain_mask, [('out_file', 'in_file')])])
+    workflow.connect([(pet_brain_mask, rpet_brain_mask, [('output_file', 'in_file')])])
     workflow.connect([#(infosource, rpet_brain_mask, [('study_prefix', 'study_prefix')]),
                       (infosource, rpet_brain_mask, [('sid', 'sid')]),
                       (infosource, rpet_brain_mask, [('cid', 'cid')])
@@ -657,13 +709,16 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect(rpet_brain_mask, 'out_file', datasink, pet_brain_mask.name)
 
-    workflow.connect([(inputnode, petRefMask, [('t1_refMask', 'in_file' )]),
-                      (inputnode, petRefMask, [('pet_volume', 'model_file')]), 
-                      # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
-                      (pet2mri, petRefMask, [('out_file_xfm_invert', 'transformation')])
+    workflow.connect([#(inputnode, petRefMask, [('t1_refMask', 'in_file' )]),
+                        (inputnode, petRefMask, [('t1_refMask', 'input_file' )]),
+                        #(inputnode, petRefMask, [('pet_volume', 'model_file')]), 
+                        (inputnode, petRefMask, [('pet_volume', 'like')]), 
+                        # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+                        (pet2mri, petRefMask, [('out_file_xfm_invert', 'transformation')])
                     ]) 
 
-    workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
+    #workflow.connect([(petRefMask, rPetRefMask, [('out_file', 'in_file')])])
+    workflow.connect([(petRefMask, rPetRefMask, [('output_file', 'in_file')])])
     workflow.connect([#(infosource, rPetRefMask, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetRefMask, [('sid', 'sid')]),
                       (infosource, rPetRefMask, [('cid', 'cid')])
@@ -671,13 +726,16 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
 
-    workflow.connect([(inputnode, petROIMask, [('t1_ROIMask', 'in_file' )]),
-                      (inputnode, petROIMask, [('pet_volume', 'model_file')]), 
+    workflow.connect([#(inputnode, petROIMask, [('t1_ROIMask', 'in_file' )]),
+                      (inputnode, petROIMask, [('t1_ROIMask', 'input_file' )]),
+                      #(inputnode, petROIMask, [('pet_volume', 'model_file')]), 
+                      (inputnode, petROIMask, [('pet_volume', 'like')]), 
                       # (pet2mri, petROIMask, [('out_file_xfm', 'transformation')])
                       (pet2mri, petROIMask, [('out_file_xfm_invert', 'transformation')])
                     ]) 
 
-    workflow.connect([(petROIMask, rPetROIMask, [('out_file', 'in_file')])])
+    #workflow.connect([(petROIMask, rPetROIMask, [('out_file', 'in_file')])])
+    workflow.connect([(petROIMask, rPetROIMask, [('output_file', 'in_file')])])
     workflow.connect([#(infosource, rPetROIMask, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetROIMask, [('sid', 'sid')]),
                       (infosource, rPetROIMask, [('cid', 'cid')])
@@ -686,10 +744,12 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(rPetROIMask, 'out_file', datasink, petROIMask.name)
 
     if not opts.nopvc:
-        workflow.connect([(inputnode, petPVCMask, [('t1_PVCMask', 'in_file' )]),
-                          (inputnode, petPVCMask, [('pet_volume', 'model_file')]), 
-                          # (pet2mri, petPVCMask, [('out_file_xfm', 'transformation')])
-                          (pet2mri, petPVCMask, [('out_file_xfm_invert', 'transformation')])
+        workflow.connect([#(inputnode, petPVCMask, [('t1_PVCMask', 'in_file' )]),
+                            (inputnode, petPVCMask, [('t1_PVCMask', 'input_file' )]),
+                            #(inputnode, petPVCMask, [('pet_volume', 'model_file')]), 
+                            (inputnode, petPVCMask, [('pet_volume', 'like')]), 
+                            # (pet2mri, petPVCMask, [('out_file_xfm', 'transformation')])
+                            (pet2mri, petPVCMask, [('out_file_xfm_invert', 'transformation')])
                         ]) 
 
         workflow.connect([(petPVCMask, rPetPVCMask, [('out_file', 'in_file')])])

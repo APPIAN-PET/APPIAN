@@ -14,9 +14,9 @@ import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.minc.resample import ResampleCommand, param2xfmCommand
-from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand, FixHeaderCommand
+#from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+from Extra.resample import param2xfmCommand
+from Extra.modifHeader import ModifyHeaderCommand, FixHeaderCommand
 from Extra.turku import imgunitCommand
 
 

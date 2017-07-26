@@ -4,6 +4,7 @@ import tempfile
 import shutil
 import json
 import nipype.interfaces.minc as minc
+import nipype.interfaces.minc2 as minc2
 
 import minc as pyezminc
 from os.path import basename
@@ -387,7 +388,8 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     node_name="petVolume"
-    petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
+    petVolume = pe.Node(interface=minc2.Average(), name=node_name)
+    #MIC: petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
     petVolume.inputs.avgdim = 'time'
     petVolume.inputs.width_weighted = True
     petVolume.inputs.clobber = True
@@ -396,10 +398,11 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     node_name="petBlur"
-    petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
+    #MIC: petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
+    petBlur = pe.Node(interface=minc2.Blur(), name=node_name)
     petBlur.inputs.fwhm = 3
     petBlur.inputs.clobber = True
-    petBlur.inputs.verbose = opts.verbose 
+    #MIC: petBlur.inputs.verbose = opts.verbose 
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
@@ -438,10 +441,15 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
 
 
-    workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])
+    #MIC: workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])
+    workflow.connect([(rPetExFr, petVolume, [('out_file', 'input_files')])])
 
-    workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
-    workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
+    #MIC: workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
+    workflow.connect([(petVolume, petBlur, [('output_file', 'input_file')])])
+    #MIC: workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
+    workflow.connect([(petBlur, rPetVolume, [('output_file', 'in_file')])])
+   
+   
     workflow.connect([#(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
                       (infosource, rPetVolume, [('sid', 'sid')]),
                       (infosource, rPetVolume, [('cid', 'cid')])

@@ -19,7 +19,7 @@ import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 from nipype.interfaces.utility import Rename
 
-from nipype.interfaces.minc import conversion # nii2mncCommand
+from nipype.interfaces.minc.conversion import  nii2mncCommand
 
 from Masking import masking as masking
 import Registration.registration as reg
@@ -214,9 +214,9 @@ def runPipeline(opts,args):
 
     for i in range(len(base_images)):
         if opts.img_ext == 'nii':
-            nii2mncNode = pe.Node(interface=conversion.nii2mncCommand, name=base_images[i]+'_nii2mncNode')
-            workflow.connect(datasource, base_images[i], nii2mncNodes, "in_file")
-            workflow.connect(nii2mncNodes, 'out_file', datasourceMINC, base_images[i])
+            nii2mncNode = pe.Node(interface=nii2mncCommand(), name=base_images[i]+'_nii2mncNode')
+            workflow.connect(datasource, base_images[i], nii2mncNode, "in_file")
+            workflow.connect(nii2mncNode, 'out_file', datasourceMINC, base_images[i])
         else:
             workflow.connect(datasource, base_images[i], datasourceMINC, base_images[i])
         i += 1
@@ -269,7 +269,7 @@ def runPipeline(opts,args):
     workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
     workflow.connect(wf_masking, 'outputnode.t1_ROIMask', wf_pet2mri, "inputnode.t1_ROIMask")
 	
-
+ 
 
     #############################
     # Partial-volume correction #
@@ -330,7 +330,8 @@ def runPipeline(opts,args):
                 
                 out_node_list += [tka_pve]
                 out_img_list += ['outputnode.out_file']
-
+    workflow.run()
+    exit(0)
 	#######################################
 	# Connect nodes for reporting results #
 	#######################################

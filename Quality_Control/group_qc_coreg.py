@@ -16,8 +16,11 @@ import fnmatch
 import os
 from math import sqrt, log, ceil
 from os import getcwd
+from os.path import basename
 from sys import argv, exit
 from itertools import product
+
+from Quality_Control.outlier import lof, kde, MAD, lcf
 
 ####################
 # Distance Metrics #
@@ -208,6 +211,17 @@ def find_nbins(array):
     return n
 
 
+###########
+# Globals #
+###########
+
+distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
+
+outlier_measures={"KDE":kde } #{'LCF':lcf, "KDE":kde , 'MAD':MAD} #, 'LCF':lcf}
+
+#########
+# Nodes #
+#########
 
 class calc_distance_metricsOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
@@ -227,15 +241,17 @@ class calc_distance_metricsCommand(BaseInterface):
     input_spec = calc_distance_metricsInput 
     output_spec = calc_distance_metricsOutput
   
-    def _gen_output(self, sid, cid, study_prefix, fname ="distance_metric.csv"):
+    def _gen_output(self, sid, cid, fname ="distance_metric.csv"):
         dname = os.getcwd() 
-        return dname + os.sep + study_prefix + '_' + sid + '_' + cid + '_' + fname
+        return dname + os.sep + sid + '_' + cid + '_' + fname
 
     def _run_interface(self, runtime):
         colnames=["Subject", "Condition", "Metric", "Value"] 
         sub_df=pd.DataFrame(columns=colnames)
         pet = self.inputs.pet
         t1 = self.inputs.t1
+        sid = self.inputs.sid
+        cid = self.inputs.cid
         t1_brain_mask = self.inputs.t1_brain_mask
         pet_brain_mask = self.inputs.pet_brain_mask
 
@@ -243,21 +259,24 @@ class calc_distance_metricsCommand(BaseInterface):
         base=basename(path)
         param=base.split('_')[-1]
         param_type=base.split('_')[-2]
-        mis_metric=qc.distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
+
+        mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
+
+        df=pd.DataFrame(columns=colnames)
         for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
-            temp=pd.DataFrame([[subject,condition,metric_name,m]],columns=df.columns  ) 
+            temp=pd.DataFrame([[sid,cid,metric_name,m]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
         
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output()
+            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.cid)
         
-        sub_df.to_csv(self.inputs.out_file, self.inputs.sid, self.inputs.cid, self.inputs.study_prefix, index=False)
+        sub_df.to_csv(self.inputs.out_file,  index=False)
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output()
+            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid,)
 
         outputs["out_file"] = self.inputs.out_file
         return outputs
@@ -267,33 +286,52 @@ class calc_outlier_measuresOutput(TraitedSpec):
 
 class calc_outlier_measuresInput(BaseInterfaceInputSpec):
     in_file = traits.File(desc="Input file")
+    out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
 
 class calc_outlier_measuresCommand(BaseInterface):
     input_spec = calc_outlier_measuresInput 
     output_spec = calc_outlier_measuresOutput
   
-    def _gen_output(self, sid, cid, study_prefix, fname ="distance_metric.csv"):
-        dname = os.getcwd() 
-        return dname + os.sep + study_prefix + '_' + sid + '_' + cid + '_' + fname
+    def _gen_output(self, fname ="outlier_measures.csv"):
+        dname = os.getcwd() + os.sep + fname
+        return dname
 
     def _run_interface(self, runtime):
         df = pd.read_csv( self.inputs.in_file  )
-        for measure, measure_name in zip(outlier_measure_list, outlier_measure_names):
+        out_columns=['Subject','Condition','Measure','Metric', 'Value'] 
+        df_out = pd.DataFrame(columns=out_columns)
+        for sid, sid_df in df.groupby(['Subject']):
+            for cid, cid_df in df.groupby(['Condition']):
+                for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
             #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has
             #Get the series with the calculate the distance measure for the current measure
-            r=measure(df.Value)
-            df[measure_name] = r
-
-        df_out = pd.concat([df_out, row],axis=0)
-
+                    for metric_name, metric_df in cid_df.groupby(['Metric']):
+                        #if metric_name != 'MI': continue
+                        #Get column number of the current outlier measure
+                        #Reindex the test_df from 0 to the number of rows it has
+                        #Get the series with the calculate the distance measure for the current measurae
+                        #print metric_df[ metric_df.Subject == "P28"  ]
+                        metric_df.index = range(metric_df.shape[0])
+                        r=measure(metric_df.Value.values)
+                        idx = metric_df[ metric_df.Subject == sid  ].index[0]
+                        s= r[idx][0]
+                        row_args = [sid,cid,measure_name,metric_name,s]
+                        row=pd.DataFrame([row_args], columns=out_columns  )
+                        df_out = pd.concat([df_out, row],axis=0)
+            if not isdefined( self.inputs.out_file) :
+                self.inputs.out_file = self._gen_output()
+        print os.getcwd(), self.inputs.out_file
+        df_out.to_csv(self.inputs.out_file,index=False)
+        print df_out
+        
+        
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
-
         outputs["out_file"] = self.inputs.out_file
         return outputs
 

@@ -8,10 +8,10 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 
 import numpy as np
 import ntpath
-from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+from nipype.interfaces.minc.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
-class PVCInput(MINCCommandInputSpec):
+class PVCInput(CommandLineInputSpec):
     out_file = File(position=3, argstr="-o %s",desc="image to operate on")
     mask = File( position=2, argstr="-mask %s", desc="Integer mask file")
     input_file = File(exists=True, position=1, argstr="-pet %s", desc="PET file")
@@ -30,7 +30,7 @@ class PVCInput(MINCCommandInputSpec):
 class PVCOutput(TraitedSpec):
     out_file = File(argstr="-o %s", exists=True, desc="Output PET image")
 
-class PVCCommand(MINCCommand):
+class PVCCommand(CommandLine):
     input_spec =  PVCInput
     output_spec = PVCOutput
     _cmd='gtm'
@@ -128,7 +128,7 @@ def get_workflow(name, infosource, datasink, opts):
 '''class idSURFOutput(TraitedSpec):
     out_file = File(argstr="-o %s", exists=True, desc="GTM PVC PET image")
 
-class idSURFInput(MINCCommandInputSpec):
+class idSURFInput(CommandLineInputSpec):
     out_file = File( argstr="-o %s",desc="image to operate on")
     input_file = File(exists=True, argstr="-pet %s", desc="PET file")
     mask = File(argstr="-mask %s", desc="Integer mask file")
@@ -140,7 +140,7 @@ class idSURFInput(MINCCommandInputSpec):
     lambda_var = traits.Float( argstr="-lambda %f", desc="Lambda for controlling smoothing across regions")
     nvoxel_to_average = traits.Int( argstr="-nvoxel-to-average %f", desc="Number of voxels to average over.")
 
-class idSURFCommand(MINCCommand):
+class idSURFCommand(CommandLine):
     input_spec =  idSURFInput
     output_spec = idSURFOutput
 

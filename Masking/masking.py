@@ -14,8 +14,7 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 #from nipype.interfaces.minc.base import Info
 from nipype.interfaces.utility import Rename
 
-
-import nipype.interfaces.minc2 as minc2
+import nipype.interfaces.minc2 as minc
 from nipype.interfaces.minc.calc import CalcCommand
 from nipype.interfaces.minc.smooth import SmoothCommand
 from nipype.interfaces.minc.resample import ResampleCommand
@@ -23,10 +22,6 @@ from nipype.interfaces.minc.xfmOp import InvertCommand
 from nipype.interfaces.minc.morphomat import MorphCommand
 
 import Registration.registration as reg
-
-
-
-
 
 class T1maskingInput(BaseInterfaceInputSpec):
 	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
@@ -77,7 +72,7 @@ class T1maskingRunning(BaseInterface):
             self.inputs.T1brainmask = dname + os.sep + fname + "_brainmask.mnc"
 
         #MIC: run_resample = ResampleCommand();
-        run_resample = minc2.Resample();
+        run_resample = minc.Resample();
         #MIC: run_resample.inputs.in_file = model_headmask
         run_resample.inputs.input_file = model_headmask
         #MIC: run_resample.inputs.out_file = self.inputs.T1headmask
@@ -98,7 +93,7 @@ class T1maskingRunning(BaseInterface):
 
 
         #MIC run_resample = ResampleCommand();
-        run_resample = minc2.Resample();
+        run_resample = minc.Resample();
         #MIC run_resample.inputs.in_file = self.inputs.brainmaskTal
         run_resample.inputs.input_file = self.inputs.brainmaskTal
         #MIC run_resample.inputs.out_file = self.inputs.T1brainmask
@@ -201,7 +196,7 @@ class RegionalMaskingRunning(BaseInterface):
         if self.inputs.MaskingType == 'icbm152' or self.inputs.MaskingType == 'roi-user':
             print "\nRUNNING OPTION 1\n"
             #run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             if self.inputs.MaskingType == 'roi-user':
                 #MIC run_resample.inputs.in_file = self.inputs.subjectROI #Subject specific ROI
                 run_resample.inputs.input_file = self.inputs.subjectROI #Subject specific ROI
@@ -247,7 +242,7 @@ class RegionalMaskingRunning(BaseInterface):
                 run_nlinreg.run() #Resample the template atlas to subject stereotaxic space 
             
             #MIC run_resample = ResampleCommand(); 
-            run_resample = minc2.Resample(); 
+            run_resample = minc.Resample(); 
             #MIC run_resample.inputs.in_file = self.inputs.ROIMask
             run_resample.inputs.input_file = self.inputs.ROIMask
             #MIC run_resample.inputs.out_file = self.inputs.RegionalMaskTal
@@ -275,7 +270,7 @@ class RegionalMaskingRunning(BaseInterface):
             #if self.inputs.refGM or self.inputs.refWM:
 
             #MIC: run_calc = CalcCommand(); #Extract the desired labels from the atlas using minccalc.
-            run_calc = minc2.Calc(); #Extract the desired labels from the atlas using minccalc.
+            run_calc = minc.Calc(); #Extract the desired labels from the atlas using minccalc.
             #MIC run_calc.inputs.in_file = self.inputs.ROIMask #The ANIMAL or CIVET classified atlas
             run_calc.inputs.input_files = self.inputs.ROIMask #The ANIMAL or CIVET classified atlas
             #MIC run_calc.inputs.out_file = mask #Output mask with desired labels
@@ -315,7 +310,7 @@ class RegionalMaskingRunning(BaseInterface):
             #QUESTION:  If we already have the segmentation, why add the mask_class to GM or WM?
             if self.inputs.refGM:
                 #MIC run_calc = CalcCommand();
-                run_calc = minc2.Calc();
+                run_calc = minc.Calc();
                 #MIC run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
                 run_calc.inputs.input_files = [mask_clean, self.inputs.clsmaskTal]
                 #MIC run_calc.inputs.out_file = self.inputs.RegionalMaskTal
@@ -328,7 +323,7 @@ class RegionalMaskingRunning(BaseInterface):
 
             if self.inputs.refWM:
                 #run_calc = CalcCommand();
-                run_calc = minc2.Calc();
+                run_calc = minc.Calc();
                 #run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
                 run_calc.inputs.input_files = [mask_clean, self.inputs.clsmaskTal]
                 #run_calc.inputs.out_file = self.inputs.RegionalMaskTal
@@ -360,7 +355,7 @@ class RegionalMaskingRunning(BaseInterface):
         # #Invert transformation from PET to T1
         # run_xfmpetinvert = Command(), name=node_name)
         #run_resample = ResampleCommand(); #Resample regional mask to T1 native
-        run_resample = minc2.Resample(); #Resample regional mask to T1 native
+        run_resample = minc.Resample(); #Resample regional mask to T1 native
         #MIC run_resample.inputs.in_file = self.inputs.RegionalMaskTal
         run_resample.inputs.input_file = self.inputs.RegionalMaskTal
         #MIC run_resample.inputs.out_file = self.inputs.RegionalMaskT1
@@ -552,7 +547,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="Tal2T1xfm"
     #MIC invert_Tal2T1 = pe.Node(interface=InvertCommand(), name=node_name)
-    invert_Tal2T1 = pe.Node(interface=minc2.XfmInvert(), name=node_name)
+    invert_Tal2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
     invert_Tal2T1.inputs.clobber = True
     invert_Tal2T1.inputs.verbose = opts.verbose
     rInvert_Tal2T1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name)

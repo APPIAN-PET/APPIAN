@@ -11,7 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.minc.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
+from Extra.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand

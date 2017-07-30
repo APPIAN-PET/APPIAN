@@ -406,7 +406,6 @@ def get_test_group_coreg_qc_workflow(name, opts):
     error_type_name={"angle":'rotation',  "offset":'translation'} 
     colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
     
-    #calculate distance metrics
     #plot_distance_metricsCommand
     plot_distance_metricsNode=pe.Node(plot_distance_metricsCommand(), name="plot_distance_metrics")
     workflow.connect(inputnode, 'distance_metrics_df', plot_distance_metricsNode, 'in_file')

@@ -11,11 +11,11 @@ import shutil
 
 import numpy as np
 
-from ..interfaces.traits_extension import isdefined
-from .misc import is_container
+from nipype.interfaces.traits_extension import isdefined
+from nipype.utils.misc import is_container
 
-from .. import logging, config
-fmlogger = logging.getLogger("filemanip")
+#from nipype.utils import logging, config
+#fmlogger = logging.getLogger("filemanip")
 
 
 def update_minchd_json(filename, data_in, var, attr):

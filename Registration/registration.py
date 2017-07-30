@@ -12,11 +12,9 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
 from nipype.interfaces.utility import Rename
 
-import nipype.interfaces.minc as minc
-import nipype.interfaces.minc2 as minc2
+import nipype.interfaces.minc2 as minc
 
 from nipype.interfaces.minc.calc import CalcCommand
-from nipype.interfaces.minc.smooth import SmoothCommand
 from nipype.interfaces.minc.tracc import TraccCommand
 from nipype.interfaces.minc.resample import ResampleCommand
 from nipype.interfaces.minc.xfmOp import ConcatCommand
@@ -85,7 +83,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             if os.path.isfile(self.inputs.in_source_mask):
                 source = tmpDir+"/"+s_base+"_masked.mnc"
                 #run_calc = CalcCommand();
-                run_calc = minc2.Calc();
+                run_calc = minc.Calc();
                 #MIC run_calc.inputs.in_file = [self.inputs.in_source_file, self.inputs.in_source_mask]
                 run_calc.inputs.input_files = [self.inputs.in_source_file, self.inputs.in_source_mask]
                 #MIC run_calc.inputs.out_file = source
@@ -155,7 +153,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             print '\n'
 
             #run_smooth = SmoothCommand();
-            run_smooth = minc2.Blur();
+            run_smooth = minc.Blur();
             #MIC run_smooth.inputs.in_file=target
             run_smooth.inputs.input_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm_target
@@ -167,7 +165,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                 run_smooth.run()
 
             #run_smooth = SmoothCommand();
-            run_smooth = minc2.Blur();
+            run_smooth = minc.Blur();
             #run_smooth.inputs.in_file=source
             run_smooth.inputs.input_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm_source
@@ -201,7 +199,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                 run_tracc.run()
 
             #MIC run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             #run_resample.inputs.in_file=source
             run_resample.inputs.input_file=source
             #run_resample.inputs.out_file=tmp_rspl_vol
@@ -241,7 +239,7 @@ class PETtoT1LinRegRunning(BaseInterface):
 
         #Invert transformation
         #MIC run_xfmpetinvert = InvertCommand();
-        run_xfmpetinvert = minc2.XfmInvert();
+        run_xfmpetinvert = minc.XfmInvert();
         #MIC run_xfmpetinvert.inputs.in_file = self.inputs.out_file_xfm
         run_xfmpetinvert.inputs.input_file = self.inputs.out_file_xfm
         #MIC run_xfmpetinvert.inputs.out_file = self.inputs.out_file_xfm_invert
@@ -256,7 +254,7 @@ class PETtoT1LinRegRunning(BaseInterface):
         if self.inputs.out_file_img:
             print '\n-+- creating $outfile using $outxfm -+-\n'
             #MIC run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             #MIC run_resample.inputs.in_file=self.inputs.in_source_file
             run_resample.inputs.input_file=self.inputs.in_source_file
             #MIC run_resample.inputs.out_file=self.inputs.out_file_img
@@ -337,7 +335,7 @@ class nLinRegRunning(BaseInterface):
             inorm_source = tmpDir+"/"+s_base+"_inorm.mnc"
 
             #MIC run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             #MIC run_resample.inputs.in_file=target
             run_resample.inputs.in_file=target
             #MIC run_resample.inputs.out_file=inorm_target
@@ -422,7 +420,7 @@ class nLinRegRunning(BaseInterface):
                 if os.path.isfile(self.inputs.in_source_mask) and not os.path.exists(tmpDir+"/"+s_base+"_masked.mnc"):
                     source = tmpDir+"/"+s_base+"_masked.mnc"
                     #MIC run_calc = CalcCommand();
-                    run_calc = minc2.Calc();
+                    run_calc = minc.Calc();
                     #MIC run_calc.inputs.in_file = [inorm_source, self.inputs.in_source_mask]
                     run_calc.inputs.input_files = [inorm_source, self.inputs.in_source_mask]
                     #MIC run_calc.inputs.out_file = source
@@ -450,7 +448,7 @@ class nLinRegRunning(BaseInterface):
 
 
             #run_smooth = SmoothCommand();
-            run_smooth = minc2.Blur();
+            run_smooth = minc.Blur();
             #run_smooth.inputs.in_file=target
             run_smooth.inputs.input_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm
@@ -462,7 +460,7 @@ class nLinRegRunning(BaseInterface):
                 run_smooth.run()
 
             #run_smooth = SmoothCommand();
-            run_smooth = minc2.Blur();
+            run_smooth = minc.Blur();
             #run_smooth.inputs.in_file=source
             run_smooth.inputs.input_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm
@@ -509,7 +507,7 @@ class nLinRegRunning(BaseInterface):
             else :
                 prev_xfm = tmp_xfm
             #run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             #run_resample.inputs.in_file=source
             run_resample.inputs.input_file=source
             #run_resample.inputs.out_file=tmp_rspl_vol
@@ -529,7 +527,7 @@ class nLinRegRunning(BaseInterface):
 
         if self.inputs.init_file_xfm:
             #run_concat = ConcatCommand();
-            run_concat = minc2.XfmConcat();
+            run_concat = minc.XfmConcat();
             #run_concat.inputs.in_file=self.inputs.init_xfm
             #run_concat.inputs.in_file_2=prev_xfm
             run_concat.inputs.input_files=[ self.inputs.init_xfm, prev_xfm  ]
@@ -554,7 +552,7 @@ class nLinRegRunning(BaseInterface):
         if self.inputs.out_file_img:
             print '\n-+- creating '+self.inputs.out_file_img+' using '+self.inputs.out_file_xfm+' -+-\n'
             #run_resample = ResampleCommand();
-            run_resample = minc2.Resample();
+            run_resample = minc.Resample();
             #run_resample.inputs.in_file=self.inputs.in_source_file
             run_resample.inputs.input_file=self.inputs.in_source_file
             #run_resample.inputs.out_file=self.inputs.out_file_img
@@ -615,7 +613,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="petRefMask"
     #petRefMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petRefMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    petRefMask = pe.Node(interface=minc.Resample(), name=node_name)
     #petRefMask.inputs.interpolation = 'nearest_neighbour'
     petRefMask.inputs.nearest_neighbour_interpolation = True
     # petRefMask.inputs.invert = 'invert_transformation'
@@ -624,7 +622,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="pet_brain_mask"
     #pet_brain_mask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    pet_brain_mask = pe.Node(interface=minc2.Resample(), name=node_name)
+    pet_brain_mask = pe.Node(interface=minc.Resample(), name=node_name)
     #pet_brain_mask.inputs.interpolation = 'nearest_neighbour'
     pet_brain_mask.inputs.nearest_neighbour_interpolation = True
     # petRefMask.inputs.invert = 'invert_transformation'
@@ -633,7 +631,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="petROIMask"
     #petROIMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petROIMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    petROIMask = pe.Node(interface=minc.Resample(), name=node_name)
     #petROIMask.inputs.interpolation = 'nearest_neighbour'
     petROIMask.inputs.nearest_neighbour_interpolation = True
     petROIMask.inputs.clobber = True
@@ -641,7 +639,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="petPVCMask"
     #petPVCMask = pe.Node(interface=minc.ResampleCommand(), name=node_name)
-    petPVCMask = pe.Node(interface=minc2.Resample(), name=node_name)
+    petPVCMask = pe.Node(interface=minc.Resample(), name=node_name)
     #petPVCMask.inputs.interpolation = 'nearest_neighbour'
     petPVCMask.inputs.nearest_neighbour_interpolation = True
     petPVCMask.inputs.clobber = True
@@ -692,11 +690,9 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 
-    workflow.connect([#(inputnode, pet_brain_mask, [('t1_brain_mask', 'in_file' )]),
-                        (inputnode, pet_brain_mask, [('t1_brain_mask', 'input_file' )]),
-                        #(inputnode, pet_brain_mask, [('pet_volume', 'model_file')]), 
-                        (inputnode, pet_brain_mask, [('pet_volume', 'like')]), 
-                        # (pet2mri, petRefMask, [('out_file_xfm', 'transformation')])
+    workflow.connect([(inputnode, pet_brain_mask, [('t1_brain_mask', 'input_file' )]),
+                        #(inputnode, pet_brain_mask, [('pet_volume', 'like')]), 
+                        (pet2mri, pet_brain_mask, [('out_file_img', 'like')]), 
                         (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
                     ]) 
 

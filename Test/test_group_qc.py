@@ -621,13 +621,6 @@ def calc_outlier_measures(df, outlier_measures, distance_metrics, normal_param):
                             r=measure(metric_df.Value.values)
                             idx = metric_df[ metric_df.Subject == sub  ].index[0]
                             s= r[idx][0]
-                            #metric_df['KDE'] = r
-                            #print metric_df.sort('Value')
-                            #exit(0)
-                            #print error,':', s
-                            #plt.clf()
-                            #plt.scatter(metric_df.Value.values, r)
-                            #plt.savefig(metric_name+'_'+error+'.png')
                             row_args = [sub,cond,error_type,error,measure_name,metric_name,s]
                             row=pd.DataFrame([row_args], columns=out_columns  )
                             df_out = pd.concat([df_out, row],axis=0)

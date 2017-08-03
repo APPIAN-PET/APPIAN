@@ -1,14 +1,92 @@
 import os
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
+from scipy.integrate import simps
+import pandas as pd
+import numpy as np
+
+class resultsInput(MINCCommandInputSpec):   
+    in_file = traits.File(desc="Input file ")
+    mask = traits.File(desc="ROI PET mask ")
+    header = traits.Dict(desc="PET Header")
+    out_file_3d = traits.File(desc="3d Output file ")
+    out_file_4d = traits.File(desc="4d Output file ")
+    dim = traits.Str("Number of dimensions")
+    sub = traits.Str("Subject ID")
+    task = traits.Str("Task")
+    ses = traits.Str("Ses")
+    node  = traits.Str(mandatory=True, desc="Node name")
+
+class resultsOutput(TraitedSpec):
+    out_file_3d = traits.File(desc="3D Output file ")
+    out_file_4d = traits.File(desc="4D Output file ")
+
+class resultsCommand( BaseInterface):
+    input_spec = resultsInput
+    output_spec = resultsOutput
+    
+    def _gen_output(self, in_file):
+        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        out_file_3d = os.getcwd() + os.sep + ii + "_3d.csv"
+        out_file_4d = os.getcwd() + os.sep + ii + "_4d.csv"
+        return [out_file_3d, out_file_4d]
+
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
+            [self.inputs.out_file_3d, self.inputs.out_file_4d ]=self._gen_output(self.inputs.in_file)
+
+        resultsReport = groupstatsCommand()
+        resultsReport.inputs.image = self.inputs.in_file
+        resultsReport.inputs.vol_roi = self.inputs.mask
+        resultsReport.run()
+
+        add_csvInfoNode = add_csvInfoCommand()
+        add_csvInfoNode.inputs.in_file = resultsReport.inputs.out_file
+        add_csvInfoNode.inputs.sub = self.inputs.sub
+        add_csvInfoNode.inputs.ses = self.inputs.ses
+        add_csvInfoNode.inputs.task =self.inputs.task
+        add_csvInfoNode.inputs.node =self.inputs.node
+        if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
+        else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
+        add_csvInfoNode.run()
+
+        if self.inputs.dim == '4':
+            integrate_resultsReport = integrate_TACCommand()
+            integrate_resultsReport.inputs.header = self.inputs.header
+            integrate_resultsReport.inputs.in_file = add_csvInfoNode.inputs.out_file
+            integrate_resultsReport.inputs.out_file = self.inputs.out_file_3d
+            integrate_resultsReport.run()   
+        
+        return runtime
+
+    def _parse_inputs(self):
+        if not isdefined(self.inputs.out_file):
+            [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
+        return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
+
+    def _list_outputs(self):
+        if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
+            [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
+        outputs = self.output_spec().get()
+        outputs["out_file_3d"] = self.inputs.out_file_3d
+        outputs["out_file_4d"] = self.inputs.out_file_4d
+        print '\n\n\n'
+        print self.inputs.out_file_3d
+        print self.inputs.out_file_4d
+        print '\n\n\n'
+        return outputs
+
+
 
 class groupstatsInput(MINCCommandInputSpec):   
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
     surf_roi = traits.File(argstr="-s %s %s", desc="obj and txt files containing surface ROI")
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
-
+    label = traits.Str(desc="Label for output file")
 
 class groupstatsOutput(TraitedSpec):
     out_file = File(desc="Extract values from PET images based on ROI")
@@ -19,12 +97,14 @@ class groupstatsCommand(MINCCommand, Info):
     output_spec = groupstatsOutput
     _suffix='results'
     
-    def _parse_inputs(self, skip=None):
+    def _parse_inputs(self, label=None, skip=None):
         if skip is None:
             skip = []
 
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = os.getcwd() + os.sep + "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
+            if label == None: label_str=''
+            else: label_str=label + '_'
+            self.inputs.out_file = os.getcwd() + os.sep + label_str +  "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
 
 
         return super(groupstatsCommand, self)._parse_inputs(skip=skip)
@@ -38,3 +118,178 @@ class groupstatsCommand(MINCCommand, Info):
         if name == "out_file":
             return self._list_outputs()["out_file"]
         return None
+
+class add_csvInfoInput(MINCCommandInputSpec):   
+    in_file = File(desc="Input file")
+    ses  = traits.Str(mandatory=True, desc="Session")
+    task = traits.Str(mandatory=True, desc="Task")
+    sub  = traits.Str(mandatory=True, desc="Subject")
+    node  = traits.Str(mandatory=True, desc="Node name")
+    out_file = File(desc="Output file")
+
+class add_csvInfoOutput(TraitedSpec):
+    out_file = File(desc="Output file")
+
+class add_csvInfoCommand(BaseInterface):
+    input_spec = add_csvInfoInput
+    output_spec = add_csvInfoOutput
+    
+    def _run_interface(self, runtime):
+        sub = self.inputs.sub
+        task= self.inputs.task
+        ses= self.inputs.ses
+        node = self.inputs.node
+        df = pd.read_csv( self.inputs.in_file, header=None    )	
+        df.columns=['ndim', 'roi', 'time', 'mean','sd','max','min','vol']
+
+        df["node"] = [node] * df.shape[0]
+        df["sub"] = [sub] * df.shape[0]
+        df["ses"] = [ses] * df.shape[0]
+        df["task"] = [task] * df.shape[0]
+        #df = df[ ['node','sub', 'ses', 'task', 'ndim', 'roi', 'time', 'mean','sd','min','max','vol'] ] 
+        df = df[ [ "node", "sub", "ses", "task", "ndim", "roi", "mean"] ]
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+
+        df.to_csv(self.inputs.out_file, index=False)
+        
+        return runtime
+
+    def _gen_output(self, basename):
+        sbasename = os.path.splitext(basename)
+        return sbasename[0]+'_withInfo'+sbasename[1]
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        outputs["out_file"] = self.inputs.out_file
+        
+        return outputs
+
+
+
+
+class descriptive_statisticsInput(MINCCommandInputSpec):   
+    in_file = traits.File(desc="Input file ")
+    ses = traits.File(desc="Output averaged by sesion")
+    task = traits.File(desc="Output averaged by task")
+    sub = traits.File(desc="Output averaged by subject")  
+    sub_task = traits.File(desc="Output averaged by subject x task")  
+    sub_ses = traits.File(desc="Output averaged by subject x ses")
+
+class descriptive_statisticsOutput(TraitedSpec):
+    ses = traits.File(desc="Output averaged by sesion")
+    task = traits.File(desc="Output averaged by task")
+    sub = traits.File(desc="Output averaged by subject")  
+    sub_task = traits.File(desc="Output averaged by subject x task")  
+    sub_ses = traits.File(desc="Output averaged by subject x ses")
+
+class descriptive_statisticsCommand( BaseInterface):
+    input_spec = descriptive_statisticsInput
+    output_spec = descriptive_statisticsOutput
+    
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+
+        if not isdefined(self.inputs.in_file):
+            self.inputs.out_file = os.getcwd() + os.sep + "results.csv"
+
+        return super(descriptive_statisticsCommand, self)._parse_inputs(skip=skip)
+
+    def _run_interface(self, runtime):
+        df = pd.read_csv( self.inputs.in_file   )	
+        print df
+        ses_df = df.pivot_table(rows=["roi", "ses"],values="mean", aggfunc=np.mean)
+        task_df = df.pivot_table(rows=["roi", "task"],values="mean", aggfunc=np.mean)
+        sub_df  = df.pivot_table(rows=["roi", "sub"], values="mean", aggfunc=np.mean)
+        sub_ses_df = df.pivot_table(rows=["roi", "sub","ses"],values="mean", aggfunc=np.mean)
+        sub_task_df = df.pivot_table(rows=["roi", "sub","task"],values="mean", aggfunc=np.mean)
+        #for name, temp_df in df.groupby(["node","ses","task"]):
+        #    print name
+        #    print temp_df
+        self.inputs.ses  = self._gen_output(self.inputs.in_file, "ses")
+        self.inputs.task  = self._gen_output(self.inputs.in_file, "task")
+        self.inputs.sub = self._gen_output(self.inputs.in_file, "sub")
+        self.inputs.sub_task  = self._gen_output(self.inputs.in_file, "sub_task")
+        self.inputs.sub_ses= self._gen_output(self.inputs.in_file, "sub_ses")
+
+        ses_df.to_csv(self.inputs.ses, index=False) 
+        task_df.to_csv(self.inputs.task, index=False)
+        sub_df.to_csv(self.inputs.sub, index=False)
+        sub_ses_df.to_csv(self.inputs.sub_task, index=False)
+        sub_task_df.to_csv(self.inputs.sub_ses, index=False)
+        return runtime
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["ses"] = self.inputs.ses
+        outputs["task"] = self.inputs.task
+        outputs["sub"] = self.inputs.sub
+        outputs["sub_task"] = self.inputs.sub_task
+        outputs["sub_ses"] = self.inputs.sub_ses
+        return outputs
+
+    def _gen_output(self, in_file, label):
+        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        out_file = os.getcwd() + os.sep + ii + "_"+label+".csv"
+        return out_file
+
+
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        return None
+
+
+class integrate_TACInput(MINCCommandInputSpec):   
+    in_file = traits.File(desc="Input file ")
+    header = traits.Dict(desc="Input file ")
+    out_file = traits.File(desc="Output file ")
+
+class integrate_TACOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file ")
+
+class integrate_TACCommand( BaseInterface):
+    input_spec = integrate_TACInput
+    output_spec = integrate_TACOutput
+    
+    def _gen_output(self, in_file):
+        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        out_file = os.getcwd() + os.sep + ii + "_int.csv"
+
+        return out_file 
+
+    def _run_interface(self, runtime):
+        header = self.inputs.header
+        df = pd.read_csv( self.inputs.in_file )
+        time_frames = [ float(h) for h in  header['time']["frames-time"] ]
+        out_columns=["node", "sub", "ses", "task", "ndim", "roi", "mean"]
+        out_df = pd.DataFrame( columns=out_columns)
+        l = lambda x: simps(x,time_frames)
+        #for name, temp_df in  df.groupby(["sub", "ses", "task", "ndim", "roi"]):
+        for name, temp_df in  df.groupby(["node", "sub", "ses", "task", "ndim", "roi"]):
+            mean_int = simps(temp_df["mean"], time_frames)
+            row = pd.DataFrame( [list(name) + [mean_int]], columns=out_columns  )
+            out_df = pd.concat( [out_df, row] )
+        if not isdefined(self.inputs.in_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        out_df.to_csv(self.inputs.out_file, index=False)
+        return runtime
+
+
+    def _parse_inputs(self):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file =self._gen_output(self.inputs.in_file)
+        return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
+
+    def _list_outputs(self):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = _gen_output(self.inputs.in_file)
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+        return None
+

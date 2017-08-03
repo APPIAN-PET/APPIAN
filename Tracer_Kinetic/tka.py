@@ -11,7 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
-from Extra.conversion import (ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
+from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
@@ -276,24 +276,29 @@ tka_methods=["pp", "lp", "srtm"]
 
 
 def get_tka_workflow(name, opts):
-
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
 
+    out_files = ["out_file"]
+    outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
+
     #Define node to convert the input file from minc to ecat
-    convertPET=minctoecatWorkflow("minctoecat_PET")
+    convertPET=pe.Node(minc2ecatCommand(), name='minc2ecat') #  minctoecatWorkflow("minctoecat_PET")
 
     #Connect input node to conversion
-    workflow.connect(inputnode, 'in_file', convertPET, 'inputNode.in_file')
-    workflow.connect(inputnode, 'header', convertPET, 'inputNode.header')
+    ##workflow.connect(inputnode, 'in_file', convertPET, 'inputNode.in_file')
+    workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
+    ##workflow.connect(inputnode, 'header', convertPET, 'inputNode.header')
+    workflow.connect(inputnode, 'header', convertPET, 'header')
 
     #Define an empty node for reference region
     tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
 
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_file_t3map"]), name='outputnode')
+    if opts.tka_method == 'srtm':
+        out_files += ["out_file_t3map"]
 
     if opts.arterial_dir == None:
         #Extracting TAC from reference region and putting it into text file
@@ -306,7 +311,7 @@ def get_tka_workflow(name, opts):
         extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
         # convertReference --> extractRefernce 
         workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
-        workflow.connect(convertPET, 'outputNode.out_file', extractReference, 'in_file')
+        workflow.connect(convertPET, 'out_file', extractReference, 'in_file')
         # extractReference --> tacReference
         workflow.connect(extractReference, 'out_file', tacReference, 'reference')
     elif opts.tka_method in tka_methods:
@@ -365,22 +370,25 @@ def get_tka_workflow(name, opts):
             workflow.connect(body_weightNode, 'parameter', tkaNode, 'body_weight')
             workflow.connect(radiotracer_doseNode, 'parameter', tkaNode, 'radiotracer_dose')
             
-        
         #inputnode.in_file -->  tkaNode.in_file
-        workflow.connect(convertPET, 'outputNode.out_file', tkaNode, 'in_file')
+        workflow.connect(convertPET, 'out_file', tkaNode, 'in_file')
         #tacReference.reference --> tkaNode.reference
-
-
-        convertParametric=ecattomincWorkflow("convertParametric") 
-        workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
-        workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
-        workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
+        convertParametric=pe.Node(ecat2mincCommand(), name="ecat2minc") #  ecattomincWorkflow("convertParametric") 
+        #workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
+        workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
+        #workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
+        workflow.connect(inputnode, 'header', convertParametric, 'header')
+        #workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
+        workflow.connect(convertParametric, 'out_file', outputnode, 'out_file')
 
         if opts.tka_method == 'srtm':
-            convertParametricT3=ecattomincWorkflow("convertParametricT3") 
-            workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'inputNode.in_file')
-            workflow.connect(inputnode, 'header', convertParametricT3, 'inputNode.header')
-            workflow.connect(convertParametricT3, 'outputNode.out_file', outputnode, 'out_file_t3map')
+            convertParametricT3=pe.Node(ecat2mincCommand(), name="ecat2minc") #ecattomincWorkflow("convertParametricT3") 
+            #workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'inputNode.in_file')
+            workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'in_file')
+            #workflow.connect(inputnode, 'header', convertParametricT3, 'inputNode.header')
+            workflow.connect(inputnode, 'header', convertParametricT3, 'header')
+            #workflow.connect(convertParametricT3, 'outputNode.out_file', outputnode, 'out_file_t3map')
+            workflow.connect(convertParametricT3, 'out_file', outputnode, 'out_file_t3map')
 
     else: #ROI-based
         tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
@@ -391,7 +399,7 @@ def get_tka_workflow(name, opts):
 
         workflow.connect(inputnode, 'mask', convertROI, 'in_file')
         workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
-        workflow.connect(convertPET, 'outputNode.out_file', extractROI, 'in_file')
+        workflow.connect(convertPET, 'out_file', extractROI, 'in_file')
         workflow.connect(extractROI, 'out_file', tkaNode, 'roi')
         workflow.connect(tacReference, 'reference', tkaNode, 'reference')
         workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')

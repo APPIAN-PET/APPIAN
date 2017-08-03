@@ -33,7 +33,6 @@ from Tracer_Kinetic import tka_methods
 import Quality_Control.group_qc_coreg as qc
 import Test.test_group_qc as tqc
 
-# import nipype.interfaces.minc.results as results
 version = "1.0"
 
 
@@ -233,7 +232,8 @@ def run_scan_level(opts,args):
     workflow.connect(datasourceMINC, 'pet', wf_init_pet, "inputnode.pet")
     out_node_list = [wf_init_pet]
     out_img_list = ['outputnode.pet_center']
-    
+    out_img_dim = ['4']
+
     ###########
     # Masking #
     ###########
@@ -274,6 +274,7 @@ def run_scan_level(opts,args):
         workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")
         out_node_list += [wf_pvc]
         out_img_list += ['outputnode.out_file']
+        out_img_dim += ['4']
 
     ###########################
     # Tracer kinetic analysis #
@@ -287,7 +288,7 @@ def run_scan_level(opts,args):
             tka_target_img= 'outputnode.pet_center'
                 
         tka_wf=tka.get_tka_workflow("tka", opts)
-        workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_wf, "inputnode.header")
+        workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_wf, "inputnode.header")
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
         if opts.tka_method in tka_methods:
             workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_wf, "inputnode.mask")
@@ -306,77 +307,31 @@ def run_scan_level(opts,args):
         
         out_node_list += [tka_wf]
         out_img_list += ['outputnode.out_file']
-        '''if not opts.nopvc:
-            #Perform TKA on PVC PET
-            tka_pvc=tka.get_tka_workflow("tka_pvc", opts)
-            workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pvc, "inputnode.header")
-            workflow.connect(infosource, 'sid', tka_pvc, "inputnode.sid")
-            if opts.tka_method in tka_methods:
-                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pvc, "inputnode.mask")
-            workflow.connect(wf_pvc, 'outputnode.out_file', tka_pvc, "inputnode.in_file")
-            workflow.connect(tka_pvc, "outputnode.out_file", datasink, tka_pvc.name)
-
-            if opts.arterial_dir != None :
-                workflow.connect(datasourceArterial, 'arterial_file', tka_pvc, "inputnode.reference")
-            elif opts.tka_method in tka_methods:
-                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pvc, "inputnode.reference")
-
-            if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-                    workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
-            if opts.tka_type=="ROI":
-                    workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
-            
-            out_node_list += [tka_pvc]
-            out_img_list += ['outputnode.out_file']
-        else:    
-            #Perform TKA on uncorrected PET
-            tka_pve=tka.get_tka_workflow("tka_pve", opts)
-            workflow.connect(infosource, 'sid', tka_pve, "inputnode.sid")
-            if os.path.exists(opts.arterial_dir):
-                workflow.connect(datasourceArterial, 'arterial_file', tka_pve, "inputnode.reference")
-            elif opts.tka_method in tka_methods:
-                workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_pve, "inputnode.reference")
-            workflow.connect(wf_init_pet, 'outputnode.pet_header', tka_pve, "inputnode.header")
-            if opts.tka_method in tka_methods:
-                workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_pve, "inputnode.mask")
-                workflow.connect(wf_init_pet, 'outputnode.pet_center', tka_pve, "inputnode.in_file")
-                workflow.connect(tka_pve, "outputnode.out_file", datasink, tka_pve.name)
-                if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-                        workflow.connect(tka_pve, "outputnode.out_file_t3map", datasink, tka_pve.name+"T3")
-                if opts.tka_type=="ROI":
-                        workflow.connect(tka_pve, "outputnode.out_fit_file", datasink, tka_pve.name+"fit")
-                
-                out_node_list += [tka_pve]
-                out_img_list += ['outputnode.out_file']
-        '''
-	#######################################
-	# Connect nodes for reporting results #
-	#######################################
-	#Results report for PET
+        out_img_dim += ['3']
+    #######################################
+    # Connect nodes for reporting results #
+    #######################################
+    #Results report for PET
     if  opts.results_report:
-        for node, img in zip(out_node_list, out_img_list):
+        for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
+            print node.name
             node_name="results_" + node.name #+ "_" + opts.tka_method
-            resultsReport = pe.Node(interface=results.groupstatsCommand(), name=node_name)
-            rresultsReport=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".csv"), name="r"+node_name)
+            resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
+            resultsReport.inputs.dim = dim
+            resultsReport.inputs.node = node.name
+            workflow.connect(infosource, 'sid', resultsReport, "sub")
+            workflow.connect(infosource, 'ses', resultsReport, "ses")
+            workflow.connect(infosource, 'task', resultsReport, "task")
+            workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
+            workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', resultsReport, 'mask')
+            workflow.connect(node, img, resultsReport, 'in_file')
 
-
-            workflow.connect([(node, resultsReport, [(img,'image')]),
-                                            # (roiMasking, resultsReport, [('RegionalMaskPET','vol_roi')])
-                                            (wf_pet2mri, resultsReport, [('outputnode.pet_ROIMask','vol_roi')])
-                                    ])
-            
-            workflow.connect([(resultsReport, rresultsReport, [('out_file', 'in_file')])])
-            workflow.connect([
-                            (infosource, rresultsReport, [('sid', 'sid')]),
-                            (infosource, rresultsReport, [('cid', 'cid')])
-                        ])
-            workflow.connect(rresultsReport, 'out_file', datasink,resultsReport.name )
-        
+           
     ############################
     # Subject-level QC Metrics #
     ############################
     if opts.group_qc :
-        distance_metricNode = pe.Node(interface=qc.calc_distance_metricsCommand(),  name="distance_metric")
+        distance_metricNode=pe.Node(interface=qc.calc_distance_metricsCommand(),name="distance_metric")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
         workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
         workflow.connect(datasourceMINC, t1_type,  distance_metricNode, 't1')
@@ -384,16 +339,17 @@ def run_scan_level(opts,args):
         workflow.connect(infosource, 'cid', distance_metricNode, 'cid')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')
         #workflow.connect(distance_metricNode, "out_file", datasink, distance_metricNode.name)
+    
     ###############################
-	# Testing nodes and workflows #
-	###############################
+    # Testing nodes and workflows #
+    ###############################
 
     if opts.test_group_qc:
         ###
         ### Nodes are at subject level (not joined yet)
         ###
         wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
+        workflow.connect(wf_pet3mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
         workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_misalign_pet, 'inputnode.brainmask')
         workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
         workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
@@ -642,6 +598,7 @@ if __name__ == "__main__":
     parser.add_option_group(qc_opts)
 
     #Results reporting
+    qc_opts.add_option("","--group-stats",dest="group_stats",help="Calculate quantitative group-wise descriptive statistics.", action='store_const', const=True, default=True)  #FIXME Add to options
     qc_opts.add_option("","--report-results",dest="results_report",help="Write results from output files to .csv files (default)", action='store_const', const=True, default=True)   
     qc_opts.add_option("","--no-report-results",dest="results_report",help="Don't write results from output files to .csv files", action='store_const', const=False, default=True)   
 

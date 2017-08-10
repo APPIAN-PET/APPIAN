@@ -11,6 +11,7 @@ import numpy as np
 import pdb
 
 from groupLevel import run_group_level
+from scanLevel import run_scan_level
 
 from optparse import OptionParser
 from optparse import OptionGroup
@@ -36,359 +37,29 @@ import Test.test_group_qc as tqc
 version = "1.0"
 
 
-def set_default_atlas_labels(roi_labels, masks):
+def set_default_atlas_label(roi_label, masks):
 #The default setting for "atlas" ROI needs to be set.
 #This is done by finding the unique values (with get_mask_list)
 #in the atlas volume
-	for item in roi_labels.items():
-		mask_type = item[0]
-		for key, value in item[1].items():
-			if key == 'atlas':
-				mask = masks[mask_type]
-				label_values=get_mask_list( mask )
-				roi_labels[item[0]][key] = label_values
-	return(roi_labels)
+    #for item in roi_label.items():
+    out={}
+    for name, item in masks.items():
+        mask_type  = item[0]
+        mask_value = item[1]
+        if mask_type == 'atlas':
+            label_values = get_mask_list( mask_value )
+            out[name] = label_values
+        else:
+            print name, mask_type 
+            out[name] = roi_label[name][mask_type] 
+    return out
 
 def get_mask_list( ROIMask ):
 #Load in volume and get unique values
 	mask= pyminc.volumeFromFile(ROIMask)
 	mask_flat=mask.data.flatten()
-	labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
-	return(labels)
-
-
-
-def printOptions(opts,args):
-	uname = os.popen('uname -s -n -r').read()
-
-	print "\n"
-	print "* Pipeline started at "+time.strftime("%c")+"on "+uname
-	print "* Command line is : \n "+str(sys.argv)+"\n"
-	print "* The source directory is : "+opts.sourceDir
-	print "* The target directory is : "+opts.targetDir+"\n"
-	#print "* The Civet directory is : "+opts.civetDir+"\n"
-	print "* Data-set Subject ID(s) is/are : "+str(', '.join(args))+"\n"
-	#print ["* PET conditions : "]+opts.condiList #+"\n"
-	print ["* PET sessions : "]+opts.sessionList #+"\n"
-	print ["* PET tasks : "]+opts.taskList #+"\n"
-	print "* ROI labels : "+str(', '.join(opts.ROIAtlasLabels))+"\n"
-
-#from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-#                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-
-def run_scan_level(opts,args):	
-    if args:
-        subjects_ids = args
-    else:
-        print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
-        sys.exit(1)
-
-    #if isinstance(opts.condiList, str):
-    #    opts.condiList=opts.condiList.split(',')
-    #conditions_ids=opts.condiList
-    if isinstance(opts.sessionList, str):
-        opts.sessionList=opts.sessionList.split(',')
-    session_ids=opts.sessionList
-    if isinstance(opts.taskList, str):
-        opts.taskList=opts.taskList.split(',')
-    task_ids=opts.taskList
-
-    ###Define args with exiting subject and condition combinations
-    valid_args=init.gen_args(opts, session_ids, task_ids, opts.acq, opts.rec, args)
-
-        ###Preinfosource###
-    #is_fields=['study_prefix', 'sid', 'cid']
-    #if opts.ROIMaskingType == "roi-user":
-    #	is_fields += ['RoiSuffix']
-
-    preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args']), name="preinfosource")
-    preinfosource.iterables = ( 'args', valid_args )
-
-    ###Infosource###
-    infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
-    #infosource.inputs.study_prefix = opts.prefix
-    infosource.inputs.RoiSuffix = opts.RoiSuffix
-
-    workflow = pe.Workflow(name=opts.preproc_dir)
-    workflow.base_dir = opts.targetDir
-
-    #cid = Condition ID
-    #sid = Subject ID
-    #sp = Study Prefix
-    #################
-    ###Datasources###
-    #################
-    #Subject ROI datasource
-
-    if os.path.exists(opts.roi_dir):
-        #datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['study_prefix', 'sid', 'RoiSuffix'],  outfields=['subjectROI'], raise_on_empty = True, sort_filelist=False), name="datasourceROI")
-        datasourceROI = pe.Node( interface=nio.DataGrabber(infields=['sid', 'RoiSuffix'],  outfields=['subjectROI'], raise_on_empty = True, sort_filelist=False), name="datasourceROI")
-        datasourceROI.inputs.base_directory = opts.roi_dir
-        datasourceROI.inputs.template = '*'
-        datasourceROI.inputs.field_template = dict(subjectROI='%s_%s_%s_%s.'+opt.img_ext)
-        datasourceROI.inputs.template_args = dict(subjectROI=[['sid', 'cid', 'RoiSuffix']])	
-
-    if opts.arterial_dir != None:
-        datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['sid', 'cid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
-        datasourceArterial.inputs.base_directory = opts.arterial_dir
-        datasourceArterial.inputs.template = '*'
-        datasourceArterial.inputs.field_template = dict(arterial_file='%s_%s_*.dft')
-        datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])
-        workflow.connect([(infosource, datasourceArterial, [('sid', 'sid')]), (infosource, datasourceArterial, [('cid', 'cid')])])
-
-
-    ### Datasource for raw T1w image
-
-    base_images=['nativeT1',  'nativeT1nuc',  'T1Tal',  'brainmaskTal',  'headmaskTal',  'clsmask', 'segmentation', 'pet']
-    base_transforms=[ 'xfmT1Tal' ,'xfmT1Talnl']
-    base_inputs = base_images + base_transforms
-    datasource = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=base_inputs, raise_on_empty=True, sort_filelist=False), name="datasource")
-    datasource.inputs.base_directory = opts.sourceDir
-    datasource.inputs.template = '*'
-    datasource.inputs.acq=opts.acq
-    datasource.inputs.rec=opts.rec
-    datasource.inputs.field_template =dict(
-        nativeT1='sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.'+opts.img_ext,
-        nativeT1nuc='sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.*'+opts.img_ext, 
-        T1Tal='sub-%s/_ses-%s/final/sub-%s_ses-%s*_T1w_space-mni.*'+opts.img_ext,
-        xfmT1Tal='sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm',
-        xfmT1Talnl='sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_warp.xfm',
-        brainmaskTal='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_brainmask.*'+opts.img_ext,
-        headmaskTal='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_skullmask.*'+opts.img_ext,
-        clsmask='sub-%s/_ses-%s/anat/sub-%s_ses-%s*space-mni_variant-cls_dtissue.*'+opts.img_ext,
-        segmentation='sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_variant-seg_dtissue.*'+opts.img_ext,
-        pet='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.*'+opts.img_ext 
-    )
-    datasource.inputs.template_args = dict(
-        nativeT1=[[ 'sid', 'ses', 'sid', 'ses']],
-        nativeT1nuc=[[ 'sid', 'ses', 'sid', 'ses']],
-        T1Tal=[[ 'sid', 'ses', 'sid', 'ses']],
-        xfmT1Tal=[[ 'sid', 'ses', 'sid', 'ses']],
-        xfmT1Talnl=[[ 'sid', 'ses', 'sid', 'ses']],
-        brainmaskTal=[[ 'sid', 'ses', 'sid', 'ses']],
-        headmaskTal=[[ 'sid', 'ses', 'sid', 'ses']],
-        clsmask=[[ 'sid', 'ses', 'sid', 'ses']],
-        segmentation=[[ 'sid', 'ses', 'sid', 'ses']],
-        pet = [['sid', 'ses', 'sid', 'ses', 'task', 'acq', 'rec']]
-    )
-    if opts.use_surfaces:
-        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
-        datasourceSurf.inputs.base_directory = opts.sourceDir
-        datasourceSurf.inputs.template = '*'
-        datasourceSurf.inputs.acq=opts.acq
-        datasourceSurf.inputs.rec=opts.rec
-        datasourceSurf.inputs.field_template =dict(
-            gm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial."+opt.surf_ext,
-            wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opt.surf_ext,
-            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opt.surf_ext
-        )
-        datasourceSurf.inputs.template_args = dict(
-            gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
-            wm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
-            mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
-        )
-
-    #############################################
-    ### Define Workflow and basic connections ###
-    #############################################
-    workflow.connect(preinfosource, 'args', infosource, "args")
-    workflow.connect([
-                    (infosource, datasource, [('sid', 'sid')]),
-                    (infosource, datasource, [('cid', 'cid')]),
-                    (infosource, datasource, [('task', 'task')]),
-                    (infosource, datasource, [('ses', 'ses')]),
-                     ])
-
-    ############################################################
-    ### Convert NII to MINC if necessary.                      # 
-    ### Pass to identity node that serves as pseudo-datasource #
-    ############################################################
-    datasourceMINC = pe.Node(niu.IdentityInterface(fields=base_inputs), name='datasourceMINC')
-    for i in range(len(base_transforms)):
-        workflow.connect(datasource, base_transforms[i] , datasourceMINC, base_transforms[i] )
-
-    for i in range(len(base_images)):
-        if opts.img_ext == 'nii':
-            nii2mncNode = pe.Node(interface=nii2mncCommand(), name=base_images[i]+'_nii2mncNode')
-            workflow.connect(datasource, base_images[i], nii2mncNode, "in_file")
-            workflow.connect(nii2mncNode, 'out_file', datasourceMINC, base_images[i])
-        else:
-            workflow.connect(datasource, base_images[i], datasourceMINC, base_images[i])
-        i += 1
-    t1_type='nativeT1nuc'
-    if opts.coregistration_target_image == 'raw':
-        t1_type='nativeT1'
-    ##############
-    ###Datasink###
-    ##############
-    datasink=pe.Node(interface=nio.DataSink(), name="output")
-    datasink.inputs.base_directory= opts.targetDir + '/' +opts.prefix
-    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
-
-    ###################
-    # PET prelimaries #
-    ###################
-    wf_init_pet=init.get_workflow("pet_prelimaries", infosource, datasink, opts)
-    workflow.connect(datasourceMINC, 'pet', wf_init_pet, "inputnode.pet")
-    out_node_list = [wf_init_pet]
-    out_img_list = ['outputnode.pet_center']
-    out_img_dim = ['4']
-
-    ###########
-    # Masking #
-    ###########
-    wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
-    workflow.connect(datasourceMINC, t1_type, wf_masking, "inputnode.nativeT1nuc")
-    workflow.connect(datasourceMINC, 'xfmT1Tal', wf_masking, "inputnode.xfmT1Tal")
-    workflow.connect(datasourceMINC, 'T1Tal', wf_masking, "inputnode.T1Tal")
-    workflow.connect(datasourceMINC, 'brainmaskTal', wf_masking, "inputnode.brainmaskTal")
-    workflow.connect(datasourceMINC, 'clsmask', wf_masking, "inputnode.clsmask")
-    workflow.connect(datasourceMINC, 'segmentation', wf_masking, "inputnode.segmentation")
-    if opts.ROIMaskingType == "roi-user":
-        workflow.connect([(infosource, datasourceROI, [('sid', 'sid')]),
-                          (infosource, datasourceROI, [('RoiSuffix', 'RoiSuffix')])
-                          ])
-        workflow.connect(datasourceROI, 'subjectROI', wf_masking, "inputnode.subjectROI")
-    workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
-    workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
-
-    ##################
-    # Coregistration #
-    ##################
-    wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
-    workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
-    workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_pet2mri, "inputnode.t1_brain_mask")
-    workflow.connect(datasourceMINC, t1_type , wf_pet2mri, "inputnode.nativeT1nuc")
-    workflow.connect(wf_masking, 'outputnode.pet_headMask', wf_pet2mri, "inputnode.pet_headMask")
-    workflow.connect(wf_masking, 'outputnode.t1_headMask', wf_pet2mri, "inputnode.t1_headMask")
-    workflow.connect(wf_masking, 'outputnode.t1_refMask', wf_pet2mri, "inputnode.t1_refMask")
-    workflow.connect(wf_masking, 'outputnode.t1_ROIMask', wf_pet2mri, "inputnode.t1_ROIMask")
-
-    #############################
-    # Partial-volume correction #
-    #############################
-    if not opts.nopvc:
-        workflow.connect(wf_masking, 'outputnode.t1_PVCMask', wf_pet2mri, "inputnode.t1_PVCMask")
-        wf_pvc=pvc.get_workflow("PVC", infosource, datasink, opts)
-        workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pvc, "inputnode.pet_center")
-        workflow.connect(wf_pet2mri, 'outputnode.pet_PVCMask', wf_pvc, "inputnode.pet_mask")
-        out_node_list += [wf_pvc]
-        out_img_list += ['outputnode.out_file']
-        out_img_dim += ['4']
-
-    ###########################
-    # Tracer kinetic analysis #
-    ###########################
-    if not opts.tka_method == None:
-        if not opts.nopvc: 
-            tka_target_wf = wf_pvc
-            tka_target_img='outputnode.out_file'
-        else : 
-            tka_target_wf = wf_init_pet 
-            tka_target_img= 'outputnode.pet_center'
-                
-        tka_wf=tka.get_tka_workflow("tka", opts)
-        workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_wf, "inputnode.header")
-        workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
-        if opts.tka_method in tka_methods:
-            workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', tka_wf, "inputnode.mask")
-        workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
-        workflow.connect(tka_wf, "outputnode.out_file", datasink, tka_wf.name)
-
-        if opts.arterial_dir != None :
-            workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
-        elif opts.tka_method in tka_methods:
-            workflow.connect(wf_pet2mri, 'outputnode.pet_refMask', tka_wf, "inputnode.reference")
-
-        if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-                workflow.connect(tka_wf, "outputnode.out_file_t3map", datasink, tka_wf.name+"T3")
-        if opts.tka_type=="ROI":
-                workflow.connect(tka_wf, "outputnode.out_fit_file", datasink, tka_wf.name+"fit")
-        
-        out_node_list += [tka_wf]
-        out_img_list += ['outputnode.out_file']
-        out_img_dim += ['3']
-    #######################################
-    # Connect nodes for reporting results #
-    #######################################
-    #Results report for PET
-    if  opts.results_report:
-        for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
-            print node.name
-            node_name="results_" + node.name #+ "_" + opts.tka_method
-            resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
-            resultsReport.inputs.dim = dim
-            resultsReport.inputs.node = node.name
-            workflow.connect(infosource, 'sid', resultsReport, "sub")
-            workflow.connect(infosource, 'ses', resultsReport, "ses")
-            workflow.connect(infosource, 'task', resultsReport, "task")
-            workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
-            workflow.connect(wf_pet2mri, 'outputnode.pet_ROIMask', resultsReport, 'mask')
-            workflow.connect(node, img, resultsReport, 'in_file')
-
-           
-    ############################
-    # Subject-level QC Metrics #
-    ############################
-    if opts.group_qc :
-        distance_metricNode=pe.Node(interface=qc.calc_distance_metricsCommand(),name="distance_metric")
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
-        workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
-        workflow.connect(datasourceMINC, t1_type,  distance_metricNode, 't1')
-        workflow.connect(wf_masking, 'outputnode.t1_brainMask',  distance_metricNode, 't1_brain_mask')
-        workflow.connect(infosource, 'cid', distance_metricNode, 'cid')
-        workflow.connect(infosource, 'sid', distance_metricNode, 'sid')
-        #workflow.connect(distance_metricNode, "out_file", datasink, distance_metricNode.name)
-    
-    ###############################
-    # Testing nodes and workflows #
-    ###############################
-
-    if opts.test_group_qc:
-        ###
-        ### Nodes are at subject level (not joined yet)
-        ###
-        wf_misalign_pet = tqc.get_misalign_pet_workflow("misalign_pet", opts)
-        workflow.connect(wf_pet3mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
-        workflow.connect(wf_masking, 'outputnode.t1_brainMask', wf_misalign_pet, 'inputnode.brainmask')
-        workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
-        workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
-
-        #calculate distance metric node
-        distance_metricsNode=pe.Node(interface=tqc.distance_metricCommand(), name="distance_metrics")
-        colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
-        distance_metricsNode.inputs.colnames = colnames
-        distance_metricsNode.inputs.clobber = False 
-
-        workflow.connect(wf_misalign_pet,'outputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
-        workflow.connect(wf_misalign_pet,'outputnode.translated_pet',distance_metricsNode, 'translated_pet')
-        workflow.connect(wf_misalign_pet,'outputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
-        workflow.connect(wf_misalign_pet,'outputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
-        workflow.connect(datasourceMINC, t1_type, distance_metricsNode, 't1_images')
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', distance_metricsNode, 'pet_images')
-        workflow.connect(wf_masking, 'outputnode.t1_brainMask', distance_metricsNode, 'brain_masks')
-        workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
-        workflow.connect(infosource, 'sid', distance_metricsNode, 'subjects')
-        
-        ###
-        ### Join subject nodes together
-        ###
-        join_dist_metricsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=['in_file']), joinsource="preinfosource", joinfield=['in_file'], name="join_dist_metricsNode")
-        workflow.connect(distance_metricsNode, 'out_file', join_dist_metricsNode, 'in_file')
-
-        ### Test group qc for coregistration using misaligned images 
-        wf_test_group_coreg_qc = tqc.get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
-        workflow.connect(concat_dist_metricsNode, 'out_file', wf_test_group_coreg_qc, 'inputnode.distance_metrics_df')
-
-		#'''
-	# #vizualization graph of the workflow
-	#workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
-
-    printOptions(opts,subjects_ids)
-    #run the work flow
-    workflow.run()
-
-
+	label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
+	return(label)
 
 def get_opt_list(option,opt,value,parser):
 	setattr(parser.values,option.dest,value.split(','))
@@ -399,59 +70,53 @@ def get_opt_list(option,opt,value,parser):
 ############################################
 # Define dictionaries for default settings #
 ############################################
-#Set defaults for labels
-roi_labels={} 
-roi_labels["ROI"]={	"roi-user":['1'],
-			"icbm152":['39','53','16','14','25','72'],
-			"civet":['1','2','3'],
-			"animal":['1','2','3'],
+#Set defaults for label
+roi_label={} 
+roi_label["results"]={	"roi-user":[1],
+			"icbm152":[39,53,16,14,25,72],
+			"civet":[1,2,3],
+			"animal":[1,2,3],
 			"atlas":[]} #FIXME, these values are not correct for animal
-roi_labels["REF"]={	"roi-user":['1'],
-		      	"icbm152":['39','53','16','14','25','72'],
-			"civet":['3'],
-			"animal":['3'],
+roi_label["tka"]={	"roi-user":[1],
+		      	"icbm152":[39,53,16,14,25,72],
+			"civet":[3],
+			"animal":[3],
 			"atlas":[]} #FIXME, these values are not correct for animal
-roi_labels["PVC"]={	"roi-user":['1'],
-		      	"icbm152":['39','53','16','14','25','72'],
-			"civet":['2','3'],
-			"animal":['2','3'],
+roi_label["pvc"]={	"roi-user":[1],
+		      	"icbm152":[39,53,16,14,25,72],
+			"civet":[2,3],
+			"animal":[2,3],
 			"atlas":[]} #FIXME, these values are not correct for animal
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
-def check_masking_options(ROIMaskingType, roi_dir, RoiSuffix, ROIMask, ROITemplate):
+def check_masking_options(label_img, label_space):
 	'''Check to make sure that the user has provided the necessary information for 
 	the selected masking type'''
-	if ROIMaskingType == "roi-user":
-		if not os.path.exists(roi_dir): 
-			print "Option \'--roi-user\' requires \'-roi-dir\' "
-			exit(1)
-		if RoiSuffix == None:
-			print "Option \'--roi-user\' requires \'-roi-suffix\' "
-			exit(1)
-
-	if ROIMaskingType == "icbm152":
-		if not os.path.exists(ROIMask) :
-			print "Option \'--icbm152-atlas\' requires \'-roi-mask\' "
-			exit(1)
-
-	if ROIMaskingType == "atlas":
-		if not os.path.exists(ROIMask) :
-			print "Error: recieved " + ROIMask
-			print "Option \'--roi-atlas\' requires \'-roi-mask\' "
-			exit(1)
-		if not os.path.exists(ROITemplate) :
-			print "Option \'--roi-atlas\' requires \'-roi-template\' "
-			exit(1)
+	if label_space == "native":
+            if not type(label_img[0]) == str: 
+                print "Option \"--label_space native\" requires string to identify labeled image in subject directory "
+                exit(1)
+            elif label_img[0] == 'cls':  label_type = 'civet'
+            elif label_img[0] == 'seg':  label_type = 'animal'
+            else:                           label_type = 'roi-user'
+        elif label_space == 'icbm152':
+	    if not os.path.exists(label_img[0]): 
+	        print "Option \"--label_space icbm152\" requires path to labeled atlas in icbm152."
+		exit(1)
+            else: label_type='icbm152'
+        elif label_space == 'other':
+	    if not os.path.exists(label_img[0]) or not os.path.exists(label_img[1]) : 
+	        print "Option \"--label_space other\" requires path to labeled atlas and the image template for the atlas."
+		exit(1)
+            else: label_space = 'atlas'
+        return label_type
 
 
 if __name__ == "__main__":
-
     usage = "usage: "
-
-
     file_dir = os.path.dirname(os.path.realpath(__file__))
     atlas_dir = file_dir + "/Atlas/MNI152/"
     icbm152=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc'
@@ -484,50 +149,48 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"PET acquisition options")
 
 
-    #Parse user options
-    group= OptionGroup(parser,"Masking options","Reference region")
-    group.add_option("","--ref-user",dest="RefMaskingType",help="User defined ROI for each subject",action='store_const',const='no-transform',default='civet')	
-    group.add_option("","--ref-animal",dest="RefMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='civet')	
-    group.add_option("","--ref-civet",dest="RefMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='civet')
-    group.add_option("","--ref-icbm152-atlas",dest="RefMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='civet')
-    group.add_option("","--ref-atlas",dest="RefMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='civet')
-    group.add_option("","--ref-labels",dest="RefAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
-    group.add_option("","--ref-template",dest="RefTemplate",help="Template to segment the reference region.",default=icbm152)
+    # Parse user options
+    # Label options
+    #
+    #   Type:               PVC, TKA, Results
+    #   Labeled Image:      CIVET Classify, Animal, ICBM152, Stereotaxic Atlas, Manual 
+    #   Template:           None,           None,   ICBM152, User Selected,     None
+    #   Labels:             
+    #   --[type]-label-space [CIVET/ANIMAL/ICBM152/Stereotaxic/Manual]
+    #   1) T1 Native:  --[type]-label-img "classify" / "animal" / "roi string" 
+    #   2) ICBM152: --[type]-label-img  path/to/labeled/atlas
+    #   3) Other:   --[type]-label-img  path/to/labeled/atlas path/to/labeled/template
+    #   --[type]-label
 
-    group.add_option("","--ref-mask",dest="refMask",help="Ref mask on the template",type='string',default=default_atlas)
-    group.add_option("","--ref-suffix",dest="refSuffix",help="ROI suffix",default='striatal_6lbl')	
-    group.add_option("","--ref-gm",dest="RefMatter",help="Gray matter of reference region (if -ref-animal is used)",action='store_const',const='gm',default='gm')
-    group.add_option("","--ref-wm",dest="RefMatter",help="White matter of reference region (if -ref-animal is used)",action='store_const',const='wm',default='gm')
-    group.add_option("","--ref-close",dest="RefClose",help="Close - erosion(dialtion(X))",action='store_true',default=False)
-    group.add_option("","--ref-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
-    group.add_option("","--ref-dir",dest="ref_dir",help="ID of the subject REF masks",type='string', default=None)
-    group.add_option("","--ref-template-suffix",dest="templateRefSuffix",help="Suffix for the Ref template.",default='icbm152')
+    group= OptionGroup(parser,"Masking options","Tracer Kinetic Analysis")
+    label_space_help="Coordinate space of labeled image to use for TKA. Options: [native/icbm152/other] "
+    label_img_help="Options: 1. Labeled image from CIVET: \'civet\'/\'animal\'/\'label string\', 2. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 3. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template"
+
+    #PVC
+    parser.add_option_group(group)
+    group= OptionGroup(parser,"Masking options","PVC")
+    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='native')
+    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
+    group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
 
-    group= OptionGroup(parser,"Masking options","Region Of Interest")
-    group.add_option("","--roi-user",dest="ROIMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='icbm152')	
-    group.add_option("","--roi-animal",dest="ROIMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='icbm152')	
-    group.add_option("","--roi-civet",dest="ROIMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='icbm152')
-    group.add_option("","--roi-icbm152",dest="ROIMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
-    group.add_option("","--roi-atlas",dest="ROIMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='icbm152')	
-    group.add_option("","--roi-labels",dest="ROIAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
-
-    group.add_option("","--roi-template",dest="ROITemplate",help="Template to segment the ROI.",default=icbm152)
-    group.add_option("","--roi-mask",dest="ROIMask",help="ROI mask on the template",default=default_atlas)	
-    group.add_option("","--roi-template-suffix",dest="templateRoiSuffix",help="Suffix for the ROI template.",default='icbm152')
-    group.add_option("","--roi-suffix",dest="RoiSuffix",help="ROI suffix",default='striatal_6lbl')	
-    group.add_option("","--roi-erosion",dest="RoiErosion",help="Erode the ROI mask",action='store_true',default=False)
-    group.add_option("","--roi-dir",dest="roi_dir",help="ID of the subject ROI masks",type='string', default="")
+    # Tracer Kinetic Analysis
+    group= OptionGroup(parser,"Masking options","TKA")
+    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='native')
+    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
+    group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
-       
-    ##########################
-    # PET Brain Mask Options #
-    ##########################
-    group= OptionGroup(parser,"Coregistation options")
-    group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type='float', default=0.25)
-    group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
+    
+    #Results
+    group= OptionGroup(parser,"Masking options","Results")
+    group.add_option("","--results-label-space",dest="results_label_space",help=label_space_help,default='native')
+    group.add_option("","--results-label-img",dest="results_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
+    group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     parser.add_option_group(group)
-
+    
     ##########################
     # Coregistration Options #
     ##########################
@@ -535,26 +198,17 @@ if __name__ == "__main__":
     group.add_option("","--coregistration-target-mask",dest="coregistration_target_mask",help="Target T1 mask for coregistration: \'skull\' or \'mask\'",type='string', default='skull')
     group.add_option("","--coregistration-target-image",dest="coregistration_target_image",help="Target T1 for coregistration: \'raw\' or \'nuc\'",type='string', default='nuc')
     group.add_option("","--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
+    group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type='float', default=0.25)
+    group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
+
     parser.add_option_group(group)
 
     ###############
     # PVC options #
     ###############
-    group= OptionGroup(parser,"Masking options","ROI for PVC")
+    group= OptionGroup(parser,"PVC Options")
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
-    group.add_option("","--pvc-roi-user",dest="PVCMaskingType",help="User defined ROI for each subject",action='store_const',const='roi-user',default='civet')	
-    group.add_option("","--pvc-roi-animal",dest="PVCMaskingType",help="Use ANIMAL segmentation",action='store_const',const='animal',default='animal')	
-    group.add_option("","--pvc-roi-civet",dest="PVCMaskingType",help="Use PVE tissue classification from CIVET",action='store_const',const='civet',default='civet')
-    group.add_option("","--pvc-roi-icbm152",dest="PVCMaskingType",help="Use an atlas defined on ICBM152 template",action='store_const',const='icbm152',default='icbm152')
-    group.add_option("","--pvc-roi-atlas",dest="PVCMaskingType",help="Use atlas based on template, both provided by user",action='store_const',const='atlas',default='civet')	
-    group.add_option("","--pvc-roi-labels",dest="PVCAtlasLabels",help="Label value(s) for segmentation.",type='string',action='callback',callback=get_opt_list,default=None)
-    #FIXME --pvc-roi-labels should be mandatory if any of the pvc mask options set
 
-    group.add_option("","--pvc-roi-template",dest="pvcTemplate",help="Template to segment the ROI.",default=icbm152)
-    group.add_option("","--pvc-roi-mask",dest="pvcMask",help="ROI mask on the template",default=default_atlas)	
-    group.add_option("","--pvc-roi-template-suffix",dest="templatePVCSuffix",help="Suffix for the ROI template.",default='icbm152')
-    group.add_option("","--pvc-roi-suffix",dest="pvcSuffix",help="PVC suffix",default='striatal_6lbl')	
-    group.add_option("","--pvc-roi-dir",dest="pvc_roi_dir",help="ID of the subject ROI masks",type='string', default="")
 
     group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="gtm")
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
@@ -627,25 +281,39 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
-    #Check inputs for ROI masking
-    check_masking_options(opts.ROIMaskingType, opts.roi_dir, opts.RoiSuffix, opts.ROIMask, opts.ROITemplate)
-    #Check inputs for REF masking
-    check_masking_options(opts.RefMaskingType, opts.ref_dir, opts.refSuffix, opts.refMask, opts.RefTemplate)
     #Check inputs for PVC masking
-    check_masking_options(opts.PVCMaskingType, opts.pvc_roi_dir, opts.pvcSuffix, opts.pvcMask, opts.pvcTemplate)
+    pvc_label_type= check_masking_options(opts.pvc_label_img, opts.pvc_label_space)
 
-    #Set default labels for atlas ROI
-    masks={ "REF":opts.refMask, "PVC":opts.pvcMask, "ROI":opts.ROIMask }
-    roi_labels = set_default_atlas_labels(roi_labels, masks)
+    #Check inputs for TKA masking
+    tka_label_type = check_masking_options(opts.tka_label_img, opts.tka_label_space)
 
-    #Set default labels for ROI mask
-    if(opts.ROIAtlasLabels ==None): 
-        opts.ROIAtlasLabels=roi_labels["ROI"][opts.ROIMaskingType]
-    #If no labels given by user, set default labels for Ref mask
-    if(opts.RefAtlasLabels ==None): opts.RefAtlasLabels=roi_labels["REF"][opts.RefMaskingType]
-    #If no labels given by user, set default labels for PVC mask
-    if(opts.PVCAtlasLabels ==None): opts.PVCAtlasLabels=roi_labels["PVC"][opts.PVCMaskingType]
+    #Check inputs for results masking
+    results_label_type =  check_masking_options(opts.results_label_img, opts.results_label_space)
 
+    #Set default label for atlas ROI
+    masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
+    
+    #Determine the level at which the labeled image is defined (subject- or atlas-level) 
+    if os.path.exists(opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
+    else: opts.pvc_label_level = 'scan'
+    if os.path.exists(opts.pvc_label_img[0]): opts.tka_label_level = 'atlas'
+    else: opts.tka_label_level = 'scan'
+    if os.path.exists(opts.results_label_img[0]): opts.results_label_level = 'atlas'
+    else: opts.results_label_level = 'scan'
+
+    print pvc_label_type, opts.pvc_label_level
+    print tka_label_type, opts.tka_label_level
+    print results_label_type, opts.results_label_level
+
+    roi_label = set_default_atlas_label(roi_label, masks)
+     
+    #If no label given by user, set default label for PVC mask
+    if(opts.pvc_labels ==None): opts.pvc_labels = roi_label["pvc"]
+      #If no label given by user, set default label for TKA mask
+    if(opts.tka_labels ==None): opts.tka_labels = roi_label["tka"]
+    #Set default label for results mask
+    if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
+     
         ###Check PVC options and set defaults if necessary
     if opts.scanner_fwhm == None and opts.pet_scanner == None:
         print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"

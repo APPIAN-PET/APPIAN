@@ -23,154 +23,32 @@ from nipype.interfaces.minc.morphomat import MorphCommand
 
 import Registration.registration as reg
 
-class T1maskingInput(BaseInterfaceInputSpec):
-	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
-	# LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
-	LinTalT1Xfm = File(exists=True, mandatory=True, desc="Inverted transformation matrix to register T1 image into Talairach space")
-	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
-	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
-	T1headmask = File(desc="anatomical head mask, background removed")
-	T1brainmask = File(desc="Transformation matrix to register T1 image into Talairach space")
+class LabelsInput(BaseInterfaceInputSpec):
+    nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
+    mniT1 = File(exists=True, mandatory=True, desc="T1 image normalized into MNI space")
+    LinMNIT1Xfm = File(exists=True, mandatory=True, desc="Inverted transformation matrix to register T1 image into MNI space")
+    LinT1MNIXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into MNI space")
+    labels = traits.List(desc="label value(s) for label image.")
+    _spaces = ['native', 'icbm152', 'other']
+    space = traits.Enum(*_spaces, mandatory=True, desc="Coordinate space of the label")
+    label_img  = File(desc="Mask on the template")
+    erode_times = traits.Int(desc="Number of times to erode image", usedefault=True, default=0)
+    label_template = File(desc="Template for stereotaxic atlas")
+    LabelsMNI = File(desc="Reference mask in MNI space")
+    LabelsT1  = File(desc="Reference mask in the T1 native space")
+    clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
+    run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
+    verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
-	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
+class LabelsOutput(TraitedSpec):
+	LabelsMNI  = File(mandatory=True, desc="Reference mask in MNI space")
+	LabelsT1  = File(mandatory=True, desc="Reference mask in the T1 native space")
+	# LabelsPET  = File(mandatory=True, desc="Reference mask in the PET native space")
 
-class T1maskingOutput(TraitedSpec):
-	T1headmask = File(desc="anatomical head mask, background removed")
-	T1brainmask = File(desc="anatomical head mask, background and skull removed")
-
-class T1maskingRunning(BaseInterface):
-    input_spec = T1maskingInput
-    output_spec = T1maskingOutput
-
-
-    def _run_interface(self, runtime):
-        model_headmask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09a_headmask.mnc"
-        
-        # run_xfminvert = InvertCommand();
-        # run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
-        # #run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
-
-        # if self.inputs.verbose:
-        #     print run_xfminvert.cmdline
-        # if self.inputs.run:
-        #     run_xfminvert.run()
-
-
-        #print "\n\n\nXFM Invert file created:"
-        #print run_xfminvert.inputs.out_file
-        #print "\n\n\n"
-        if not isdefined(self.inputs.T1headmask):
-            fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-            dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
-            self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
-
-        if not isdefined(self.inputs.T1brainmask):
-            fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-            dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
-            self.inputs.T1brainmask = dname + os.sep + fname + "_brainmask.mnc"
-
-        #MIC: run_resample = ResampleCommand();
-        run_resample = minc.Resample();
-        #MIC: run_resample.inputs.in_file = model_headmask
-        run_resample.inputs.input_file = model_headmask
-        #MIC: run_resample.inputs.out_file = self.inputs.T1headmask
-        run_resample.inputs.output_file = self.inputs.T1headmask
-        #MIC run_resample.inputs.model_file = self.inputs.nativeT1
-        run_resample.inputs.like = self.inputs.nativeT1
-        # run_resample.inputs.transformation = run_xfminvert.inputs.out_file
-        run_resample.inputs.transformation = self.inputs.LinTalT1Xfm
-        run_resample.inputs.nearest_neighbour_interpolation = True
-        #MIC run_resample.inputs.interpolation = 'nearest_neighbour'
-        #run_resample.inputs._xor_interpolation = 'nearest_neighbour_interpolation'
-        run_resample.inputs.clobber = True
-
-        if self.inputs.verbose:
-            print run_resample.cmdline
-        if self.inputs.run:
-            run_resample.run()
-
-
-        #MIC run_resample = ResampleCommand();
-        run_resample = minc.Resample();
-        #MIC run_resample.inputs.in_file = self.inputs.brainmaskTal
-        run_resample.inputs.input_file = self.inputs.brainmaskTal
-        #MIC run_resample.inputs.out_file = self.inputs.T1brainmask
-        run_resample.inputs.output_file = self.inputs.T1brainmask
-        #MIC run_resample.inputs.model_file = self.inputs.nativeT1
-        run_resample.inputs.like = self.inputs.nativeT1
-        # run_resample.inputs.transformation = run_xfminvert.inputs.out_file
-        run_resample.inputs.transformation = self.inputs.LinTalT1Xfm
-        #MIC run_resample.inputs.interpolation = 'nearest_neighbour'
-        run_resample.inputs.nearest_neighbour_interpolation = True
-        run_resample.inputs.clobber = True
-
-
-        if self.inputs.verbose:
-            print run_resample.cmdline
-
-        if self.inputs.run:
-            run_resample.run()
-
-
-        return runtime
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["T1headmask"] = self.inputs.T1headmask
-        outputs["T1brainmask"] = self.inputs.T1brainmask
-        return outputs  
-
-
-
-
-
-class RegionalMaskingInput(BaseInterfaceInputSpec):
-	nativeT1 = File(exists=True, mandatory=True, desc="Native T1 image")
-	T1Tal = File(exists=True, mandatory=True, desc="T1 image normalized into Talairach space")
-	# LinT1TalXfm = File(exists=True, mandatory=True, desc="Transformation matrix to register T1 image into Talairach space")
-	LinTalT1Xfm = File(exists=True, mandatory=True, desc="Inverted transformation matrix to register T1 image into Talairach space")
-	brainmaskTal  = File(exists=True, desc="Brain mask image in Talairach space")
-	clsmaskTal  = File(exists=True, desc="Classification mask in Talairach space")
-	segMaskTal  = File(exists=True, desc="Segmentation mask in Talairach space")
-
-	PETVolume = File(exists=True, desc="3D PET volume")
-
-	# pet2mriXfm = File(exists=True, desc="Transformation from PET to MRI")
-	# mri2petXfm = File(exists=True, desc="Transformation from MRI to PET")
-
-	segLabels = traits.Array(usedefault=True, value=[67, 76], desc="Label value(s) of reference region from ANIMAL. By default, cerebellum labels")
-	
-	subjectROI=File(desc="Segmentation mask for subject")
-
-	_methods = ['roi-user', 'animal', 'civet', 'icbm152', 'atlas'] 
-	MaskingType = traits.Enum(*_methods, mandatory=True, desc="Masking approaches")
-	modelDir = traits.Str(desc="Model's directory")
-	model = traits.Str(desc="Template image")
-	roi_dir = File(desc="Segmentation mask in Talairach space")
-	ROIMask  = File(desc="Mask on the template")
-	close = traits.Bool(usedefault=False, default_value=False, desc="erosion(dilation(X))")
-	refGM = traits.Bool(usedefault=False, default_value=False, desc="Only gray matter")
-	refWM = traits.Bool(usedefault=False, default_value=False, desc="Only white matter")
-
-	RegionalMaskTal = File(desc="Reference mask in Talairach space")
-	RegionalMaskT1  = File(desc="Reference mask in the T1 native space")
-	# RegionalMaskPET = File(desc="Reference mask in the PET native space")
-
-	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
-	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
-
-class RegionalMaskingOutput(TraitedSpec):
-	RegionalMaskTal  = File(mandatory=True, desc="Reference mask in Talairach space")
-	RegionalMaskT1  = File(mandatory=True, desc="Reference mask in the T1 native space")
-	# RegionalMaskPET  = File(mandatory=True, desc="Reference mask in the PET native space")
-
-class RegionalMaskingRunning(BaseInterface):
-    input_spec = RegionalMaskingInput
-    output_spec = RegionalMaskingOutput
-    _suffix = "_RegionalMask"
+class Labels(BaseInterface):
+    input_spec = LabelsInput
+    output_spec = LabelsOutput
+    _suffix = "_label"
 
     def _gen_output(self, basefile, _suffix):
 		fname = ntpath.basename(basefile)
@@ -180,223 +58,87 @@ class RegionalMaskingRunning(BaseInterface):
 
     def _run_interface(self, runtime):
         tmpDir = tempfile.mkdtemp()
-        # self._parse_inputs()
 
-        if not isdefined(self.inputs.RegionalMaskT1):
-            self.inputs.RegionalMaskT1 = self._gen_output(self.inputs.nativeT1, self._suffix+'T1') # fname_presuffix(self.inputs.nativeT1, suffix=self._suffix)
-        if not isdefined(self.inputs.RegionalMaskTal):
-            self.inputs.RegionalMaskTal = self._gen_output(self.inputs.nativeT1, self._suffix+'TAL') # fname_presuffix(self.inputs.T1Tal, suffix=self._suffix)
-        # if not isdefined(self.inputs.RegionalMaskPET):
-        # 	self.inputs.RegionalMaskPET = self._gen_output(self.inputs.nativeT1, self._suffix+'PET') #fname_presuffix(self.inputs.PETVolume, suffix=self._suffix)
+        if not isdefined(self.inputs.LabelsT1): self.inputs.LabelsT1 = self._gen_output(self.inputs.nativeT1, self._suffix+'T1') 
+        if not isdefined(self.inputs.LabelsMNI): self.inputs.LabelsMNI = self._gen_output(self.inputs.nativeT1, self._suffix+'MNI')
 
-        print "\n\nMasking Type:"
-        print self.inputs.MaskingType
-        print "\n\n"
-        #Option 1: Transform the atlas to have same resolution as T1 native 
-        if self.inputs.MaskingType == 'icbm152' or self.inputs.MaskingType == 'roi-user':
-            print "\nRUNNING OPTION 1\n"
-            #run_resample = ResampleCommand();
-            run_resample = minc.Resample();
-            if self.inputs.MaskingType == 'roi-user':
-                #MIC run_resample.inputs.in_file = self.inputs.subjectROI #Subject specific ROI
-                run_resample.inputs.input_file = self.inputs.subjectROI #Subject specific ROI
-            else:
-                #MIC run_resample.inputs.in_file = self.inputs.ROIMask #Stereotaxic mask
-                run_resample.inputs.input_file = self.inputs.ROIMask #Stereotaxic mask
-            #MIC run_resample.inputs.out_file = self.inputs.RegionalMaskTal
-            run_resample.inputs.output_file = self.inputs.RegionalMaskTal
-            #MIC run_resample.inputs.model_file = self.inputs.T1Tal
-            run_resample.inputs.like = self.inputs.T1Tal
-            run_resample.inputs.clobber = True
-            #if self.inputs.verbose:
-            print run_resample.cmdline
-            if self.inputs.run:
-                run_resample.run()
-            
-        #Option 2: Use a nonlinear transform to coregister the template of the atlas to the T1
-        elif self.inputs.MaskingType == 'atlas':
-            print "\nRUNNING OPTION 2\n"
+        out_file_1 =temp_mask = tmpDir+"/mask.mnc"
+        temp_mask_clean = tmpDir+"/mask_clean.mnc"
 
-            sourceToModel_xfm = tmpDir+"/T1toModel_ref.xfm"
-            run_nlinreg=reg.nLinRegRunning();
-            run_nlinreg.inputs.in_source_file = self.inputs.T1Tal
+        if not isdefined(self.inputs.labels) or not self.inputs.erode_times == 0 or not isdefined(self.inputs.label_img) : 
+            print '\n\n' 
+            #print self.inputs
+            print "Should not be undefined:", self.inputs.labels
+            print "Should be 0", self.inputs.erode_times
+            print "label_img", self.inputs.label_img
+            print '\n\n'           
+            exit(0)
+        # 1) Select Labels
+        run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
+        run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas
+        run_calc.inputs.output_file = temp_mask  #Output mask with desired label
+        run_calc.inputs.expression = " || ".join([ 'A[0] == ' + str(label) + ' ' for label in self.inputs.labels ]) + ' ? A[0] : 0'  
+        run_calc.run()
+        # 2) Erode
+        if int(self.inputs.erode_times) > 0:
+            run_mincmorph = MorphCommand()
+            run_mincmorph.inputs.in_file = temp_mask
+            run_mincmorph.inputs.out_file = temp_mask_clean
+            run_mincmorph.inputs.successive='E' * self.inputs.erode_times 
+            run_mincmorph.run()
+            out_file_1 = temp_mask_clean
 
-            #if not self.inputs.model:
-                #No alternate template was specified, use MNI ICBM152
-                #Deform from MNI ICBM152 to subject stereotaxic
-            #	run_nlinreg.inputs.in_target_file = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b.mnc" #QUESTION: can't we just use the default setting?
-            #	run_nlinreg.inputs.in_source_mask = self.inputs.brainmaskTal
-            #	run_nlinreg.inputs.in_target_mask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09b_mask.mnc"
-            #else:
-                #Use alternate template
-            run_nlinreg.inputs.in_target_file = self.inputs.model
-            run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm	# xfm file for the transformation from template to subject stereotaxic
-            run_nlinreg.inputs.clobber = self.inputs.clobber; 
-            run_nlinreg.inputs.verbose = self.inputs.verbose;
-            run_nlinreg.inputs.run = self.inputs.run;
-            # run_nlinreg.run() #Calculate transformation from subject stereotaxic space to model template
-
-            #if self.inputs.verbose:
-            #    print run_nlinreg.cmdline
-            if self.inputs.run:
-                run_nlinreg.run() #Resample the template atlas to subject stereotaxic space 
-            
-            #MIC run_resample = ResampleCommand(); 
-            run_resample = minc.Resample(); 
-            #MIC run_resample.inputs.in_file = self.inputs.ROIMask
-            run_resample.inputs.input_file = self.inputs.ROIMask
-            #MIC run_resample.inputs.out_file = self.inputs.RegionalMaskTal
-            run_resample.inputs.output_file = self.inputs.RegionalMaskTal
-            #MIC run_resample.inputs.model_file = self.inputs.T1Tal
-            run_resample.inputs.like = self.inputs.T1Tal
-            run_resample.inputs.transformation = sourceToModel_xfm
-            #MIC run_resample.inputs.interpolation = 'nearest_neighbour'
-            run_resample.inputs.nearest_neighbour_interpolation = True
-            run_resample.inputs.clobber = True
-            if self.inputs.verbose:
-                print run_resample.cmdline
-            if self.inputs.run:
-                run_resample.run() #Resample the template atlas to subject stereotaxic space 
-            
-            print "\n\nFinished running nlinreg: " + self.inputs.RegionalMaskTal
-
-        #Option 3: ANIMAL (or CIVET)
-        elif self.inputs.MaskingType == 'civet' or self.inputs.MaskingType == 'animal':
-            print "\nRUNNING OPTION 3\n"
-            mask = tmpDir+"/mask.mnc"
-            mask_clean = tmpDir+"/mask_clean.mnc"
-            machin = self.inputs.segLabels
-            #self.inputs.RegionalMaskTal = self.inputs.ROIMask
-            #if self.inputs.refGM or self.inputs.refWM:
-
-            #MIC: run_calc = CalcCommand(); #Extract the desired labels from the atlas using minccalc.
-            run_calc = minc.Calc(); #Extract the desired labels from the atlas using minccalc.
-            #MIC run_calc.inputs.in_file = self.inputs.ROIMask #The ANIMAL or CIVET classified atlas
-            run_calc.inputs.input_files = self.inputs.ROIMask #The ANIMAL or CIVET classified atlas
-            #MIC run_calc.inputs.out_file = mask #Output mask with desired labels
-            run_calc.inputs.output_file = mask #Output mask with desired labels
-            #Select region from each hemisphere of ANIMAL:
-            image_string=" || ".join([ 'A[0] == ' + str(labels) + ' ' for labels in self.inputs.segLabels ])
-            #run_calc.inputs.expression = 'A[0] == ' + str(self.inputs.segLabels[0]) + ' || A[0] == ' + str(self.inputs.segLabels[1]) + '? 1 : 0'  
-            # run_calc.inputs.expression = image_string + ' ? A[0] : 0'  
-            run_calc.inputs.expression = image_string + ' ? A[0] : 0'  
-            if self.inputs.verbose:
-                print run_calc.cmdline
-            if self.inputs.run:
-                run_calc.run()
-            
-            #If we need to close the region, use mincmorph.
-            #QUESTION: Why have the option to close all regions regardless of whether its an ROI
-            #			or a reference region? Shouldn't there be a distrinction between the ROI
-            #			and reference region? 
-            if self.inputs.close:
-                run_mincmorph = MorphCommand()
-                run_mincmorph.inputs.in_file = mask
-                run_mincmorph.inputs.out_file = mask_clean
-                run_mincmorph.inputs.successive='CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC'
-                run_mincmorph.inputs.verbose=True			 
-                run_mincmorph.inputs.clobber = True
-                if self.inputs.verbose:
-                    print run_mincmorph.cmdline
-                if self.inputs.run:
-                    run_mincmorph.run()
-            else:
-                if self.inputs.verbose:
-                    cmd=' '.join(['cp', mask, mask_clean])
-                    print(cmd)
-                if self.inputs.run:
-                    shutil.copy(mask, mask_clean)
-
-            #QUESTION:  If we already have the segmentation, why add the mask_class to GM or WM?
-            if self.inputs.refGM:
-                #MIC run_calc = CalcCommand();
-                run_calc = minc.Calc();
-                #MIC run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-                run_calc.inputs.input_files = [mask_clean, self.inputs.clsmaskTal]
-                #MIC run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-                run_calc.inputs.output_file = self.inputs.RegionalMaskTal
-                run_calc.inputs.expression = 'A[0] == 1 && A[1] == 2 ? 1 : 0' 
-                if self.inputs.verbose:
-                    print run_calc.cmdline
-                if self.inputs.run:
-                    run_calc.run()
-
-            if self.inputs.refWM:
-                #run_calc = CalcCommand();
-                run_calc = minc.Calc();
-                #run_calc.inputs.in_file = [mask_clean, self.inputs.clsmaskTal]
-                run_calc.inputs.input_files = [mask_clean, self.inputs.clsmaskTal]
-                #run_calc.inputs.out_file = self.inputs.RegionalMaskTal
-                run_calc.inputs.output_file = self.inputs.RegionalMaskTal
-                run_calc.inputs.expression = 'A[0] == 1 && A[1] == 3 ? 1 : 0' 
-                if self.inputs.verbose:
-                    print run_calc.cmdline
-                if self.inputs.run:
-                    run_calc.run()
-            #else:
-            if self.inputs.verbose:
-                cmd=' '.join(['cp', mask_clean, self.inputs.RegionalMaskTal])
-                print(cmd)
-            if self.inputs.run:
-                shutil.copy(mask_clean, self.inputs.RegionalMaskTal)
-        else: 
-            print "No mask type specified"
-            exit(1)
-
-        #FIXME: inversion of transformation file should probably be its own node.
-        #Invert transformation from Tal to T1
-        # run_xfminvert = InvertCommand();
-        # run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
-        # if self.inputs.verbose:
-        #     print run_xfminvert.cmdline
-        # if self.inputs.run:
-        #     run_xfminvert.run() #Invert xfm file to get Tal to T1 transformation
-
-        # #Invert transformation from PET to T1
-        # run_xfmpetinvert = Command(), name=node_name)
-        #run_resample = ResampleCommand(); #Resample regional mask to T1 native
-        run_resample = minc.Resample(); #Resample regional mask to T1 native
-        #MIC run_resample.inputs.in_file = self.inputs.RegionalMaskTal
-        run_resample.inputs.input_file = self.inputs.RegionalMaskTal
-        #MIC run_resample.inputs.out_file = self.inputs.RegionalMaskT1
-        run_resample.inputs.output_file = self.inputs.RegionalMaskT1
-        #MIC run_resample.inputs.model_file = self.inputs.nativeT1
-        run_resample.inputs.like = self.inputs.nativeT1
-        # run_resample.inputs.transformation = run_xfminvert.inputs.out_file
-        run_resample.inputs.transformation = self.inputs.LinTalT1Xfm
-        #MIC run_resample.inputs.interpolation = 'nearest_neighbour'
-        run_resample.inputs.nearest_neighbour_interpolation = True
-        run_resample.inputs.clobber = True
-        #if self.inputs.verbose:
-        print run_resample.cmdline
-        if self.inputs.run:
-            run_resample.run()
-
-        # run_resample = ResampleCommand(); #Resample regional mask to T1 native
-        # run_resample.inputs.in_file = self.inputs.RegionalMaskT1
-        # run_resample.inputs.out_file = self.inputs.RegionalMaskPET
-        # run_resample.inputs.model_file = self.inputs.PETVolume
-        # # run_resample.inputs.transformation = run_xfmpetinvert.inputs.out_file
-        # run_resample.inputs.transformation = self.inputs.mri2petXfm
-        # run_resample.inputs.interpolation = 'nearest_neighbour'
-        # run_resample.inputs.clobber = True
-        # if self.inputs.verbose:
-        #     print run_resample.cmdline
-        # if self.inputs.run:
-        #     run_resample.run()		
-        print  self.inputs.RegionalMaskTal
-        print  self.inputs.RegionalMaskT1
+        #Copy temp_mask[_clean] to first output
+        if self.inputs.space == 'native': shutil.copy(out_file_1, self.inputs.LabelsT1)
+        elif self.inputs.space == 'icbm152': shutil.copy(out_file_1, self.inputs.LabelsMNI)
         
-        print 'Okay!\n\n'
+        # 3) Co-registration
+        if self.inputs.space == "other":
+            run_resample = reg.nLinReg()
+            run_nlinreg.inputs.in_source_file = self.inputs.label_template
+            run_nlinreg.inputs.in_target_file = self.inputs.mniT1  #self.inputs.model
+            run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm	# xfm file for the transformation from template to subject stereotaxic
+            run_nlinreg.inputs.run = self.inputs.run
+
+        # 4) Apply transformation 
+        if self.inputs.space == "icbm152":  
+            xfm = self.inputs.LinMNIT1Xfm
+            like_file = self.inputs.nativeT1
+            out_file_2 = self.inputs.LabelsT1
+        elif self.inputs.space == "other":  
+            xfm = run_nlinreg.inputs.out_file_xfm
+            like_file = self.inputs.mniT1
+            out_file_2 = self.inputs.LabelsMNI
+        elif self.inputs.space == "native": 
+            xfm = self.inputs.LinMNIT1Xfm
+            like_file = self.inputs.mniT1
+            out_file_2 = self.inputs.LabelsMNI
+
+        run_resample = minc.Resample() 
+        run_resample.inputs.input_file = out_file_1
+        run_resample.inputs.output_file = out_file_2
+        run_resample.inputs.like = like_file
+        run_resample.inputs.transformation = xfm
+        run_resample.inputs.nearest_neighbour_interpolation = True
+        run_resample.run() 
+
+        if self.inputs.space == "other": 
+            # 5) Resample 'other' atlas into mni space 
+            run_resample = minc.Resample() 
+            run_resample.inputs.input_file = out_file_2
+            run_resample.inputs.output_file = self.inputs.LabelsT1
+            run_resample.inputs.like = self.inputs.nativeT1
+            run_resample.inputs.transformation = self.inputs.LinMNIT1Xfm
+            run_resample.inputs.nearest_neighbour_interpolation = True
+            run_resample.run() 
         shutil.rmtree(tmpDir)
         return runtime
 
-
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["RegionalMaskTal"] = self.inputs.RegionalMaskTal #Masks in stereotaxic space
-        outputs["RegionalMaskT1"] = self.inputs.RegionalMaskT1 #Masks in native space
-        # outputs["RegionalMaskPET"] = self.inputs.RegionalMaskPET #Masks in native space
+        outputs["LabelsMNI"] = self.inputs.LabelsMNI #Masks in stereotaxic space
+        outputs["LabelsT1"] = self.inputs.LabelsT1 #Masks in native space
+        # outputs["LabelsPET"] = self.inputs.LabelsPET #Masks in native space
         return outputs
 
 
@@ -414,7 +156,7 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
     run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
     verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class PETheadMaskingRunning(BaseInterface):
+class PETheadMasking(BaseInterface):
     input_spec = PETheadMaskingInput
     output_spec = PETheadMaskingOutput
     _suffix = "_headMask"
@@ -425,37 +167,25 @@ class PETheadMaskingRunning(BaseInterface):
     #         skip = []
     #     if not isdefined(self.inputs.out_file):
     #         self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
-    #     return super(PETheadMaskingRunning, self)._parse_inputs(skip=skip)
+    #     return super(PETheadMasking, self)._parse_inputs(skip=skip)
     def _run_interface(self, runtime):
 
-        #tmpDir = tempfile.mkdtemp()
-        #print "\n\n"
-        #print self.inputs.in_file
-        #print "\n\n"
         if not isdefined(self.inputs.out_file):
-            #print 'Slice Factor:', self.inputs.slice_factor
-            #print 'Total Factor:', self.inputs.total_factor
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
             #Load PET 3D volume
             infile = volumeFromFile(self.inputs.in_file)
             zmax=infile.sizes[infile.dimnames.index("zspace")]
-            #print 'Zmax', zmax
             #Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)
             slice_thresholds=np.amax(infile.data, axis=(1,2)) * self.inputs.slice_factor
-            #print slice_thresholds
             #Get mean for all values above slice_max
             slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]])) 
             slice_mean = np.array([ slice_mean_f(slice_thresholds, infile.data, i)  for i in range(zmax) ])
-            #print slice_mean
             #Remove nan from slice_mean
             slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
             #Calculate overall mean from mean of thresholded slices
-            #print 'Slice Mean', slice_mean
             overall_mean = np.mean(slice_mean)
             #Calcuate threshold
-            #print 'Overall Mean', overall_mean
             threshold = overall_mean * self.inputs.total_factor
-            #print 'Threshold', threshold
             #Apply threshold and create and write outputfile
             run_calc = CalcCommand();
             run_calc.inputs.in_file = self.inputs.in_file 
@@ -468,7 +198,6 @@ class PETheadMaskingRunning(BaseInterface):
 
         return runtime
 
-
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
@@ -477,236 +206,91 @@ class PETheadMaskingRunning(BaseInterface):
 
 
 def get_workflow(name, infosource, datasink, opts):
-
     workflow = pe.Workflow(name=name)
-
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1nuc","xfmT1Tal","T1Tal","brainmaskTal", "clsmask","segmentation","subjectROI","pet_volume","pet_json"]), name='inputnode')
-
+    inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_json","pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template",  "tka_labels", "tka_label_space","tka_label_template","tka_label_img", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinMNIT1Xfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]), name='inputnode')
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["t1_brainMask","t1_headMask","pet_headMask","tal_refMask", "t1_refMask","tal_ROIMask","t1_ROIMask","tal_PVCMask","t1_PVCMask"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_brainmask", "brainmask_t1", "brainmask_mni", "headmask_t1", "headmask_mni",  "pvc_label_img_t1", "pvc_label_img_mni", "tka_label_img_t1", "tka_label_img_mni", "results_label_img_t1", "results_label_img_mni" ]), name='outputnode')
+ 
 
+    node_name="MNI2T1xfm"
+    invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
+    workflow.connect(inputnode, 'LinMNIT1Xfm',invert_MNI2T1 , 'input_file')
+    
+    node_name="headmask"
+    headmaskNode = pe.Node(interface=Labels(), name=node_name)
+    headmaskNode.inputs.space = "icbm152"
+    headmaskNode.inputs.labels = [1]
+    workflow.connect(inputnode, 'headmask', headmaskNode, 'label_img')
+    workflow.connect(inputnode, 'LinMNIT1Xfm', headmaskNode, 'LinMNIT1Xfm')
+    workflow.connect(inputnode, 'nativeT1', headmaskNode, 'nativeT1')
+    workflow.connect(inputnode, 'mniT1', headmaskNode, 'mniT1')
+    workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinT1MNIXfm')
+    workflow.connect(headmaskNode, 'LabelsT1', outputnode, 'headmask_t1')
+    workflow.connect(headmaskNode, 'LabelsMNI', outputnode, 'headmask_mni')  
 
-    node_name="t1Masking"
-    t1Masking = pe.Node(interface=T1maskingRunning(), name=node_name)
-    t1Masking.inputs.modelDir = opts.modelDir
-    t1Masking.inputs.clobber = True
-    t1Masking.inputs.verbose = opts.verbose
-    t1Masking.inputs.run = opts.prun
-    rT1MaskingHead=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_head.mnc"), name="r"+node_name+"Head")
-    rT1MaskingBrain=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_brain.mnc"), name="r"+node_name+"Brain")
+    node_name="brainmask"
+    brainmaskNode = pe.Node(interface=Labels(), name=node_name)
+    brainmaskNode.inputs.space = "icbm152"
+    brainmaskNode.inputs.labels = [1]
+    workflow.connect(inputnode, 'brainmask', brainmaskNode, 'label_img')
+    workflow.connect(inputnode, 'LinMNIT1Xfm', brainmaskNode, 'LinMNIT1Xfm')
+    workflow.connect(inputnode, 'nativeT1', brainmaskNode, 'nativeT1')
+    workflow.connect(inputnode, 'mniT1', brainmaskNode, 'mniT1')
+    workflow.connect(invert_MNI2T1, 'output_file', brainmaskNode, 'LinT1MNIXfm')
+    workflow.connect(brainmaskNode, 'LabelsT1', outputnode, 'brainmask_t1')
+    workflow.connect(brainmaskNode, 'LabelsMNI', outputnode, 'brainmask_mni')
 
-
-    node_name="petMasking"
-    petMasking = pe.Node(interface=PETheadMaskingRunning(), name=node_name)
-    petMasking.inputs.verbose = opts.verbose
-    petMasking.inputs.run = opts.prun
+    node_name="pet_brainmask"
+    petMasking = pe.Node(interface=PETheadMasking(), name=node_name)
     petMasking.inputs.slice_factor = opts.slice_factor
     petMasking.inputs.total_factor = opts.total_factor
-    rPetMasking=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
-    node_name="refMasking"
-    refMasking = pe.Node(interface=RegionalMaskingRunning(), name=node_name)
-    refMasking.inputs.MaskingType = opts.RefMaskingType
-    # refMasking.inputs.modelDir = opts.RefTemplateDir
-    refMasking.inputs.model = opts.RefTemplate
-    refMasking.inputs.segLabels = opts.RefAtlasLabels
-    refMasking.inputs.close = opts.RefClose
-    refMasking.inputs.refGM = True if opts.RefMatter == 'gm' else False
-    refMasking.inputs.refWM = True if opts.RefMatter == 'wm' else False
-    refMasking.inputs.clobber = True
-    refMasking.inputs.verbose = opts.verbose
-    refMasking.inputs.run = opts.prun
-    rRefMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-    rRefMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-
-    node_name="roiMasking"
-    roiMasking = pe.Node(interface=RegionalMaskingRunning(), name=node_name)
-    roiMasking.inputs.MaskingType = opts.ROIMaskingType
-    roiMasking.inputs.model = opts.ROITemplate
-    roiMasking.inputs.segLabels = opts.ROIAtlasLabels
-    # roiMasking.inputs.erosion = False
-    roiMasking.inputs.clobber = True
-    roiMasking.inputs.verbose = opts.verbose
-    roiMasking.inputs.run = opts.prun
-    rROIMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-    rROIMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
+    workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
+    workflow.connect(inputnode, 'pet_json', petMasking, 'in_json')
+    workflow.connect(petMasking, 'out_file', outputnode, 'pet_brainmask' ) 
 
     if not opts.nopvc:
-        node_name="pvcMasking"
-        pvcMasking = pe.Node(interface=RegionalMaskingRunning(), name=node_name)
-        pvcMasking.inputs.MaskingType = opts.PVCMaskingType
-        pvcMasking.inputs.model = opts.pvcTemplate
-        pvcMasking.inputs.segLabels = opts.PVCAtlasLabels
-        pvcMasking.inputs.clobber = True
-        pvcMasking.inputs.verbose = opts.verbose
-        pvcMasking.inputs.run = opts.prun
-        rPVCMaskingTal=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"Tal.mnc"), name="r"+node_name+"Tal")
-        rPVCMaskingT1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"T1.mnc"), name="r"+node_name+"T1")
-
-    node_name="Tal2T1xfm"
-    #MIC invert_Tal2T1 = pe.Node(interface=InvertCommand(), name=node_name)
-    invert_Tal2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
-    invert_Tal2T1.inputs.clobber = True
-    invert_Tal2T1.inputs.verbose = opts.verbose
-    rInvert_Tal2T1=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name)
-
-    #MIC workflow.connect([(inputnode, invert_Tal2T1, [('xfmT1Tal', 'in_file')])])
-    workflow.connect([(inputnode, invert_Tal2T1, [('xfmT1Tal', 'input_file')])])
-
-    #MIC workflow.connect([(invert_Tal2T1, rInvert_Tal2T1, [('out_file', 'in_file')])])
-    workflow.connect([(invert_Tal2T1, rInvert_Tal2T1, [('output_file', 'in_file')])])
-
-    workflow.connect([#(infosource, rInvert_Tal2T1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rInvert_Tal2T1, [('sid', 'sid')]),
-                      (infosource, rInvert_Tal2T1, [('cid','cid')])])
-
-    workflow.connect(rInvert_Tal2T1, 'out_file', datasink, invert_Tal2T1.name)
-
-
-    workflow.connect([(inputnode, t1Masking, [('nativeT1nuc', 'nativeT1')]), 
-                      #MIC (invert_Tal2T1, t1Masking, [('out_file', 'LinTalT1Xfm')]),
-                      (invert_Tal2T1, t1Masking, [('output_file', 'LinTalT1Xfm')]),
-                      (inputnode, t1Masking, [('brainmaskTal', 'brainmaskTal')])])
-
-    workflow.connect([(t1Masking, rT1MaskingBrain, [('T1brainmask', 'in_file')])])
-    workflow.connect([(t1Masking, rT1MaskingHead, [('T1headmask', 'in_file')])])
-
-    workflow.connect([#(infosource, rT1MaskingBrain, [('study_prefix', 'study_prefix')]),
-                      (infosource, rT1MaskingBrain, [('sid', 'sid')]),
-                      (infosource, rT1MaskingBrain, [('cid','cid')])])
-    workflow.connect([#(infosource, rT1MaskingHead, [('study_prefix', 'study_prefix')]),
-                      (infosource, rT1MaskingHead, [('sid', 'sid')]),
-                      (infosource, rT1MaskingHead, [('cid','cid')])])
-
-    workflow.connect(rT1MaskingBrain, 'out_file', datasink, t1Masking.name+"Brain")
-    workflow.connect(rT1MaskingHead, 'out_file', datasink, t1Masking.name+"Head")
-
-    workflow.connect([(inputnode, petMasking, [('pet_volume', 'in_file')]), 
-                      (inputnode, petMasking, [('pet_json', 'in_json')])])
-    workflow.connect([(petMasking, rPetMasking, [('out_file', 'in_file')])])
-    workflow.connect([#(infosource, rPetMasking, [('study_prefix', 'study_prefix')]),
-                    (infosource, rPetMasking, [('sid', 'sid')]),
-                    (infosource, rPetMasking, [('cid', 'cid')])
-                    ])
-    workflow.connect(rPetMasking, 'out_file', datasink, petMasking.name)
-
-    workflow.connect([(inputnode, roiMasking, [('nativeT1nuc','nativeT1')]),
-                      (inputnode, roiMasking, [('T1Tal','T1Tal')]),
-                      #(invert_Tal2T1, roiMasking, [('out_file', 'LinTalT1Xfm')]),
-                      (invert_Tal2T1, roiMasking, [('output_file', 'LinTalT1Xfm')]),
-                      (inputnode, roiMasking, [('brainmaskTal','brainmaskTal')]),
-                      (inputnode, roiMasking, [('clsmask','clsmaskTal')]),
-                      (inputnode, roiMasking, [('segmentation','segMaskTal')])
-                    ])
-
-    if opts.ROIMaskingType == "roi-user":
-        workflow.connect([(inputnode, roiMasking, [('subjectROI','ROIMask')])])	
-    elif opts.ROIMaskingType in [ "animal" ]:
-        workflow.connect([(inputnode, roiMasking, [('segmentation','ROIMask')])]) 
-    elif opts.ROIMaskingType in [ "civet" ]:
-        workflow.connect([(inputnode, roiMasking, [('clsmask','ROIMask')])])
-    elif opts.ROIMaskingType in [ "icbm152", "atlas"] :
-        roiMasking.inputs.ROIMask=opts.ROIMask
-
-
-    workflow.connect([(roiMasking, rROIMaskingTal, [('RegionalMaskTal', 'in_file')])])
-    workflow.connect([#(infosource, rROIMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingTal, [('sid', 'sid')]),
-                      (infosource, rROIMaskingTal, [('cid', 'cid')])
-                    ])
-
-    workflow.connect([(roiMasking, rROIMaskingT1, [('RegionalMaskT1', 'in_file')])])
-    workflow.connect([#(infosource, rROIMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rROIMaskingT1, [('sid', 'sid')]),
-                      (infosource, rROIMaskingT1, [('cid', 'cid')])
-                    ])
-
-    workflow.connect(rROIMaskingT1, 'out_file', datasink, roiMasking.name+"T1")
-    workflow.connect(rROIMaskingTal, 'out_file', datasink, roiMasking.name+"Tal")
-    # workflow.connect(rROIMaskingPET, 'out_file', datasink, roiMasking.name+"PET")
-
-    workflow.connect([(inputnode, refMasking, [('nativeT1nuc','nativeT1')]),
-                      (inputnode, refMasking, [('T1Tal','T1Tal')]),
-                      #MIC (invert_Tal2T1, refMasking, [('out_file', 'LinTalT1Xfm')]),
-                      (invert_Tal2T1, refMasking, [('output_file', 'LinTalT1Xfm')]),
-                      (inputnode, refMasking, [('brainmaskTal','brainmaskTal' )]),
-                      (inputnode, refMasking, [('clsmask','clsmaskTal')]),
-                      (inputnode, refMasking, [('segmentation','segMaskTal' )])
-                    ])
-
-    if opts.RefMaskingType == "roi-user":
-        workflow.connect([(inputnode, refMasking, [('subjectROI','ROIMask')]) ])	
-    elif opts.RefMaskingType in [ "animal" ]:
-        workflow.connect([(inputnode, refMasking, [('segmentation','ROIMask')]) ]) 
-    elif opts.RefMaskingType in [ "civet" ]:
-        workflow.connect([(inputnode, refMasking, [('clsmask','ROIMask')]) ])
-    elif opts.RefMaskingType in [ "icbm152", "atlas"] :
-        refMasking.inputs.ROIMask=opts.ROIMask
-
-    workflow.connect([(refMasking, rRefMaskingTal, [('RegionalMaskTal', 'in_file')])])
-    workflow.connect([#(infosource, rRefMaskingTal, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingTal, [('sid', 'sid')]),
-                      (infosource, rRefMaskingTal, [('cid', 'cid')])
-                    ])	
-
-    workflow.connect([(refMasking, rRefMaskingT1, [('RegionalMaskT1', 'in_file')])])
-    workflow.connect([#(infosource, rRefMaskingT1, [('study_prefix', 'study_prefix')]),
-                      (infosource, rRefMaskingT1, [('sid', 'sid')]),
-                      (infosource, rRefMaskingT1, [('cid', 'cid')])
-                    ])
-
-    workflow.connect(rRefMaskingT1, 'out_file', datasink, refMasking.name+"T1")
-    workflow.connect(rRefMaskingTal, 'out_file', datasink, refMasking.name+"Tal")
-    # workflow.connect(rRefMaskingPET, 'out_file', datasink, refMasking.name+"PET")
-
-
-    workflow.connect(rT1MaskingBrain, 'out_file', outputnode, 't1_brainMask')
-    workflow.connect(rT1MaskingHead, 'out_file', outputnode, 't1_headMask')
-    workflow.connect(rPetMasking, 'out_file', outputnode, 'pet_headMask')
-    workflow.connect(rRefMaskingTal, 'out_file', outputnode, 'tal_refMask')
-    workflow.connect(rRefMaskingT1, 'out_file', outputnode, 't1_refMask')
-    workflow.connect(rROIMaskingTal, 'out_file', outputnode, 'tal_ROIMask')
-    workflow.connect(rROIMaskingT1, 'out_file', outputnode, 't1_ROIMask')
-
-    if not opts.nopvc:
-        workflow.connect([(inputnode, pvcMasking, [('nativeT1nuc','nativeT1')]),
-                          (inputnode, pvcMasking, [('T1Tal','T1Tal')]),
-                          # (inputnode, pvcMasking, [('xfmT1Tal','LinT1TalXfm')]),
-                          (invert_Tal2T1, pvcMasking, [('output_file', 'LinTalT1Xfm')]),
-                          (inputnode, pvcMasking, [('brainmaskTal','brainmaskTal' )]),
-                          (inputnode, pvcMasking, [('clsmask','clsmaskTal')]),
-                          (inputnode, pvcMasking, [('segmentation','segMaskTal' )])
-                        ])
-
-
-        if opts.PVCMaskingType == "roi-user":
-            workflow.connect([(inputnode, pvcMasking, [('subjectROI','ROIMask')]) ])	
-        elif opts.PVCMaskingType in [ "animal" ]:
-            workflow.connect([(inputnode, pvcMasking, [('segmentation','ROIMask')]) ]) 
-        elif opts.PVCMaskingType in [ "civet" ]:
-            workflow.connect([(inputnode, pvcMasking, [('clsmask','ROIMask')]) ])
-        elif opts.PVCMaskingType in [ "icbm152", "atlas"] :
-            pvcMasking.inputs.ROIMask=opts.ROIMask
-
-        workflow.connect([(pvcMasking, rPVCMaskingTal, [('RegionalMaskTal', 'in_file')])])
-        workflow.connect([#(infosource, rPVCMaskingTal, [('study_prefix', 'study_prefix')]),
-                          (infosource, rPVCMaskingTal, [('sid', 'sid')]),
-                          (infosource, rPVCMaskingTal, [('cid', 'cid')])
-                        ])
-
-        workflow.connect([(pvcMasking, rPVCMaskingT1, [('RegionalMaskT1', 'in_file')])])
-        workflow.connect([#(infosource, rPVCMaskingT1, [('study_prefix', 'study_prefix')]),
-                          (infosource, rPVCMaskingT1, [('sid', 'sid')]),
-                          (infosource, rPVCMaskingT1, [('cid', 'cid')])
-                        ])
-
-        workflow.connect(rPVCMaskingT1, 'out_file', datasink, pvcMasking.name+"T1")
-        workflow.connect(rPVCMaskingTal, 'out_file', datasink, pvcMasking.name+"Tal")
-
-        workflow.connect(rPVCMaskingTal, 'out_file', outputnode, 'tal_PVCMask')
-        workflow.connect(rPVCMaskingT1, 'out_file', outputnode, 't1_PVCMask')
-
+        node_name="pvcLabels"
+        pvcLabels = pe.Node(interface=Labels(), name=node_name)
+        pvcLabels.inputs.space = opts.pvc_label_space
+        pvcLabels.inputs.erode_times = opts.pvc_erode_times
+        workflow.connect(inputnode, 'pvc_labels', pvcLabels, 'labels')
+        workflow.connect(inputnode, 'pvc_label_img', pvcLabels, 'label_img')
+        workflow.connect(inputnode, 'pvc_label_template', pvcLabels, 'label_template')
+        workflow.connect(inputnode, 'nativeT1', pvcLabels, 'nativeT1')
+        workflow.connect(inputnode, 'mniT1', pvcLabels, 'mniT1')
+        workflow.connect(inputnode, 'LinMNIT1Xfm', pvcLabels, 'LinMNIT1Xfm')
+        workflow.connect(invert_MNI2T1, 'output_file', pvcLabels, 'LinT1MNIXfm')
+        workflow.connect(pvcLabels, 'LabelsMNI', outputnode, 'pvc_labels_img_mni'  )
+        workflow.connect(pvcLabels, 'LabelsT1', outputnode, 'pvc_labels_img_t1'  )
+    if not opts.pvc_method == None:
+        node_name="tkaLabels"
+        tkaLabels = pe.Node(interface=Labels(), name=node_name)
+        tkaLabels.inputs.space = opts.tka_label_space
+        tkaLabels.inputs.erode_times = opts.tka_erode_times
+        workflow.connect(inputnode, 'tka_labels', tkaLabels, 'labels')
+        workflow.connect(inputnode, 'tka_label_img', tkaLabels, 'label_img')
+        workflow.connect(inputnode, 'tka_label_template', tkaLabels, 'label_template')
+        workflow.connect(inputnode, 'nativeT1', tkaLabels, 'nativeT1')
+        workflow.connect(inputnode, 'mniT1', tkaLabels, 'mniT1')
+        workflow.connect(inputnode, 'LinMNIT1Xfm', tkaLabels, 'LinMNIT1Xfm')
+        workflow.connect(invert_MNI2T1, 'output_file', tkaLabels, 'LinT1MNIXfm')
+        workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'tka_labels_img_mni'  )
+        workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_labels_img_t1'  )
+    
+    node_name="resultsLabels"
+    resultsLabels = pe.Node(interface=Labels(), name=node_name)
+    resultsLabels.inputs.space = opts.results_label_space
+    resultsLabels.inputs.erode_times = opts.results_erode_times
+    #resultsLabels.inputs.labels = inputnode.inputs.results_labels
+    workflow.connect(inputnode, 'results_labels', resultsLabels, 'labels')
+    workflow.connect(inputnode, 'results_label_img', resultsLabels, 'label_img')
+    workflow.connect(inputnode, 'results_label_template', resultsLabels, 'label_template')
+    workflow.connect(inputnode, 'nativeT1', resultsLabels, 'nativeT1')
+    workflow.connect(inputnode, 'mniT1', resultsLabels, 'mniT1')
+    workflow.connect(inputnode, 'LinMNIT1Xfm', resultsLabels, 'LinMNIT1Xfm')
+    workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinT1MNIXfm')
+    workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'results_labels_img_mni'  )
+    workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'results_labels_img_t1'  )
 
     return(workflow)

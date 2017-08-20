@@ -4,7 +4,6 @@ import tempfile
 import shutil
 import json
 import nipype.interfaces.minc as minc
-import nipype.interfaces.minc2 as minc2
 
 import minc as pyezminc
 from os.path import basename
@@ -19,52 +18,51 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.utils.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
-from nipype.interfaces.minc.resample import ResampleCommand
-from nipype.interfaces.minc.info import InfoCommand
-from nipype.interfaces.minc.modifHeader import ModifyHeaderCommand
-from nipype.interfaces.minc.reshape import ReshapeCommand
-from nipype.interfaces.minc.concat import ConcatCommand
+from nipype.interfaces.minc import Resample as ResampleCommand
+from Extra.info import  InfoCommand
+from Extra.modifHeader import ModifyHeaderCommand
+from Extra.reshape import  ReshapeCommand
 from glob import glob
 
 def unique_file(files, attributes):
-    print files
-    if len(files) == 1:
-        return(files[0])
-    files = [ f for f in files if attributes[0] in f ]
-    print files
-    return( unique_file(files, attributes[1:]) ) 
+	
+	if len(files) == 1: 
+		return(files[0])
+	
+	files = [ f for f in files if attributes[0] in f ]
+
+	if attributes == [] or len(files) == 0: return []
+	else: unique_file(files, attributes[1:])
+	return( files[0] ) 
 
 
 def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
     args=[]
-    print subjects
     for sub in subjects:
         for ses in session_ids:
             for task in task_ids:
-                sub_arg='sub-'+sub
-                ses_arg=task_arg=rec_arg=acq_arg=""
-                #if not ses == None: ses_arg='ses-'+ses
-                #if not task == None: task_arg='task-'+task
-                if not acq == None: acq_arg='acq-'+acq
-                if not rec == None: rec_arg='rec-'+rec
-
-                pet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/pet/*_pet.mnc' )
-                pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
-                
-                civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
-                civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
-                 
-                # opts.prefix+'_'+sub+'_'+cond+'_pet.mnc'
-                #civet_fn=opts.civetDir+os.sep+sub +'_'+cond
-                if os.path.exists(pet_fn) and os.path.exists(civet_fn):
-                    d={'task':task, 'ses':ses, 'sid':sub}
-                    args.append(d)
-                    print d
-                else:
-                    if not os.path.exists(pet_fn) :
-                        print "Could not find PET for ", sub, cond, pet_fn
-                    if not os.path.exists(civet_fn) :
-                        print "Could not find CIVET for ", sub, cond, civet_fn
+				sub_arg='sub-'+sub
+				ses_arg='ses-'+ses
+				task_arg=rec_arg=acq_arg=""
+				
+				pet_fn=civet_fn=""
+				if not acq == None: acq_arg='acq-'+acq
+				if not rec == None: rec_arg='rec-'+rec
+				pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '_'+ ses_arg + os.sep+ 'pet/*'+ 'ses-'+ses+'*'+'task-'+ task  +'*_pet.mnc' 
+				pet_list=glob(pet_string)
+				if pet_list != []:
+					pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
+				civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
+				if civet_list != []:
+					civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
+				if os.path.exists(pet_fn) and os.path.exists(civet_fn):
+					d={'task':task, 'ses':ses, 'sid':sub}
+					args.append(d)
+				else:
+					if not os.path.exists(pet_fn) :
+						print "Could not find PET for ", sub, ses, task, pet_fn
+					if not os.path.exists(civet_fn) :
+						print "Could not find CIVET for ", sub, ses, task, civet_fn
     return args
 
 class SplitArgsOutput(TraitedSpec):
@@ -72,7 +70,6 @@ class SplitArgsOutput(TraitedSpec):
     sid = traits.Str(mandatory=True, desc="Subject ID") 
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
-    #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
@@ -90,9 +87,6 @@ class SplitArgsRunning(BaseInterface):
 
     def _run_interface(self, runtime):
        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
-       print '\n\n\n'
-       print self.inputs.cid
-       print '\n\n\n'
        self.inputs.task=self.inputs.args['task']
        self.inputs.ses=self.inputs.args['ses']
        self.inputs.sid=self.inputs.args['sid']
@@ -106,7 +100,6 @@ class SplitArgsRunning(BaseInterface):
         outputs["sid"] = self.inputs.sid
         outputs["ses"] = self.inputs.ses
         outputs["task"] = self.inputs.task
-        #outputs["study_prefix"] = self.inputs.study_prefix
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
@@ -133,23 +126,12 @@ class MincHdrInfoRunning(BaseInterface):
     output_spec = MincHdrInfoOutput
     _suffix = ".info"
     _params={}
-    # def _parse_inputs(self, skip=None):
-    #     if skip is None:
-    #         skip = []
-    #     if not isdefined(self.inputs.out_file):
-    #         fname, ext = os.path.splitext(self.inputs.in_file)
-    #         self.inputs.out_file = fname + _suffix
-
-    #     return super(MincHdrInfoRunning, self)._parse_inputs(skip=skip)
-
 
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
             dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
             self.inputs.out_file = dname+ os.sep+fname + self._suffix
-        # if os.path.exists(self.inputs.out_file):
-        #     os.remove(self.inputs.out_file)
         try:
             os.remove(self.inputs.out_file)
         except OSError:
@@ -223,41 +205,40 @@ class VolCenteringInput(BaseInterfaceInputSpec):
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class VolCenteringRunning(BaseInterface):
-    input_spec = VolCenteringInput
-    output_spec = VolCenteringOutput
-    _suffix = "_center"
+	input_spec = VolCenteringInput
+	output_spec = VolCenteringOutput
+	_suffix = "_center"
 
 
-    def _run_interface(self, runtime):
-        if not isdefined(self.inputs.out_file):
-            fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
-            dname = dname = os.getcwd()
-            # self.inputs.out_file = dname + os.sep + fname + self._suffix
-            self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
-
-	
-        shutil.copy(self.inputs.in_file, self.inputs.out_file)
-        infile = volumeFromFile(self.inputs.in_file)
-        for view in ['xspace','yspace','zspace']:
-            start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
-
-            run_modifHrd=ModifyHeaderCommand()
-            run_modifHrd.inputs.in_file = self.inputs.out_file;
-            run_modifHrd.inputs.dinsert = True;
-            run_modifHrd.inputs.opt_string = view+":start="+str(start);
-            if self.inputs.verbose:
-                print run_modifHrd.cmdline
-            if self.inputs.run:
-                run_modifHrd.run()
-	
-        return runtime
+	def _run_interface(self, runtime):
+		if not isdefined(self.inputs.out_file):
+			fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
+			dname = dname = os.getcwd()
+			self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
 
 
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
+		shutil.copy(self.inputs.in_file, self.inputs.out_file)
+		infile = volumeFromFile(self.inputs.in_file)
+		for view in ['xspace','yspace','zspace']:
+			start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
 
-        return outputs
+
+		run_modifHrd=ModifyHeaderCommand()
+		run_modifHrd.inputs.in_file = self.inputs.out_file;
+		run_modifHrd.inputs.dinsert = True;
+		run_modifHrd.inputs.opt_string = view+":start="+str(start);
+		
+		if self.inputs.run:
+			run_modifHrd.run()
+
+		return runtime
+
+
+	def _list_outputs(self):
+		outputs = self.output_spec().get()
+		outputs["out_file"] = self.inputs.out_file
+
+		return outputs
 
 class get_stepOutput(TraitedSpec):
     step =traits.Str(desc="Step size (X, Y, Z)")
@@ -330,18 +311,6 @@ class PETexcludeFrRunning(BaseInterface):
         if self.inputs.run:
             run_mincreshape.run()
         
-        #frames.append(frame)
-        
-        #run_concat=ConcatCommand()
-        #run_concat.inputs.in_file = ' '.join(frames)
-        #run_concat.inputs.out_file = self.inputs.out_file
-        #run_concat.inputs.dimension = 'time'
-        #if self.inputs.verbose:
-        #    print run_concat.cmdline
-        #if self.inputs.run:
-        #    run_concat.run()
-        
-        #shutil.rmtree(tmpDir)
         return runtime
 
 
@@ -388,7 +357,7 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     node_name="petVolume"
-    petVolume = pe.Node(interface=minc2.Average(), name=node_name)
+    petVolume = pe.Node(interface=minc.Average(), name=node_name)
     #MIC: petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
     petVolume.inputs.avgdim = 'time'
     petVolume.inputs.width_weighted = True
@@ -399,7 +368,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     node_name="petBlur"
     #MIC: petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
-    petBlur = pe.Node(interface=minc2.Blur(), name=node_name)
+    petBlur = pe.Node(interface=minc.Blur(), name=node_name)
     petBlur.inputs.fwhm = 3
     petBlur.inputs.clobber = True
     #MIC: petBlur.inputs.verbose = opts.verbose 
@@ -427,7 +396,7 @@ def get_workflow(name, infosource, datasink, opts):
                       (infosource, rPetCenter, [('sid', 'sid')]),
                       (infosource, rPetCenter, [('cid', 'cid')])
                     ])
-    workflow.connect(rPetCenter, 'out_file', datasink, petCenter.name)
+    #workflow.connect(rPetCenter, 'out_file', datasink, 'coregistered')
 
     # workflow.connect([(petCenter, petCenterSettings, [('out_file', 'in_file')])])
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
@@ -438,7 +407,7 @@ def get_workflow(name, infosource, datasink, opts):
                       (infosource, rPetExFr, [('sid', 'sid')]),
                       (infosource, rPetExFr, [('cid', 'cid')])
                     ])
-    workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
+    #workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
 
 
     #MIC: workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])

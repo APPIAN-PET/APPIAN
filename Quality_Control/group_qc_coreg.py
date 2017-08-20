@@ -28,35 +28,30 @@ from Quality_Control.outlier import lof, kde, MAD, lcf
 __NBINS=-1
 import copy
 def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
-    #print pet_fn
-    #print mri_fn
-    #print t1_brain_fn
-    #print pet_brain_fn, '\n\n\n\n'
+	pet = pyminc.volumeFromFile(pet_fn)
+	mri = pyminc.volumeFromFile(mri_fn)
+	t1_mask= pyminc.volumeFromFile(t1_brain_fn)
+	pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
-    pet = pyminc.volumeFromFile(pet_fn)
-    mri = pyminc.volumeFromFile(mri_fn)
-    t1_mask= pyminc.volumeFromFile(t1_brain_fn)
-    pet_mask= pyminc.volumeFromFile(pet_brain_fn)
+	pet_data=pet.data.flatten()
+	mri_data=mri.data.flatten()
+	t1_mask_data=t1_mask.data.flatten()
+	pet_mask_data=pet_mask.data.flatten()
 
-    pet_data=pet.data.flatten()
-    mri_data=mri.data.flatten()
-    t1_mask_data=t1_mask.data.flatten()
-    pet_mask_data=pet_mask.data.flatten()
-    
-    n=len(pet_data)
-    overlap =  t1_mask_data * pet_mask_data
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
-    masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
-    del pet
-    del mri
-    del t1_mask
-    del pet_mask
-    del t1_mask_data
-    del pet_mask_data
-    dist_list=[]
-    for dist_f in dist_f_list:
-        dist_list.append(dist_f(masked_pet_data, masked_mri_data))
-    return(dist_list)
+	n=len(pet_data)
+	overlap =  t1_mask_data * pet_mask_data
+	masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
+	masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
+	del pet
+	del mri
+	del t1_mask
+	del pet_mask
+	del t1_mask_data
+	del pet_mask_data
+	dist_list=[]
+	for dist_f in dist_f_list:
+		dist_list.append(dist_f(masked_pet_data, masked_mri_data))
+	return(dist_list)
 
 def mse(masked_pet_data, masked_mri_data):
     mse=-(np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data))
@@ -232,7 +227,8 @@ class calc_distance_metricsInput(BaseInterfaceInputSpec):
     t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     sid = traits.Str(desc="Subject")
-    cid = traits.Str(desc="Condition")
+    ses = traits.Str(desc="Session")
+    task = traits.Str(desc="Task")
     study_prefix = traits.Str(desc="Study Prefix")
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
@@ -241,17 +237,18 @@ class calc_distance_metricsCommand(BaseInterface):
     input_spec = calc_distance_metricsInput 
     output_spec = calc_distance_metricsOutput
   
-    def _gen_output(self, sid, cid, fname ="distance_metric.csv"):
+    def _gen_output(self, sid, ses, task, fname ="distance_metric.csv"):
         dname = os.getcwd() 
-        return dname + os.sep + sid + '_' + cid + '_' + fname
+        return dname + os.sep +'sub-'+ sid + '_ses-' + ses + '_task-' + task + '_' + fname
 
     def _run_interface(self, runtime):
-        colnames=["Subject", "Condition", "Metric", "Value"] 
+        colnames=["Subject", "Session","Task", "Metric", "Value"] 
         sub_df=pd.DataFrame(columns=colnames)
         pet = self.inputs.pet
         t1 = self.inputs.t1
         sid = self.inputs.sid
-        cid = self.inputs.cid
+        ses = self.inputs.ses
+        task = self.inputs.task
         t1_brain_mask = self.inputs.t1_brain_mask
         pet_brain_mask = self.inputs.pet_brain_mask
 
@@ -264,11 +261,11 @@ class calc_distance_metricsCommand(BaseInterface):
 
         df=pd.DataFrame(columns=colnames)
         for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
-            temp=pd.DataFrame([[sid,cid,metric_name,m]],columns=df.columns  ) 
+            temp=pd.DataFrame([[sid,ses,task,metric_name,m]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
         
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.cid)
+            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.ses, self.inputs.task)
         
         sub_df.to_csv(self.inputs.out_file,  index=False)
         return runtime
@@ -293,40 +290,29 @@ class calc_outlier_measuresCommand(BaseInterface):
     input_spec = calc_outlier_measuresInput 
     output_spec = calc_outlier_measuresOutput
   
-    def _gen_output(self, fname ="outlier_measures.csv"):
+    def _gen_output(self, fname ="coreg_measures.csv"):
         dname = os.getcwd() + os.sep + fname
         return dname
 
     def _run_interface(self, runtime):
-        df = pd.read_csv( self.inputs.in_file  )
-        out_columns=['Subject','Condition','Measure','Metric', 'Value'] 
-        df_out = pd.DataFrame(columns=out_columns)
-        for sid, sid_df in df.groupby(['Subject']):
-            for cid, cid_df in df.groupby(['Condition']):
-                for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
-            #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has
-            #Get the series with the calculate the distance measure for the current measure
-                    for metric_name, metric_df in cid_df.groupby(['Metric']):
-                        #if metric_name != 'MI': continue
-                        #Get column number of the current outlier measure
-                        #Reindex the test_df from 0 to the number of rows it has
-                        #Get the series with the calculate the distance measure for the current measurae
-                        #print metric_df[ metric_df.Subject == "P28"  ]
-                        metric_df.index = range(metric_df.shape[0])
-                        r=measure(metric_df.Value.values)
-                        idx = metric_df[ metric_df.Subject == sid  ].index[0]
-                        s= r[idx][0]
-                        row_args = [sid,cid,measure_name,metric_name,s]
-                        row=pd.DataFrame([row_args], columns=out_columns  )
-                        df_out = pd.concat([df_out, row],axis=0)
-            if not isdefined( self.inputs.out_file) :
-                self.inputs.out_file = self._gen_output()
-        print os.getcwd(), self.inputs.out_file
-        df_out.to_csv(self.inputs.out_file,index=False)
-        print df_out
-        
-        
-        return runtime
+		df = pd.read_csv( self.inputs.in_file  )
+		#out_columns=['Subject','Session','Task', 'Measure','Metric', 'Value']
+		out_columns=['sub','ses','task','roi','metric','measure','value'] 
+		df_out = pd.DataFrame(columns=out_columns)
+		for ses, ses_df in df.groupby(['ses']):
+			for task, task_df in ses_df.groupby(['task']):
+				for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
+					for metric_name, metric_df in task_df.groupby(['metric']):
+						r=pd.Series(measure(task_df.Value.values).flatten())
+						task_df.index=range(task_df.shape[0])
+						task_df['value'] = r
+						task_df['measure'] = [measure_name] * task_df.shape[0]
+						df_out = pd.concat([df_out, task_df], axis=0)
+		df_out.fillna(0, inplace=True)
+		if not isdefined( self.inputs.out_file) :
+			self.inputs.out_file = self._gen_output()
+		df_out.to_csv(self.inputs.out_file,index=False)
+		return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

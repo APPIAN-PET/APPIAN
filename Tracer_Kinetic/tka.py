@@ -10,7 +10,7 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+from Extra.base import MINCCommand, MINCCommandInputSpec
 from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
@@ -276,135 +276,129 @@ tka_methods=["pp", "lp", "srtm"]
 
 
 def get_tka_workflow(name, opts):
-    workflow = pe.Workflow(name=name)
+	workflow = pe.Workflow(name=name)
 
-    #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
+	#Define input node that will receive input from outside of workflow
+	inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
 
-    out_files = ["out_file"]
-    outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
+	out_files = ["out_file"]
+	outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
 
-    #Define node to convert the input file from minc to ecat
-    convertPET=pe.Node(minc2ecatCommand(), name='minc2ecat') #  minctoecatWorkflow("minctoecat_PET")
+	#Define node to convert the input file from minc to ecat
+	convertPET=pe.Node(minc2ecatCommand(), name='minc2ecat') #  minctoecatWorkflow("minctoecat_PET")
 
-    #Connect input node to conversion
-    ##workflow.connect(inputnode, 'in_file', convertPET, 'inputNode.in_file')
-    workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
-    ##workflow.connect(inputnode, 'header', convertPET, 'inputNode.header')
-    workflow.connect(inputnode, 'header', convertPET, 'header')
+	#Connect input node to conversion
+	##workflow.connect(inputnode, 'in_file', convertPET, 'inputNode.in_file')
+	workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
+	##workflow.connect(inputnode, 'header', convertPET, 'inputNode.header')
+	workflow.connect(inputnode, 'header', convertPET, 'header')
 
-    #Define an empty node for reference region
-    tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
+	#Define an empty node for reference region
+	tacReference = pe.Node(niu.IdentityInterface(fields=["reference"]), name='tacReference')
 
-    #Define empty node for output
-    if opts.tka_method == 'srtm':
-        out_files += ["out_file_t3map"]
+	#Define empty node for output
+	if opts.tka_method == 'srtm': out_files += ["out_file_t3map"]
 
-    if opts.arterial_dir == None:
-        #Extracting TAC from reference region and putting it into text file
-        #Convert reference mask from minc to ecat
-        convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 
-        #convertReference.inputs.out_file="tempREF.mnc"
-        workflow.connect(inputnode, 'reference', convertReference, 'in_file')
-        
-        #Extract TAC from input image using reference mask
-        extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
-        # convertReference --> extractRefernce 
-        workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
-        workflow.connect(convertPET, 'out_file', extractReference, 'in_file')
-        # extractReference --> tacReference
-        workflow.connect(extractReference, 'out_file', tacReference, 'reference')
-    elif opts.tka_method in tka_methods:
-        #Using arterial input file (which must be provided by user). No conversion or extraction necessary
-        # inputnode --> tacReference
-        workflow.connect(inputnode, 'reference', tacReference, 'reference')
+	if opts.arterial_dir == None:
+		#Extracting TAC from reference region and putting it into text file
+		#Convert reference mask from minc to ecat
+		convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 
+		#convertReference.inputs.out_file="tempREF.mnc"
+		workflow.connect(inputnode, 'reference', convertReference, 'in_file')
 
-    if opts.tka_type=="voxel":
-        #Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric map
-        if opts.tka_method in tka_methods: 
-            if opts.tka_method == "lp":
-                #Define node for logan plot analysis 
-                tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
-                if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
-                if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-                if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
-                if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
-                if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-                if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-                if opts.tka_start_time != None:tkaNode.inputs.start_time=opts.tka_start_time
+		#Extract TAC from input image using reference mask
+		extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
+		# convertReference --> extractRefernce 
+		workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
+		workflow.connect(convertPET, 'out_file', extractReference, 'in_file')
+		# extractReference --> tacReference
+		workflow.connect(extractReference, 'out_file', tacReference, 'reference')
+	elif opts.tka_method in tka_methods:
+		#Using arterial input file (which must be provided by user). No conversion or extraction necessary
+		# inputnode --> tacReference
+		workflow.connect(inputnode, 'reference', tacReference, 'reference')
+	if opts.tka_type=="voxel":
+	#Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric ma
+		if opts.tka_method in tka_methods: 
+			if opts.tka_method == "lp":
+				#Define node for logan plot analysis 
+				tkaNode = pe.Node(interface=lpCommand(), name=opts.tka_method)
+				if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
+				if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+				if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
+				if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
+				if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+				if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+				if opts.tka_start_time != None:tkaNode.inputs.start_time=opts.tka_start_time
+			elif opts.tka_method == "pp":
+				tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
+				if opts.tka_Ca != None:	tkaNode.inputs.Ca=opts.tka_Ca
+				if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
+				if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
+				if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
+				if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
+				if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
+				if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
+				if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
+				if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
+				if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+			elif opts.tka_method == 'srtm':
+				tkaNode = pe.Node(interface=srtmCommand(), name=opts.tka_method)
+				if opts.tka_t3max != None: tkaNode.inputs.t3max=opts.tka_t3max
+				if opts.tka_t3min != None: tkaNode.inputs.t3min=opts.tka_t3min
+				if opts.tka_nBF != None: tkaNode.inputs.nBF=opts.tka_nBF
+			workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+		elif opts.tka_method == 'suv':
+			#Get Body Weight from header or .csv file
+			body_weightNode=pe.Node(interface=subject_parameterCommand(), name="body_weight")
+			body_weightNode.inputs.parameter_name=opts.body_weight
+			workflow.connect(inputnode, 'header', body_weightNode, 'header')
+			workflow.connect(inputnode, 'sid', body_weightNode, 'sid')
+			#Get radiotracer dose from header or .csv file
+			radiotracer_doseNode=pe.Node(interface=subject_parameterCommand(), name="radiotracer_dose")
+			radiotracer_doseNode.inputs.parameter_name=opts.radiotracer_dose
+			workflow.connect(inputnode, 'header', radiotracer_doseNode, 'header')
+			workflow.connect(inputnode, 'sid', radiotracer_doseNode, 'sid')
+			#Create a node for SUV
+			tkaNode = pe.Node(interface=suvCommand(), name=opts.tka_method)
+			tkaNode.inputs.start_time=opts.tka_start_time
+			tkaNode.inputs.end_time=opts.tka_end_time
+			workflow.connect(body_weightNode, 'parameter', tkaNode, 'body_weight')
+			workflow.connect(radiotracer_doseNode, 'parameter', tkaNode, 'radiotracer_dose')
+		#inputnode.in_file -->  tkaNode.in_file
+		workflow.connect(convertPET, 'out_file', tkaNode, 'in_file')
+		#tacReference.reference --> tkaNode.reference
+		convertParametric=pe.Node(ecat2mincCommand(), name="ecat2minc") #  ecattomincWorkflow("convertParametric") 
+		#workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
+		workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
+		#workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
+		workflow.connect(inputnode, 'header', convertParametric, 'header')
+		#workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
+		workflow.connect(convertParametric, 'out_file', outputnode, 'out_file')
+		if opts.tka_method == 'srtm':
+			convertParametricT3=pe.Node(ecat2mincCommand(), name="ecat2minc") #ecattomincWorkflow("convertParametricT3") 
+			#workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'inputNode.in_file')
+			workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'in_file')
+			#workflow.connect(inputnode, 'header', convertParametricT3, 'inputNode.header')
+			workflow.connect(inputnode, 'header', convertParametricT3, 'header')
+			#workflow.connect(convertParametricT3, 'outputNode.out_file', outputnode, 'out_file_t3map')
+			workflow.connect(convertParametricT3, 'out_file', outputnode, 'out_file_t3map')
+	#1
+	else: #ROI-based
+		tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
+		outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
+		convertROI=pe.Node(interface=minctoecatCommand(), name="minctoecat_roi") 
+		extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
+		tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
 
-            elif opts.tka_method == "pp":
-                tkaNode = pe.Node(interface=ppCommand(), name=opts.tka_method)
-                if opts.tka_Ca != None:	tkaNode.inputs.Ca=opts.tka_Ca
-                if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
-                if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
-                if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-                if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
-                if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
-                if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-                if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-                if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
-                if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
-            
-            elif opts.tka_method == 'srtm':
-                tkaNode = pe.Node(interface=srtmCommand(), name=opts.tka_method)
-                if opts.tka_t3max != None: tkaNode.inputs.t3max=opts.tka_t3max
-                if opts.tka_t3min != None: tkaNode.inputs.t3min=opts.tka_t3min
-                if opts.tka_nBF != None: tkaNode.inputs.nBF=opts.tka_nBF
-            workflow.connect(tacReference, 'reference', tkaNode, 'reference')
-        elif opts.tka_method == 'suv':
-            #Get Body Weight from header or .csv file
-            body_weightNode=pe.Node(interface=subject_parameterCommand(), name="body_weight")
-            body_weightNode.inputs.parameter_name=opts.body_weight
-            workflow.connect(inputnode, 'header', body_weightNode, 'header')
-            workflow.connect(inputnode, 'sid', body_weightNode, 'sid')
-            #Get radiotracer dose from header or .csv file
-            radiotracer_doseNode=pe.Node(interface=subject_parameterCommand(), name="radiotracer_dose")
-            radiotracer_doseNode.inputs.parameter_name=opts.radiotracer_dose
-            workflow.connect(inputnode, 'header', radiotracer_doseNode, 'header')
-            workflow.connect(inputnode, 'sid', radiotracer_doseNode, 'sid')
-            #Create a node for SUV
-            tkaNode = pe.Node(interface=suvCommand(), name=opts.tka_method)
-            tkaNode.inputs.start_time=opts.tka_start_time
-            tkaNode.inputs.end_time=opts.tka_end_time
-            workflow.connect(body_weightNode, 'parameter', tkaNode, 'body_weight')
-            workflow.connect(radiotracer_doseNode, 'parameter', tkaNode, 'radiotracer_dose')
-            
-        #inputnode.in_file -->  tkaNode.in_file
-        workflow.connect(convertPET, 'out_file', tkaNode, 'in_file')
-        #tacReference.reference --> tkaNode.reference
-        convertParametric=pe.Node(ecat2mincCommand(), name="ecat2minc") #  ecattomincWorkflow("convertParametric") 
-        #workflow.connect(tkaNode, 'out_file', convertParametric, 'inputNode.in_file')
-        workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
-        #workflow.connect(inputnode, 'header', convertParametric, 'inputNode.header')
-        workflow.connect(inputnode, 'header', convertParametric, 'header')
-        #workflow.connect(convertParametric, 'outputNode.out_file', outputnode, 'out_file')
-        workflow.connect(convertParametric, 'out_file', outputnode, 'out_file')
+		workflow.connect(inputnode, 'mask', convertROI, 'in_file')
+		workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
+		workflow.connect(convertPET, 'out_file', extractROI, 'in_file')
+		workflow.connect(extractROI, 'out_file', tkaNode, 'roi')
+		workflow.connect(tacReference, 'reference', tkaNode, 'reference')
+		workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')
+		workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
 
-        if opts.tka_method == 'srtm':
-            convertParametricT3=pe.Node(ecat2mincCommand(), name="ecat2minc") #ecattomincWorkflow("convertParametricT3") 
-            #workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'inputNode.in_file')
-            workflow.connect(tkaNode, 'out_file_t3map', convertParametricT3, 'in_file')
-            #workflow.connect(inputnode, 'header', convertParametricT3, 'inputNode.header')
-            workflow.connect(inputnode, 'header', convertParametricT3, 'header')
-            #workflow.connect(convertParametricT3, 'outputNode.out_file', outputnode, 'out_file_t3map')
-            workflow.connect(convertParametricT3, 'out_file', outputnode, 'out_file_t3map')
-
-    else: #ROI-based
-        tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
-        outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
-        convertROI=pe.Node(interface=minctoecatCommand(), name="minctoecat_roi") 
-        extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
-        tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
-
-        workflow.connect(inputnode, 'mask', convertROI, 'in_file')
-        workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
-        workflow.connect(convertPET, 'out_file', extractROI, 'in_file')
-        workflow.connect(extractROI, 'out_file', tkaNode, 'roi')
-        workflow.connect(tacReference, 'reference', tkaNode, 'reference')
-        workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')
-        workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
-
-    return(workflow)
+	return(workflow)
 
 

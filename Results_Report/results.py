@@ -1,12 +1,56 @@
 import os
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                      BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-
-from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec, Info
+from Extra.base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 from scipy.integrate import simps
 import pandas as pd
 import numpy as np
+import nipype.pipeline.engine as pe
+import nipype.interfaces.io as nio
+import nipype.interfaces.utility as util
+import nipype.interfaces.utility as niu
+
+from Extra.concat import concat_df
+######################################
+# Group level descriptive statistics #
+######################################
+def group_level_descriptive_statistics(opts, args):
+    #Setup workflow
+    workflow = pe.Workflow(name=opts.preproc_dir)
+    workflow.base_dir = opts.targetDir
+    
+    #Datasink
+    datasink=pe.Node(interface=nio.DataSink(), name="output")
+    datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"
+    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+
+    #Datagrabber
+    datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+    datasource.inputs.template = '*'
+    datasource.inputs.field_template =dict(
+        scan_stats='*' +os.sep +'results_*'+os.sep+ '*_3d.csv'
+    )
+
+    #Concatenate descriptive statistics
+    concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
+    concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
+    workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
+    workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
+   
+    #Calculate outlier measures
+    descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
+    workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
+    workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
+    workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
+    workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
+    workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
+    workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
+    workflow.run()
+
+
+
 
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
@@ -186,62 +230,51 @@ class descriptive_statisticsOutput(TraitedSpec):
     sub_ses = traits.File(desc="Output averaged by subject x ses")
 
 class descriptive_statisticsCommand( BaseInterface):
-    input_spec = descriptive_statisticsInput
-    output_spec = descriptive_statisticsOutput
-    
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
+	input_spec = descriptive_statisticsInput
+	output_spec = descriptive_statisticsOutput
 
-        if not isdefined(self.inputs.in_file):
-            self.inputs.out_file = os.getcwd() + os.sep + "results.csv"
+	def _parse_inputs(self, skip=None):
+		if skip is None:
+			skip = []
+		if not isdefined(self.inputs.in_file):
+			self.inputs.out_file = os.getcwd() + os.sep + "results.csv"
 
-        return super(descriptive_statisticsCommand, self)._parse_inputs(skip=skip)
+		return super(descriptive_statisticsCommand, self)._parse_inputs(skip=skip)
 
-    def _run_interface(self, runtime):
-        df = pd.read_csv( self.inputs.in_file   )	
-        print df
-        ses_df = df.pivot_table(rows=["roi", "ses"],values="mean", aggfunc=np.mean)
-        task_df = df.pivot_table(rows=["roi", "task"],values="mean", aggfunc=np.mean)
-        sub_df  = df.pivot_table(rows=["roi", "sub"], values="mean", aggfunc=np.mean)
-        sub_ses_df = df.pivot_table(rows=["roi", "sub","ses"],values="mean", aggfunc=np.mean)
-        sub_task_df = df.pivot_table(rows=["roi", "sub","task"],values="mean", aggfunc=np.mean)
-        #for name, temp_df in df.groupby(["node","ses","task"]):
-        #    print name
-        #    print temp_df
-        self.inputs.ses  = self._gen_output(self.inputs.in_file, "ses")
-        self.inputs.task  = self._gen_output(self.inputs.in_file, "task")
-        self.inputs.sub = self._gen_output(self.inputs.in_file, "sub")
-        self.inputs.sub_task  = self._gen_output(self.inputs.in_file, "sub_task")
-        self.inputs.sub_ses= self._gen_output(self.inputs.in_file, "sub_ses")
+	def _run_interface(self, runtime):
+		df = pd.read_csv( self.inputs.in_file   )	
+		df_pivot = lambda y : pd.DataFrame(df.pivot_table(rows=y,values="mean", aggfunc=np.mean).reset_index(level=y))
+		ses_df =  df_pivot(["roi", "ses"]) 
+		task_df =df_pivot(["roi", "task"])	
+		sub_df = df_pivot(["roi", "sub"])	
+		sub_ses_df = df_pivot(["roi", "sub","ses"])	
+		sub_task_df = df_pivot(["roi", "sub","task"])	
 
-        ses_df.to_csv(self.inputs.ses, index=False) 
-        task_df.to_csv(self.inputs.task, index=False)
-        sub_df.to_csv(self.inputs.sub, index=False)
-        sub_ses_df.to_csv(self.inputs.sub_task, index=False)
-        sub_task_df.to_csv(self.inputs.sub_ses, index=False)
-        return runtime
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["ses"] = self.inputs.ses
-        outputs["task"] = self.inputs.task
-        outputs["sub"] = self.inputs.sub
-        outputs["sub_task"] = self.inputs.sub_task
-        outputs["sub_ses"] = self.inputs.sub_ses
-        return outputs
+		self.inputs.ses  = self._gen_output(self.inputs.in_file, "ses")
+		self.inputs.task  = self._gen_output(self.inputs.in_file, "task")
+		self.inputs.sub = self._gen_output(self.inputs.in_file, "sub")
+		self.inputs.sub_task  = self._gen_output(self.inputs.in_file, "sub_task")
+		self.inputs.sub_ses= self._gen_output(self.inputs.in_file, "sub_ses")
 
-    def _gen_output(self, in_file, label):
-        ii =  os.path.splitext(os.path.basename(in_file))[0]
-        out_file = os.getcwd() + os.sep + ii + "_"+label+".csv"
-        return out_file
+		ses_df.to_csv(self.inputs.ses, index=False) 
+		task_df.to_csv(self.inputs.task, index=False)
+		sub_df.to_csv(self.inputs.sub, index=False)
+		sub_ses_df.to_csv(self.inputs.sub_task, index=False)
+		sub_task_df.to_csv(self.inputs.sub_ses, index=False)
+		return runtime
+	def _list_outputs(self):
+		outputs = self.output_spec().get()
+		outputs["ses"] = self.inputs.ses
+		outputs["task"] = self.inputs.task
+		outputs["sub"] = self.inputs.sub
+		outputs["sub_task"] = self.inputs.sub_task
+		outputs["sub_ses"] = self.inputs.sub_ses
+		return outputs
 
-
-
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
+	def _gen_output(self, in_file, label):
+		ii =  os.path.splitext(os.path.basename(in_file))[0]
+		out_file = os.getcwd() + os.sep + ii + "_"+label+".csv"
+		return out_file
 
 class integrate_TACInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")

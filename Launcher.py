@@ -56,13 +56,13 @@ def set_default_atlas_label(roi_label, masks):
 
 def get_mask_list( ROIMask ):
 #Load in volume and get unique values
-	mask= pyminc.volumeFromFile(ROIMask)
-	mask_flat=mask.data.flatten()
-	label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
-	return(label)
+    mask= pyminc.volumeFromFile(ROIMask)
+    mask_flat=mask.data.flatten()
+    label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
+    return(label)
 
 def get_opt_list(option,opt,value,parser):
-	setattr(parser.values,option.dest,value.split(','))
+    setattr(parser.values,option.dest,value.split(','))
 
 
 # def printStages(opts,args):
@@ -72,47 +72,60 @@ def get_opt_list(option,opt,value,parser):
 ############################################
 #Set defaults for label
 roi_label={} 
-roi_label["results"]={	"roi-user":[1],
-			"icbm152":[39,53,16,14,25,72],
-			"civet":[1,2,3],
-			"animal":[1,2,3],
-			"atlas":[]} #FIXME, these values are not correct for animal
-roi_label["tka"]={	"roi-user":[1],
-		      	"icbm152":[39,53,16,14,25,72],
-			"civet":[3],
-			"animal":[3],
-			"atlas":[]} #FIXME, these values are not correct for animal
-roi_label["pvc"]={	"roi-user":[1],
-		      	"icbm152":[39,53,16,14,25,72],
-			"civet":[2,3],
-			"animal":[2,3],
-			"atlas":[]} #FIXME, these values are not correct for animal
+roi_label["results"]={  "roi-user":[1],
+            "icbm152":[39,53,16,14,25,72],
+            "civet":[1,2,3],
+            "animal":[1,2,3],
+            "atlas":[]} #FIXME, these values are not correct for animal
+roi_label["tka"]={  "roi-user":[1],
+                "icbm152":[39,53,16,14,25,72],
+            "civet":[3],
+            "animal":[3],
+            "atlas":[]} #FIXME, these values are not correct for animal
+roi_label["pvc"]={  "roi-user":[1],
+                "icbm152":[39,53,16,14,25,72],
+            "civet":[2,3],
+            "animal":[2,3],
+            "atlas":[]} #FIXME, these values are not correct for animal
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
 def check_masking_options(label_img, label_space):
-	'''Check to make sure that the user has provided the necessary information for 
-	the selected masking type'''
-	if label_space == "native":
-            if not type(label_img[0]) == str: 
-                print "Option \"--label_space native\" requires string to identify labeled image in subject directory "
-                exit(1)
-            elif label_img[0] == 'cls':  label_type = 'civet'
-            elif label_img[0] == 'seg':  label_type = 'animal'
-            else:                           label_type = 'roi-user'
-        elif label_space == 'icbm152':
-	    if not os.path.exists(label_img[0]): 
-	        print "Option \"--label_space icbm152\" requires path to labeled atlas in icbm152."
-		exit(1)
-            else: label_type='icbm152'
-        elif label_space == 'other':
-	    if not os.path.exists(label_img[0]) or not os.path.exists(label_img[1]) : 
-	        print "Option \"--label_space other\" requires path to labeled atlas and the image template for the atlas."
-		exit(1)
-            else: label_space = 'atlas'
-        return label_type
+    d={ "native":{  "string":"roi-user"},
+        "icbm152":{ "string":"roi-user",
+                    "cls":"civet",
+                    "seg":"animal",
+                    "icbm152":"other"},
+        "other":{   "string":"roi-user",
+                    "atlas":'other'}
+    }
+    if os.path.exists(label_img[0]):
+        var ="atlas"
+    elif type(label_img[0]) == str:
+        if label_img[0] == "cls":  
+            var = "cls"
+        elif label_img[0] == "seg":  
+            var = "seg"
+        else: 
+            var ="string"       
+    else: 
+        print "Label error: ", label_img, label_space
+        exit(1)
+
+    try: 
+        label_type =  d[label_space][var]
+    except KeyError:
+        print "Label Error: " + label_space + " is not compatible with " +label_img
+        exit(1)
+    
+    if label_space == "other":
+        if not os.path.exists(label_img[0]) or not os.path.exists(label_img[1]) :
+            print "Option \"--label_space other\" requires path to labeled atlas and the image template for the atlas."
+            exit(1)
+
+    return label_type
 
 
 if __name__ == "__main__":
@@ -126,29 +139,25 @@ if __name__ == "__main__":
 
     group= OptionGroup(parser,"File options (mandatory)")
     group.add_option("-s","--sourcedir",dest="sourceDir",  help="Input file directory")
-    #group.add_option("-s","--petdir",dest="sourceDir",  help="Native PET directory")
     group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
-    group.add_option("-p","--prefix",dest="prefix",type='string',help="Study name")
     
-    group.add_option("-a","--acq",dest="acq",type='string',help="Radiotracer")
+    group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
+
+    group.add_option("--group-level",dest="run_group_level",action='store_true', default=False, help="Run group level analysis")
+    group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
     group.add_option("--img_ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
     group.add_option("--surf_ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     #group.add_option("-c","--civetdir",dest="civetDir",  help="Civet directory")
-    parser.add_option_group(group)		
+    parser.add_option_group(group)      
 
     group= OptionGroup(parser,"Scan options","***if not, only baseline condition***")
     group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
-    group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
-    parser.add_option_group(group)		
+    group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
+    parser.add_option_group(group)      
 
-    group= OptionGroup(parser,"Registration options")
-    group.add_option("","--modelDir",dest="modelDir",help="Models directory",default=atlas_dir)
-    parser.add_option_group(group)		
-    group= OptionGroup(parser,"PET acquisition options")
-
-
+ 
     # Parse user options
     # Label options
     #
@@ -169,7 +178,7 @@ if __name__ == "__main__":
     #PVC
     parser.add_option_group(group)
     group= OptionGroup(parser,"Masking options","PVC")
-    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='native')
+    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='icbm152')
     group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
@@ -177,7 +186,7 @@ if __name__ == "__main__":
 
     # Tracer Kinetic Analysis
     group= OptionGroup(parser,"Masking options","TKA")
-    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='native')
+    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='icbm152')
     group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
@@ -185,8 +194,8 @@ if __name__ == "__main__":
     
     #Results
     group= OptionGroup(parser,"Masking options","Results")
-    group.add_option("","--results-label-space",dest="results_label_space",help=label_space_help,default='native')
-    group.add_option("","--results-label-img",dest="results_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='icbm152')
+    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     parser.add_option_group(group)
@@ -276,8 +285,8 @@ if __name__ == "__main__":
 ##########################################################
 # Check inputs to make sure there are no inconsistencies #
 ##########################################################
-    if not opts.sourceDir or not opts.targetDir or not opts.prefix: 
-        print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir, and --prefix \n********************\n"
+    if not opts.sourceDir or not opts.targetDir: 
+        print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n"
         parser.print_help()
         sys.exit(1)
 
@@ -289,7 +298,7 @@ if __name__ == "__main__":
 
     #Check inputs for results masking
     results_label_type =  check_masking_options(opts.results_label_img, opts.results_label_space)
-
+    
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
     
@@ -303,18 +312,16 @@ if __name__ == "__main__":
 
     print pvc_label_type, opts.pvc_label_level
     print tka_label_type, opts.tka_label_level
-    print results_label_type, opts.results_label_level
-
-    roi_label = set_default_atlas_label(roi_label, masks)
-     
+    print results_label_type, opts.results_label_level; 
+    roi_label = set_default_atlas_label(roi_label, masks)   
     #If no label given by user, set default label for PVC mask
     if(opts.pvc_labels ==None): opts.pvc_labels = roi_label["pvc"]
       #If no label given by user, set default label for TKA mask
     if(opts.tka_labels ==None): opts.tka_labels = roi_label["tka"]
     #Set default label for results mask
     if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
-     
-        ###Check PVC options and set defaults if necessary
+    
+    ###Check PVC options and set defaults if necessary
     if opts.scanner_fwhm == None and opts.pet_scanner == None:
         print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
         print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
@@ -329,15 +336,15 @@ if __name__ == "__main__":
             print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
             exit(1)
 
-	opts.targetDir = os.path.normpath(opts.targetDir)
-	opts.sourceDir = os.path.normpath(opts.sourceDir)
-    opts.preproc_dir="preproc"
-	
+    opts.targetDir = os.path.normpath(opts.targetDir)
+    opts.sourceDir = os.path.normpath(opts.sourceDir)
+    opts.preproc_dir='preproc'
+    
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:
         printStages(opts,args)
     else:
-        run_scan_level(opts,args)
-        run_group_level(opts,args)
+        if opts.run_scan_level: run_scan_level(opts,args)
+        if opts.run_group_level:run_group_level(opts,args)
 

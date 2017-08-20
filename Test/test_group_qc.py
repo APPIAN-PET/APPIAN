@@ -20,10 +20,11 @@ from os.path import basename
 from sys import argv, exit
 from re import sub
 from Quality_Control.outlier import lof, kde, MAD, lcf
-import nipype.interfaces.minc.resample as rsl
+from nipype.interfaces.minc import Resample as rsl
 import Quality_Control as qc
 import random
 
+from Extra.concat import concat_df
 
 
 # Name: group_coreg_qc_test
@@ -763,29 +764,57 @@ class joinList(BaseInterface):
         outputs["out_list"] = self.inputs.in_list
         return outputs
 
-class concat_dfOutput(TraitedSpec):
-    out_file = traits.File(desc="Output file")
+#
+# Workflow for testing coregistration auto-qc
+#
+def test_group_qc_scanLevel(name, opts, infosource, t1_type):
+	###
+	### Nodes are at subject level (not joined yet)
+	###
+	workflow = pe.Workflow(name=name)
+	inputnode = pe.Node(niu.IdentityInterface(fields=['petmri_img', 'brainmask_t1', 'rotated_pet', 'translated_pet', 'rotated_brainmask', 'translated_brainmask']), name='inputnode')
+	#Define empty node for output
+	outputnode = pe.Node(niu.IdentityInterface(fields=[]), name='outputnode')
 
-class concat_dfInput(BaseInterfaceInputSpec):
-    in_list = traits.List(mandatory=True, exists=True, desc="Input list")
-    out_file = traits.File(mandatory=True, desc="Output file")
+	wf_misalign_pet = get_misalign_pet_workflow("misalign_pet", opts)
+	workflow.connect(wf_pet3mri, 'inputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
+	workflow.connect(wf_masking, 'inputnode.brainmask_t1', wf_misalign_pet, 'inputnode.brainmask')
+	workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
+	workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
 
-class concat_df(BaseInterface):
-    input_spec =  concat_dfInput 
-    output_spec = concat_dfOutput 
-   
-    def _run_interface(self, runtime):
-        df=pd.DataFrame([])
-        for f in self.inputs.in_list:
-            dft = pd.read_csv(f)
-            df = pd.concat([df, dft], axis=0)
-        df.to_csv(self.inputs.out_file, index=False)
-        return(runtime)
+	#calculate distance metric node
+	distance_metricsNode=pe.Node(interface=distance_metricCommand(), name="distance_metrics")
+	colnames=["Subject", "Condition", "ErrorType", "Error", "Metric", "Value"] 
+	distance_metricsNode.inputs.colnames = colnames
+	distance_metricsNode.inputs.clobber = False 
 
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = os.getcwd() + os.sep + self.inputs.out_file
-        return outputs
-      
+	workflow.connect(wf_misalign_pet,'inputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
+	workflow.connect(wf_misalign_pet,'inputnode.translated_pet',distance_metricsNode, 'translated_pet')
+	workflow.connect(wf_misalign_pet,'inputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
+	workflow.connect(wf_misalign_pet,'inputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
+	workflow.connect(datasourceMINC, t1_type, distance_metricsNode, 't1_images')
+	workflow.connect(wf_pet2mri, 'inputnode.petmri_img', distance_metricsNode, 'pet_images')
+	workflow.connect(wf_masking, 'inputnode.brainmask_t1', distance_metricsNode, 'brain_masks')
+	workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
+	workflow.connect(infosource, 'sid', distance_metricsNode, 'subjects')
+	return workflow
 
+def	test_group_qc_groupLevel(opts, args):
+	workflow = pe.Workflow(name='test_group_qc')
 
+	#Datagrabber
+	datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+	datasource.inputs.base_directory = opts.targetDir + os.sep + opts.preproc_dir
+	datasource.inputs.template = '*'
+	datasource.inputs.field_template =dict(
+		qc_metrics = '*' +os.sep+'distance_metric'+os.sep+ '*_distance_metric.csv'
+	)
+
+	concat_dist_metricsNode=pe.Node(interface=concat_df(), name="concat_dist_metrics")
+	concat_dist_metricsNode.inputs.out_file="coreg_qc_distance_metrics.csv"
+	workflow.connect(datasource, 'qc_metrics', concat_dist_metricsNode, 'in_list')
+
+	### Test group qc for coregistration using misaligned images 
+	wf_test_group_coreg_qc = get_test_group_coreg_qc_workflow('test_group_coreg_qc', opts)
+	workflow.connect(concat_dist_metricsNode, 'out_file', wf_test_group_coreg_qc, 'inputnode.distance_metrics_df')
+	return workflow

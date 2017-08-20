@@ -11,25 +11,83 @@ import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-#from nipype.interfaces.minc.base import Info
 from nipype.interfaces.utility import Rename
-
-
-from nipype.interfaces.minc.calc import CalcCommand
-from nipype.interfaces.minc.smooth import SmoothCommand
-from nipype.interfaces.minc.tracc import TraccCommand
-from nipype.interfaces.minc.resample import ResampleCommand
-from nipype.interfaces.minc.xfmOp import ConcatCommand
-from nipype.interfaces.minc.xfmOp import InvertCommand
-from nipype.interfaces.minc.morphomat import MorphCommand
-from nipype.interfaces.minc.info import InfoCommand
-from nipype.interfaces.minc.info import StatsCommand
-from nipype.interfaces.minc.reshape import ReshapeCommand
-from nipype.interfaces.minc.concat import ConcatCommand
-
+import nipype.interfaces.io as nio
+import Quality_Control.group_qc_coreg as coreg_qc
+import Quality_Control.pvc_qc as pvc_qc
+import Quality_Control.tka_qc as tka_qc
+import Results_Report.results as results
 import Registration.registration as reg
+from Extra.concat import concat_df
 
-def get_workflow(name, infosource, datasink, opts):
+######################
+#   Group-level QC   #
+######################
+
+#datasink for dist metrics
+#check how the calc outlier measure node is implemented, may need to be reimplemented
+def group_level_qc(opts, args):
+    #setup workflow
+    workflow = pe.Workflow(name=opts.preproc_dir)
+    workflow.base_dir = opts.targetDir
+    
+    #Datasink
+    datasink=pe.Node(interface=nio.DataSink(), name="output")
+    datasink.inputs.base_directory= opts.targetDir +os.sep +"qc"
+    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+
+    #Datagrabber
+    datasource = pe.Node( interface=nio.DataGrabber( outfields=['dist_metrics','tka_metrics','pvc_metrics'], raise_on_empty=True, sort_filelist=False), name="datasource")
+    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+    datasource.inputs.template = '*'
+    datasource.inputs.field_template =dict(
+        dist_metrics='*/distance_metric/*_distance_metric.csv',
+        tka_metrics='*/results_tka/*_3d.csv',
+        pvc_metrics='*/pvc_qc_metrics/*_pvc_qc_metric.csv'
+    )
+    #datasource.inputs.template_args = dict( dist_metrics = [['preproc_dir']] )
+
+    #Concatenate distance metrics
+    concat_dist_metricsNode=pe.Node(interface=concat_df(), name="concat_coreg_metrics")
+    concat_dist_metricsNode.inputs.out_file="coreg_qc_metrics.csv"
+    workflow.connect(datasource, 'dist_metrics', concat_dist_metricsNode, 'in_list')
+    workflow.connect(concat_dist_metricsNode, "out_file", datasink, 'coreg_metrics')
+	
+	#Concatenate PVC metrics
+    concat_pvc_metricsNode=pe.Node(interface=concat_df(), name="concat_pvc_metrics")
+    concat_pvc_metricsNode.inputs.out_file="pvc_qc_metrics.csv"
+    workflow.connect(datasource, 'pvc_metrics', concat_pvc_metricsNode, 'in_list')
+    workflow.connect(concat_pvc_metricsNode, "out_file", datasink, 'pvc_metrics')
+	
+	#Concatenate TKA metrics
+    concat_tka_metricsNode=pe.Node(interface=concat_df(), name="concat_tka_metrics")
+    concat_tka_metricsNode.inputs.out_file="tka_qc_metrics.csv"
+    workflow.connect(datasource, 'tka_metrics', concat_tka_metricsNode, 'in_list')
+    workflow.connect(concat_tka_metricsNode, "out_file", datasink, 'tka_metrics')
+
+    #Calculate Coregistration outlier measures
+    outlier_measureNode = pe.Node(interface=coreg_qc.calc_outlier_measuresCommand(),  name="coregistration_outlier_measure")
+    workflow.connect(concat_dist_metricsNode, 'out_file', outlier_measureNode, 'in_file')
+    workflow.connect(outlier_measureNode, "out_file", datasink, 'coreg_outlier')
+
+	#Calculate PVC outlier measures
+    pvc_outlier_measureNode = pe.Node(interface=pvc_qc.pvc_outlier_measuresCommand(),  name="pvc_outlier_measure")
+    workflow.connect(concat_pvc_metricsNode, 'out_file', pvc_outlier_measureNode, 'in_file')
+    workflow.connect(pvc_outlier_measureNode, "out_file", datasink, 'pvc_outlier')
+
+	#Calculate TKA outlier measures
+    tka_outlier_measureNode = pe.Node(interface=tka_qc.tka_outlier_measuresCommand(),  name="tka_outlier_measure")
+    workflow.connect(concat_tka_metricsNode, 'out_file', tka_outlier_measureNode, 'in_file')
+    workflow.connect(tka_outlier_measureNode, "out_file", datasink, 'tka_outlier')
+
+
+	#"pvc_qc_metrics"
+    
+    workflow.run()
+    #Plot distance metrics
+    #Plot outlier measures
+
+'''def get_workflow(name, infosource, datasink, opts):
 
     workflow = pe.Workflow(name=name)
 
@@ -48,7 +106,7 @@ class T1maskingInput(BaseInterfaceInputSpec):
 	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
 	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-    pet_mri_coregistration_qc(study.dir_results_temp, subject.t1, float(mri_max)*0.1, float(mri_max)*0.50, subject.coregistered_sum, float(pet_max)*0.2, float(pet_max)*0.9, offsets, 750, 750, study.dir_results_qc_coreg)
+	pet_mri_coregistration_qc(study.dir_results_temp, subject.t1, float(mri_max)*0.1, float(mri_max)*0.50, subject.coregistered_sum, float(pet_max)*0.2, float(pet_max)*0.9, offsets, 750, 750, study.dir_results_qc_coreg)
 
 
 def pet_mri_coregistration_qc(dir_results_temp, mri, mri_min, mri_max, pet, pet_max, pet_min, offsets, x_size, y_size, output_dir, colour_scheme, label_string):
@@ -146,4 +204,4 @@ class T1maskingRunning(BaseInterface):
         return outputs  
 
 
-
+'''

@@ -9,7 +9,7 @@ import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.interfaces.minc.base import MINCCommand, MINCCommandInputSpec
+from Extra.base import MINCCommand, MINCCommandInputSpec
 
 class img2dftOutput(TraitedSpec):
     out_file = File(argstr=" %s", position=-1,  desc="Patlak plot ki parametric image.")

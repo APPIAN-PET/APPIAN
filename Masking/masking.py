@@ -14,12 +14,12 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 #from nipype.interfaces.minc.base import Info
 from nipype.interfaces.utility import Rename
 
-import nipype.interfaces.minc2 as minc
-from nipype.interfaces.minc.calc import CalcCommand
-from nipype.interfaces.minc.smooth import SmoothCommand
-from nipype.interfaces.minc.resample import ResampleCommand
-from nipype.interfaces.minc.xfmOp import InvertCommand
-from nipype.interfaces.minc.morphomat import MorphCommand
+import nipype.interfaces.minc as minc
+from nipype.interfaces.minc import Calc as CalcCommand
+from nipype.interfaces.minc import Blur as SmoothCommand
+from nipype.interfaces.minc import Resample as ResampleCommand
+from Extra.xfmOp import InvertCommand
+from Extra.morphomat import MorphCommand
 
 import Registration.registration as reg
 
@@ -36,8 +36,12 @@ class LabelsInput(BaseInterfaceInputSpec):
     label_template = File(desc="Template for stereotaxic atlas")
     LabelsMNI = File(desc="Reference mask in MNI space")
     LabelsT1  = File(desc="Reference mask in the T1 native space")
+    brainmask_t1 = File(desc="Brain mask in the T1 native space")
+
+    brainmask_mni =  File(desc="Brain mask in the T1 native space")
+
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
+    run = traits.Bool(usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class LabelsOutput(TraitedSpec):
@@ -58,27 +62,19 @@ class Labels(BaseInterface):
 
     def _run_interface(self, runtime):
         tmpDir = tempfile.mkdtemp()
-
         if not isdefined(self.inputs.LabelsT1): self.inputs.LabelsT1 = self._gen_output(self.inputs.nativeT1, self._suffix+'T1') 
         if not isdefined(self.inputs.LabelsMNI): self.inputs.LabelsMNI = self._gen_output(self.inputs.nativeT1, self._suffix+'MNI')
 
         out_file_1 =temp_mask = tmpDir+"/mask.mnc"
         temp_mask_clean = tmpDir+"/mask_clean.mnc"
 
-        if not isdefined(self.inputs.labels) or not self.inputs.erode_times == 0 or not isdefined(self.inputs.label_img) : 
-            print '\n\n' 
-            #print self.inputs
-            print "Should not be undefined:", self.inputs.labels
-            print "Should be 0", self.inputs.erode_times
-            print "label_img", self.inputs.label_img
-            print '\n\n'           
-            exit(0)
         # 1) Select Labels
         run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
         run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas
         run_calc.inputs.output_file = temp_mask  #Output mask with desired label
         run_calc.inputs.expression = " || ".join([ 'A[0] == ' + str(label) + ' ' for label in self.inputs.labels ]) + ' ? A[0] : 0'  
         run_calc.run()
+        
         # 2) Erode
         if int(self.inputs.erode_times) > 0:
             run_mincmorph = MorphCommand()
@@ -89,9 +85,12 @@ class Labels(BaseInterface):
             out_file_1 = temp_mask_clean
 
         #Copy temp_mask[_clean] to first output
-        if self.inputs.space == 'native': shutil.copy(out_file_1, self.inputs.LabelsT1)
-        elif self.inputs.space == 'icbm152': shutil.copy(out_file_1, self.inputs.LabelsMNI)
-        
+        if self.inputs.space == 'native': 
+            shutil.copy(out_file_1, self.inputs.LabelsT1)
+            out_file_1 = self.inputs.LabelsT1
+        elif self.inputs.space == 'icbm152': 
+            shutil.copy(out_file_1, self.inputs.LabelsMNI)
+            out_file_1 = self.inputs.LabelsMNI
         # 3) Co-registration
         if self.inputs.space == "other":
             run_resample = reg.nLinReg()
@@ -120,7 +119,8 @@ class Labels(BaseInterface):
         run_resample.inputs.like = like_file
         run_resample.inputs.transformation = xfm
         run_resample.inputs.nearest_neighbour_interpolation = True
-        run_resample.run() 
+        run_resample.run()
+
 
         if self.inputs.space == "other": 
             # 5) Resample 'other' atlas into mni space 
@@ -130,7 +130,27 @@ class Labels(BaseInterface):
             run_resample.inputs.like = self.inputs.nativeT1
             run_resample.inputs.transformation = self.inputs.LinMNIT1Xfm
             run_resample.inputs.nearest_neighbour_interpolation = True
-            run_resample.run() 
+            run_resample.run()
+
+        # 6) Mask brain for T1 and MNI labels
+        for label, mask in zip([self.inputs.LabelsT1, self.inputs.LabelsMNI], [self.inputs.brainmask_t1, self.inputs.brainmask_mni ]):
+            if isdefined(mask): 
+                temp_mask = tmpDir+"/mask.mnc"
+                run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
+                run_calc.inputs.input_files = [ label, mask] #The ANIMAL or CIVET classified atlas
+                run_calc.inputs.output_file = temp_mask  #Output mask with desired label
+                run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 " 
+                run_calc.clobber = True
+                run_calc.run()
+                shutil.copy(temp_mask, label)
+
+        if not os.path.exists( self.inputs.LabelsT1): 
+            print 'Does not exist -- Labels T1:', self.inputs.LabelsT1
+            exit(0)
+        if not os.path.exists( self.inputs.LabelsMNI): 
+            print 'Does not exist -- Labels MNI:', self.inputs.LabelsMNI
+            exit(0)
+ 
         shutil.rmtree(tmpDir)
         return runtime
 
@@ -153,14 +173,13 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
     total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
+    run = traits.Bool(usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class PETheadMasking(BaseInterface):
     input_spec = PETheadMaskingInput
     output_spec = PETheadMaskingOutput
-    _suffix = "_headMask"
-
+    _suffix = "_headmask"
 
     # def _parse_inputs(self, skip=None):
     #     if skip is None:
@@ -188,8 +207,8 @@ class PETheadMasking(BaseInterface):
             threshold = overall_mean * self.inputs.total_factor
             #Apply threshold and create and write outputfile
             run_calc = CalcCommand();
-            run_calc.inputs.in_file = self.inputs.in_file 
-            run_calc.inputs.out_file = self.inputs.out_file
+            run_calc.inputs.input_files = self.inputs.in_file 
+            run_calc.inputs.output_file = self.inputs.out_file
             run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
             if self.inputs.verbose:
                 print run_calc.cmdline
@@ -208,24 +227,23 @@ class PETheadMasking(BaseInterface):
 def get_workflow(name, infosource, datasink, opts):
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_json","pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template",  "tka_labels", "tka_label_space","tka_label_template","tka_label_img", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinMNIT1Xfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_json","pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template",  "tka_labels", "tka_label_space","tka_label_template","tka_label_img", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]), name='inputnode')
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_brainmask", "brainmask_t1", "brainmask_mni", "headmask_t1", "headmask_mni",  "pvc_label_img_t1", "pvc_label_img_mni", "tka_label_img_t1", "tka_label_img_mni", "results_label_img_t1", "results_label_img_mni" ]), name='outputnode')
- 
 
     node_name="MNI2T1xfm"
     invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
-    workflow.connect(inputnode, 'LinMNIT1Xfm',invert_MNI2T1 , 'input_file')
+    workflow.connect(inputnode, 'LinT1MNIXfm',invert_MNI2T1 , 'input_file')
     
     node_name="headmask"
     headmaskNode = pe.Node(interface=Labels(), name=node_name)
     headmaskNode.inputs.space = "icbm152"
     headmaskNode.inputs.labels = [1]
     workflow.connect(inputnode, 'headmask', headmaskNode, 'label_img')
-    workflow.connect(inputnode, 'LinMNIT1Xfm', headmaskNode, 'LinMNIT1Xfm')
+    workflow.connect(inputnode, 'LinT1MNIXfm', headmaskNode, 'LinT1MNIXfm')
     workflow.connect(inputnode, 'nativeT1', headmaskNode, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', headmaskNode, 'mniT1')
-    workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinT1MNIXfm')
+    workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinMNIT1Xfm')
     workflow.connect(headmaskNode, 'LabelsT1', outputnode, 'headmask_t1')
     workflow.connect(headmaskNode, 'LabelsMNI', outputnode, 'headmask_mni')  
 
@@ -234,13 +252,14 @@ def get_workflow(name, infosource, datasink, opts):
     brainmaskNode.inputs.space = "icbm152"
     brainmaskNode.inputs.labels = [1]
     workflow.connect(inputnode, 'brainmask', brainmaskNode, 'label_img')
-    workflow.connect(inputnode, 'LinMNIT1Xfm', brainmaskNode, 'LinMNIT1Xfm')
+    workflow.connect(inputnode, 'LinT1MNIXfm', brainmaskNode, 'LinT1MNIXfm')
+    workflow.connect(invert_MNI2T1, 'output_file', brainmaskNode, 'LinMNIT1Xfm')
     workflow.connect(inputnode, 'nativeT1', brainmaskNode, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', brainmaskNode, 'mniT1')
-    workflow.connect(invert_MNI2T1, 'output_file', brainmaskNode, 'LinT1MNIXfm')
     workflow.connect(brainmaskNode, 'LabelsT1', outputnode, 'brainmask_t1')
     workflow.connect(brainmaskNode, 'LabelsMNI', outputnode, 'brainmask_mni')
 
+     
     node_name="pet_brainmask"
     petMasking = pe.Node(interface=PETheadMasking(), name=node_name)
     petMasking.inputs.slice_factor = opts.slice_factor
@@ -259,8 +278,11 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(inputnode, 'pvc_label_template', pvcLabels, 'label_template')
         workflow.connect(inputnode, 'nativeT1', pvcLabels, 'nativeT1')
         workflow.connect(inputnode, 'mniT1', pvcLabels, 'mniT1')
-        workflow.connect(inputnode, 'LinMNIT1Xfm', pvcLabels, 'LinMNIT1Xfm')
-        workflow.connect(invert_MNI2T1, 'output_file', pvcLabels, 'LinT1MNIXfm')
+        workflow.connect(inputnode, 'LinT1MNIXfm', pvcLabels, 'LinT1MNIXfm')
+        workflow.connect(invert_MNI2T1, 'output_file', pvcLabels, 'LinMNIT1Xfm')
+        workflow.connect(brainmaskNode, 'LabelsT1', pvcLabels , 'brainmask_t1')
+        workflow.connect(brainmaskNode, 'LabelsMNI', pvcLabels, 'brainmask_mni')
+
         workflow.connect(pvcLabels, 'LabelsMNI', outputnode, 'pvc_labels_img_mni'  )
         workflow.connect(pvcLabels, 'LabelsT1', outputnode, 'pvc_labels_img_t1'  )
     if not opts.pvc_method == None:
@@ -273,8 +295,11 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(inputnode, 'tka_label_template', tkaLabels, 'label_template')
         workflow.connect(inputnode, 'nativeT1', tkaLabels, 'nativeT1')
         workflow.connect(inputnode, 'mniT1', tkaLabels, 'mniT1')
-        workflow.connect(inputnode, 'LinMNIT1Xfm', tkaLabels, 'LinMNIT1Xfm')
-        workflow.connect(invert_MNI2T1, 'output_file', tkaLabels, 'LinT1MNIXfm')
+        workflow.connect(inputnode, 'LinT1MNIXfm', tkaLabels, 'LinT1MNIXfm')
+        workflow.connect(invert_MNI2T1, 'output_file', tkaLabels, 'LinMNIT1Xfm') 
+        workflow.connect(brainmaskNode, 'LabelsT1', tkaLabels , 'brainmask_t1')
+        workflow.connect(brainmaskNode, 'LabelsMNI', tkaLabels, 'brainmask_mni')
+
         workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'tka_labels_img_mni'  )
         workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_labels_img_t1'  )
     
@@ -282,15 +307,17 @@ def get_workflow(name, infosource, datasink, opts):
     resultsLabels = pe.Node(interface=Labels(), name=node_name)
     resultsLabels.inputs.space = opts.results_label_space
     resultsLabels.inputs.erode_times = opts.results_erode_times
-    #resultsLabels.inputs.labels = inputnode.inputs.results_labels
     workflow.connect(inputnode, 'results_labels', resultsLabels, 'labels')
     workflow.connect(inputnode, 'results_label_img', resultsLabels, 'label_img')
     workflow.connect(inputnode, 'results_label_template', resultsLabels, 'label_template')
     workflow.connect(inputnode, 'nativeT1', resultsLabels, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', resultsLabels, 'mniT1')
-    workflow.connect(inputnode, 'LinMNIT1Xfm', resultsLabels, 'LinMNIT1Xfm')
-    workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinT1MNIXfm')
-    workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'results_labels_img_mni'  )
-    workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'results_labels_img_t1'  )
+    workflow.connect(inputnode, 'LinT1MNIXfm', resultsLabels, 'LinT1MNIXfm')
+    workflow.connect(brainmaskNode, 'LabelsT1', resultsLabels , 'brainmask_t1')
+    workflow.connect(brainmaskNode, 'LabelsMNI', resultsLabels, 'brainmask_mni')
+
+    workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinMNIT1Xfm')
+    workflow.connect(resultsLabels, 'LabelsMNI', outputnode, 'results_labels_img_mni'  )
+    workflow.connect(resultsLabels, 'LabelsT1', outputnode, 'results_labels_img_t1'  )
 
     return(workflow)

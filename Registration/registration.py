@@ -1,3 +1,5 @@
+# vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
+# vim: filetype plugin indent on
 import os
 import numpy as np
 import tempfile
@@ -725,7 +727,6 @@ def get_workflow(name, infosource, datasink, opts):
 	#workflow.connect(rpet_brain_mask, 'out_file', datasink, pet_brain_mask.name)
 
 	if not opts.tka_method == None:
-		print '\n\n\ntka mehhod', opts.tka_method,'\n\n\n'
 		workflow.connect([#(inputnode, petRefMask, [('tka_label_img_t1', 'in_file' )]),
 							(inputnode, petRefMask, [('tka_label_img_t1', 'input_file' )]),
 							#(inputnode, petRefMask, [('pet_volume', 'model_file')]), 
@@ -743,7 +744,6 @@ def get_workflow(name, infosource, datasink, opts):
 						])
 
 	#	workflow.connect(rPetRefMask, 'out_file', datasink, petRefMask.name)
-		workflow.connect(rPetRefMask, 'out_file', outputnode, 'tka_label_img_pet')
 	
 	workflow.connect([#(inputnode, petROIMask, [('results_label_img_t1', 'in_file' )]),
 					  (inputnode, petROIMask, [('results_label_img_t1', 'input_file' )]),
@@ -761,26 +761,17 @@ def get_workflow(name, infosource, datasink, opts):
 
 	#workflow.connect(rPetROIMask, 'out_file', datasink, petROIMask.name)
 
-	if not opts.nopvc:
-		workflow.connect([  (inputnode, petPVCMask, [('pvc_label_img_t1', 'input_file' )]),
-							(inputnode, petPVCMask, [('pet_volume', 'like')]), 
-							(pet2mri, petPVCMask, [('out_file_xfm_invert', 'transformation')])
-						]) 
+    if not opts.nopvc: 
+    workflow.connect(inputnode,'pvc_label_img_t1', petPVCMask, 'input_file'  )
+        workflow.connect(inputnode,'pet_volume', petPVCMask, 'like'  )
+	    workflow.connect(pet2mri, 'out_file_xfm_invert' ,petPVCMask, 'transformation'  )
 
-		workflow.connect([(petPVCMask, rPetPVCMask, [('output_file', 'in_file')])])
-		workflow.connect([(infosource, rPetPVCMask, [('sid', 'sid')]),
-						  (infosource, rPetPVCMask, [('cid', 'cid')])
-						])
+	    workflow.connect([(petPVCMask, rPetPVCMask, [('output_file', 'in_file')])])
+	    workflow.connect([(infosource, rPetPVCMask, [('sid', 'sid')]), (infosource, rPetPVCMask, [('cid', 'cid')])])
 
-		#workflow.connect(rPetPVCMask, 'out_file', datasink, petPVCMask.name)
-
-		workflow.connect(rPetPVCMask, 'out_file', outputnode, 'pvc_label_img_pet')
-
-
-
-
-
-
+	#workflow.connect(rPetPVCMask, 'out_file', datasink, petPVCMask.name)
+	workflow.connect(rPetRefMask, 'out_file', outputnode, 'tka_label_img_pet')
+	workflow.connect(rPetPVCMask, 'out_file', outputnode, 'pvc_label_img_pet')
 	workflow.connect(rPet2MriXfm, 'out_file', outputnode, 'petmri_xfm')
 	workflow.connect(rPet2MriXfmInvert, 'out_file', outputnode, 'petmri_xfm_invert')
 	workflow.connect(rPet2MriImg, 'out_file', outputnode, 'petmri_img')

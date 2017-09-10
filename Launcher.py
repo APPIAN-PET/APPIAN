@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os
 import sys
 import argparse
@@ -31,7 +32,7 @@ import Partial_Volume_Correction.pvc as pvc
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import tka_methods
-import Quality_Control.group_qc_coreg as qc
+import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 
 version = "1.0"

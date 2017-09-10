@@ -1,8 +1,24 @@
-import os
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
+import nipype.pipeline.engine as pe
+import nipype.interfaces.utility as niu 
+import pyminc.volumes.factory as pyminc
+from sklearn.metrics import normalized_mutual_info_score
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from scipy.stats import ks_2samp
+from scipy.stats.stats import pearsonr, kendalltau  
 import numpy as np
-import tempfile
-import shutil
-import pickle
+import pandas as pd
+import fnmatch
+import os
+from math import sqrt, log, ceil
+from os import getcwd
+from os.path import basename
+from sys import argv, exit
+from itertools import product
+
+from Quality_Control.outlier import lof, kde, MAD, lcf
 import ntpath 
 
 from pyminc.volumes.factory import *
@@ -13,10 +29,9 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.utility import Rename
 import nipype.interfaces.io as nio
-import Quality_Control.group_qc_coreg as coreg_qc
-import Quality_Control.pvc_qc as pvc_qc
-import Quality_Control.tka_qc as tka_qc
-import Results_Report.results as results
+#import Quality_Control.pvc_qc as pvc_qc
+#import Quality_Control.tka_qc as tka_qc
+#import Results_Report.results as results
 import Registration.registration as reg
 from Extra.concat import concat_df
 
@@ -87,121 +102,372 @@ def group_level_qc(opts, args):
     #Plot distance metrics
     #Plot outlier measures
 
-'''def get_workflow(name, infosource, datasink, opts):
 
-    workflow = pe.Workflow(name=name)
+####################
+# Distance Metrics #
+####################
+__NBINS=-1
+import copy
+def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
+	pet = pyminc.volumeFromFile(pet_fn)
+	mri = pyminc.volumeFromFile(mri_fn)
+	t1_mask= pyminc.volumeFromFile(t1_brain_fn)
+	pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
-    #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["t1", "pet"]), name='inputnode')
+	pet_data=pet.data.flatten()
+	mri_data=mri.data.flatten()
+	t1_mask_data=t1_mask.data.flatten()
+	pet_mask_data=pet_mask.data.flatten()
 
-class T1maskingInput(BaseInterfaceInputSpec):
-	t1 = File(exists=True, mandatory=True, desc="Native T1 image")
-	LinTalT1Xfm = File(exists=True, mandatory=True, desc="Inverted transformation matrix to register T1 image into Talairach space")
-	brainmaskTal  = File(exists=True, mandatory=True, desc="Brain mask image in Talairach space")
-	modelDir = traits.Str(exists=True, mandatory=True, desc="Models directory")
-	T1headmask = File(desc="anatomical head mask, background removed")
-	T1brainmask = File(desc="Transformation matrix to register T1 image into Talairach space")
+	n=len(pet_data)
+	overlap =  t1_mask_data * pet_mask_data
+	masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
+	masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
+	del pet
+	del mri
+	del t1_mask
+	del pet_mask
+	del t1_mask_data
+	del pet_mask_data
+	dist_list=[]
+	for dist_f in dist_f_list:
+		dist_list.append(dist_f(masked_pet_data, masked_mri_data))
+	return(dist_list)
 
-	clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-	run = traits.Bool(usedefault=False, default_value=False, desc="Run the commands")
-	verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
+def mse(masked_pet_data, masked_mri_data):
+    mse=-(np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data))
+    return mse
 
-	pet_mri_coregistration_qc(study.dir_results_temp, subject.t1, float(mri_max)*0.1, float(mri_max)*0.50, subject.coregistered_sum, float(pet_max)*0.2, float(pet_max)*0.9, offsets, 750, 750, study.dir_results_qc_coreg)
-
-
-def pet_mri_coregistration_qc(dir_results_temp, mri, mri_min, mri_max, pet, pet_max, pet_min, offsets, x_size, y_size, output_dir, colour_scheme, label_string):
-    axis_list=["x", "y", "z"]
-    image_base=re.sub('.mnc', '', pet)
-    file_list=image_base.split('/')
-    n=len(file_list)
-    output_base=file_list[n-1]
-    concat_arg=""
-    slice=dir_results_temp+"/slice.obj"
-    for axis,offset in zip(axis_list,offsets):
-        shell(["make_slice", mri, slice, axis, "w", str(offset)], True )
-        shell(["ray_trace", "-output", image_base+"_"+axis+".rgb", "-nolight", "-gray", str(mri_min), str(mri_max), mri, str(0), str(1), "-under", "transparent", colour_scheme, str(pet_min), str(pet_max), pet, str(0), str(0.15), slice, "-size", str(x_size), str(y_size), "-bg", "black", "-crop"], True)
-        concat_arg = str.join(' ', [concat_arg, image_base+"_"+axis+".rgb" ])
-    shell(["montage", "-label", label_string, "-background black -flip", "-geometry +1+1+1", concat_arg, output_dir+ output_base+".jpg"], True)
-    print(output_dir+ output_base+".jpg")
-    #shell(["eog", output_dir+ output_base+".jpg" ],False)
-    shell(["rm", slice, concat_arg], True)
+def mi(masked_pet_data, masked_mri_data):
+    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
+    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
+    
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+    #nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
+    p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
+    mri_dist = np.histogram(masked_mri_data, mri_nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    pet_dist = np.histogram(masked_pet_data, pet_nbins)
+    pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
+    mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
+    
+    print "MI:", mi
+    return(mi)
 
 
+def cc(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    pet_nbins=find_nbins(masked_pet_data)*2 #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
+    mri_nbins=find_nbins(masked_mri_data)*2
 
-class T1maskingOutput(TraitedSpec):
-	T1headmask = File(desc="anatomical head mask, background removed")
-	T1brainmask = File(desc="anatomical head mask, background and skull removed")
+    cc=0.0
+    xd=0.0
+    yd=0.0
+    p=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )[0]
 
-class T1maskingRunning(BaseInterface):
-    input_spec = T1maskingInput
-    output_spec = T1maskingOutput
+    pet_mean=np.mean(masked_pet_data)
+    mri_mean=np.mean(masked_mri_data)
+    xval=(masked_pet_data-pet_mean)
+    yval=(masked_mri_data-mri_mean)
+    num = np.sum( xval * yval * p)
+    xd = np.sum( p * xval**2)
+    yd = np.sum( p * yval**2)
+    den=sqrt(xd*yd)
+    cc = abs(num / den)
+    #r=pearsonr(masked_pet_data, masked_mri_data)[0]
 
+    #print 'CC0:', r
+    print "CC = " + str(cc)
+
+    return(cc)
+
+def iecc(masked_pet_data, masked_mri_data):
+    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
+    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
+    
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+    #nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
+    p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
+    mri_dist = np.histogram(masked_mri_data, mri_nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    pet_dist = np.histogram(masked_pet_data, pet_nbins)
+    pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
+    num=p*np.log2( p / (pet_dist[pet_bins] * mri_dist[mri_bins]) )
+    den=pet_dist[pet_bins]*np.log2(pet_dist[pet_bins]) + mri_dist[mri_bins]*np.log2(mri_dist[mri_bins])
+    iecc = np.sum(num / den) 
+    print "IEEC:", num, '/', den, '=', iecc
+    return(iecc)
+
+def ec(masked_pet_data, masked_mri_data):
+    ###Ref: Kalinic, 2011. A novel image similarity measure for image registration. IEEE ISPA
+    pet_mean=np.mean(masked_pet_data)
+    mri_mean=np.mean(masked_mri_data)
+    xval=np.exp(masked_pet_data-pet_mean)-1
+    yval=np.exp(masked_mri_data-mri_mean)-1
+    ec = np.sum((xval*yval)) / (len(xval) * len(yval))
+    print "EC = " + str(ec)
+
+    return(ec)
+
+def iv(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+
+    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins)
+    df=pd.DataFrame({ 'Value':masked_pet_data , 'p':p, 'Label':mri_bin})
+
+
+    #Intensity variation:
+    #
+    #              p(n,m)(n - mean{n}(m))^2
+    #sum{sqrt(sum[ ------------------------ ]) * p(m)}
+    #                   mean{n}(m)^2
+    #
+
+
+    # 1)
+    #      p(n,m)(n - mean{n}(m))^2
+    # X =  ------------------------
+    #           mean{n}(m)^2
+    df["Normed"]=df.groupby(["Label"])['Value'].transform( lambda x: (x - x.mean())**2 / x.mean()**2 ) * df.p
+
+    # 2)
+    #          
+    #sum{sqrt(sum[ X ]) * p(m)}
+    #
+    mri_dist = np.histogram(masked_mri_data, mri_nbins)
+    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
+    iv = - float(np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0]))
+    print "IV:", iv
+    return iv
+
+def fse(masked_pet_data, masked_mri_data):
+    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
+    pet_nbins=find_nbins(masked_pet_data)
+    mri_nbins=find_nbins(masked_mri_data)
+
+    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins)
+    fse=-np.sum(p*map(np.log, p))
+    print "FSE:", fse
+    return fse
+
+
+
+
+def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
+    #return joint probability for pair of pet and mri value
+    n=len(masked_pet_data)
+    h=np.histogram2d(masked_pet_data, masked_mri_data, [pet_nbins, mri_nbins])
+    #print h
+    nbins = h[0].shape[0] * h[0].shape[1]
+    hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
+    #Binarized PET data
+    x_bin = np.digitize(masked_pet_data, h[1]) - 1
+    #Binarized MRI data
+    y_bin = np.digitize(masked_mri_data, h[2]) - 1
+    #Reduce max bins by 1
+    x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
+    y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
+
+    pet_bin=x_bin
+    mri_bin=y_bin
+    x_idx=x_bin #v[:,0]
+    y_idx=y_bin #v[:,1]
+    p=hi[x_idx,y_idx]
+
+    return [p, pet_bin, mri_bin]
+
+def find_nbins(array):
+    r=float(max(array)) - min(array)
+    
+    n=ceil(-np.log2(16/r))
+    return n
+
+
+###########
+# Globals #
+###########
+
+global distance_metrics  
+global outlier_measures
+global metric_columns  
+global outlier_columns
+distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
+outlier_measures={"KDE":kde } 
+metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
+outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
+
+#######################
+### Outlier Metrics ###
+#######################
+
+
+### PVC Metrics
+
+class pvc_qc_metricsOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class pvc_qc_metricsInput(BaseInterfaceInputSpec):
+    pve = traits.File(exists=True, mandatory=True, desc="Input PVE PET image")
+    pvc = traits.File(exists=True, mandatory=True, desc="Input PVC PET")
+    fwhm = traits.List(desc='FWHM of the scanner')
+    sub = traits.Str("Subject ID")
+    task = traits.Str("Task")
+    ses = traits.Str("Ses")
+    out_file = traits.File(desc="Output file")
+from scipy.ndimage.filters import gaussian_filter
+class pvc_qc_metrics(BaseInterface):
+	input_spec = pvc_qc_metricsInput 
+	output_spec = pvc_qc_metricsOutput
+
+	def _gen_output(self, sid, ses, task, fname ="pvc_qc_metric.csv"):
+		dname = os.getcwd() 
+		return dname + os.sep + sid + '_' + ses + '_'+ task + "_" + fname
+
+	def _run_interface(self, runtime):
+		sub = self.inputs.sub
+		ses = self.inputs.ses
+		task = self.inputs.task
+		fwhm = self.inputs.fwhm
+		pvc = pyminc.volumeFromFile(self.inputs.pvc)
+		pve = pyminc.volumeFromFile(self.inputs.pve)
+
+		mse = 0 
+		for t in range(pvc.sizes[0]):
+			pve_frame = pve.data[t,:,:,:]
+			pvc_frame = pvc.data[t,:,:,:]
+			pvc_blur = gaussian_filter(pvc_frame,fwhm) 
+			m = np.sum(np.sqrt((pve_frame - pvc_blur)**2))
+			mse += m
+			print t, m
+		metric = ["MSE"] #* pve.sizes[0] 
+		df = pd.DataFrame([[['pvc'], sub,ses,task, [01], metric,mse]], columns=metric_columns)
+		df.fillna(0, inplace=True)
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task)
+		df.to_csv(self.inputs.out_file, index=False)
+
+		return runtime
+
+
+	def _list_outputs(self):
+		outputs = self.output_spec().get()
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self.inputs._gen_output(self.inputs.sid, self.inputs.cid)
+		outputs["out_file"] = self.inputs.out_file
+
+		return outputs
+
+### Coregistration Metrics
+class coreg_qc_metricsOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class coreg_qc_metricsInput(BaseInterfaceInputSpec):
+    pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
+    t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    sid = traits.Str(desc="Subject")
+    ses = traits.Str(desc="Session")
+    task = traits.Str(desc="Task")
+    study_prefix = traits.Str(desc="Study Prefix")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+class coreg_qc_metricsCommand(BaseInterface):
+    input_spec = coreg_qc_metricsInput 
+    output_spec = coreg_qc_metricsOutput
+  
+    def _gen_output(self, sid, ses, task, fname ="distance_metric.csv"):
+        dname = os.getcwd() 
+        return dname + os.sep +'sub-'+ sid + '_ses-' + ses + '_task-' + task + '_' + fname
 
     def _run_interface(self, runtime):
-		model_headmask = self.inputs.modelDir+"/mni_icbm152_t1_tal_nlin_asym_09a_headmask.mnc"
-		
-		# run_xfminvert = InvertCommand();
-		# run_xfminvert.inputs.in_file = self.inputs.LinT1TalXfm
-		# #run_xfminvert.inputs.out_file_xfm = self.inputs.Lintalt1Xfm
+        sub_df=pd.DataFrame(columns=metric_columns )
+        pet = self.inputs.pet
+        t1 = self.inputs.t1
+        sid = self.inputs.sid
+        ses = self.inputs.ses
+        task = self.inputs.task
+        t1_brain_mask = self.inputs.t1_brain_mask
+        pet_brain_mask = self.inputs.pet_brain_mask
 
-		# if self.inputs.verbose:
-		#     print run_xfminvert.cmdline
-		# if self.inputs.run:
-		#     run_xfminvert.run()
+        path, ext = os.path.splitext(pet)
+        base=basename(path)
+        param=base.split('_')[-1]
+        param_type=base.split('_')[-2]
 
+        mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
 
-		#print "\n\n\nXFM Invert file created:"
-		#print run_xfminvert.inputs.out_file
-		#print "\n\n\n"
-		if not isdefined(self.inputs.T1headmask):
-			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1headmask = dname+ os.sep+fname + "_headmask.mnc"
+        df=pd.DataFrame(columns=metric_columns )
+        for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
+            temp=pd.DataFrame([['coreg',sid,ses,task,metric_name,'01',m]],columns=df.columns  ) 
+            sub_df = pd.concat([sub_df, temp])
+        
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.ses, self.inputs.task)
+        
+        sub_df.to_csv(self.inputs.out_file,  index=False)
+        return runtime
 
-		if not isdefined(self.inputs.T1brainmask):
-			fname = os.path.splitext(os.path.basename(self.inputs.nativeT1))[0]
-			dname = dname = os.getcwd()  #os.path.dirname(self.inputs.nativeT1)
-			self.inputs.T1brainmask = dname + os.sep + fname + "_braimmask.mnc"
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid)
 
-		run_resample = ResampleCommand();
-		run_resample.inputs.in_file = model_headmask
-		run_resample.inputs.out_file = self.inputs.T1headmask
-		run_resample.inputs.model_file = self.inputs.nativeT1
-		# run_resample.inputs.transformation = run_xfminvert.inputs.out_file
-		run_resample.inputs.transformation = self.inputs.LinTalT1Xfm
-		run_resample.inputs.interpolation = 'nearest_neighbour'
-		run_resample.inputs.clobber = True
-
-		if self.inputs.verbose:
-		    print run_resample.cmdline
-		if self.inputs.run:
-			run_resample.run()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
 
 
-		run_resample = ResampleCommand();
-		run_resample.inputs.in_file = self.inputs.brainmaskTal
-		run_resample.inputs.out_file = self.inputs.T1brainmask
-		run_resample.inputs.model_file = self.inputs.nativeT1
-		# run_resample.inputs.transformation = run_xfminvert.inputs.out_file
-		run_resample.inputs.transformation = self.inputs.LinTalT1Xfm
-		run_resample.inputs.interpolation = 'nearest_neighbour'
-		run_resample.inputs.clobber = True
 
 
-		if self.inputs.verbose:
-		    print run_resample.cmdline
 
-		if self.inputs.run:
-			run_resample.run()
+####################
+# Outlier Measures #
+####################
 
-	
+class calc_outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class calc_outlier_measuresInput(BaseInterfaceInputSpec):
+    in_file = traits.File(desc="Input file")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+class calc_outlier_measuresCommand(BaseInterface):
+    input_spec = calc_outlier_measuresInput 
+    output_spec = calc_outlier_measuresOutput
+  
+    def _gen_output(self, fname ="coreg_measures.csv"):
+        dname = os.getcwd() + os.sep + fname
+        return dname
+
+    def _run_interface(self, runtime):
+		df = pd.read_csv( self.inputs.in_file  )
+		df_out = pd.DataFrame(columns=outlier_columns)
+		for ses, ses_df in df.groupby(['ses']):
+			for task, task_df in ses_df.groupby(['task']):
+				for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
+					for metric_name, metric_df in task_df.groupby(['metric']):
+						r=pd.Series(measure(task_df.Value.values).flatten())
+						task_df.index=range(task_df.shape[0])
+						task_df['value'] = r
+						task_df['measure'] = [measure_name] * task_df.shape[0]
+						df_out = pd.concat([df_out, task_df], axis=0)
+		df_out.fillna(0, inplace=True)
+		if not isdefined( self.inputs.out_file) :
+			self.inputs.out_file = self._gen_output()
+		df_out.to_csv(self.inputs.out_file,index=False)
 		return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["T1headmask"] = self.inputs.T1headmask
-        outputs["T1brainmask"] = self.inputs.T1brainmask
-        return outputs  
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
 
 
-'''

@@ -12,6 +12,7 @@ import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 
 from Extra.concat import concat_df
+from Quality_Control.qc import metric_columns
 ######################################
 # Group level descriptive statistics #
 ######################################
@@ -106,10 +107,10 @@ class resultsCommand( BaseInterface):
         
         return runtime
 
-    def _parse_inputs(self):
-        if not isdefined(self.inputs.out_file):
-            [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
-        return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
+    #def _parse_inputs(self):
+    #    if not isdefined(self.inputs.out_file):
+    #        [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
+    #    return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
@@ -117,10 +118,6 @@ class resultsCommand( BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file_3d"] = self.inputs.out_file_3d
         outputs["out_file_4d"] = self.inputs.out_file_4d
-        print '\n\n\n'
-        print self.inputs.out_file_3d
-        print self.inputs.out_file_4d
-        print '\n\n\n'
         return outputs
 
 
@@ -175,41 +172,47 @@ class add_csvInfoOutput(TraitedSpec):
     out_file = File(desc="Output file")
 
 class add_csvInfoCommand(BaseInterface):
-    input_spec = add_csvInfoInput
-    output_spec = add_csvInfoOutput
-    
-    def _run_interface(self, runtime):
-        sub = self.inputs.sub
-        task= self.inputs.task
-        ses= self.inputs.ses
-        node = self.inputs.node
-        df = pd.read_csv( self.inputs.in_file, header=None    )	
-        df.columns=['ndim', 'roi', 'time', 'mean','sd','max','min','vol']
+	input_spec = add_csvInfoInput
+	output_spec = add_csvInfoOutput
+	
+	def _run_interface(self, runtime):
+		sub = self.inputs.sub
+		task= self.inputs.task
+		ses= self.inputs.ses
+		node = self.inputs.node
+		df = pd.read_csv( self.inputs.in_file, header=None    )	
+		df.columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
+		
+		#['analysis', 'sub','ses','task','roi','metric','value']
+		dfo =pd.DataFrame( columns=metric_columns+['frame'])
+		dfo["analysis"] = [node] * df.shape[0]
+		dfo["sub"] = [sub] * df.shape[0]
+		dfo["ses"] = [ses] * df.shape[0]
+		dfo["task"] = [task] * df.shape[0]
+		dfo["roi"] =  df['roi']
+		dfo['metric'] = ['mean'] * df.shape[0]
+		dfo['value'] = df['mean']
+		dfo['frame'] = df['frame']
+		dfo = dfo[ metric_columns+['frame'] ]
+		print dfo
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.in_file)
 
-        df["node"] = [node] * df.shape[0]
-        df["sub"] = [sub] * df.shape[0]
-        df["ses"] = [ses] * df.shape[0]
-        df["task"] = [task] * df.shape[0]
-        #df = df[ ['node','sub', 'ses', 'task', 'ndim', 'roi', 'time', 'mean','sd','min','max','vol'] ] 
-        df = df[ [ "node", "sub", "ses", "task", "ndim", "roi", "mean"] ]
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-
-        df.to_csv(self.inputs.out_file, index=False)
+		dfo.to_csv(self.inputs.out_file, index=False)
         
-        return runtime
+		return runtime
 
-    def _gen_output(self, basename):
-        sbasename = os.path.splitext(basename)
-        return sbasename[0]+'_withInfo'+sbasename[1]
+	def _gen_output(self, basename):
+		sbasename = os.path.splitext(basename)
+		return sbasename[0]+'_withInfo'+sbasename[1]
 
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-        outputs["out_file"] = self.inputs.out_file
-        
-        return outputs
+	def _list_outputs(self):
+		outputs = self.output_spec().get()
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.in_file)
+			outputs["out_file"] = self.inputs.out_file
+
+		return outputs
 
 
 
@@ -276,6 +279,7 @@ class descriptive_statisticsCommand( BaseInterface):
 		out_file = os.getcwd() + os.sep + ii + "_"+label+".csv"
 		return out_file
 
+### TKA metrics
 class integrate_TACInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
     header = traits.Dict(desc="Input file ")
@@ -285,44 +289,42 @@ class integrate_TACOutput(TraitedSpec):
     out_file = traits.File(desc="Output file ")
 
 class integrate_TACCommand( BaseInterface):
-    input_spec = integrate_TACInput
-    output_spec = integrate_TACOutput
-    
-    def _gen_output(self, in_file):
-        ii =  os.path.splitext(os.path.basename(in_file))[0]
-        out_file = os.getcwd() + os.sep + ii + "_int.csv"
+	input_spec = integrate_TACInput
+	output_spec = integrate_TACOutput
 
-        return out_file 
+	def _gen_output(self, in_file):
+		ii =  os.path.splitext(os.path.basename(in_file))[0]
+		out_file = os.getcwd() + os.sep + ii + "_int.csv"
 
-    def _run_interface(self, runtime):
-        header = self.inputs.header
-        df = pd.read_csv( self.inputs.in_file )
-        time_frames = [ float(h) for h in  header['time']["frames-time"] ]
-        out_columns=["node", "sub", "ses", "task", "ndim", "roi", "mean"]
-        out_df = pd.DataFrame( columns=out_columns)
-        l = lambda x: simps(x,time_frames)
-        #for name, temp_df in  df.groupby(["sub", "ses", "task", "ndim", "roi"]):
-        for name, temp_df in  df.groupby(["node", "sub", "ses", "task", "ndim", "roi"]):
-            mean_int = simps(temp_df["mean"], time_frames)
-            row = pd.DataFrame( [list(name) + [mean_int]], columns=out_columns  )
-            out_df = pd.concat( [out_df, row] )
-        if not isdefined(self.inputs.in_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-        out_df.to_csv(self.inputs.out_file, index=False)
-        return runtime
+		return out_file 
+
+	def _run_interface(self, runtime):
+		header = self.inputs.header
+		df = pd.read_csv( self.inputs.in_file )
+		time_frames = [ float(h) for h in  header['time']["frames-time"] ]
+		out_df = pd.DataFrame( columns=metric_columns)
+		print(df)
+		#l = lambda x: simps(x,time_frames)
+		for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):
+			print(temp_df)
+			mean_int = simps(temp_df["value"], time_frames)
+			row = pd.DataFrame( [list(name) + ['integral', mean_int]], columns=metric_columns  )
+			out_df = pd.concat( [out_df, row] )
+		if not isdefined(self.inputs.in_file): 
+			self.inputs.out_file = self._gen_output(self.inputs.in_file)
+		out_df.to_csv(self.inputs.out_file, index=False)
+		return runtime
 
 
-    def _parse_inputs(self):
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file =self._gen_output(self.inputs.in_file)
-        return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
+	def _parse_inputs(self):
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file =self._gen_output(self.inputs.in_file)
+		return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
 
-    def _list_outputs(self):
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = _gen_output(self.inputs.in_file)
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-        return None
+	def _list_outputs(self):
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = _gen_output(self.inputs.in_file)
+		outputs = self.output_spec().get()
+		outputs["out_file"] = self.inputs.out_file
+		return outputs
 

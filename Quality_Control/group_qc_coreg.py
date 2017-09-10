@@ -1,8 +1,6 @@
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4 mouse=a
+# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import pyminc.volumes.factory as pyminc
 from sklearn.metrics import normalized_mutual_info_score
 import matplotlib
@@ -21,6 +19,90 @@ from sys import argv, exit
 from itertools import product
 
 from Quality_Control.outlier import lof, kde, MAD, lcf
+import ntpath 
+
+from pyminc.volumes.factory import *
+import nipype.pipeline.engine as pe
+import nipype.interfaces.utility as niu
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.interfaces.utility import Rename
+import nipype.interfaces.io as nio
+import Quality_Control.group_qc_coreg as coreg_qc
+import Quality_Control.pvc_qc as pvc_qc
+import Quality_Control.tka_qc as tka_qc
+import Results_Report.results as results
+import Registration.registration as reg
+from Extra.concat import concat_df
+
+######################
+#   Group-level QC   #
+######################
+
+#datasink for dist metrics
+#check how the calc outlier measure node is implemented, may need to be reimplemented
+def group_level_qc(opts, args):
+    #setup workflow
+    workflow = pe.Workflow(name=opts.preproc_dir)
+    workflow.base_dir = opts.targetDir
+    
+    #Datasink
+    datasink=pe.Node(interface=nio.DataSink(), name="output")
+    datasink.inputs.base_directory= opts.targetDir +os.sep +"qc"
+    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+
+    #Datagrabber
+    datasource = pe.Node( interface=nio.DataGrabber( outfields=['dist_metrics','tka_metrics','pvc_metrics'], raise_on_empty=True, sort_filelist=False), name="datasource")
+    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+    datasource.inputs.template = '*'
+    datasource.inputs.field_template =dict(
+        dist_metrics='*/distance_metric/*_distance_metric.csv',
+        tka_metrics='*/results_tka/*_3d.csv',
+        pvc_metrics='*/pvc_qc_metrics/*_pvc_qc_metric.csv'
+    )
+    #datasource.inputs.template_args = dict( dist_metrics = [['preproc_dir']] )
+
+    #Concatenate distance metrics
+    concat_dist_metricsNode=pe.Node(interface=concat_df(), name="concat_coreg_metrics")
+    concat_dist_metricsNode.inputs.out_file="coreg_qc_metrics.csv"
+    workflow.connect(datasource, 'dist_metrics', concat_dist_metricsNode, 'in_list')
+    workflow.connect(concat_dist_metricsNode, "out_file", datasink, 'coreg_metrics')
+	
+	#Concatenate PVC metrics
+    concat_pvc_metricsNode=pe.Node(interface=concat_df(), name="concat_pvc_metrics")
+    concat_pvc_metricsNode.inputs.out_file="pvc_qc_metrics.csv"
+    workflow.connect(datasource, 'pvc_metrics', concat_pvc_metricsNode, 'in_list')
+    workflow.connect(concat_pvc_metricsNode, "out_file", datasink, 'pvc_metrics')
+	
+	#Concatenate TKA metrics
+    concat_tka_metricsNode=pe.Node(interface=concat_df(), name="concat_tka_metrics")
+    concat_tka_metricsNode.inputs.out_file="tka_qc_metrics.csv"
+    workflow.connect(datasource, 'tka_metrics', concat_tka_metricsNode, 'in_list')
+    workflow.connect(concat_tka_metricsNode, "out_file", datasink, 'tka_metrics')
+
+    #Calculate Coregistration outlier measures
+    outlier_measureNode = pe.Node(interface=coreg_qc.calc_outlier_measuresCommand(),  name="coregistration_outlier_measure")
+    workflow.connect(concat_dist_metricsNode, 'out_file', outlier_measureNode, 'in_file')
+    workflow.connect(outlier_measureNode, "out_file", datasink, 'coreg_outlier')
+
+	#Calculate PVC outlier measures
+    pvc_outlier_measureNode = pe.Node(interface=pvc_qc.pvc_outlier_measuresCommand(),  name="pvc_outlier_measure")
+    workflow.connect(concat_pvc_metricsNode, 'out_file', pvc_outlier_measureNode, 'in_file')
+    workflow.connect(pvc_outlier_measureNode, "out_file", datasink, 'pvc_outlier')
+
+	#Calculate TKA outlier measures
+    tka_outlier_measureNode = pe.Node(interface=tka_qc.tka_outlier_measuresCommand(),  name="tka_outlier_measure")
+    workflow.connect(concat_tka_metricsNode, 'out_file', tka_outlier_measureNode, 'in_file')
+    workflow.connect(tka_outlier_measureNode, "out_file", datasink, 'tka_outlier')
+
+
+	#"pvc_qc_metrics"
+    
+    workflow.run()
+    #Plot distance metrics
+    #Plot outlier measures
+
 
 ####################
 # Distance Metrics #
@@ -212,16 +294,75 @@ def find_nbins(array):
 
 distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
 
-outlier_measures={"KDE":kde } #{'LCF':lcf, "KDE":kde , 'MAD':MAD} #, 'LCF':lcf}
+outlier_measures={"KDE":kde } 
 
-#########
-# Nodes #
-#########
+metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
+outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
 
-class calc_distance_metricsOutput(TraitedSpec):
+#######################
+### Outlier Metrics ###
+#######################
+
+
+### PVC Metrics
+
+class pvc_qc_metricsOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
 
-class calc_distance_metricsInput(BaseInterfaceInputSpec):
+class pvc_qc_metricsInput(BaseInterfaceInputSpec):
+    pve = traits.File(exists=True, mandatory=True, desc="Input PVE PET image")
+    pvc = traits.File(exists=True, mandatory=True, desc="Input PVC PET")
+    fwhm = traits.List(desc='FWHM of the scanner')
+    sub = traits.Str("Subject ID")
+    task = traits.Str("Task")
+    ses = traits.Str("Ses")
+    out_file = traits.File(desc="Output file")
+from scipy.ndimage.filters import gaussian_filter
+class pvc_qc_metrics(BaseInterface):
+    input_spec = pvc_qc_metricsInput 
+    output_spec = pvc_qc_metricsOutput
+  
+    def _gen_output(self, sid, ses, task, fname ="pvc_qc_metric.csv"):
+        dname = os.getcwd() 
+        return dname + os.sep + sid + '_' + ses + '_'+ task + "_" + fname
+
+    def _run_interface(self, runtime):
+        sub = self.inputs.sub
+        ses = self.inputs.ses
+        task = self.inputs.task
+        fwhm = self.inputs.fwhm
+        pvc_blur = pyminc.volumeFromFile(self.inputs.pvc)
+        
+        mse = 0 
+        for t in range(pve.sizes[0]):
+            pve_frame = pve.data[t,:,:,:]
+            pvc_frame = gaussian_filter(pve_frame,fwhm) 
+            m = np.sum(np.sqrt((pve_frame.flatten() - pvc_frame.flatten())**2))
+            mse += m
+            print t, m
+        metric = ["MSE"] * pve.sizes[0] 
+        df = pd.DataFrame([[sub,ses,task,metric,value]], columns=metric_columns)
+        df.fillna(0, inplace=True)
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task)
+        df.to_csv(self.inputs.out_file, index=False)
+
+        return runtime
+
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self.inputs._gen_output(self.inputs.sid, self.inputs.cid)
+        outputs["out_file"] = self.inputs.out_file
+        
+        return outputs
+
+### Coregistration Metrics
+class coreg_qc_metricsOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class coreg_qc_metricsInput(BaseInterfaceInputSpec):
     pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
     t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
@@ -233,17 +374,16 @@ class calc_distance_metricsInput(BaseInterfaceInputSpec):
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
 
-class calc_distance_metricsCommand(BaseInterface):
-    input_spec = calc_distance_metricsInput 
-    output_spec = calc_distance_metricsOutput
+class coreg_qc_metricsCommand(BaseInterface):
+    input_spec = coreg_qc_metricsInput 
+    output_spec = coreg_qc_metricsOutput
   
     def _gen_output(self, sid, ses, task, fname ="distance_metric.csv"):
         dname = os.getcwd() 
         return dname + os.sep +'sub-'+ sid + '_ses-' + ses + '_task-' + task + '_' + fname
 
     def _run_interface(self, runtime):
-        colnames=["Subject", "Session","Task", "Metric", "Value"] 
-        sub_df=pd.DataFrame(columns=colnames)
+        sub_df=pd.DataFrame(columns=metric_columns )
         pet = self.inputs.pet
         t1 = self.inputs.t1
         sid = self.inputs.sid
@@ -259,7 +399,7 @@ class calc_distance_metricsCommand(BaseInterface):
 
         mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
 
-        df=pd.DataFrame(columns=colnames)
+        df=pd.DataFrame(columns=metric_columns )
         for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
             temp=pd.DataFrame([[sid,ses,task,metric_name,m]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
@@ -273,10 +413,18 @@ class calc_distance_metricsCommand(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid,)
+            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid)
 
         outputs["out_file"] = self.inputs.out_file
         return outputs
+
+
+
+
+
+####################
+# Outlier Measures #
+####################
 
 class calc_outlier_measuresOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
@@ -296,9 +444,7 @@ class calc_outlier_measuresCommand(BaseInterface):
 
     def _run_interface(self, runtime):
 		df = pd.read_csv( self.inputs.in_file  )
-		#out_columns=['Subject','Session','Task', 'Measure','Metric', 'Value']
-		out_columns=['sub','ses','task','roi','metric','measure','value'] 
-		df_out = pd.DataFrame(columns=out_columns)
+		df_out = pd.DataFrame(columns=outlier_columns)
 		for ses, ses_df in df.groupby(['ses']):
 			for task, task_df in ses_df.groupby(['task']):
 				for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):

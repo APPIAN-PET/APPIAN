@@ -8,7 +8,7 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 
 import numpy as np
 import ntpath
-from nipype.interfaces.minc.base import CommandLine, CommandLineInputSpec
+from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
 class PVCInput(CommandLineInputSpec):

@@ -11,7 +11,7 @@ import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-#from nipype.interfaces.minc.base import Info
+#from nipype.interfaces.base import Info
 from nipype.interfaces.utility import Rename
 
 import nipype.interfaces.minc as minc
@@ -283,8 +283,8 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brainmaskNode, 'LabelsT1', pvcLabels , 'brainmask_t1')
         workflow.connect(brainmaskNode, 'LabelsMNI', pvcLabels, 'brainmask_mni')
 
-        workflow.connect(pvcLabels, 'LabelsMNI', outputnode, 'pvc_labels_img_mni'  )
-        workflow.connect(pvcLabels, 'LabelsT1', outputnode, 'pvc_labels_img_t1'  )
+        workflow.connect(pvcLabels, 'LabelsMNI', outputnode, 'pvc_label_img_mni'  )
+        workflow.connect(pvcLabels, 'LabelsT1', outputnode, 'pvc_label_img_t1'  )
     if not opts.pvc_method == None:
         node_name="tkaLabels"
         tkaLabels = pe.Node(interface=Labels(), name=node_name)
@@ -300,8 +300,8 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brainmaskNode, 'LabelsT1', tkaLabels , 'brainmask_t1')
         workflow.connect(brainmaskNode, 'LabelsMNI', tkaLabels, 'brainmask_mni')
 
-        workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'tka_labels_img_mni'  )
-        workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_labels_img_t1'  )
+        workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'tka_label_img_mni'  )
+        workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_label_img_t1'  )
     
     node_name="resultsLabels"
     resultsLabels = pe.Node(interface=Labels(), name=node_name)
@@ -317,7 +317,8 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(brainmaskNode, 'LabelsMNI', resultsLabels, 'brainmask_mni')
 
     workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinMNIT1Xfm')
-    workflow.connect(resultsLabels, 'LabelsMNI', outputnode, 'results_labels_img_mni'  )
-    workflow.connect(resultsLabels, 'LabelsT1', outputnode, 'results_labels_img_t1'  )
-
+    
+    workflow.connect(resultsLabels, 'LabelsMNI', outputnode, 'results_label_img_mni'  )
+    workflow.connect(resultsLabels, 'LabelsT1', outputnode, 'results_label_img_t1'  )
+  
     return(workflow)

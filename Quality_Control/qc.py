@@ -29,8 +29,6 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.utility import Rename
 import nipype.interfaces.io as nio
-import Quality_Control.pvc_qc as pvc_qc
-import Quality_Control.tka_qc as tka_qc
 #import Results_Report.results as results
 import Registration.registration as reg
 from Extra.concat import concat_df
@@ -86,12 +84,12 @@ def group_level_qc(opts, args):
     workflow.connect(outlier_measureNode, "out_file", datasink, 'coreg_outlier')
 
 	#Calculate PVC outlier measures
-    pvc_outlier_measureNode = pe.Node(interface=pvc_qc.pvc_outlier_measuresCommand(),  name="pvc_outlier_measure")
+    pvc_outlier_measureNode = pe.Node(interface=pvc_outlier_measuresCommand(),  name="pvc_outlier_measure")
     workflow.connect(concat_pvc_metricsNode, 'out_file', pvc_outlier_measureNode, 'in_file')
     workflow.connect(pvc_outlier_measureNode, "out_file", datasink, 'pvc_outlier')
 
 	#Calculate TKA outlier measures
-    tka_outlier_measureNode = pe.Node(interface=tka_qc.tka_outlier_measuresCommand(),  name="tka_outlier_measure")
+    tka_outlier_measureNode = pe.Node(interface=tka_outlier_measuresCommand(),  name="tka_outlier_measure")
     workflow.connect(concat_tka_metricsNode, 'out_file', tka_outlier_measureNode, 'in_file')
     workflow.connect(tka_outlier_measureNode, "out_file", datasink, 'tka_outlier')
 
@@ -343,8 +341,8 @@ class pvc_qc_metrics(BaseInterface):
 			m = np.sum(np.sqrt((pve_frame - pvc_blur)**2))
 			mse += m
 			print t, m
-		metric = ["MSE"] #* pve.sizes[0] 
-		df = pd.DataFrame([[['pvc'], sub,ses,task, [01], metric,mse]], columns=metric_columns)
+		metric = "MSE" #* pve.sizes[0] 
+		df = pd.DataFrame([['pvc', sub,ses,task, 01, metric,mse]], columns=metric_columns)
 		df.fillna(0, inplace=True)
 		if not isdefined(self.inputs.out_file):
 			self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task)
@@ -360,6 +358,58 @@ class pvc_qc_metrics(BaseInterface):
 		outputs["out_file"] = self.inputs.out_file
 
 		return outputs
+
+
+
+class pvc_outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class pvc_outlier_measuresInput(BaseInterfaceInputSpec):
+    in_file = traits.File(desc="Input file")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+
+class pvc_outlier_measuresCommand(BaseInterface):
+    input_spec = pvc_outlier_measuresInput 
+    output_spec = pvc_outlier_measuresOutput
+  
+    def _gen_output(self, fname ="pvc_measures.csv"):
+        dname = os.getcwd() + os.sep + fname
+        return dname
+
+    def _run_interface(self, runtime):
+        metric_name='MSE'
+        df = pd.read_csv( self.inputs.in_file  )
+        out_columns=['sub','ses','task','metric','measure', 'value'] 
+        df_out = pd.DataFrame(columns=out_columns)
+
+        for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
+            meanValues = df.value[df['metric'] == metric_name]
+            r=pd.Series(measure(meanValues).flatten())
+            #r=measure(metric_df.Value.values)
+            #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has
+            #Get the series with the calculate the distance measure for the current measure
+            df.index=range(df.shape[0])
+            df['value'] = r 
+            df['measure'] = [measure_name] * df.shape[0] 
+            df_out = pd.concat([df_out, df], axis=0)
+        if not isdefined( self.inputs.out_file ) : 
+            self.inputs.out_file = self._gen_output()
+        df_out.to_csv(self.inputs.out_file,index=False)
+        
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+
+
+
 
 ### Coregistration Metrics
 class coreg_qc_metricsOutput(TraitedSpec):
@@ -421,14 +471,6 @@ class coreg_qc_metricsCommand(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-
-
-
-
-####################
-# Outlier Measures #
-####################
-
 class calc_outlier_measuresOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
 
@@ -471,5 +513,55 @@ class calc_outlier_measuresCommand(BaseInterface):
             self.inputs.out_file = self._gen_output()
         outputs["out_file"] = self.inputs.out_file
         return outputs
+
+### TKA outlier measures
+
+class tka_outlier_measuresOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class tka_outlier_measuresInput(BaseInterfaceInputSpec):
+    in_file = traits.File(desc="Input file")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+
+class tka_outlier_measuresCommand (BaseInterface):
+    input_spec = tka_outlier_measuresInput 
+    output_spec = tka_outlier_measuresOutput
+  
+    def _gen_output(self, fname ="tka_measures.csv"):
+        dname = os.getcwd() + os.sep + fname
+        return dname
+
+    def _run_interface(self, runtime):
+                
+        df = pd.read_csv( self.inputs.in_file  )
+        out_columns=['sub','ses','task','roi','metric','measure','value'] 
+        df_out = pd.DataFrame(columns=out_columns)
+        print df
+        for roi, roi_df in df.groupby('roi'):
+        #    for ses, ses_df in roi_df.groupby('ses'):
+        #        for task, task_df in df.groupby('task'):
+            for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
+                meanValues = roi_df.value[roi_df['metric'] == 'mean']
+                r=pd.Series(measure(meanValues).flatten())
+                roi_df.index=range(roi_df.shape[0])
+                roi_df['value'] = r                     
+                roi_df['measure'] = [measure_name] * roi_df.shape[0] 
+                df_out = pd.concat([df_out, roi_df], axis=0)
+        if not isdefined( self.inputs.out_file ) : 
+            self.inputs.out_file = self._gen_output()
+        df_out.fillna(0, inplace=True)
+        df_out.to_csv(self.inputs.out_file,index=False)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
 
 

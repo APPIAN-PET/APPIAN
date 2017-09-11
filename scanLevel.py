@@ -97,8 +97,8 @@ def run_scan_level(opts,args):
         datasourceArterial = pe.Node( interface=nio.DataGrabber(infields=['sid', 'cid'],  outfields=['arterial_file'], raise_on_empty = True, sort_filelist=False), name="datasourceArterial")
         datasourceArterial.inputs.base_directory = opts.arterial_dir
         datasourceArterial.inputs.template = '*'
-        datasourceArterial.inputs.field_template = dict(arterial_file='%s_%s_*.dft')
-        datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','cid']])
+        datasourceArterial.inputs.field_template = dict(arterial_file='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_*.dft')
+        datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','ses', 'sid', 'ses', 'tast', 'acq']])
         workflow.connect([(infosource, datasourceArterial, [('sid', 'sid')]), (infosource, datasourceArterial, [('cid', 'cid')])])
 
     [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_img', 'pvc_img_string', opts.img_ext )

@@ -185,8 +185,6 @@ class add_csvInfoCommand(BaseInterface):
         node = self.inputs.node
         df = pd.read_csv( self.inputs.in_file, header=None    ) 
         df.columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
-        
-        #['analysis', 'sub','ses','task','roi','metric','value']
         dfo =pd.DataFrame( columns=results_columns)
         dfo["analysis"] = [node] * df.shape[0]
         dfo["sub"] = [sub] * df.shape[0]
@@ -199,10 +197,9 @@ class add_csvInfoCommand(BaseInterface):
             dfo['frame'] = df['frame']
         else: dfo['frame'] = [0] * df.shape[0]
         dfo = dfo[ results_columns ]
-        print dfo
+
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
-
         dfo.to_csv(self.inputs.out_file, index=False)
         
         return runtime

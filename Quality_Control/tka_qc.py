@@ -28,25 +28,27 @@ class tka_outlier_measuresCommand (BaseInterface):
         return dname
 
     def _run_interface(self, runtime):
-				
-		df = pd.read_csv( self.inputs.in_file  )
-		out_columns=['sub','ses','task','roi','metric','measure','value'] 
-		df_out = pd.DataFrame(columns=out_columns)
-		for roi, roi_df in df.groupby('roi'):
-			for ses, ses_df in roi_df.groupby('ses'):
-				for task, task_df in df.groupby('task'):
-					for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
-						r=pd.Series(measure(task_df['mean'].values).flatten())
-						task_df.index=range(task_df.shape[0])
-						task_df['value'] = r                     
-						task_df['measure'] = [measure_name] * task_df.shape[0] 
-						df_out = pd.concat([df_out, task_df], axis=0)
-		if not isdefined( self.inputs.out_file ) : 
-			self.inputs.out_file = self._gen_output()
-		df_out.fillna(0, inplace=True)
-		df_out.to_csv(self.inputs.out_file,index=False)
+                
+        df = pd.read_csv( self.inputs.in_file  )
+        out_columns=['sub','ses','task','roi','metric','measure','value'] 
+        df_out = pd.DataFrame(columns=out_columns)
+        print df
+        for roi, roi_df in df.groupby('roi'):
+            for ses, ses_df in roi_df.groupby('ses'):
+                for task, task_df in df.groupby('task'):
+                    for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
+                        meanValues = task_df.value[task_df['metric'] == 'mean']
+                        r=pd.Series(measure(meanValues).flatten())
+                        task_df.index=range(task_df.shape[0])
+                        task_df['value'] = r                     
+                        task_df['measure'] = [measure_name] * task_df.shape[0] 
+                        df_out = pd.concat([df_out, task_df], axis=0)
+        if not isdefined( self.inputs.out_file ) : 
+            self.inputs.out_file = self._gen_output()
+        df_out.fillna(0, inplace=True)
+        df_out.to_csv(self.inputs.out_file,index=False)
 
-		return runtime
+        return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

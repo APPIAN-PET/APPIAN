@@ -328,8 +328,7 @@ def run_scan_level(opts,args):
         out_node_list += [tka_wf]
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['3']
-    workflow.run()
-    exit(0)
+    
     #######################################
     # Connect nodes for reporting results #
     #######################################
@@ -347,7 +346,7 @@ def run_scan_level(opts,args):
             workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
             workflow.connect(wf_pet2mri, 'outputnode.results_label_img_pet', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
-           
+    
     ############################
     # Subject-level QC Metrics #
     ############################

@@ -91,7 +91,7 @@ class pvc_outlier_measuresCommand(BaseInterface):
         for ses, ses_df in df.groupby(['ses']):
             for task, task_df in df.groupby('task'):
                 for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
-                    r=pd.Series(measure(task_df.mse.values).flatten())
+                    r=pd.Series(measure(task_df.value.values).flatten())
                     #r=measure(metric_df.Value.values)
                     #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has
                     #Get the series with the calculate the distance measure for the current measure

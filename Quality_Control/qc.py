@@ -29,8 +29,8 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.utility import Rename
 import nipype.interfaces.io as nio
-#import Quality_Control.pvc_qc as pvc_qc
-#import Quality_Control.tka_qc as tka_qc
+import Quality_Control.pvc_qc as pvc_qc
+import Quality_Control.tka_qc as tka_qc
 #import Results_Report.results as results
 import Registration.registration as reg
 from Extra.concat import concat_df
@@ -56,7 +56,7 @@ def group_level_qc(opts, args):
     datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
     datasource.inputs.template = '*'
     datasource.inputs.field_template =dict(
-        dist_metrics='*/distance_metric/*_distance_metric.csv',
+        dist_metrics='*/coreg_qc_metrics/*_distance_metric.csv',
         tka_metrics='*/results_tka/*_3d.csv',
         pvc_metrics='*/pvc_qc_metrics/*_pvc_qc_metric.csv'
     )
@@ -81,7 +81,7 @@ def group_level_qc(opts, args):
     workflow.connect(concat_tka_metricsNode, "out_file", datasink, 'tka_metrics')
 
     #Calculate Coregistration outlier measures
-    outlier_measureNode = pe.Node(interface=coreg_qc.calc_outlier_measuresCommand(),  name="coregistration_outlier_measure")
+    outlier_measureNode = pe.Node(interface=calc_outlier_measuresCommand(),  name="coregistration_outlier_measure")
     workflow.connect(concat_dist_metricsNode, 'out_file', outlier_measureNode, 'in_file')
     workflow.connect(outlier_measureNode, "out_file", datasink, 'coreg_outlier')
 
@@ -446,22 +446,24 @@ class calc_outlier_measuresCommand(BaseInterface):
         return dname
 
     def _run_interface(self, runtime):
-		df = pd.read_csv( self.inputs.in_file  )
-		df_out = pd.DataFrame(columns=outlier_columns)
-		for ses, ses_df in df.groupby(['ses']):
+        df = pd.read_csv( self.inputs.in_file  )
+        df_out = pd.DataFrame(columns=outlier_columns)
+        print self.inputs.in_file
+        print df
+        for ses, ses_df in df.groupby(['ses']):
 			for task, task_df in ses_df.groupby(['task']):
 				for measure, measure_name in zip(outlier_measures.values(), outlier_measures.keys()):
 					for metric_name, metric_df in task_df.groupby(['metric']):
-						r=pd.Series(measure(task_df.Value.values).flatten())
+						r=pd.Series(measure(task_df.value.values).flatten())
 						task_df.index=range(task_df.shape[0])
 						task_df['value'] = r
 						task_df['measure'] = [measure_name] * task_df.shape[0]
 						df_out = pd.concat([df_out, task_df], axis=0)
-		df_out.fillna(0, inplace=True)
-		if not isdefined( self.inputs.out_file) :
-			self.inputs.out_file = self._gen_output()
-		df_out.to_csv(self.inputs.out_file,index=False)
-		return runtime
+        df_out.fillna(0, inplace=True)
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        df_out.to_csv(self.inputs.out_file,index=False)
+        return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

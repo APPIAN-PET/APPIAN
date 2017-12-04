@@ -1,4 +1,5 @@
 import os
+import nipype
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                      BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from Extra.base import MINCCommand, MINCCommandInputSpec, Info
@@ -53,9 +54,6 @@ def group_level_descriptive_statistics(opts, args):
     workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
     workflow.run()
 
-
-
-
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
@@ -83,14 +81,16 @@ class resultsCommand( BaseInterface):
         return [out_file_3d, out_file_4d]
 
     def _run_interface(self, runtime):
+        print '\n\n', self.inputs.in_file, '\n\n'
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
             [self.inputs.out_file_3d, self.inputs.out_file_4d ]=self._gen_output(self.inputs.in_file)
 
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
         resultsReport.inputs.vol_roi = self.inputs.mask
+        resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
+        print resultsReport.cmdline
         resultsReport.run()
-
         add_csvInfoNode = add_csvInfoCommand()
         add_csvInfoNode.inputs.in_file = resultsReport.inputs.out_file
         add_csvInfoNode.inputs.sub = self.inputs.sub
@@ -101,6 +101,7 @@ class resultsCommand( BaseInterface):
         else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
         add_csvInfoNode.run()
 
+        
         if self.inputs.dim == '4':
             integrate_resultsReport = integrate_TACCommand()
             integrate_resultsReport.inputs.header = self.inputs.header
@@ -164,7 +165,7 @@ class groupstatsCommand(MINCCommand, Info):
         return None
 
 class add_csvInfoInput(MINCCommandInputSpec):   
-    in_file = File(desc="Input file")
+    in_file = File(mandatory=True, desc="Input file")
     ses  = traits.Str(mandatory=True, desc="Session")
     task = traits.Str(mandatory=True, desc="Task")
     sub  = traits.Str(mandatory=True, desc="Subject")
@@ -183,6 +184,9 @@ class add_csvInfoCommand(BaseInterface):
         task= self.inputs.task
         ses= self.inputs.ses
         node = self.inputs.node
+        
+        print "\nadd_csvInfo: ", self.inputs.in_file, "\n"
+
         df = pd.read_csv( self.inputs.in_file, header=None    ) 
         df.columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
         dfo =pd.DataFrame( columns=results_columns)
@@ -212,7 +216,7 @@ class add_csvInfoCommand(BaseInterface):
         outputs = self.output_spec().get()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
-            outputs["out_file"] = self.inputs.out_file
+        outputs["out_file"] = self.inputs.out_file
 
         return outputs
 
@@ -248,7 +252,8 @@ class descriptive_statisticsCommand( BaseInterface):
 
     def _run_interface(self, runtime):
         df = pd.read_csv( self.inputs.in_file   )
-        df_pivot = lambda y : pd.DataFrame(df.pivot_table(rows=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
+#        df_pivot = lambda y : pd.DataFrame(df.pivot_table(rows=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
+        df_pivot = lambda y : pd.DataFrame(df.pivot_table(index=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
         ses_df =  df_pivot(["analysis", "metric", "roi", "ses"]) 
         task_df =df_pivot(["analysis", "metric","roi", "task"])  
         sub_df = df_pivot(["analysis", "metric","roi", "sub"])   

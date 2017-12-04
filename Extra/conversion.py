@@ -74,6 +74,7 @@ def minctoecatWorkflow(name):
     #Define input node that will receive input from outside of workflow
     inputNode = pe.Node(niu.IdentityInterface(fields=["in_file", "header"]), name='inputNode')
     conversionNode = pe.Node(interface=minctoecatCommand(), name="conversionNode")
+    conversionNode.inputs.out_file=name+'.v'
     sifNode = pe.Node(interface=sifCommand(), name="sifNode")
     eframeNode = pe.Node(interface=eframeCommand(), name="eframeNode")
     ###imgunitNode = pe.Node(interface=imgunitCommand(), name="imgunitCommand")
@@ -168,7 +169,8 @@ class minc2ecatCommand(BaseInterface):
 
     def _run_interface(self, runtime):
         conversionNode = minctoecatCommand()
-        conversionNode.inputs.in_file = self.inputs.in_file     
+        conversionNode.inputs.in_file = self.inputs.in_file    
+        conversionNode.inputs.out_file='out.v'
         conversionNode.run()     
         
         sifNode = sifCommand()

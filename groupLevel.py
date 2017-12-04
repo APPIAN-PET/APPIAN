@@ -1,11 +1,5 @@
 import os
 import sys
-import nipype.interfaces.minc as minc
-import nipype.pipeline.engine as pe
-import nipype.interfaces.io as nio
-import nipype.interfaces.utility as util
-import nipype.interfaces.utility as niu
-from nipype.interfaces.utility import Rename
 
 import Results_Report.results as results
 import Quality_Control.qc as qc

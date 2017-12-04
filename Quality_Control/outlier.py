@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 from math import ceil
 import matplotlib.pyplot as plt
 from sys import exit
@@ -101,9 +101,9 @@ def kde2(z, k=0, bandwidth=0.3):
     return(cum_dense)
 
 
+import pandas as pd
 
-
-def kde(z, k=0, bandwidth=0.3):
+def kde(z, cdf=False, bandwidth=0.3):
     z = np.array(z)
     z= (z - z.mean(axis=0)) /  z.std(axis=0)
     factor=5
@@ -112,22 +112,23 @@ def kde(z, k=0, bandwidth=0.3):
 
     kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
     density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
+    
+    if not cdf : return density
+
     min_euc_dist = max(euc_dist) * -factor #0
     max_euc_dist = max(euc_dist) * factor
     n=int(len(density)*factor)
     dd = np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
 
     ddx=(max_euc_dist-min_euc_dist)/n
-    #xx,dd = np.meshgrid(xlin, dlin)
     lin_density=np.exp(kde.score_samples(dd)).reshape(-1,1)
-    #lin_density=np.exp(kde.score_samples(ZYXR3)).reshape(-1,1)
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
     dd_range = range(len(dd))
-    #dd_range = range(len(ZYXR3))
     for ed,i in zip(euc_dist,range(n)):
         cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
     return(cum_dense)
+
 
 def lcf(z, k=0 ):
     z = np.array(z)

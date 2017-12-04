@@ -20,7 +20,7 @@ from os.path import basename
 from sys import argv, exit
 from re import sub
 from Quality_Control.outlier import lof, kde, MAD, lcf
-from nipype.interfaces.minc import Resample as rsl
+import Extra.resample as rsl
 import Quality_Control as qc
 import random
 
@@ -767,18 +767,17 @@ class joinList(BaseInterface):
 #
 # Workflow for testing coregistration auto-qc
 #
-def test_group_qc_scanLevel(name, opts, infosource, t1_type):
+def test_group_qc_scanLevel(name, opts, wf_pet2mri, wf_masking, datasourceMINC, infosource, t1_type):
 	###
 	### Nodes are at subject level (not joined yet)
 	###
 	workflow = pe.Workflow(name=name)
 	inputnode = pe.Node(niu.IdentityInterface(fields=['petmri_img', 'brainmask_t1', 'rotated_pet', 'translated_pet', 'rotated_brainmask', 'translated_brainmask']), name='inputnode')
 	#Define empty node for output
-	outputnode = pe.Node(niu.IdentityInterface(fields=[]), name='outputnode')
 
 	wf_misalign_pet = get_misalign_pet_workflow("misalign_pet", opts)
-	workflow.connect(wf_pet3mri, 'inputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
-	workflow.connect(wf_masking, 'inputnode.brainmask_t1', wf_misalign_pet, 'inputnode.brainmask')
+	workflow.connect(wf_pet2mri, 'outputnode.petmri_img', wf_misalign_pet, 'inputnode.pet')
+	workflow.connect(wf_masking, 'brainmask.LabelsT1', wf_misalign_pet, 'inputnode.brainmask')
 	workflow.connect(infosource, 'cid', wf_misalign_pet, 'inputnode.cid')
 	workflow.connect(infosource, 'sid', wf_misalign_pet, 'inputnode.sid')
 
@@ -788,13 +787,13 @@ def test_group_qc_scanLevel(name, opts, infosource, t1_type):
 	distance_metricsNode.inputs.colnames = colnames
 	distance_metricsNode.inputs.clobber = False 
 
-	workflow.connect(wf_misalign_pet,'inputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
-	workflow.connect(wf_misalign_pet,'inputnode.translated_pet',distance_metricsNode, 'translated_pet')
-	workflow.connect(wf_misalign_pet,'inputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
-	workflow.connect(wf_misalign_pet,'inputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
+	workflow.connect(wf_misalign_pet,'outputnode.rotated_pet',distance_metricsNode, 'rotated_pet')
+	workflow.connect(wf_misalign_pet,'outputnode.translated_pet',distance_metricsNode, 'translated_pet')
+	workflow.connect(wf_misalign_pet,'outputnode.rotated_brainmask',distance_metricsNode, 'rotated_brainmask')
+	workflow.connect(wf_misalign_pet,'outputnode.translated_brainmask',distance_metricsNode, 'translated_brainmask')
 	workflow.connect(datasourceMINC, t1_type, distance_metricsNode, 't1_images')
-	workflow.connect(wf_pet2mri, 'inputnode.petmri_img', distance_metricsNode, 'pet_images')
-	workflow.connect(wf_masking, 'inputnode.brainmask_t1', distance_metricsNode, 'brain_masks')
+	workflow.connect(wf_pet2mri, 'outputnode.petmri_img', distance_metricsNode, 'pet_images')
+	workflow.connect(wf_masking, 'brainmask.LabelsT1', distance_metricsNode, 'brain_masks')
 	workflow.connect(infosource, 'cid', distance_metricsNode, 'conditions')
 	workflow.connect(infosource, 'sid', distance_metricsNode, 'subjects')
 	return workflow

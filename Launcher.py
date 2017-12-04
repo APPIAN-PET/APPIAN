@@ -10,18 +10,14 @@ import time
 import pyminc.volumes.factory as pyminc
 import numpy as np
 import pdb
+import nibabel
+import nipype
 
 from groupLevel import run_group_level
 from scanLevel import run_scan_level
 
 from optparse import OptionParser
 from optparse import OptionGroup
-import nipype.interfaces.minc as minc
-import nipype.pipeline.engine as pe
-import nipype.interfaces.io as nio
-import nipype.interfaces.utility as util
-import nipype.interfaces.utility as niu
-from nipype.interfaces.utility import Rename
 
 from Extra.conversion import  nii2mncCommand
 
@@ -38,20 +34,24 @@ import Test.test_group_qc as tqc
 version = "1.0"
 
 
-def set_default_atlas_label(roi_label, masks):
-#The default setting for "atlas" ROI needs to be set.
-#This is done by finding the unique values (with get_mask_list)
-#in the atlas volume
-    #for item in roi_label.items():
+def set_default_atlas_label(opts, roi_label, masks):
+    #The default setting for "atlas" ROI needs to be set.
+    #This is done by finding the unique values (with get_mask_list)
+    #in the atlas volume
     out={}
+    labels={"pvc":opts.pvc_labels, "tka":opts.tka_labels, "results":opts.results_labels}
+    print roi_label
+    print masks
     for name, item in masks.items():
         mask_type  = item[0]
         mask_value = item[1]
-        if mask_type == 'atlas':
+        print name, mask_type, mask_value
+        if labels[name] != None:
+            out[name]=labels[name]
+        elif mask_type == 'other':
             label_values = get_mask_list( mask_value )
             out[name] = label_values
         else:
-            print name, mask_type 
             out[name] = roi_label[name][mask_type] 
     return out
 
@@ -75,7 +75,7 @@ def get_opt_list(option,opt,value,parser):
 roi_label={} 
 roi_label["results"]={  "roi-user":[1],
             "icbm152":[39,53,16,14,25,72],
-            "civet":[1,2,3],
+            "civet":[1,2,3,4],
             "animal":[1,2,3],
             "atlas":[]} #FIXME, these values are not correct for animal
 roi_label["tka"]={  "roi-user":[1],
@@ -85,7 +85,7 @@ roi_label["tka"]={  "roi-user":[1],
             "atlas":[]} #FIXME, these values are not correct for animal
 roi_label["pvc"]={  "roi-user":[1],
                 "icbm152":[39,53,16,14,25,72],
-            "civet":[2,3],
+            "civet":[2,3,4],
             "animal":[2,3],
             "atlas":[]} #FIXME, these values are not correct for animal
 
@@ -102,6 +102,7 @@ def check_masking_options(label_img, label_space):
         "other":{   "string":"roi-user",
                     "atlas":'other'}
     }
+   
     if os.path.exists(label_img[0]):
         var ="atlas"
     elif type(label_img[0]) == str:
@@ -118,7 +119,7 @@ def check_masking_options(label_img, label_space):
     try: 
         label_type =  d[label_space][var]
     except KeyError:
-        print "Label Error: " + label_space + " is not compatible with " +label_img
+        print "Label Error: "+label_space+" is not compatible with "+label_img[0]
         exit(1)
     
     if label_space == "other":
@@ -145,6 +146,7 @@ if __name__ == "__main__":
     group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
 
     group.add_option("--group-level",dest="run_group_level",action='store_true', default=False, help="Run group level analysis")
+    group.add_option("--analysis-space",dest="analysis_space",type='string', default='mni', help="The spatial coordinates in which to run PET analysis: pet, t1, mni (default)")
     group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
@@ -169,7 +171,7 @@ if __name__ == "__main__":
     #   --[type]-label-space [CIVET/ANIMAL/ICBM152/Stereotaxic/Manual]
     #   1) T1 Native:  --[type]-label-img "classify" / "animal" / "roi string" 
     #   2) ICBM152: --[type]-label-img  path/to/labeled/atlas
-    #   3) Other:   --[type]-label-img  path/to/labeled/atlas path/to/labeled/template
+    #   2) Other:   --[type]-label-img  path/to/labeled/atlas path/to/labeled/template
     #   --[type]-label
 
     group= OptionGroup(parser,"Masking options","Tracer Kinetic Analysis")
@@ -180,7 +182,7 @@ if __name__ == "__main__":
     parser.add_option_group(group)
     group= OptionGroup(parser,"Masking options","PVC")
     group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=2, type='string', default=['cls', None])
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     # Tracer Kinetic Analysis
     group= OptionGroup(parser,"Masking options","TKA")
     group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=2,default=['cls', None])
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
@@ -196,7 +198,7 @@ if __name__ == "__main__":
     #Results
     group= OptionGroup(parser,"Masking options","Results")
     group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',action='callback',callback=get_opt_list,default=['cls', None])
+    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=2,default=['cls', None])
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     parser.add_option_group(group)
@@ -220,7 +222,7 @@ if __name__ == "__main__":
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
 
 
-    group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="gtm")
+    group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
     group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', action='callback', callback=get_opt_list,default=None)
     group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
@@ -247,7 +249,7 @@ if __name__ == "__main__":
     group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
     group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
     group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
-    group.add_option("","--arterial",dest="arterial_dir",help="Use arterial input input.",type='string', default=None)
+    group.add_option("","--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
     group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=0)
     group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=0)
     group.add_option("","--body-weight",dest="body_weight",help="Either name of subject body weight (kg) in header or path to .csv file containing subject names and body weight (separated by comma).",type='string', default="Patient_Weight")
@@ -303,7 +305,7 @@ if __name__ == "__main__":
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
     
-    #Determine the level at which the labeled image is defined (subject- or atlas-level) 
+    #Determine the level at which the labeled image is defined (scan- or atlas-level) 
     if os.path.exists(opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
     else: opts.pvc_label_level = 'scan'
     if os.path.exists(opts.pvc_label_img[0]): opts.tka_label_level = 'atlas'
@@ -313,8 +315,8 @@ if __name__ == "__main__":
 
     print pvc_label_type, opts.pvc_label_level
     print tka_label_type, opts.tka_label_level
-    print results_label_type, opts.results_label_level; 
-    roi_label = set_default_atlas_label(roi_label, masks)   
+    print results_label_type, opts.results_label_level 
+    roi_label = set_default_atlas_label(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask
     if(opts.pvc_labels ==None): opts.pvc_labels = roi_label["pvc"]
       #If no label given by user, set default label for TKA mask

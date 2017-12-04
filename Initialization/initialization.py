@@ -16,7 +16,7 @@ import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-from nipype.utils.minc_filemanip import update_minchd_json
+from Extra.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.minc import Resample as ResampleCommand
 from Extra.info import  InfoCommand

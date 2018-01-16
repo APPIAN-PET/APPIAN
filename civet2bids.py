@@ -22,6 +22,7 @@ def old_paths(files, attributes):
 
 def new_paths(files,attributes, out_dir, image_type, folder_name, l):
     for d,f in zip(l,files):
+        print d, files
         new_pet = out_dir + os.sep + d['sub'] + os.sep
         if not os.path.exists(new_pet) : os.mkdir(new_pet)
         if d['ses'] != None:

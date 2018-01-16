@@ -308,7 +308,14 @@ class integrate_TACCommand( BaseInterface):
     def _run_interface(self, runtime):
         header = self.inputs.header
         df = pd.read_csv( self.inputs.in_file )
-        time_frames = [ float(h) for h in  header['time']["frames-time"] ]
+        #if time frames is not a list of numbers, .e.g., "unknown",
+        #then set time frames to 1
+        try : 
+            float(header['time']['frames-time'][0]) 
+            time_frames = [ float(h) for h in  header['time']["frames-time"] ]
+        except ValueError :
+            time_frames = [1.]
+
         out_df = pd.DataFrame( columns=metric_columns)
         #l = lambda x: simps(x,time_frames)
         for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):

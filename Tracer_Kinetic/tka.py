@@ -11,7 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.base import MINCCommand, MINCCommandInputSpec
-from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, ecattomincWorkflow, minctoecatCommand, minctoecatWorkflow)
+from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, ecattomincWorkflow, minctoecatInterfaceCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
@@ -60,6 +60,51 @@ class suvCommand(MINCCommand):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         return super(suvCommand, self)._parse_inputs(skip=skip)
 
+
+
+class loganROIOutput(TraitedSpec):
+    result_file = File(argstr="%s", position=-1, desc="Logan Plot distribution volume (DVR) parametric image.")
+
+class loganROIInput(MINCCommandInputSpec):
+    result_file = File(argstr="%s", position=-1, desc="image to operate on")
+    input_file = File(exists=True, position=-4, argstr="%s", desc="PET file")
+    ttac_file = File(exists=True,  position=-5, argstr="%s", desc="Reference file")
+    BPnd = traits.Bool(argstr="-BPnd", position=1, usedefault=True, default_value=True)
+    C = traits.Bool(argstr="-C", position=2, usedefault=True, default_value=True)
+    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
+    k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
+    end_time=traits.Float(argstr="%s", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+
+
+class loganROI(MINCCommand):
+    input_spec =  loganROIInput
+    output_spec = loganROIOutput
+
+    _cmd = "logan" #input_spec.pvc_method 
+    _suffix = "_lp" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["result_file"] = self.inputs.result_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "result_file":
+            return self._list_outputs()["result_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.result_file):
+            self.inputs.result_file = self._gen_output(self.inputs.in_file, self._suffix)
+        return super(loganROI, self)._parse_inputs(skip=skip)
 
 
 
@@ -302,8 +347,8 @@ def get_tka_workflow(name, opts):
     if not opts.arterial:
         #Extracting TAC from reference region and putting it into text file
         #Convert reference mask from minc to ecat
-        convertReference=pe.Node(interface=minctoecatCommand(), name="minctoecat_reference") 
-        convertReference.inputs.out_file=os.getcwd()+os.sep+"tempREF.mnc"
+        convertReference=pe.Node(interface=minctoecatInterfaceCommand(), name="minctoecat_reference") 
+        #convertReference.inputs.out_file="tempREF.mnc"
         workflow.connect(inputnode, 'reference', convertReference, 'in_file')
 
         #Extract TAC from input image using reference mask
@@ -387,8 +432,8 @@ def get_tka_workflow(name, opts):
     else: #ROI-based
         tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
         outputnode = pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
-        convertROI=pe.Node(interface=minctoecatCommand(), name="minctoecat_roi") 
-        convertROI.inputs.out_file=os.getcwd()+os.sep+'tacROI.v'
+        convertROI=pe.Node(interface=minctoecatInterfaceCommand(), name="minctoecat_roi") 
+        #convertROI.inputs.out_file=os.getcwd()+os.sep+'tacROI.v'
         extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
         tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
 

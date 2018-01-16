@@ -1,4 +1,4 @@
-import os
+import os, ntpath
 import numpy as np
 import re
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
@@ -26,7 +26,7 @@ class ResampleInput(CommandLineInputSpec):
 
 class ResampleCommand(CommandLine):
     _cmd = "mincresample"
-    _suffix = "_resample"
+    _suffix = "_rsl"
     input_spec = ResampleInput
     output_spec = ResampleOutput
 
@@ -34,7 +34,7 @@ class ResampleCommand(CommandLine):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_filename(self.inputs.in_file, suffix=self._suffix)
 
         return super(ResampleCommand, self)._parse_inputs(skip=skip)
 
@@ -44,11 +44,16 @@ class ResampleCommand(CommandLine):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
+    def _gen_filename(self, basefile, suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + suffix
 
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
+    #def _gen_filename(self, name):
+    #    if name == "out_file":
+    #        return self._list_outputs()["out_file"]
+    #    return None
 
 
 class param2xfmOutput(TraitedSpec):
@@ -70,22 +75,27 @@ class param2xfmCommand(CommandLine):
     _cmd = "param2xfm"
     input_spec = param2xfmInput
     output_spec = param2xfmOutput
+    
+    def _gen_output(self):
+        dname = os.getcwd()
+        params="" #Create label for output file based on the parameters applied to image
+        if isdefined(self.inputs.rotation): params = params + "_rtn="+self.inputs.rotation
+        if isdefined(self.inputs.translation): params = params + "_trn="+self.inputs.translation
+        if isdefined(self.inputs.shears): params = params + "_shr="+self.inputs.shears
+        if isdefined(self.inputs.scales): params = params + "_scl="+self.inputs.scales
+        if isdefined(self.inputs.center): params = params + "_cnt="+self.inputs.center
+        out_file = dname + os.sep + "param"+params+".xfm"
+        out_file = re.sub(' ',',',out_file)
+        return out_file
+
 
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
 
-
         if not isdefined(self.inputs.out_file):
-            dname = os.getcwd()
-            params="" #Create label for output file based on the parameters applied to image
-            if isdefined(self.inputs.rotation): params = params + "_rtn="+self.inputs.rotation
-            if isdefined(self.inputs.translation): params = params + "_trn="+self.inputs.translation
-            if isdefined(self.inputs.shears): params = params + "_shr="+self.inputs.shears
-            if isdefined(self.inputs.scales): params = params + "_scl="+self.inputs.scales
-            if isdefined(self.inputs.center): params = params + "_cnt="+self.inputs.center
-            self.inputs.out_file = dname + os.sep + "param"+params+".xfm"
-        
+            self.inputs.out_file = self._gen_output()
+
         comma=lambda x : re.sub(',', ' ', x)
         if isdefined(self.inputs.rotation): self.inputs.rotation=comma(self.inputs.rotation)
         if isdefined(self.inputs.translation): self.inputs.translation=comma(self.inputs.translation)
@@ -97,6 +107,9 @@ class param2xfmCommand(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.params)
+
         outputs["out_file"] = self.inputs.out_file
         return outputs
 

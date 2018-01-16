@@ -3,11 +3,13 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import pyminc.volumes.factory as pyminc
 from sklearn.metrics import normalized_mutual_info_score
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import dbscan
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.svm import OneClassSVM
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from scipy.stats import ks_2samp
-from scipy.stats.stats import pearsonr, kendalltau  
 import numpy as np
 import pandas as pd
 import fnmatch
@@ -17,10 +19,9 @@ from os import getcwd
 from os.path import basename
 from sys import argv, exit
 from itertools import product
-
 from Quality_Control.outlier import lof, kde, MAD, lcf
 import ntpath 
-
+from qc import outlier_measures, distance_metrics, metric_columns, outlier_columns 
 from pyminc.volumes.factory import *
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
@@ -29,7 +30,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.utility import Rename
 import nipype.interfaces.io as nio
-import Quality_Control.group_qc_coreg as coreg_qc
+#import Quality_Control.group_qc_coreg as coreg_qc
 import Quality_Control.pvc_qc as pvc_qc
 import Quality_Control.tka_qc as tka_qc
 import Results_Report.results as results
@@ -292,12 +293,12 @@ def find_nbins(array):
 # Globals #
 ###########
 
-distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
+#distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
 
-outlier_measures={"KDE":kde } 
+#outlier_measures={"KDE":kde, "LOF":LocalOutlierFactor.fit_predict, "IsolationForest":IsolationForest.predict, "DBSCAN":dbscan.predict, "OneClassSVM":OneClassSVM.predict } 
 
-metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
-outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
+#metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
+#outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
 
 #######################
 ### Outlier Metrics ###
@@ -318,6 +319,7 @@ class pvc_qc_metricsInput(BaseInterfaceInputSpec):
     ses = traits.Str("Ses")
     out_file = traits.File(desc="Output file")
 from scipy.ndimage.filters import gaussian_filter
+'''
 class pvc_qc_metrics(BaseInterface):
     input_spec = pvc_qc_metricsInput 
     output_spec = pvc_qc_metricsOutput
@@ -334,12 +336,21 @@ class pvc_qc_metrics(BaseInterface):
         pvc_blur = pyminc.volumeFromFile(self.inputs.pvc)
         
         mse = 0 
-        for t in range(pve.sizes[0]):
-            pve_frame = pve.data[t,:,:,:]
-            pvc_frame = gaussian_filter(pve_frame,fwhm) 
-            m = np.sum(np.sqrt((pve_frame.flatten() - pvc_frame.flatten())**2))
-            mse += m
-            print t, m
+        if len(pve.data.shape) > 3 :
+            n = np.prod(pve.shape[0:4])
+            for t in range(pve.sizes[0]):
+                pve_frame = pve.data[t,:,:,:]
+                pvc_frame = gaussian_filter(pve_frame,fwhm) 
+                m = np.sum(np.sqrt((pve_frame.flatten() - pvc_frame.flatten())**2))
+                mse += m
+                print t, m
+            print n
+        else :  
+            n = np.prod(pve.shape[0:3])
+            mse = np.sum(np.sqrt((pve.data.flatten() - pvc.data.flatten())**2))
+            print  mse, n
+        mse /= n
+        print mse
         metric = ["MSE"] * pve.sizes[0] 
         df = pd.DataFrame([[sub,ses,task,metric,value]], columns=metric_columns)
         df.fillna(0, inplace=True)
@@ -357,7 +368,7 @@ class pvc_qc_metrics(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         
         return outputs
-
+'''
 ### Coregistration Metrics
 class coreg_qc_metricsOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")

@@ -277,21 +277,26 @@ def run_scan_level(opts,args):
     wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
     if opts.analysis_space == 'mni':
+        labelSpace='MNI'
         pet_input_node=wf_pet2mri
         pet_input_file='outputnode.petmni_img_4d'
         pet_mask_node=wf_masking
         pet_mask_file='pvcLabels.LabelsMNI'
+        t1="T1Tal"
     elif opts.analysis_space == 'pet':
+        labelSpace='PET'
         pet_input_node=wf_init_pet
         pet_input_file='outputnode.pet_center'
         pet_mask_node=wf_pet2mri
         pet_mask_file="outputnode.pvc_label_img_pet"
+        t1=t1_type
     elif opts.analysis_space == 't1':
+        labelSpace='T1'
         pet_input_node=wf_pet2mri
         pet_input_file='outputnode.petmri_img_4d'
         pet_mask_node=wf_masking
         pet_mask_file='pvcLabels.LabelsT1'
-
+        t1=t1_type
     ###################
     # PET prelimaries #
     ###################
@@ -319,7 +324,6 @@ def run_scan_level(opts,args):
     workflow.connect(datasource, "results_label_img", wf_masking, "inputnode.results_label_img")
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
     workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
-
 
     if not opts.pvc_label_img[1] == None: 
         workflow.connect(datasource, "pvc_label_template", wf_masking, "inputnode.pvc_label_template")
@@ -349,12 +353,11 @@ def run_scan_level(opts,args):
     out_img_list = ['outputnode.petmri_img_4d']
     out_img_dim = ['4']
 
-    
     #############################
     # Partial-volume correction #
     #############################
     if not opts.nopvc :
-        pvcNode = pe.Node(interface=pvc.PVCCommand(), name=opts.pvc_method)
+        pvcNode = pe.Node(interface=pvc.PVCCommand(), name="PVC")
         pvcNode.inputs.fwhm = opts.scanner_fwhm[0]
         pvcNode.inputs.max_iterations = opts.max_iterations
         pvcNode.inputs.tolerance = opts.tolerance
@@ -386,7 +389,7 @@ def run_scan_level(opts,args):
         workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_wf, "inputnode.header")
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
         if opts.tka_method in tka_methods:
-            workflow.connect(wf_masking, 'resultsLabels.LabelsMNI', tka_wf, "inputnode.mask")
+            workflow.connect(wf_masking, 'resultsLabels.LabelsMNI', tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
         workflow.connect(tka_wf, "outputnode.out_file", datasink, 'tka')
 
@@ -409,7 +412,7 @@ def run_scan_level(opts,args):
     # Connect nodes for reporting results #
     #######################################
     #Results report for PET
-    if  opts.results_report:
+    if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
             print node.name, img
             node_name="results_" + node.name #+ "_" + opts.tka_method
@@ -420,8 +423,10 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")
             workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
-            workflow.connect(wf_masking, 'brainmask.LabelsMNI', resultsReport, 'mask')
+            workflow.connect(wf_masking, 'brainmask.Labels'+labelSpace, resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
+            workflow.connect(node, img, datasink, node.name)
+
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -447,13 +452,29 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
 
     if opts.test_group_qc:
-        tqc.test_group_qc_scanLevel("scanLevelQC", opts, wf_pet2mri, wf_masking, datasourceMINC, infosource, t1_type)
-
+        tqc_wf = tqc.test_group_qc_scanLevel("scanLevelQC", opts )
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', tqc_wf, 'inputnode.petmri_img')
+        workflow.connect(wf_masking,'brainmask.LabelsT1',tqc_wf,'inputnode.brainmask_t1')
+        workflow.connect(infosource, 'cid', tqc_wf, 'inputnode.cid')
+        workflow.connect(infosource, 'sid', tqc_wf, 'inputnode.sid')
+        workflow.connect(datasourceMINC, t1_type,  tqc_wf, 'inputnode.t1')
+        workflow.connect(wf_pet2mri, pet_input_file, tqc_wf, 'inputnode.pet_4d')
+        if not ops.tka_methods == None: 
+            workflow.connect(wf_masking, 'tkaLabels.Labels'+labelSpace, tqc_wf , 'inputnode.reference_vol')
+        workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, tqc_wf, 'inputnode.results_vol')
+        workflow.connect(wf_init_pet, 'outputnode.pet_header', tqc_wf, "inputnode.header")
     # #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
     printOptions(opts,subjects_ids,session_ids,task_ids)
     #run the work flow
-    workflow.run()
+    num_threads=15
+    if num_threads > 1 :
+        plugin_args = {'n_procs' : num_threads,
+                   #'memory_gb' : num_gb, 'status_callback' : log_nodes_cb
+                      }
+        workflow.run(plugin='MultiProc', plugin_args=plugin_args)
+    else : 
+        workflow.run()
 
 

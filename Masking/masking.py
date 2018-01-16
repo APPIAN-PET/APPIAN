@@ -20,7 +20,7 @@ from nipype.interfaces.minc import Blur as SmoothCommand
 from nipype.interfaces.minc import Resample as ResampleCommand
 from Extra.xfmOp import InvertCommand
 from Extra.morphomat import MorphCommand
-
+from Extra.info import StatsCommand
 import Registration.registration as reg
 
 class LabelsInput(BaseInterfaceInputSpec):
@@ -76,6 +76,7 @@ class Labels(BaseInterface):
         run_calc.inputs.output_file = temp_mask  #Output mask with desired label
         run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in self.inputs.labels ]) + ' ? A[0] : 0'  
         run_calc.run()
+        print("Select Labels:\n", run_calc.cmdline)
 
         #shutil.copy(self.inputs.label_img, '/data1/projects/scott/' + os.path.basename(self.inputs.label_img) )
         #shutil.copy(temp_mask, '/data1/projects/scott/morph_' + os.path.basename(self.inputs.label_img) )
@@ -149,14 +150,45 @@ class Labels(BaseInterface):
         for label, mask in zip([self.inputs.LabelsT1, self.inputs.LabelsMNI], [self.inputs.brainmask_t1, self.inputs.brainmask_mni ]):
             #if isdefined(mask): 
             if mask != 'NA':
-                temp_mask = tmpDir+"/mask.mnc"
-                run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-                run_calc.inputs.input_files = [ label, mask] #The ANIMAL or CIVET classified atlas
-                run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-                run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 " 
-                run_calc.clobber = True
-                run_calc.run()
-                shutil.copy(temp_mask, label)
+                overlap = minc.Calc()
+                overlap.inputs.input_files = [label, mask]
+                overlap.inputs.output_file=tmpDir+"/overlap.mnc"
+                overlap.inputs.expression="if(A[0] != 0 && A[1] != 0) 1 else 0"
+                overlap.clobber=True
+                overlap.run()
+                
+                #temp_label = minc.Calc()
+                #temp_label.inputs.input_files = [mask]
+                #temp_label.inputs.output_file=tmpDir+"/label.mnc"
+                ##temp_label.inputs.expression="if(A[0] != 0 ) 1 else 0"
+                #temp_label.clobber=True
+                #temp_label.run()         
+                
+                stats_overlap = StatsCommand()
+                stats_overlap.inputs.in_file = overlap.inputs.output_file
+                stats_overlap.inputs.quiet=True
+                stats_overlap.inputs.opt_string="-sum"
+                stats_overlap.terminal_output = 'file_split'
+                overlap_results=stats_overlap.run()
+                overlap_sum=float(overlap_results.runtime.stdout)
+
+                stats_label = StatsCommand()
+                stats_label.inputs.in_file = mask # temp_label.inputs.output_file
+                stats_label.inputs.quiet=True
+                stats_label.inputs.opt_string="-sum"
+                stats_label.terminal_output = 'file_split'
+                label_results=stats_label.run()
+                label_sum=float(label_results.runtime.stdout)
+                print("Overlap sum:", overlap_sum, "Label sum:", label_sum, overlap_sum/label_sum  )
+                if overlap_sum / label_sum > 0.5 :
+                    temp_mask = tmpDir+"/mask.mnc"
+                    run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
+                    run_calc.inputs.input_files = [ label, mask] #The ANIMAL or CIVET classified atlas
+                    run_calc.inputs.output_file = temp_mask  #Output mask with desired label
+                    run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 " 
+                    run_calc.clobber = True
+                    run_calc.run()
+                    shutil.copy(temp_mask, label)
         
         if not os.path.exists( self.inputs.LabelsT1): 
             print 'Does not exist -- Labels T1:', self.inputs.LabelsT1
@@ -334,8 +366,8 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brainmaskNode, 'LabelsT1', tkaLabels , 'brainmask_t1')
         workflow.connect(brainmaskNode, 'LabelsMNI', tkaLabels, 'brainmask_mni')
 
-        #workflow.connect(tkaLabels, 'LabelsMNI', outputnode, 'tka_label_img_mni'  )
-        #workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_label_img_t1'  )
+        workflow.connect(tkaLabels, 'LabelsMNI', outputnode,'tka_label_img_mni'  )
+        workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_label_img_t1'  )
     
     node_name="resultsLabels"
     resultsLabels = pe.Node(interface=Labels(), name=node_name)
@@ -351,6 +383,6 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(brainmaskNode, 'LabelsMNI', resultsLabels, 'brainmask_mni')
     workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinMNIT1Xfm')
     #workflow.connect(resultsLabels, 'LabelsMNI', outputnode, 'results_label_img_mni'  )
-    #workflow.connect(resultsLabels, 'LabelsT1', outputnode, 'results_label_img_t1'  )
+    #workflow.connect(resultsLabels, 'LabelsT2', outputnode, 'results_label_img_t1'  )
     
     return(workflow)

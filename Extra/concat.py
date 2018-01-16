@@ -28,11 +28,6 @@ class concat_df(BaseInterface):
         outputs["out_file"] = os.getcwd() + os.sep + self.inputs.out_file
         return outputs
       
-
-
-
-
-
 class ConcatOutput(TraitedSpec):
     out_file = File(exists=True, desc="resampled image")
 
@@ -52,7 +47,6 @@ class ConcatCommand(CommandLine):
     _suffix = "_concat"
     input_spec = ConcatInput
     output_spec = ConcatOutput
-
 
     def _parse_inputs(self, skip=None):
         if skip is None:

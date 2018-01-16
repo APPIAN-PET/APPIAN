@@ -40,12 +40,9 @@ def set_default_atlas_label(opts, roi_label, masks):
     #in the atlas volume
     out={}
     labels={"pvc":opts.pvc_labels, "tka":opts.tka_labels, "results":opts.results_labels}
-    print roi_label
-    print masks
     for name, item in masks.items():
         mask_type  = item[0]
         mask_value = item[1]
-        print name, mask_type, mask_value
         if labels[name] != None:
             out[name]=labels[name]
         elif mask_type == 'other':
@@ -73,27 +70,36 @@ def get_opt_list(option,opt,value,parser):
 ############################################
 #Set defaults for label
 roi_label={} 
-roi_label["results"]={  "roi-user":[1],
+animal_WM=[73, 45, 83, 59, 30, 17, 105, 57]
+animal_CER=[67,76]
+animal_GM=[218,219,210,211,8,4,2,6]
+animal_sGM=[14,16,11,12,53,39,102,203]
+animal_labels=animal_WM + animal_CER + animal_GM + animal_sGM 
+roi_label["results"]={  
+            "roi-user":[1],
             "icbm152":[39,53,16,14,25,72],
             "civet":[1,2,3,4],
-            "animal":[1,2,3],
-            "atlas":[]} #FIXME, these values are not correct for animal
-roi_label["tka"]={  "roi-user":[1],
-                "icbm152":[39,53,16,14,25,72],
+            "animal":animal_GM+animal_sGM, 
+            "atlas":[1]}
+roi_label["tka"]={  
+            "roi-user":[1],
+            "icbm152":[39,53,16,14,25,72],
             "civet":[3],
-            "animal":[3],
-            "atlas":[]} #FIXME, these values are not correct for animal
-roi_label["pvc"]={  "roi-user":[1],
-                "icbm152":[39,53,16,14,25,72],
+            "atlas":[3],
+            "animal":animal_CER}
+roi_label["pvc"]={
+            "roi-user":[1],
+            "icbm152":[39,53,16,14,25,72],
             "civet":[2,3,4],
-            "animal":[2,3],
-            "atlas":[]} #FIXME, these values are not correct for animal
+            "animal":animal_labels,
+            "atlas":[1]}
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
-def check_masking_options(label_img, label_space):
+def check_masking_options(opts, label_img, label_space):
+
     d={ "native":{  "string":"roi-user"},
         "icbm152":{ "string":"roi-user",
                     "cls":"civet",
@@ -116,6 +122,8 @@ def check_masking_options(label_img, label_space):
         print "Label error: ", label_img, label_space
         exit(1)
 
+    print label_img, label_space, var
+    
     try: 
         label_type =  d[label_space][var]
     except KeyError:
@@ -129,6 +137,11 @@ def check_masking_options(label_img, label_space):
 
     return label_type
 
+def split_label_img(label_img_str):
+    label_img_list = label_img_str.split(',')
+    if len(label_img_list) == 1 : label_img_list += [None]
+
+    return label_img_list
 
 if __name__ == "__main__":
     usage = "usage: "
@@ -182,7 +195,7 @@ if __name__ == "__main__":
     parser.add_option_group(group)
     group= OptionGroup(parser,"Masking options","PVC")
     group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=2, type='string', default=['cls', None])
+    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='cls')
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
@@ -190,15 +203,16 @@ if __name__ == "__main__":
     # Tracer Kinetic Analysis
     group= OptionGroup(parser,"Masking options","TKA")
     group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=2,default=['cls', None])
+    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='cls')
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     parser.add_option_group(group)
     
     #Results
     group= OptionGroup(parser,"Masking options","Results")
+    group.add_option("","--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
     group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='icbm152')
-    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=2,default=['cls', None])
+    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=1,default='cls')
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     parser.add_option_group(group)
@@ -265,8 +279,7 @@ if __name__ == "__main__":
 
     #Results reporting
     qc_opts.add_option("","--group-stats",dest="group_stats",help="Calculate quantitative group-wise descriptive statistics.", action='store_const', const=True, default=True)  #FIXME Add to options
-    qc_opts.add_option("","--report-results",dest="results_report",help="Write results from output files to .csv files (default)", action='store_const', const=True, default=True)   
-    qc_opts.add_option("","--no-report-results",dest="results_report",help="Don't write results from output files to .csv files", action='store_const', const=False, default=True)   
+
 
 
     #
@@ -293,18 +306,28 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
-    #Check inputs for PVC masking
-    pvc_label_type= check_masking_options(opts.pvc_label_img, opts.pvc_label_space)
+    #If necessary, correct MNI space names
+    #Change label space to icbm152 if it was specified as some variant of MNI and 152
+    mni_space_names =  ["MNI", "mni", "MNI152", "mni152"]
+    if opts.pvc_label_space in mni_space_names: opts.pvc_label_space = "icbm152"
+    if opts.tka_label_space in mni_space_names: opts.tka_label_space = "icbm152"
+    if opts.results_label_space in mni_space_names: opts.results_label_space = "icbm152"
+    
+    #Check inputs for PVC masking 
+    opts.pvc_label_img = split_label_img(opts.pvc_label_img)
+
+    pvc_label_type= check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_space)
 
     #Check inputs for TKA masking
-    tka_label_type = check_masking_options(opts.tka_label_img, opts.tka_label_space)
+    opts.tka_label_img = split_label_img(opts.tka_label_img)
+    tka_label_type = check_masking_options(opts, opts.tka_label_img, opts.tka_label_space)
 
     #Check inputs for results masking
-    results_label_type =  check_masking_options(opts.results_label_img, opts.results_label_space)
+    opts.results_label_img = split_label_img(opts.results_label_img)
+    results_label_type =  check_masking_options(opts, opts.results_label_img, opts.results_label_space)
     
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
-    
     #Determine the level at which the labeled image is defined (scan- or atlas-level) 
     if os.path.exists(opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
     else: opts.pvc_label_level = 'scan'
@@ -313,9 +336,6 @@ if __name__ == "__main__":
     if os.path.exists(opts.results_label_img[0]): opts.results_label_level = 'atlas'
     else: opts.results_label_level = 'scan'
 
-    print pvc_label_type, opts.pvc_label_level
-    print tka_label_type, opts.tka_label_level
-    print results_label_type, opts.results_label_level 
     roi_label = set_default_atlas_label(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask
     if(opts.pvc_labels ==None): opts.pvc_labels = roi_label["pvc"]
@@ -323,7 +343,6 @@ if __name__ == "__main__":
     if(opts.tka_labels ==None): opts.tka_labels = roi_label["tka"]
     #Set default label for results mask
     if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
-    
     ###Check PVC options and set defaults if necessary
     if opts.scanner_fwhm == None and opts.pet_scanner == None:
         print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"

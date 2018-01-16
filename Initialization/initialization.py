@@ -39,6 +39,7 @@ def unique_file(files, attributes):
 def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
     args=[]
     for sub in subjects:
+        print sub
         for ses in session_ids:
             for task in task_ids:
 				sub_arg='sub-'+sub
@@ -293,24 +294,23 @@ class PETexcludeFrRunning(BaseInterface):
     
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
-        nFrames = infile.sizes[infile.dimnames.index("time")]
-        first=int(ceil(float(nFrames*rank)/100))
-        last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
-        count=last-first
+        #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
+        try: 
+            nFrames = infile.sizes[infile.dimnames.index("time")]
+            first=int(ceil(float(nFrames*rank)/100))
+            last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
+            count=last-first
+            run_mincreshape=ReshapeCommand()
+            run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
+            run_mincreshape.inputs.in_file = self.inputs.in_file
+            run_mincreshape.inputs.out_file = self.inputs.out_file 
+            if self.inputs.verbose:
+                print run_mincreshape.cmdline
+            if self.inputs.run:
+                run_mincreshape.run()
+        except ValueError : 
+            self.inputs.out_file = self.inputs.in_file 
 
-        #frames=[]
-        #for ii in np.arange(first,last+1,1):
-        #    frame = tmpDir+os.sep+'frame'+str(ii)+'.mnc'
-
-        run_mincreshape=ReshapeCommand()
-        run_mincreshape.inputs.in_file = self.inputs.in_file
-        run_mincreshape.inputs.out_file = self.inputs.out_file 
-        run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
-        if self.inputs.verbose:
-            print run_mincreshape.cmdline
-        if self.inputs.run:
-            run_mincreshape.run()
-        
         return runtime
 
 

@@ -44,11 +44,10 @@ class InfoCommand(CommandLine):
 
         return super(InfoCommand, self)._parse_inputs(skip=skip)
 
-
-    # def _list_outputs(self):
-    #     outputs = self.output_spec().get()
-    #     outputs["out_file"] = self.inputs.out_file
-    #     return outputs
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
 
 
 
@@ -118,6 +117,24 @@ class StatsCommand(CommandLine):
     input_spec = StatsInput
     output_spec = StatsOutput
 
+'''
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+
+        # if not isdefined(self.inputs.out_file):
+        #     self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+        if not isdefined(self.inputs.out_file):
+            fname, ext = os.path.splitext(self.inputs.in_file)
+            self.inputs.out_file = fname + self._suffix
+
+        return super(StatsCommand, self)._parse_inputs(skip=skip)
+    
     def aggregate_outputs(self, runtime=None, needed_outputs=None):
         outputs = self._outputs()
         outfile = os.path.join(os.getcwd(), 'stat_result.pck')
@@ -150,3 +167,4 @@ class StatsCommand(CommandLine):
         
         outputs.out_file = out_stats
         return outputs
+        '''

@@ -50,7 +50,7 @@ def group_level_qc(opts, args):
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
     outfields=['coreg_metrics','tka_metrics','pvc_metrics']
-    paths={'coreg_metrics':"*/coreg_qc_metrics/*_distance_metric.csv", 'tka_metrics':"*/results_tka/*_3d.csv",'pvc_metrics':"*/pvc_qc_metrics/*_pvc_qc_metric.csv"}
+    paths={'coreg_metrics':"*/coreg_qc_metrics/*_distance_metric.csv", 'tka_metrics':"*/results_tka/*_3d.csv",'pvc_metrics':"pvc_qc_metrics/*_pvc_qc_metric.csv"}
 
     #If any one of the sets of metrics does not exist because it has not been run at the scan level, then 
     #remove it from the list of outfields and paths that the datagrabber will look for.
@@ -429,7 +429,6 @@ class pvc_qc_metrics(BaseInterface):
             mse = pvc_mse(self.inputs.pvc, self.inputs.pve, fwhm)
             temp = pd.DataFrame([['pvc', sub,ses,task,02,metric_name,mse]], columns=metric_columns)
             df = pd.concat([df, temp])
-        print mse
         df.fillna(0, inplace=True)
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task)
@@ -540,7 +539,6 @@ class plot_qcCommand (BaseInterface):
             plot_type = "metric"
         else:
             print("Unrecognized data frame")
-            print df
             exit(1)
         
         plt.clf()

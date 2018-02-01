@@ -27,10 +27,9 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import tka_methods
+from Tracer_Kinetic import reference_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
-
 version = "1.0"
 
 
@@ -45,19 +44,25 @@ def set_default_atlas_label(opts, roi_label, masks):
         mask_value = item[1]
         if labels[name] != None:
             out[name]=labels[name]
-        elif mask_type == 'other':
-            label_values = get_mask_list( mask_value )
+        elif mask_type == 'other' or mask_type == 'roi-user':
+            label_values = get_mask_list(opts.sourceDir, mask_value )
             out[name] = label_values
         else:
             out[name] = roi_label[name][mask_type] 
     return out
 
-def get_mask_list( ROIMask ):
-#Load in volume and get unique values
-    mask= pyminc.volumeFromFile(ROIMask)
-    mask_flat=mask.data.flatten()
-    label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
-    return(label)
+def get_mask_list(sourceDir, ROIMask ):
+    gen = os.walk(sourceDir)
+    for dirName, subdirList, fileList in gen: 
+        for f in fileList: 
+            if ROIMask[0] in f : 
+                #Load in volume and get unique values
+                mask= pyminc.volumeFromFile(dirName+os.sep+f)
+                mask_flat=mask.data.flatten()
+                label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
+                if 0 in label :  label.remove(0)
+                return(label)
+    return([1])
 
 def get_opt_list(option,opt,value,parser):
     setattr(parser.values,option.dest,value.split(','))
@@ -76,11 +81,11 @@ animal_GM=[218,219,210,211,8,4,2,6]
 animal_sGM=[14,16,11,12,53,39,102,203]
 animal_labels=animal_WM + animal_CER + animal_GM + animal_sGM 
 roi_label["results"]={  
-            "roi-user":[1],
+            "roi-user":[],
             "icbm152":[39,53,16,14,25,72],
             "civet":[1,2,3,4],
             "animal":animal_GM+animal_sGM, 
-            "atlas":[1]}
+            "atlas":[]}
 roi_label["tka"]={  
             "roi-user":[1],
             "icbm152":[39,53,16,14,25,72],
@@ -88,18 +93,26 @@ roi_label["tka"]={
             "atlas":[3],
             "animal":animal_CER}
 roi_label["pvc"]={
-            "roi-user":[1],
+            "roi-user":[],
             "icbm152":[39,53,16,14,25,72],
             "civet":[2,3,4],
             "animal":animal_labels,
-            "atlas":[1]}
+            "atlas":[]}
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 # def printScan(opts,args):
 def check_masking_options(opts, label_img, label_space):
-
+    '''
+    Inputs:
+        opts            user defined inputs to program using configparser
+        label_img       the label that describes the type of image we're dealing with
+        label-space     the coordinate space of the the image
+    Outputs: 
+        label_type      label type tells you what kind of labled image we're dealing with. there are several
+                        possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
+    '''
     d={ "native":{  "string":"roi-user"},
         "icbm152":{ "string":"roi-user",
                     "cls":"civet",
@@ -163,8 +176,10 @@ if __name__ == "__main__":
     group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
-    group.add_option("--img_ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
-    group.add_option("--surf_ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
+    group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
+    group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
+    group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
+
     #group.add_option("-c","--civetdir",dest="civetDir",  help="Civet directory")
     parser.add_option_group(group)      
 
@@ -198,6 +213,7 @@ if __name__ == "__main__":
     group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='cls')
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
+    group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
     parser.add_option_group(group)
 
     # Tracer Kinetic Analysis
@@ -206,6 +222,7 @@ if __name__ == "__main__":
     group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='cls')
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
+    group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
     parser.add_option_group(group)
     
     #Results
@@ -215,6 +232,7 @@ if __name__ == "__main__":
     group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=1,default='cls')
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
+    group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
     parser.add_option_group(group)
     
     ##########################
@@ -226,7 +244,6 @@ if __name__ == "__main__":
     group.add_option("","--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
     group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type='float', default=0.25)
     group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
-
     parser.add_option_group(group)
 
     ###############
@@ -286,7 +303,6 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"Command control")
     group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
     parser.add_option_group(group)
-
     group= OptionGroup(parser,"Pipeline control")
     group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true',default=True)
     group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false',default=True)
@@ -317,14 +333,16 @@ if __name__ == "__main__":
     opts.pvc_label_img = split_label_img(opts.pvc_label_img)
 
     pvc_label_type= check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_space)
-
+    print pvc_label_type
     #Check inputs for TKA masking
     opts.tka_label_img = split_label_img(opts.tka_label_img)
     tka_label_type = check_masking_options(opts, opts.tka_label_img, opts.tka_label_space)
 
+    print tka_label_type
     #Check inputs for results masking
     opts.results_label_img = split_label_img(opts.results_label_img)
-    results_label_type =  check_masking_options(opts, opts.results_label_img, opts.results_label_space)
+    results_label_type = check_masking_options(opts, opts.results_label_img, opts.results_label_space)
+    print results_label_type, opts.results_label_space
     
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
@@ -357,7 +375,6 @@ if __name__ == "__main__":
             print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
             print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
             exit(1)
-
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'

@@ -19,6 +19,10 @@ from Extra.resample import param2xfmCommand
 from Extra.modifHeader import ModifyHeaderCommand, FixHeaderCommand
 from Extra.turku import imgunitCommand
 from shutil import move
+import nibabel as nib
+from sys import argv
+from re import sub
+from pyminc.volumes.factory import *
 
 
 class convertOutput(TraitedSpec):
@@ -98,30 +102,34 @@ class ecat2mincOutput(TraitedSpec):
     out_file = File(desc="PET image with correct time frames.")
 
 class ecat2mincInput(CommandLineInputSpec):
-    in_file = File(exists=True, desc="PET file")
-    header  = File(exists=True, desc="PET file")
-    out_file= File(argstr="%s", position=-2, desc="PET file")
+    in_file = File(exists=True, mandatory=True, desc="PET file")
+    header  = File(exists=True, desc="PET header file")
+    out_file= File(argstr="%s", desc="MINC PET file")
+    like_file= File(exists=True, mandatory=True, desc="Template MINC file")
 
 class ecat2mincCommand(BaseInterface):
     input_spec = ecat2mincInput
     output_spec = ecat2mincOutput
 
     def _run_interface(self, runtime): 
-        conversionNode = ecattomincCommand()
-        conversionNode.inputs.in_file = self.inputs.in_file
-        conversionNode.run()
-
-        mincConversionNode = mincconvertCommand()
-        mincConversionNode.inputs.in_file=conversionNode.inputs.out_file
-        mincConversionNode.run()
-
-        fixHeaderNode =  FixHeaderCommand()
-        fixHeaderNode.inputs.in_file = mincConversionNode.inputs.out_file
-        fixHeaderNode.inputs.header = self.inputs.header
-        fixHeaderNode.run()
-
-        self.inputs.out_file = fixHeaderNode.inputs.out_file
-        
+        in_fn = self.inputs.in_file
+        like_fn = self.inputs.like_file
+        fn = os.path.splitext(os.path.basename(self.inputs.in_file))
+        self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.mnc'
+        ecat_vol = nib.ecat.load(in_fn)
+        minc_vol = volumeLikeFile(like_fn, out_fn)
+        data = ecat_vol.get_data()
+        data = data.reshape(minc_vol.data.shape)
+        for y in range(data.shape[1]):
+            temp = np.copy(data[:,y,:])
+            for z in range(temp.shape[0]) :
+                for x in range(temp.shape[1]) :
+                    data[z,y,x] = temp[x,z]
+            del temp
+        minc_vol.data = data
+        minc_vol.writeFile()
+        minc_vol.closeVolume()
+         
         return runtime
 
     def _list_outputs(self):

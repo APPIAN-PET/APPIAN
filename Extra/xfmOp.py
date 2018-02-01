@@ -1,6 +1,6 @@
 import os
 import numpy as np
-
+from os.path import splitext, basename
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix)
@@ -28,21 +28,24 @@ class ConcatCommand(CommandLine):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_filename(self.inputs.in_file, self.inputs.in_file_2, self._suffix)
 
         return super(ConcatCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_filename(self.inputs.in_file, self.inputs.in_file_2, self._suffix)
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
 
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
+    def _gen_filename(self, name, name2, suffix):
+        split_name = splitext(name)
+        split_name2 = splitext(name2)
+        fn = os.getcwd() + os.sep + basename(split_name[0])+"_"+basename(split_name2[0]) + split_name[1]
+        print fn
+        return fn
 
 
 

@@ -28,11 +28,9 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import tka_methods
+from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
-
-
 def set_datasource_inputs(opts):
     ### Set the inputs for the labeled image for datasource
     [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_img', 'pvc_img_string', opts.img_ext )
@@ -159,7 +157,6 @@ def run_scan_level(opts,args):
         opts.taskList=opts.taskList.split(',')
     task_ids=opts.taskList
 
-
     ###Define args with exiting subject and condition combinations
     valid_args=init.gen_args(opts, session_ids, task_ids, opts.acq, opts.rec, args)
     preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args','results_labels','tka_labels','pvc_labels', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times']), name="preinfosource")
@@ -272,9 +269,8 @@ def run_scan_level(opts,args):
     datasink.inputs.base_directory= opts.targetDir + '/' 
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-
     ###Set the appropriate nodes and inputs for desired "analysis_level"
-    wf_pet2mri=reg.get_workflow("to_pet_space", infosource, datasink, opts)
+    wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
     if opts.analysis_space == 'mni':
         labelSpace='MNI'
@@ -300,7 +296,7 @@ def run_scan_level(opts,args):
     ###################
     # PET prelimaries #
     ###################
-    wf_init_pet=init.get_workflow("pet_prelimaries", infosource, datasink, opts)
+    wf_init_pet=init.get_workflow("prelimaries", infosource, datasink, opts)
     workflow.connect(datasourceMINC, 'pet', wf_init_pet, "inputnode.pet")
         
     ###########
@@ -332,7 +328,6 @@ def run_scan_level(opts,args):
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
 
-
     ##################
     # Coregistration #
     ##################
@@ -349,6 +344,11 @@ def run_scan_level(opts,args):
         workflow.connect(wf_masking, 'tkaLabels.LabelsT1', wf_pet2mri, "inputnode.tka_label_img_t1")
     if not opts.nopvc:
         workflow.connect(wf_masking, 'pvcLabels.LabelsT1', wf_pet2mri, "inputnode.pvc_label_img_t1")
+    if opts.test_group_qc :
+        misregistration = pe.Node(interface=util.IdentityInterface(fields=['angle']), name="misregistration")
+        misregistration.iterables = ( 'angle', tqc.angles )
+        workflow.connect(misregistration, 'angle', wf_pet2mri, "inputnode.angle")
+
     out_node_list = [wf_pet2mri] 
     out_img_list = ['outputnode.petmri_img_4d']
     out_img_dim = ['4']
@@ -357,7 +357,7 @@ def run_scan_level(opts,args):
     # Partial-volume correction #
     #############################
     if not opts.nopvc :
-        pvcNode = pe.Node(interface=pvc.PVCCommand(), name="PVC")
+        pvcNode = pe.Node(interface=pvc.PVCCommand(), name="pvc")
         pvcNode.inputs.fwhm = opts.scanner_fwhm[0]
         pvcNode.inputs.max_iterations = opts.max_iterations
         pvcNode.inputs.tolerance = opts.tolerance
@@ -373,7 +373,6 @@ def run_scan_level(opts,args):
         out_img_list += ['out_file']
         out_img_dim += ['4']
 
- 
     ###########################
     # Tracer kinetic analysis #
     ###########################
@@ -386,21 +385,19 @@ def run_scan_level(opts,args):
             tka_target_img= pet_input_file # ##CHANGE
                 
         tka_wf=tka.get_tka_workflow("tka", opts)
-        workflow.connect(wf_init_pet, 'outputnode.pet_json', tka_wf, "inputnode.header")
+        header_type='outputnode.pet_json'
+        if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header'
+        workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
+        if opts.tka_method in ecat_methods : 
+           workflow.connect(pet_mask_node, pet_mask_file, tka_wf, 'inputnode.like_file')
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
-        if opts.tka_method in tka_methods:
-            workflow.connect(wf_masking, 'resultsLabels.LabelsMNI', tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
+        #if opts.tka_method in reference_methods:
+            #workflow.connect(wf_masking, 'resultsLabels.LabelsMNI', tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
-        workflow.connect(tka_wf, "outputnode.out_file", datasink, 'tka')
-
         if opts.arterial :
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
-        elif opts.tka_method in tka_methods: 
+        elif opts.tka_method in reference_methods + ['suvr']: #FIXME should not just add suvr like this 
             workflow.connect(wf_masking, 'tkaLabels.LabelsMNI', tka_wf, "inputnode.reference")
-        
-
-        #if opts.tka_type=="voxel" and opts.tka_method == 'srtm':
-            #workflow.connect(tka_wf, "outputnode.out_file_t3map", datasink, tka_wf.name+"T3")
         if opts.tka_type=="ROI":
             workflow.connect(tka_wf, "outputnode.out_fit_file", datasink, 'tka')
         
@@ -414,8 +411,8 @@ def run_scan_level(opts,args):
     #Results report for PET
     if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
-            print node.name, img
-            node_name="results_" + node.name #+ "_" + opts.tka_method
+            print "outputnode", node.name, "image name", img
+            node_name="results_" + node.name 
             resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             resultsReport.inputs.dim = dim
             resultsReport.inputs.node = node.name
@@ -423,10 +420,10 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")
             workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
-            workflow.connect(wf_masking, 'brainmask.Labels'+labelSpace, resultsReport, 'mask')
+            workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
             workflow.connect(node, img, datasink, node.name)
-
+    
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -451,26 +448,31 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'ses', pvc_qc_metricsNode, "ses")
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
 
-    if opts.test_group_qc:
-        tqc_wf = tqc.test_group_qc_scanLevel("scanLevelQC", opts )
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img', tqc_wf, 'inputnode.petmri_img')
-        workflow.connect(wf_masking,'brainmask.LabelsT1',tqc_wf,'inputnode.brainmask_t1')
-        workflow.connect(infosource, 'cid', tqc_wf, 'inputnode.cid')
-        workflow.connect(infosource, 'sid', tqc_wf, 'inputnode.sid')
-        workflow.connect(datasourceMINC, t1_type,  tqc_wf, 'inputnode.t1')
-        workflow.connect(wf_pet2mri, pet_input_file, tqc_wf, 'inputnode.pet_4d')
-        if not ops.tka_methods == None: 
-            workflow.connect(wf_masking, 'tkaLabels.Labels'+labelSpace, tqc_wf , 'inputnode.reference_vol')
-        workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, tqc_wf, 'inputnode.results_vol')
-        workflow.connect(wf_init_pet, 'outputnode.pet_header', tqc_wf, "inputnode.header")
-    # #vizualization graph of the workflow
+    #if opts.test_group_qc:
+    #    joinNode = pe.JoinNode(interface=niu.IdentityInterface(fields=out_img_list), joinsource="join_test_qc", joinfield=out_img_list, name="join_rotationsNode")
+    #    for node, img in zip( out_node_list, out_img_list) :
+    #        workflow.connect(node, img, joinNode, img)
+    #        workflow.connect(joinNode, img, datasink, img)
+ 
+    #    tqc_wf = tqc.test_group_qc_scanLevel("scanLevelQC", opts )
+    #    workflow.connect(wf_pet2mri, 'outputnode.petmri_img', tqc_wf, 'inputnode.petmri_img')
+    #    workflow.connect(wf_masking,'brainmask.LabelsT1',tqc_wf,'inputnode.brainmask_t1')
+    #    workflow.connect(infosource, 'cid', tqc_wf, 'inputnode.cid')
+    #    workflow.connect(infosource, 'sid', tqc_wf, 'inputnode.sid')
+    #    workflow.connect(datasourceMINC, t1_type,  tqc_wf, 'inputnode.t1')
+    #    workflow.connect(wf_pet2mri, pet_input_file, tqc_wf, 'inputnode.pet_4d')
+    #    if not ops.reference_methods == None: 
+    #        workflow.connect(wf_masking, 'tkaLabels.Labels'+labelSpace, tqc_wf , 'inputnode.reference_vol')
+    #   workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, tqc_wf, 'inputnode.results_vol')
+    #   workflow.connect(wf_init_pet, 'outputnode.pet_header', tqc_wf, "inputnode.header")
+    
+    #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
     printOptions(opts,subjects_ids,session_ids,task_ids)
     #run the work flow
-    num_threads=15
-    if num_threads > 1 :
-        plugin_args = {'n_procs' : num_threads,
+    if opts.num_threads > 1 :
+        plugin_args = {'n_procs' : opts.num_threads,
                    #'memory_gb' : num_gb, 'status_callback' : log_nodes_cb
                       }
         workflow.run(plugin='MultiProc', plugin_args=plugin_args)

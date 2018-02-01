@@ -10,6 +10,7 @@ class concat_dfOutput(TraitedSpec):
 class concat_dfInput(BaseInterfaceInputSpec):
     in_list = traits.List(mandatory=True, exists=True, desc="Input list")
     out_file = traits.File(mandatory=True, desc="Output file")
+    test = traits.Bool(default=False, usedefault=True, desc="Flag for if df is part of test run of pipeline")
 
 class concat_df(BaseInterface):
     input_spec =  concat_dfInput 
@@ -17,9 +18,18 @@ class concat_df(BaseInterface):
    
     def _run_interface(self, runtime):
         df=pd.DataFrame([])
+        test = self.inputs.test
+
         for f in self.inputs.in_list:
             dft = pd.read_csv(f)
+            if test :
+                s=f.split('/')
+                error = s[-3].split('_')[-1]
+                errortype = s[-3].split('_')[-2]
+                dft['error'] = error
+                dft["errortype"]=errortype
             df = pd.concat([df, dft], axis=0)
+        #if test : print df
         df.to_csv(self.inputs.out_file, index=False)
         return(runtime)
 

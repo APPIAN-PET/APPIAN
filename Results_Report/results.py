@@ -31,12 +31,13 @@ def group_level_descriptive_statistics(opts, args):
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
     #Datagrabber
+    if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_*'+os.sep+'*_3d.csv')
+    else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_*'+os.sep+'*_3d.csv')
+
     datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
     datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
     datasource.inputs.template = '*'
-    datasource.inputs.field_template =dict(
-        scan_stats='*' +os.sep +'results_*'+os.sep+ '*_3d.csv'
-    )
+    datasource.inputs.field_template = scan_stats_dict
 
     #Concatenate descriptive statistics
     concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
@@ -75,6 +76,7 @@ class resultsCommand( BaseInterface):
     output_spec = resultsOutput
     
     def _gen_output(self, in_file):
+        print "\n\n",in_file,"\n\n"
         ii =  os.path.splitext(os.path.basename(in_file))[0]
         out_file_3d = os.getcwd() + os.sep + ii + "_3d.csv"
         out_file_4d = os.getcwd() + os.sep + ii + "_4d.csv"
@@ -302,7 +304,6 @@ class integrate_TACCommand( BaseInterface):
     def _gen_output(self, in_file):
         ii =  os.path.splitext(os.path.basename(in_file))[0]
         out_file = os.getcwd() + os.sep + ii + "_int.csv"
-
         return out_file 
 
     def _run_interface(self, runtime):
@@ -310,16 +311,33 @@ class integrate_TACCommand( BaseInterface):
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1
+        time_frames = []
         try : 
             float(header['time']['frames-time'][0]) 
             time_frames = [ float(h) for h in  header['time']["frames-time"] ]
-        except ValueError :
-            time_frames = [1.]
+        except ValueError : time_frames = []
+       
+        if time_frames == [] :
+            try :
+                header['ecat_acquisition']['frame_lengths']
+                time_frames = [ float(h) for h in  header['ecat_acquisition']["frame_lengths"] ]
+                for i in range(1, len(time_frames)) :
+                    time_frames[i] = time_frames[i] + time_frames[i-1]
+                    
+            except ValueError : 
+                time_frames = []
+   
+        if time_frames == [] : time_frames = [1.]
 
         out_df = pd.DataFrame( columns=metric_columns)
-        #l = lambda x: simps(x,time_frames)
         for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):
-            mean_int = simps(temp_df["value"], time_frames)
+            print temp_df
+            if len(time_frames) > 1 :
+                mean_int = simps(temp_df["value"], time_frames)
+            else:
+                mean_int = temp_df.value.values[0] * time_frames[0]
+                print "\n",mean_int, "=", temp_df.value.values[0], "x", time_frames[0], "\n"
+
             row = pd.DataFrame( [list(name) + ['integral', mean_int]], columns=metric_columns  )
             out_df = pd.concat( [out_df, row] )
         out_df["frame"] = [0] * out_df.shape[0]

@@ -263,7 +263,6 @@ class PETtoT1LinRegRunning(BaseInterface):
         if not isdefined(self.inputs.out_file_img):
             self.inputs.out_file_img = os.getcwd()+os.sep+s_base+"_TO_"+t_base+"_"+self._suffix+ '.mnc'
 
-
         outputs["out_file_xfm"] = self.inputs.out_file_xfm
         outputs["out_file_xfm_invert"] = self.inputs.out_file_xfm_invert
         outputs["out_file_img"] = self.inputs.out_file_img
@@ -530,7 +529,7 @@ class nLinRegRunning(BaseInterface):
 def get_workflow(name, infosource, opts):
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","pet_headMask","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "angle"]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","pet_headMask","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error"]), name='inputnode')
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "petmri_img_4d","petmni_img_4d","petmri_xfm","petmri_xfm_invert","tka_label_img_pet","results_label_img_pet","pvc_label_img_pet", "pet_brain_mask"]), name='outputnode')
 
@@ -594,7 +593,6 @@ def get_workflow(name, infosource, opts):
         petPVCMask.inputs.clobber = True
         rPetPVCMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-
     workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
                       (inputnode, pet2mri_withMask, [('pet_headMask', 'in_source_mask')]), 
                       (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
@@ -606,33 +604,36 @@ def get_workflow(name, infosource, opts):
         workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
 
     if opts.test_group_qc :
-        ###Create rotation xfm files based on rotation angle
-        rotateNode = pe.Node(interface=rsl.param2xfmCommand(), name='rotateNode')
-        workflow.connect(inputnode, 'angle', rotateNode, 'rotation')
+        ###Create rotation xfm files based on transform error
+        transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
+        workflow.connect(inputnode, 'error', transformNode, 'transformation')
         ###Apply transformation to PET file
-        rotate_resampleNode=pe.Node(interface=rsl.ResampleCommand(),name="rotate_resampleNode")
-        rotate_resampleNode.inputs.use_input_sampling=True;
-        workflow.connect(rotateNode, 'out_file', rotate_resampleNode, 'transformation')
-        workflow.connect(pet2mri, 'out_file_img', rotate_resampleNode, 'in_file')
-        ###Rename resampled pet image
-        rrotate_resampleNode=pe.Node(interface=myIdent(param_type='angle'), name="rrotate_resampleNode")
-        workflow.connect(rotate_resampleNode, 'out_file', rrotate_resampleNode, 'in_file')
-        workflow.connect(inputnode, 'angle', rrotate_resampleNode, 'param')
-        ###Rotate brain mask
-        rotate_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="rotate_brainmaskNode" )
-        rotate_brainmaskNode.inputs.use_input_sampling=True;
-        workflow.connect(rotateNode, 'out_file', rotate_brainmaskNode, 'transformation')
-        workflow.connect(pet_brain_mask, pet_brain_mask_img, rotate_brainmaskNode, 'in_file')   
+        transform_resampleNode=pe.Node(interface=rsl.ResampleCommand(),name="transform_resampleNode")
+        transform_resampleNode.inputs.use_input_sampling=True;
+        workflow.connect(transformNode, 'out_file', transform_resampleNode, 'transformation')
+        workflow.connect(pet2mri, 'out_file_img', transform_resampleNode, 'in_file')
+
+        ### Concatenate pet2mri and misalignment xfm
         pet2misalign_xfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_xfm")
         workflow.connect(pet2mri,'out_file_xfm', pet2misalign_xfm, 'in_file')
-        workflow.connect(rotateNode,'out_file', pet2misalign_xfm, 'in_file_2')
+        workflow.connect(transformNode,'out_file', pet2misalign_xfm, 'in_file_2')
+
+        ###Rotate brain mask
+        transform_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="transform_brainmaskNode" )
+        transform_brainmaskNode.inputs.interpolation='nearest_neighbour'
+        workflow.connect(pet2misalign_xfm, 'out_file', transform_brainmaskNode, 'transformation')
+        workflow.connect(transform_resampleNode, 'out_file', transform_brainmaskNode, 'model_file')
+        workflow.connect(pet_brain_mask, pet_brain_mask_img, transform_brainmaskNode, 'in_file')   
+
+
+
         invert_concat_pet2misalign_xfm=pe.Node(interface=minc.XfmInvert(),name="invert_concat_pet2misalign_xfm")
         workflow.connect(pet2misalign_xfm,'out_file',invert_concat_pet2misalign_xfm,'input_file') 
         pet2mri = final_pet2mri = pe.Node(interface=niu.IdentityInterface(fields=["out_file_img", "out_file_xfm", "out_file_xfm_invert"]), name="pet2mri_misaligned") 
-        workflow.connect(rotate_resampleNode, "out_file", final_pet2mri, "out_file_img")
+        workflow.connect(transform_resampleNode, "out_file", final_pet2mri, "out_file_img")
         workflow.connect(pet2misalign_xfm, "out_file", final_pet2mri, "out_file_xfm")
         workflow.connect(invert_concat_pet2misalign_xfm, "output_file", final_pet2mri, "out_file_xfm_invert")
-        pet_brain_mask = rotate_brainmaskNode
+        pet_brain_mask = transform_brainmaskNode
         pet_brain_mask_img = 'out_file'
 
     if not opts.tka_method == None:

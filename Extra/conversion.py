@@ -18,7 +18,7 @@ import nipype.interfaces.minc as minc
 from Extra.resample import param2xfmCommand
 from Extra.modifHeader import ModifyHeaderCommand, FixHeaderCommand
 from Extra.turku import imgunitCommand
-from shutil import move
+from shutil import move, copyfile
 import nibabel as nib
 from sys import argv
 from re import sub
@@ -126,6 +126,13 @@ class ecat2mincCommand(BaseInterface):
                 for x in range(temp.shape[1]) :
                     data[z,y,x] = temp[x,z]
             del temp
+        #for x in range(data.shape[0]):
+        #    temp = np.copy(data[x,:,:])
+        #    for z in range(temp.shape[0]) :
+        #        for y in range(temp.shape[1]) :
+        #            data[z,y,x] = temp[x,z]
+        #    del temp
+
         minc_vol.data = data
         minc_vol.writeFile()
         minc_vol.closeVolume()
@@ -136,8 +143,46 @@ class ecat2mincCommand(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
+'''
+class minc2ecatOutput(TraitedSpec):
+    out_file = File(desc="PET image with correct time frames.")
 
+class minc2ecatInput(CommandLineInputSpec):
+    in_file = File(exists=True, mandatory=True, desc="PET file")
+    header  = File(exists=True, desc="PET header file")
+    out_file= File(argstr="%s", desc="MINC PET file")
+    like_file= File(exists=True, mandatory=True, desc="Template MINC file")
 
+class minc2ecatCommand(BaseInterface):
+    input_spec = minc2ecatInput
+    output_spec = minc2ecatOutput
+
+    def _run_interface(self, runtime): 
+        in_fn = self.inputs.in_file
+        like_fn = self.inputs.like_file
+        fn = os.path.splitext(os.path.basename(self.inputs.in_file))
+        self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.mnc'
+        minc_vol = volumFromFile(in_fn)
+        ecat_vol = nib.ecat.load(out_fn)
+        data = ecat_vol.get_data()
+        data = data.reshape(minc_vol.data.shape)
+        for y in range(data.shape[1]):
+            temp = np.copy(data[:,y,:])
+            for z in range(temp.shape[0]) :
+                for x in range(temp.shape[1]) :
+                    data[z,y,x] = temp[x,z]
+            del temp
+        minc_vol.data = data
+        minc_vol.writeFile()
+        minc_vol.closeVolume()
+         
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+'''
 
 def ecattomincWorkflow(name):
     workflow = pe.Workflow(name=name)
@@ -167,7 +212,7 @@ class minc2ecatOutput(TraitedSpec):
 
 class minc2ecatInput(CommandLineInputSpec):
     in_file = File(exists=True, desc="PET file")
-    header  = File(exists=True, desc="PET file")
+    header  = File( desc="header information")
     out_file= File(argstr="%s", position=-2, desc="PET file")
 
 
@@ -178,25 +223,27 @@ class minc2ecatCommand(BaseInterface):
     def _run_interface(self, runtime):
         conversionNode = minctoecatInterfaceCommand()
         conversionNode.inputs.in_file = self.inputs.in_file    
-        #conversionNode.inputs.out_file=os.getcwd()+'out.v'
         conversionNode.run()     
+       
+        if isdefined(self.inputs.header):
+            sifNode = sifCommand()
+            sifNode.inputs.in_file = self.inputs.in_file
+            sifNode.inputs.header = self.inputs.header
+            sifNode.run()
         
-        sifNode = sifCommand()
-        sifNode.inputs.in_file = self.inputs.in_file
-        sifNode.inputs.header = self.inputs.header
-        sifNode.run()
-        
-        eframeNode = eframeCommand()
-        eframeNode.inputs.frame_file = sifNode.inputs.out_file 
-        eframeNode.inputs.pet_file = conversionNode.inputs.out_file 
-        eframeNode.run()
+            eframeNode = eframeCommand()
+            eframeNode.inputs.frame_file = sifNode.inputs.out_file 
+            eframeNode.inputs.pet_file = conversionNode.inputs.out_file 
+            eframeNode.run()
 
-        imgunitNode = imgunitCommand()
-        imgunitNode.inputs.in_file = eframeNode.inputs.pet_file
-        imgunitNode.inputs.u = "Bq/cc"
-        imgunitNode.run()
+            imgunitNode = imgunitCommand()
+            imgunitNode.inputs.in_file = eframeNode.inputs.pet_file
+            imgunitNode.inputs.u = "Bq/cc"
+            imgunitNode.run()
    
-        self.inputs.out_file = imgunitNode.inputs.out_file
+            self.inputs.out_file = imgunitNode.inputs.out_file
+        else : 
+            self.inputs.out_file = conversionNode.inputs.out_file
 
         return runtime
 
@@ -204,7 +251,6 @@ class minc2ecatCommand(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
-
 
 
 
@@ -277,7 +323,7 @@ class sifCommand(BaseInterface):
         in_file = self.inputs.in_file
         out_file = self.inputs.out_file
 
-        #data = self.inputs.header
+        print(self.inputs.header)
         data = json.load( open( self.inputs.header, "rb" ) )
         if data['time']['frames-time'] == 'unknown':
             start = 0
@@ -350,7 +396,7 @@ class minctoecatInterfaceCommand(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         print("mv", cmd.inputs.out_file, self.inputs.out_file)
-        move(cmd.inputs.out_file, self.inputs.out_file)
+        copyfile(cmd.inputs.out_file, self.inputs.out_file)
 
         return runtime
     def _gen_output(self, basefile):

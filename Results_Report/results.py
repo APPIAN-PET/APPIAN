@@ -332,8 +332,10 @@ class integrate_TACCommand( BaseInterface):
         out_df = pd.DataFrame( columns=metric_columns)
         for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):
             print temp_df
+            print time_frames
             if len(time_frames) > 1 :
                 mean_int = simps(temp_df["value"], time_frames)
+                print("Integral of mean:", mean_int)
             else:
                 mean_int = temp_df.value.values[0] * time_frames[0]
                 print "\n",mean_int, "=", temp_df.value.values[0], "x", time_frames[0], "\n"

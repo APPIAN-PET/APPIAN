@@ -104,10 +104,12 @@ def kde2(z, k=0, bandwidth=0.3):
 import pandas as pd
 
 def kde(z, cdf=False, bandwidth=0.3):
+    #print(z)
     z = np.array(z)
     z= (z - z.mean(axis=0)) /  z.std(axis=0)
     factor=5
     euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
+    #print(euc_dist)
     kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
     density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
     

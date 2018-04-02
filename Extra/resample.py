@@ -1,7 +1,7 @@
 import os, ntpath
 import numpy as np
 import re
-from nipype.interfaces.base import CommandLine, CommandLineInputSpec
+from nipype.interfaces.base import CommandLine, CommandLineInputSpec, BaseInterface
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 
 class ResampleOutput(TraitedSpec):
@@ -67,7 +67,7 @@ class param2xfmInput(CommandLineInputSpec):
     shears = traits.Str(argstr="-shears %s",  mandatory=False, default=None, desc="image shears x,y,z")
     scales = traits.Str(argstr="-scales %s",  mandatory=False, default=None, desc="image scales x,y,z")
     center = traits.Str(argstr="-center %s",  mandatory=False, default=None, desc="image center x,y,z")
-
+    transformation = traits.Str(argstr="%s", mandatory=False, default=None, desc="generic string for parameters")
     clobber = traits.Bool(argstr="-clobber", position=1, usedefault=True, default_value=True, desc="Overwrite output file")
 
 
@@ -118,5 +118,52 @@ class param2xfmCommand(CommandLine):
         if name == "out_file":
             return self._list_outputs()["out_file"]
         return None
+
+class param2xfmInterfaceOutput(TraitedSpec):
+    out_file = File(exists=True, desc="resampled image")
+
+class param2xfmInterfaceInput(CommandLineInputSpec):
+    out_file = File(position=-1, argstr="%s", desc="resampled image")
+    transformation = traits.List(desc="Transformation to apply")
+
+transform_exec_dict={"angle":" -rotations ", "offset":" -translation ", "shear":" -shears ", "scale":" -scales ", "center":" -center "}
+transform_file_dict={"angle":" _rtn=","offset":" _trn=","shear":" _shr=", "scale":" _scl=", "center":" _cnt="}
+class param2xfmInterfaceCommand(BaseInterface):
+    input_spec = param2xfmInterfaceInput
+    output_spec = param2xfmInterfaceOutput
+
+    def _run_interface(self, runtime):
+        transformation = self.inputs.transformation
+        exec_params = ""
+        file_params = ""
+        for item in transformation :
+            transform_type  = item[0]
+            transform_param = item[1]
+            exec_params += transform_exec_dict[transform_type] + transform_param
+            file_params += transform_file_dict[transform_type] + transform_param
+            
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output(file_params)
+   
+        paramNode = param2xfmCommand();
+        paramNode.inputs.transformation = exec_params
+        paramNode.inputs.out_file = self.inputs.out_file
+        print paramNode.cmdline
+        paramNode.run()
+        return runtime        
+ 
+    def _gen_output(self, params):
+        dname = os.getcwd()
+        params = re.sub(" ", "", params)
+        out_file = dname + os.sep + "param"+params+".xfm"
+        out_file = re.sub(' ',',',out_file)
+        return out_file
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        #if not isdefined(self.inputs.out_file):
+        #    self.inputs.out_file = self._gen_output(self.inputs.params)
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
 
 

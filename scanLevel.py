@@ -36,7 +36,6 @@ def set_datasource_inputs(opts):
     [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_img', 'pvc_img_string', opts.img_ext )
     [ tka_label_img_string, tka_label_img_variables  ] = set_label_parameters(opts.tka_label_level, 'tka_label_img', 'tka_img_string', opts.img_ext )
     [ results_label_img_string, results_label_img_variables  ] = set_label_parameters(opts.results_label_level, 'results_label_img', 'results_img_string', opts.img_ext )
-
     ### Set the inputs for the template image for datasource
     [ pvc_label_template_string, pvc_label_template_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_template', 'pvc_template_string',opts.img_ext )
     [ tka_label_template_string, tka_label_template_variables  ] = set_label_parameters(opts.tka_label_level, 'tka_label_template', 'tka_template_string', opts.img_ext )
@@ -272,26 +271,29 @@ def run_scan_level(opts,args):
     ###Set the appropriate nodes and inputs for desired "analysis_level"
     wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
-    if opts.analysis_space == 'mni':
+    if opts.analysis_space == 'icbm152':
         labelSpace='MNI'
         pet_input_node=wf_pet2mri
         pet_input_file='outputnode.petmni_img_4d'
         pet_mask_node=wf_masking
-        pet_mask_file='pvcLabels.LabelsMNI'
+        pet_results_mask_file='resultsLabels.LabelsMNI'
+        pet_pvc_mask_file='pvcLabels.LabelsMNI'
         t1="T1Tal"
     elif opts.analysis_space == 'pet':
         labelSpace='PET'
         pet_input_node=wf_init_pet
         pet_input_file='outputnode.pet_center'
         pet_mask_node=wf_pet2mri
-        pet_mask_file="outputnode.pvc_label_img_pet"
+        pet_results_mask_file="outputnode.results_label_img_pet"
+        pet_pvc_mask_file="outputnode.pvc_label_img_pet"
         t1=t1_type
     elif opts.analysis_space == 't1':
         labelSpace='T1'
         pet_input_node=wf_pet2mri
         pet_input_file='outputnode.petmri_img_4d'
         pet_mask_node=wf_masking
-        pet_mask_file='pvcLabels.LabelsT1'
+        pet_results_mask_file='resultsLabels.LabelsT1'
+        pet_pvc_mask_file='pvcLabels.LabelsT1'
         t1=t1_type
     ###################
     # PET prelimaries #
@@ -327,7 +329,7 @@ def run_scan_level(opts,args):
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
-
+    
     ##################
     # Coregistration #
     ##################
@@ -345,12 +347,12 @@ def run_scan_level(opts,args):
     if not opts.nopvc:
         workflow.connect(wf_masking, 'pvcLabels.LabelsT1', wf_pet2mri, "inputnode.pvc_label_img_t1")
     if opts.test_group_qc :
-        misregistration = pe.Node(interface=util.IdentityInterface(fields=['angle']), name="misregistration")
-        misregistration.iterables = ( 'angle', tqc.angles )
-        workflow.connect(misregistration, 'angle', wf_pet2mri, "inputnode.angle")
+        misregistration = pe.Node(interface=util.IdentityInterface(fields=['error']), name="misregistration")
+        misregistration.iterables = ('error',tqc.errors)
+        workflow.connect(misregistration, 'error', wf_pet2mri, "inputnode.error")
 
     out_node_list = [wf_pet2mri] 
-    out_img_list = ['outputnode.petmri_img_4d']
+    out_img_list = [pet_input_file]
     out_img_dim = ['4']
 
     #############################
@@ -367,7 +369,7 @@ def run_scan_level(opts,args):
         pvcNode.inputs.x_fwhm = opts.scanner_fwhm[2]
         pvcNode.inputs.pvc_method = opts.pvc_method
         workflow.connect(pet_input_node, pet_input_file, pvcNode, "input_file") #CHANGE
-        workflow.connect(pet_mask_node, pet_mask_file, pvcNode, "mask") #CHANGE
+        workflow.connect(pet_mask_node, pet_pvc_mask_file, pvcNode, "mask") #CHANGE
 
         out_node_list += [pvcNode]
         out_img_list += ['out_file']
@@ -389,10 +391,10 @@ def run_scan_level(opts,args):
         if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header'
         workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
         if opts.tka_method in ecat_methods : 
-           workflow.connect(pet_mask_node, pet_mask_file, tka_wf, 'inputnode.like_file')
+           workflow.connect(pet_mask_node, pet_pvc_mask_file, tka_wf, 'inputnode.like_file')
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
         #if opts.tka_method in reference_methods:
-            #workflow.connect(wf_masking, 'resultsLabels.LabelsMNI', tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
+        workflow.connect(pet_mask_node, pet_results_mask_file, tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
         if opts.arterial :
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
@@ -427,7 +429,7 @@ def run_scan_level(opts,args):
     ############################
     # Subject-level QC Metrics #
     ############################
-    if opts.group_qc :
+    if opts.group_qc or opts.test_group_qc :
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')

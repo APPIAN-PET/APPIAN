@@ -117,12 +117,12 @@ def check_masking_options(opts, label_img, label_space):
         "icbm152":{ "string":"roi-user",
                     "cls":"civet",
                     "seg":"animal",
-                    "icbm152":"other"},
+                    "icbm152":"other", #FIXME : Does this make sense? Shouldnt the user provide the path to the atlas and nd not just specify icbm152?
+		    "atlas":"other"},
         "other":{   "string":"roi-user",
                     "atlas":'other'}
     }
-   
-    if os.path.exists(label_img[0]):
+    if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
         var ="atlas"
     elif type(label_img[0]) == str:
         if label_img[0] == "cls":  
@@ -135,8 +135,6 @@ def check_masking_options(opts, label_img, label_space):
         print "Label error: ", label_img, label_space
         exit(1)
 
-    print label_img, label_space, var
-    
     try: 
         label_type =  d[label_space][var]
     except KeyError:
@@ -158,13 +156,7 @@ def split_label_img(label_img_str):
 
 if __name__ == "__main__":
     usage = "usage: "
-    file_dir = os.path.dirname(os.path.realpath(__file__))
-    atlas_dir = file_dir + "/Atlas/MNI152/"
-    icbm152=atlas_dir+'mni_icbm152_t1_tal_nlin_sym_09a.mnc'
-    default_atlas = atlas_dir + "mni_icbm152_t1_tal_nlin_sym_09a_atlas/AtlasGrey.mnc"
-
     parser = OptionParser(usage=usage,version=version)
-
     group= OptionGroup(parser,"File options (mandatory)")
     group.add_option("-s","--sourcedir",dest="sourceDir",  help="Input file directory")
     group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
@@ -172,7 +164,6 @@ if __name__ == "__main__":
     group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
 
     group.add_option("--group-level",dest="run_group_level",action='store_true', default=False, help="Run group level analysis")
-    group.add_option("--analysis-space",dest="analysis_space",type='string', default='mni', help="The spatial coordinates in which to run PET analysis: pet, t1, mni (default)")
     group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
@@ -214,6 +205,7 @@ if __name__ == "__main__":
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
+    group.add_option("","--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
 
     # Tracer Kinetic Analysis
@@ -223,6 +215,7 @@ if __name__ == "__main__":
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
+    group.add_option("","--tka-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
     
     #Results
@@ -233,6 +226,7 @@ if __name__ == "__main__":
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
+    group.add_option("","--results-labels-ones-only",dest="results_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
     
     ##########################
@@ -347,12 +341,15 @@ if __name__ == "__main__":
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
     #Determine the level at which the labeled image is defined (scan- or atlas-level) 
-    if os.path.exists(opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
+    if os.path.exists(opts.sourceDir + os.sep + opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
     else: opts.pvc_label_level = 'scan'
-    if os.path.exists(opts.pvc_label_img[0]): opts.tka_label_level = 'atlas'
+    if os.path.exists(opts.sourceDir + os.sep + opts.pvc_label_img[0]): opts.tka_label_level = 'atlas'
     else: opts.tka_label_level = 'scan'
-    if os.path.exists(opts.results_label_img[0]): opts.results_label_level = 'atlas'
+    if os.path.exists(opts.sourceDir + os.sep + opts.results_label_img[0]): opts.results_label_level = 'atlas'
     else: opts.results_label_level = 'scan'
+    
+    # Set the analysis space based on the label space
+    opts.analysis_space = opts.results_label_space
 
     roi_label = set_default_atlas_label(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask
@@ -375,6 +372,7 @@ if __name__ == "__main__":
             print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
             print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
             exit(1)
+
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'

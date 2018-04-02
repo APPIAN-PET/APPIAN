@@ -42,6 +42,7 @@ class LabelsInput(BaseInterfaceInputSpec):
     brainmask_t1 = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
     brainmask_mni = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in MNI space")
     brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brainmask")
+    ones_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal threshold so that label image is only 1s and 0s")
 
 class LabelsOutput(TraitedSpec):
     LabelsMNI  = File(desc="Reference mask in MNI space")
@@ -148,37 +149,8 @@ class Labels(BaseInterface):
 
         # 6) Mask brain for T1 and MNI labels
         for label, mask in zip([self.inputs.LabelsT1, self.inputs.LabelsMNI], [self.inputs.brainmask_t1, self.inputs.brainmask_mni ]):
-            #if isdefined(mask): 
             if mask != 'NA':
-                #Calculate the overlap between the brain mask and labelled image
-                overlap = minc.Calc()
-                overlap.inputs.input_files = [label, mask]
-                overlap.inputs.output_file=tmpDir+"/overlap.mnc"
-                overlap.inputs.expression="if(A[0] != 0 && A[1] != 0) 1 else 0"
-                overlap.clobber=True
-                overlap.run()
-                #Get the sum of the overlap file
-                stats_overlap = StatsCommand()
-                stats_overlap.inputs.in_file = overlap.inputs.output_file
-                stats_overlap.inputs.quiet=True
-                stats_overlap.inputs.opt_string="-sum"
-                stats_overlap.terminal_output = 'file_split'
-                overlap_results=stats_overlap.run()
-                overlap_sum=float(overlap_results.runtime.stdout)
-                #Get sum of mask file
-                stats_label = StatsCommand()
-                stats_label.inputs.in_file = mask # temp_label.inputs.output_file
-                stats_label.inputs.quiet=True
-                stats_label.inputs.opt_string="-sum"
-                stats_label.terminal_output = 'file_split'
-                label_results=stats_label.run()
-                label_sum=float(label_results.runtime.stdout)
-                print("Overlap sum:", overlap_sum, "Label sum:", label_sum, overlap_sum/label_sum  )
-                #If overlap between overlap and label is greater than 50%
-                #then only use the portion of label within the brainmask
-                print "Label:", label
-                print "Mask:", mask
-                if overlap_sum / label_sum > 0.98 or self.inputs.brain_only :
+                if self.inputs.brain_only :
                     temp_mask = tmpDir+"/mask.mnc"
                     run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
                     run_calc.inputs.input_files = [ label, mask] #The ANIMAL or CIVET classified atlas
@@ -190,7 +162,16 @@ class Labels(BaseInterface):
                     print "Warning: masking labeled image with brain mask."
                     print "Label: ", label
                     print "Mask: ", mask
-
+		if self.inputs.ones_only :
+		    temp_mask = tmpDir+"/mask.mnc"
+		    run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
+		    run_calc.inputs.input_files = [ label ] #The ANIMAL or CIVET classified atlas
+		    run_calc.inputs.output_file = temp_mask  #Output mask with desired label
+		    run_calc.inputs.expression = " A[0] > 0.1 ? 1 : 0 " 
+		    run_calc.clobber = True
+		    run_calc.run()
+		    shutil.copy(temp_mask, label)
+	
         if not os.path.exists( self.inputs.LabelsT1): 
             print 'Does not exist -- Labels T1:', self.inputs.LabelsT1
             exit(0)
@@ -340,6 +321,7 @@ def get_workflow(name, infosource, datasink, opts):
         pvcLabels.inputs.space = opts.pvc_label_space
         pvcLabels.inputs.erode_times = opts.pvc_erode_times
         pvcLabels.inputs.brain_only = opts.pvc_labels_brain_only
+        pvcLabels.inputs.ones_only = opts.pvc_labels_ones_only
         workflow.connect(inputnode, 'pvc_labels', pvcLabels, 'labels')
         workflow.connect(inputnode, 'pvc_label_img', pvcLabels, 'label_img')
         workflow.connect(inputnode, 'pvc_label_template', pvcLabels, 'label_template')
@@ -359,6 +341,7 @@ def get_workflow(name, infosource, datasink, opts):
         tkaLabels.inputs.space = opts.tka_label_space
         tkaLabels.inputs.erode_times = opts.tka_erode_times
         tkaLabels.inputs.brain_only = opts.tka_labels_brain_only
+        tkaLabels.inputs.ones_only = opts.tka_labels_ones_only
         workflow.connect(inputnode, 'tka_labels', tkaLabels, 'labels')
         workflow.connect(inputnode, 'tka_label_img', tkaLabels, 'label_img')
         workflow.connect(inputnode, 'tka_label_template', tkaLabels, 'label_template')
@@ -377,6 +360,7 @@ def get_workflow(name, infosource, datasink, opts):
     resultsLabels.inputs.space = opts.results_label_space
     resultsLabels.inputs.erode_times = opts.results_erode_times
     resultsLabels.inputs.brain_only = opts.results_labels_brain_only
+    resultsLabels.inputs.ones_only = opts.results_labels_ones_only
     workflow.connect(inputnode, 'results_labels', resultsLabels, 'labels')
     workflow.connect(inputnode, 'results_label_img', resultsLabels, 'label_img')
     workflow.connect(inputnode, 'results_label_template', resultsLabels, 'label_template')

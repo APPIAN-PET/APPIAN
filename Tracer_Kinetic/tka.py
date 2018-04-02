@@ -9,12 +9,58 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.base import MINCCommand, MINCCommandInputSpec
-from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, ecattomincWorkflow, minctoecatInterfaceCommand, minctoecatWorkflow)
+from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow)
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
 import ntpath
 import numpy as np
+import re
+
+class createImgFromROIOutput(TraitedSpec):  
+    out_file = File(desc="Reconstruced 3D image based on .dft ROI values")
+
+class createImgFromROIInput(TraitedSpec):
+    out_file = File(desc="Reconstruced 3D image based on .dft ROI values")
+    in_file = File(exists=True, mandatory=True, desc=" .dft ROI values")
+    like_file = File(exists=True, mandatory=True, desc="File that gives spatial coordinates for output volume")
+
+
+class createImgFromROI(BaseInterface) :
+    input_spec = createImgFromROIInput
+    output_spec = createImgFromROIOutput
+
+
+    def _run_interface(self, runtime) :
+        if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        ref = volumeFromFile(self.inputs.like_file)
+        out = volumeLikeFile(self.inputs.like_file, self.inputs.out_file )
+        roi=[]
+        with open(self.inputs.in_file) as f :
+            for l in f.readlines() :
+                if 'Mask' in l : 
+                    ll=re.split(' |\t', l)
+                    print(ll[1],ll[3])
+                    roi.append([int(ll[1]), float(ll[3])])
+
+        for label, value in roi : 
+            out.data[ref == label] = value
+            print(label, np.mean(out.data[ref == label]))
+        out.writeFile()
+        out.closeVolume()
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + '.mnc'
 
 class suvrOutput(TraitedSpec):
     out_file = File(argstr="%s", position=-1, desc="Output SUV image.")
@@ -275,6 +321,57 @@ class ppCommand(MINCCommand):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         return super(ppCommand, self)._parse_inputs(skip=skip)
 
+class patlakOutput(TraitedSpec):
+    out_file = File(argstr="-o %s",  desc="Patlak plot ki parametric image.")
+
+class patlakInput(MINCCommandInputSpec):
+    in_file= File(exists=True, position=-5, argstr="%s", desc="PET file")
+    reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
+    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
+    end=traits.Float(argstr="%s", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+    out_file = File(argstr="%s", position=-1, desc="image to operate on")
+    Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
+    LC=traits.Float(argstr="-LC=%f", desc="Lumped constant in MR calculation; default is 1.0")
+    density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
+    thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
+    Max=traits.Float(argstr="-max=%f", default=10000, use_default=True,desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
+    #Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
+    Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
+    v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
+    n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
+
+
+class patlakCommand(MINCCommand):
+    input_spec =  patlakInput
+    output_spec = patlakOutput
+
+    _cmd = "patlak" #input_spec.pvc_method 
+    _suffix = "_pp" 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()["out_file"]
+        return None
+
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + _suffix + '.dft'
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        return super(patlakCommand, self)._parse_inputs(skip=skip)
+
+
 
 class srtmOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
@@ -380,14 +477,15 @@ class srtmROICommand(MINCCommand):
 
 
 standard_fields=["in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
-ecat_methods=["lp", "pp", "srtm", "suv"]
+ecat_methods=["lp", "pp", "pp-roi", "srtm", "suv"]
 tka_param={}
 tka_param["lp"]=standard_fields
 tka_param["pp"]=standard_fields
+tka_param["pp-roi"]=standard_fields
 tka_param["srtm"]=standard_fields
 tka_param["suv"]=["in_file", "header"]
 tka_param["suvr"]=["in_file", "header", "reference"]
-reference_methods=["pp", "lp", "srtm", "suvr"]
+reference_methods=["pp-roi","pp", "lp", "srtm", "suvr"]
 
 
 def get_tka_workflow(name, opts):
@@ -406,6 +504,7 @@ def get_tka_workflow(name, opts):
         convertPET=pe.Node(minc2ecatCommand(), name='minc2ecat') #  minctoecatWorkflow("minctoecat_PET")
         #Connect input node to conversion
         workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
+        #workflow.connect(inputnode, 'like_file', convertPET, 'like_file')
         workflow.connect(inputnode, 'header', convertPET, 'header')
         pet_node=convertPET
         pet_file='out_file'
@@ -419,7 +518,8 @@ def get_tka_workflow(name, opts):
     if not opts.arterial and opts.tka_method in ecat_methods:
         #Extracting TAC from reference region and putting it into text file
         #Convert reference mask from minc to ecat
-        convertReference=pe.Node(interface=minctoecatInterfaceCommand(), name="minctoecat_reference") 
+        #convertReference=pe.Node(interface=minctoecatInterfaceCommand(), name="minctoecat_reference") 
+        convertReference=pe.Node(interface=minc2ecatCommand(), name="minctoecat_reference") 
         #convertReference.inputs.out_file="tempREF.mnc"
         workflow.connect(inputnode, 'reference', convertReference, 'in_file')
 
@@ -435,7 +535,7 @@ def get_tka_workflow(name, opts):
         # inputnode --> tacReference
         workflow.connect(inputnode, 'reference', tacReference, 'reference')
 
-    if opts.tka_type=="voxel":
+    if not 'roi' in opts.tka_method:
     #Do voxel-wise tracer kinetric analysis on 4D PET image to produce parametric ma
         if opts.tka_method in reference_methods: 
             if opts.tka_method == "lp":
@@ -516,19 +616,28 @@ def get_tka_workflow(name, opts):
         #    workflow.connect(inputnode, 'header', convertParametricT3, 'header')
         #    workflow.connect(convertParametricT3, 'out_file', outputnode, 'out_file_t3map')
     else: #ROI-based
-        tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
-        outputnode=pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
-        convertROI=pe.Node(interface=minctoecatInterfaceCommand(), name="minctoecat_roi") 
+        convertROI=pe.Node(interface=minc2ecatCommand(), name="minctoecat_roi")
         extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
-        tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
+        roi2img = pe.Node(interface= createImgFromROI(), name='img') 
+        if opts.tka_method == 'srtm':
+            outputnode=pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
+            tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
+            workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
+        elif opts.tka_method == 'pp-roi' :
+            tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
+            outputnode=pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
+            tkaNode = pe.Node(interface=patlakCommand(), name='patlakROI')
+            tkaNode.inputs.end=opts.tka_end_time
+            tkaNode.inputs.start_time=opts.tka_start_time
 
         workflow.connect(inputnode, 'mask', convertROI, 'in_file')
         workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
         workflow.connect(convertPET, 'out_file', extractROI, 'in_file')
-        workflow.connect(extractROI, 'out_file', tkaNode, 'roi')
         workflow.connect(tacReference, 'reference', tkaNode, 'reference')
-        workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')
-        workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
+        workflow.connect(extractROI, 'out_file', tkaNode, 'in_file')
+        workflow.connect(inputnode, 'mask', roi2img, 'like_file')
+        workflow.connect(tkaNode, 'out_file', roi2img, 'in_file')
+        workflow.connect(roi2img, 'out_file', outputnode, 'out_file')
 
     return(workflow)
 

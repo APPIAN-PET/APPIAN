@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from re import sub
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
@@ -24,8 +25,9 @@ class concat_df(BaseInterface):
             dft = pd.read_csv(f)
             if test :
                 s=f.split('/')
-                error = s[-3].split('_')[-1]
-                errortype = s[-3].split('_')[-2]
+                error = s[-3].split('.')[-1]
+                errortype = s[-3].split('.')[-2]
+		errortype = sub('_error_', '', errortype )
                 dft['error'] = error
                 dft["errortype"]=errortype
             df = pd.concat([df, dft], axis=0)

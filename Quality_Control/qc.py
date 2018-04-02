@@ -168,14 +168,27 @@ def pvc_mse(pvc_fn, pve_fn, fwhm):
         mse += m
     mse = -mse / n
     return mse
-
-
+import matplotlib.pyplot as plt
+def temp_qc(vol0, mask0, vol1, mask1, out_fn):
+    i=int(vol0.data.shape[0]/2)
+    plt.subplot(2,2,1)
+    plt.imshow(vol0[i,:])
+    plt.subplot(2,2,2)
+    plt.imshow(mask0[i,:])
+    plt.subplot(2,2,3)
+    plt.imshow(vol1[i,:])
+    plt.subplot(2,2,4)
+    plt.imshow(mask1[i,:])
+    print out_fn
+    plt.savefig(out_fn)
 
 def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
     t1_mask= pyminc.volumeFromFile(t1_brain_fn)
     pet_mask= pyminc.volumeFromFile(pet_brain_fn)
+
+    temp_qc(pet, pet_mask, mri, t1_mask, os.path.splitext(pet_fn)[0]+".png" )
 
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
@@ -480,11 +493,13 @@ class coreg_qc_metricsCommand(BaseInterface):
         base=basename(path)
         param=base.split('_')[-1]
         param_type=base.split('_')[-2]
-
-        mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metrics.values())
+          
+        distance_metric_methods=distance_metrics.values()
+        distance_metric_names=distance_metrics.keys()
+        mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metric_methods )
 
         df=pd.DataFrame(columns=metric_columns )
-        for m,metric_name,metric_func in zip(mis_metric, distance_metrics.keys(), distance_metrics.values()):
+        for m,metric_name,metric_func in zip(mis_metric, distance_metric_names, distance_metric_methods):
             temp=pd.DataFrame([['coreg',sid,ses,task,'01',metric_name,m]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
         

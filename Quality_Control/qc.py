@@ -399,7 +399,7 @@ distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }
 pvc_metrics={'PVC.MSE':pvc_mse }
 #outlier_measures={"KDE":kde , 'LCF':lcf} 
 #outlier_measures={"KDE":kde, "LOF":lof, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
-outlier_measures={ "LOF":lof, "KDE":kde } #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
+outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 
 metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
 outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
@@ -642,7 +642,6 @@ class outlier_measuresCommand(BaseInterface):
                             m=np.array(measure(metricValues, cdf=cdf))
                         else : m=np.array(measure(metricValues))
                         if len(m.shape) > 1 : m = m.flatten()
-
                         r=pd.Series(m)
                           
                         #Get column number of the current outlier measure Reindex the test_df from 0 to the number of rows it has

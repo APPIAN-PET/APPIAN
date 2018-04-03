@@ -450,24 +450,6 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'ses', pvc_qc_metricsNode, "ses")
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
 
-    #if opts.test_group_qc:
-    #    joinNode = pe.JoinNode(interface=niu.IdentityInterface(fields=out_img_list), joinsource="join_test_qc", joinfield=out_img_list, name="join_rotationsNode")
-    #    for node, img in zip( out_node_list, out_img_list) :
-    #        workflow.connect(node, img, joinNode, img)
-    #        workflow.connect(joinNode, img, datasink, img)
- 
-    #    tqc_wf = tqc.test_group_qc_scanLevel("scanLevelQC", opts )
-    #    workflow.connect(wf_pet2mri, 'outputnode.petmri_img', tqc_wf, 'inputnode.petmri_img')
-    #    workflow.connect(wf_masking,'brainmask.LabelsT1',tqc_wf,'inputnode.brainmask_t1')
-    #    workflow.connect(infosource, 'cid', tqc_wf, 'inputnode.cid')
-    #    workflow.connect(infosource, 'sid', tqc_wf, 'inputnode.sid')
-    #    workflow.connect(datasourceMINC, t1_type,  tqc_wf, 'inputnode.t1')
-    #    workflow.connect(wf_pet2mri, pet_input_file, tqc_wf, 'inputnode.pet_4d')
-    #    if not ops.reference_methods == None: 
-    #        workflow.connect(wf_masking, 'tkaLabels.Labels'+labelSpace, tqc_wf , 'inputnode.reference_vol')
-    #   workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, tqc_wf, 'inputnode.results_vol')
-    #   workflow.connect(wf_init_pet, 'outputnode.pet_header', tqc_wf, "inputnode.header")
-    
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 

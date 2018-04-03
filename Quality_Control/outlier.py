@@ -102,31 +102,38 @@ def kde2(z, k=0, bandwidth=0.3):
 
 
 import pandas as pd
+from scipy.integrate import simps
 
 def kde(z, cdf=False, bandwidth=0.3):
     #print(z)
     z = np.array(z)
     z= (z - z.mean(axis=0)) /  z.std(axis=0)
-    factor=5
-    euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
+    factor=1
+    #euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
+    euc_dist = np.mean(z, axis=1).reshape(-1,1)
     #print(euc_dist)
     kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
     density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
-    
-    if not cdf : return density
-
-    min_euc_dist = max(euc_dist) * -factor #0
-    max_euc_dist = max(euc_dist) * factor
-    n=int(len(density)*factor)
-    dd = np.linspace(min_euc_dist,max_euc_dist,n).reshape(-1,1)
+   
+    min_euc_dist = min(euc_dist) #* -factor #0
+    max_euc_dist = max(euc_dist) #* factor
+    dd = np.linspace(min_euc_dist,max_euc_dist).reshape(-1,1)
+    n=int(len(dd))
 
     ddx=(max_euc_dist-min_euc_dist)/n
     lin_density=np.exp(kde.score_samples(dd)).reshape(-1,1)
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
     dd_range = range(len(dd))
+    
+    if not cdf : 
+        for ed,i in zip(euc_dist,range(n)):      
+            cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if abs(dd[j]) > abs(ed) ]) * ddx
+        return (cum_dense)
+
     for ed,i in zip(euc_dist,range(n)):
         cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
+        
     return(cum_dense)
 
 

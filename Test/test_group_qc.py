@@ -518,9 +518,14 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
                             #Reindex the test_df from 0 to the number of rows it has
                             #Get the series with the calculate the distance measure for the current measure
                             metric_df.index = range(metric_df.shape[0])
+                            #print(measure, measure_name)
+                            #print(metric_df)
                             metricvalues=metric_df.value.values
                             if len(metricvalues.shape) == 1 : metricvalues = metricvalues.reshape(-1,1)
-                            r=measure(metricvalues)
+                            cdf=False
+                            if 'coreg' or 'pvc' in metric_df.analysis: cdf=True
+                            r=measure(metricvalues, cdf)
+                            #print(r)
                             if len(r.shape) > 1 : r = r.flatten()
                             idx = metric_df[ metric_df['sub'].values == sub  ].index[0]
                             s= r[idx] #[0]

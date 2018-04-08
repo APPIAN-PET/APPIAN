@@ -153,24 +153,27 @@ def pvc_mse(pvc_fn, pve_fn, fwhm):
     pve = pyminc.volumeFromFile(pve_fn)
     mse = 0 
     if len(pvc.data.shape) > 3 :#if volume has more than 3 dimensions
-        n = np.prod(pve.data.shape[0:4])
-        for t in range(pvc.sizes[0]):
-            pve_frame = pve.data[t,:,:,:]
-            pvc_frame = pvc.data[t,:,:,:]
-            pvc_blur = gaussian_filter(pvc_frame,fwhm) 
-            m = np.sum(np.sqrt((pve_frame - pvc_blur)**2))
-            mse += m
-            print t, m
+        t = int(pvc.sizes[0]/2)
+	#for t in range(pvc.sizes[0]):
+	pve_frame = pve.data[t,:,:,:]
+        pvc_frame = pvc.data[t,:,:,:]
+
+        n = np.sum(pve.data[t,:,:,:]) # np.prod(pve.data.shape[0:4])
+        pvc_blur = gaussian_filter(pvc_frame,fwhm) 
+        m = np.sum(np.sqrt((pve_frame - pvc_blur)**2))
+        mse += m
+        print t, m
     else : #volume has 3 dimensions
-        n = np.prod(pve.data.shape[0:3])
+        n = np.sum(pve.data) # np.prod(pve.data.shape[0:3])
         pvc_blur = gaussian_filter(pvc.data,fwhm) 
         m = np.sum(np.sqrt((pve.data - pvc_blur)**2))
         mse += m
-    mse = -mse / n
+    mse = -mse /  n #np.sum(pve.data)
+    print("PVC MSE:", mse)
     return mse
 import matplotlib.pyplot as plt
 def temp_qc(vol0, mask0, vol1, mask1, out_fn):
-    i=int(vol0.data.shape[0]/2)
+    i=int(vol0.shape[0]/2)
     plt.subplot(2,2,1)
     plt.imshow(vol0[i,:])
     plt.subplot(2,2,2)
@@ -188,7 +191,6 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
     t1_mask= pyminc.volumeFromFile(t1_brain_fn)
     pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
-    temp_qc(pet, pet_mask, mri, t1_mask, os.path.splitext(pet_fn)[0]+".png" )
 
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
@@ -199,7 +201,15 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
         print( pet_mask.data.shape, t1_mask.data.shape)
         exit(1)
 
-    overlap =  t1_mask_data * pet_mask_data
+    overlap = t1_mask_data + pet_mask_data
+    overlap[ overlap >= 1 ] = 1
+    #temp_qc(np.array(pet.data), np.array(mri.data), np.array(t1_mask.data+pet_mask.data), pet_mask.data, os.path.basename(pet_fn)+'.png')
+    print(pet_fn)
+    print(mri_fn)
+    print(t1_brain_fn)
+    print(pet_brain_fn)
+    
+    raw_input()
     n=overlap.shape[0]
     masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
     masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
@@ -223,8 +233,8 @@ def mi(masked_pet_data, masked_mri_data):
     masked_pet_data = [int(round(x)) for x in masked_pet_data ]
     masked_mri_data = [int(round(x)) for x in masked_mri_data ]
     
-    pet_nbins=find_nbins(masked_pet_data)
-    mri_nbins=find_nbins(masked_mri_data)
+    #pet_nbins=find_nbins(masked_pet_data)
+    #mri_nbins=find_nbins(masked_mri_data)
     mi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
     #p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
     #mri_dist = np.histogram(masked_mri_data, mri_nbins)
@@ -396,7 +406,7 @@ global outlier_measures
 global metric_columns  
 global outlier_columns
 distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
-pvc_metrics={'PVC.MSE':pvc_mse }
+pvc_metrics={'MSE':pvc_mse }
 #outlier_measures={"KDE":kde , 'LCF':lcf} 
 #outlier_measures={"KDE":kde, "LOF":lof, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 

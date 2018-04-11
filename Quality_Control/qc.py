@@ -201,7 +201,7 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
         print( pet_mask.data.shape, t1_mask.data.shape)
         exit(1)
 
-    overlap = t1_mask_data + pet_mask_data
+    overlap = t1_mask_data * pet_mask_data
     overlap[ overlap >= 1 ] = 1
     #temp_qc(np.array(pet.data), np.array(mri.data), np.array(t1_mask.data+pet_mask.data), pet_mask.data, os.path.basename(pet_fn)+'.png')
     print(pet_fn)

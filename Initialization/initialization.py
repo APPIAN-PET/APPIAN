@@ -330,7 +330,7 @@ def get_workflow(name, infosource, datasink, opts):
     inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
 
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header","pet_json","pet_center","pet_volume"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
 
     #get_steps = pe.Node(interface=get_stepCommand(), name="get_steps")
     #workflow.connect(inputnode, 't1', get_steps, 'in_file')
@@ -426,8 +426,8 @@ def get_workflow(name, infosource, datasink, opts):
     #workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
 
 
-    workflow.connect(petSettings, 'header', outputnode, 'pet_header')
-    workflow.connect(petSettings, 'out_file', outputnode, 'pet_json')
+    workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
+    workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')
     workflow.connect(rPetCenter, 'out_file', outputnode, 'pet_center')
     workflow.connect(rPetVolume, 'out_file', outputnode, 'pet_volume')
 

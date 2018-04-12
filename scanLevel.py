@@ -321,7 +321,7 @@ def run_scan_level(opts,args):
     workflow.connect(datasource, "headmaskTal", wf_masking, "inputnode.headmask")
     workflow.connect(datasource, "results_label_img", wf_masking, "inputnode.results_label_img")
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
-    workflow.connect(wf_init_pet, 'outputnode.pet_json', wf_masking, "inputnode.pet_json")
+    workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_masking, "inputnode.pet_header_json")
 
     if not opts.pvc_label_img[1] == None: 
         workflow.connect(datasource, "pvc_label_template", wf_masking, "inputnode.pvc_label_template")
@@ -387,8 +387,8 @@ def run_scan_level(opts,args):
             tka_target_img= pet_input_file # ##CHANGE
                 
         tka_wf=tka.get_tka_workflow("tka", opts)
-        header_type='outputnode.pet_json'
-        if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header'
+        header_type='outputnode.pet_header_json'
+        if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header_dict'
         workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
         if opts.tka_method in ecat_methods : 
            workflow.connect(pet_mask_node, pet_pvc_mask_file, tka_wf, 'inputnode.like_file')
@@ -421,7 +421,7 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'sid', resultsReport, "sub")
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")
-            workflow.connect(wf_init_pet, 'outputnode.pet_header', resultsReport, "header")
+            workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReport, "header")
             workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
             workflow.connect(node, img, datasink, node.name)

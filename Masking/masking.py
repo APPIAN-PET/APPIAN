@@ -268,7 +268,7 @@ class PETheadMasking(BaseInterface):
 def get_workflow(name, infosource, datasink, opts):
     workflow = pe.Workflow(name=name)
     out_list=["pet_brainmask", "brainmask_t1", "brainmask_mni", "headmask_t1", "headmask_mni", "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]
+    in_list=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_header_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]
     if not opts.nopvc: 
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -312,7 +312,7 @@ def get_workflow(name, infosource, datasink, opts):
     petMasking.inputs.slice_factor = opts.slice_factor
     petMasking.inputs.total_factor = opts.total_factor
     workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
-    workflow.connect(inputnode, 'pet_json', petMasking, 'in_json')
+    workflow.connect(inputnode, 'pet_header_json', petMasking, 'in_json')
     #workflow.connect(petMasking, 'out_file', outputnode, 'pet_brainmask' ) 
 
     if not opts.nopvc:

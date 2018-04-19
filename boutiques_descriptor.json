@@ -3,17 +3,18 @@
 	"tool-version": "1.0",
 	"description": "Automated pipeline for analysis of PET images",
 	"command-line": "python2 Launcher.py [SCANLEVEL] [GROUPLEVEL] [SOURCE] [TARGET] [PVCMETHOD] [TKAMETHOD] [SCANNER] [RADIOTRACER] [RECONSTRUCTION] [TASK] [SESSION] [RESULTSLABEL] [PVCLABEL] [TKALABEL] [STARTTIME] [SUBJECTS]",
-	"schema-version":"0.4",
+	"schema-version":"0.5",
 	"container-image": {
 		  "type": "docker",
 		  "image": "tffunck/appian:latest"
 	},
+	"groups":[{}],
 	"inputs":[
 	  	{
 			"command-line-flag": "--scan-level",
 			"id": "scan_level",
 			"name": "Scan Level",
-			"type": "boolean",
+			"type": "Flag",
 			"value-key": "[SCANLEVEL]",
 			"optional": true	
   		},
@@ -21,7 +22,7 @@
 			"command-line-flag": "--group-level",
 			"id": "group_level",
 			"name": "Group Level",
-			"type": "boolean",
+			"type": "Flag",
 			"value-key": "[GROUPLEVEL]",
 			"optional": true	
 		},
@@ -29,7 +30,7 @@
 			"command-line-flag": "--source",
 			"id": "source",
 			"name": "Source",
-			"type": "string",
+			"type": "String",
 			"value-key": "[SOURCE]",
 			"optional": false
 		},
@@ -37,7 +38,7 @@
 			"command-line-flag": "--target",
 			"id": "target",
 			"name": "Target",
-			"type": "string",
+			"type": "String",
 			"value-key": "[TARGET]",
 			"optional": false
 		},
@@ -46,48 +47,48 @@
 			"id": "pvc_method",
 			"name": "PVC Method",
 			"description": "PVC method (default=None)",
-			"type": "string",
+			"type": "String",
 			"value-key": "[PVCMETHOD]",
 			"optional": true,
 			"list":false,
 			"default-value":"None",
-			"value-choices":{
+			"value-choices":[
 				"None","GTM", "idSURF","LABBE", "RL", "VC", "RBV", "LABBE+RBV", "RBV+VC", "RBV+RL", "LABBE+RBV+VC", "LABBE+RBV+RL", "STC", "MTC", "LABBE+MTC", "MTC+VC", "MTC+RL", "LABBE+MTC+VC", "LABBE+MTC+RL", "IY", "IY+VC", "IY+RL", "MG", "MG+VC", "MG+RL" 
-			}
+	]
 		},
 		{
 			"command-line-flag": "--tka-method",
 			"id": "tka_type",
 			"name": "PVC Type",
 			"description": "lp=Logan Plot, pp=Patlak Plot, srtm= Simplified Reference Tissue Model, suv=Simplified Uptake Value, suvr=SUV Ratio (default=None)",
-			"type": "string",
+			"type": "String",
 			"value-key": "[TKAMETHOD]",
 			"optional": true,
 			"list":false,
 			"default-value":"None",
-			"value-choices":{
+			"value-choices":[
 				"None","lp", "pp", "pp-roi", "srtm", "suv", "suvr"
-			}
+			]
 		},
 		{
 			"command-line-flag": "--scanner",
 			"id": "scanner",
 			"name": "PET Scanner",
 			"description": "HR+ , HRRT",
-			"type": "string",
+			"type": "String",
 			"value-key": "[SCANNER]",
 			"optional": false,
 			"list":false,
-			"value-choices":{
+			"value-choices":[
 				"HR+", "HRRT"
-			}
+			]
 		},
 		{
 			"command-line-flag": "--radiotracer",
 			"id": "radiotracer",
 			"name": "Radiotracer",
 			"description":"String in PET file names that comes after \"_rcl-\" and that identifies the radiotracer of the PET image.",
-			"type": "string",
+			"type": "String",
 			"value-key": "[RADIOTRACER]",
 			"optional": false
 		},
@@ -96,7 +97,7 @@
 			"id": "reconstruction",
 			"name": "Reconstruction",
 			"description":"String in PET file names that comes after \"_rec-\" and that identifies method used to reconstruct PET image.",
-			"type": "string",
+			"type": "String",
 			"value-key": "[RECONSTRUCTION]",
 			"optional": false
 		},
@@ -104,8 +105,8 @@
 			"command-line-flag": "--session",
 			"id": "session",
 			"name": "Session",
-			"description":"Comma-separated list of strings in PET file names that comes after \"_ses-\" and that identifies the sessions for which to run APPIAN, e.g. \"initial,follow-up,final\"",
-			"type": "string",
+			"description":"Comma-separated list of Strings in PET file names that comes after \"_ses-\" and that identifies the sessions for which to run APPIAN, e.g. \"initial,follow-up,final\"",
+			"type": "String",
 			"list":true,
 			"value-key": "[SESSION]",
 			"optional": false
@@ -114,8 +115,8 @@
 			"command-line-flag": "--task",
 			"id": "task",
 			"name": "Task",
-			"description":"Comma-separated list of strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
-			"type": "string",
+			"description":"Comma-separated list of Strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
+			"type": "String",
 			"list":false,
 			"value-key": "[SESSION]",
 			"optional": false
@@ -124,8 +125,8 @@
 			"command-line-flag": "--task",
 			"id": "task",
 			"name": "Task",
-			"description":"Comma-separated list of strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
-			"type": "string",
+			"description":"Comma-separated list of Strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
+			"type": "String",
 			"list":true,
 			"value-key": "[TASK]",
 			"optional": false
@@ -134,7 +135,7 @@
 			"id": "subjects",
 			"name": "Subjects",
 			"description":"List of subject names",
-			"type": "string",
+			"type": "String",
 			"list":true,
 			"value-key": "[SUBJECTS]",
 			"optional": false
@@ -144,7 +145,7 @@
 			"id": "results_label",
 			"name": "Label Values for Results",
 			"description":"List of comma-separated integer values in the results mask that will be used to extract final results",
-			"type": "string",
+			"type": "String",
 			"list":false,
 			"value-key": "[RESULTSLABEL]",
 			"optional": false
@@ -154,7 +155,7 @@
 			"id": "pvc_label",
 			"name": "Label Values for PVC",
 			"description":"List of comma-separated integer values in the PVC mask that will be used to extract final PVC values",
-			"type": "string",
+			"type": "String",
 			"list":false,
 			"value-key": "[PVCLABEL]",
 			"optional": true
@@ -164,7 +165,7 @@
 			"id": "tka_label",
 			"name": "Label Values for TKA",
 			"description":"Single integer value in the TKA mask that will be used as a reference region.",
-			"type": "string",
+			"type": "String",
 			"list":false,
 			"value-key": "[TKALABEL]",
 			"optional": true
@@ -174,7 +175,7 @@
 			"id": "start_time",
 			"name": "Start time",
 			"description":"Start time for TKA (use if using graphical TKA method).",
-			"type":"string",
+			"type":"String",
 			"list":false,
 			"value-key": "[STARTTIME]",
 			"optional": true
@@ -190,6 +191,6 @@
 		"name": "Output Directory"
 		}
 
-  	}]
+  	]
 }
 

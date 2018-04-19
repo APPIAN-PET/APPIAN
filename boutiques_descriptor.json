@@ -117,16 +117,6 @@
 			"name": "Task",
 			"description":"Comma-separated list of Strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
 			"type": "String",
-			"list":false,
-			"value-key": "[SESSION]",
-			"optional": false
-		},
-		{
-			"command-line-flag": "--task",
-			"id": "task",
-			"name": "Task",
-			"description":"Comma-separated list of Strings in PET file names that comes after \"_task-\" and that identifies the tasks for which to run APPIAN, e.g. \"rest,task1,task2\"",
-			"type": "String",
 			"list":true,
 			"value-key": "[TASK]",
 			"optional": false

@@ -245,8 +245,6 @@ if __name__ == "__main__":
     ###############
     group= OptionGroup(parser,"PVC Options")
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
-
-
     group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
     group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', action='callback', callback=get_opt_list,default=None)

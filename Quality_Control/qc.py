@@ -204,12 +204,11 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
     overlap = t1_mask_data * pet_mask_data
     overlap[ overlap >= 1 ] = 1
     #temp_qc(np.array(pet.data), np.array(mri.data), np.array(t1_mask.data+pet_mask.data), pet_mask.data, os.path.basename(pet_fn)+'.png')
-    print(pet_fn)
-    print(mri_fn)
-    print(t1_brain_fn)
-    print(pet_brain_fn)
+    #print(pet_fn)
+    #print(mri_fn)
+    #print(t1_brain_fn)
+    #print(pet_brain_fn)
     
-    raw_input()
     n=overlap.shape[0]
     masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
     masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 

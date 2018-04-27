@@ -42,8 +42,8 @@ global normal_param
 global angles
 global offsets
 global errors
-angles=[ [('angle', '0 0 0')], [('angle', '0 0 2')],[('angle', '0 0 6')],[('angle', '0 0 12')],[('angle', '0 0 18')],[('angle', '0 0 24')],[('angle', '0 0 30')]] #X,Y,Z angle of rotation
-offsets=[[("offset",'0 0 0')], [("offset",'6 0 0')], [("offset",'12 0 0')], [("offset",'18 0 0')], [("offset",'24 0 0')], [("offset",'30 0 0')] ] #X,Y,Z offset of translation (in mm)
+angles=[ [('angle', '0 0 0')], [('angle', '0 0 2')],[('angle', '0 0 4')],[('angle', '0 0 6')],[('angle', '0 0 12')],[('angle', '0 0 18') ]] #X,Y,Z angle of rotation
+offsets=[[("offset",'0 0 0')], [("offset",'2 0 0')], [("offset",'4 0 0')], [("offset",'6 0 0')], [("offset",'12 0 0')], [("offset",'18 0 0')] ] #X,Y,Z offset of translation (in mm)
 errors = angles + offsets
 #errors = [ [('angle', '0 0 0')] ]
 misalignment_parameters={"angles":angles, "offsets":offsets}

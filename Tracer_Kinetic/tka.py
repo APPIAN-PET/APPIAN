@@ -484,13 +484,12 @@ tka_param["pp"]=standard_fields
 tka_param["pp-roi"]=standard_fields
 tka_param["srtm"]=standard_fields
 tka_param["suv"]=["in_file", "header"]
-tka_param["suvr"]=["in_file", "header", "reference"]
+tka_param["suvr"]=["in_file", "header", "mask", "reference"]
 reference_methods=["pp-roi","pp", "lp", "srtm", "suvr"]
 
 
 def get_tka_workflow(name, opts):
     workflow = pe.Workflow(name=name)
-
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
 

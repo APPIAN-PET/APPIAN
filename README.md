@@ -17,11 +17,11 @@ That’s it, APPIAN is installed on your computer.
 
 ## Developper / Contributer Documentation
 
-For those interested in extending or contributing to APPIAN please check out our documentation [here][CONTRIBUTING.md]. 
+For those interested in extending or contributing to APPIAN please check out our documentation [here][./CONTRIBUTING.md]. 
 
 ## User Documentation
 
-Users seeking more information can check the [user guide][USERGUIDE.md] and read the paper here (coming soon).
+Users seeking more information can check the [user guide][./USERGUIDE.md] and read the paper here (coming soon).
 
 ## Contributors
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)

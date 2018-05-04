@@ -25,32 +25,32 @@ The current list of labels are [here][link_labels] and include:
 
 ## Making a change
 
-We appreciate all contributions to FMRIPREP, but those accepted fastest will follow a workflow similar to the following:
+We appreciate all contributions to APPIAN, but those accepted fastest will follow a workflow similar to the following:
 
 **1. Comment on an existing issue or open a new issue referencing your addition.**
 
-This allows other members of the FMRIPREP development team to confirm that you aren't overlapping with work that's currently underway and that everyone is on the same page with the goal of the work you're going to carry out.
+This allows other members of the APPIAN development team to confirm that you aren't overlapping with work that's currently underway and that everyone is on the same page with the goal of the work you're going to carry out.
 
 [This blog][link_pushpullblog] is a nice explanation of why putting this work in up front is so useful to everyone involved.
 
-**2. [Fork][link_fork] the [FMRIPREP repository][link_fmriprep] to your profile.**
+**2. [Fork][link_fork] the [APPIAN repository][link_appian] to your profile.**
 
-This is now your own unique copy of FMRIPREP.
+This is now your own unique copy of APPIAN.
 Changes here won't effect anyone else's work, so it's a safe space to explore edits to the code!
 
 Make sure to [keep your fork up to date][link_updateupstreamwiki] with the master repository.
 
-**3. Make the changes you've discussed, following the [FMRIPREP coding style guide][link_style_guide].**
+**3. Make the changes you've discussed, following the [APPIAN coding style guide][link_style_guide].**
 
 Try to keep the changes focused. If you feel tempted to "branch out" then please make a [new branch][link_branches].
-It can also be helpful to test your changes locally, using an [FMRIPREP development environment][link_devel].
+It can also be helpful to test your changes locally, using an [APPIAN development environment][link_devel].
 
 **4. Submit a [pull request][link_pullrequest].**
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
 
-## FMRIPREP coding style guide
+## APPIAN coding style guide
 
 Whenever possible, instances of Nodes and Workflows should use the same names
 as the variables they are assigned to.
@@ -109,23 +109,23 @@ You're awesome. :wave::smiley:
 *&mdash; Based on contributing guidelines from the [STEMMRoleModels][link_stemmrolemodels] project.*
 
 [link_github]: https://github.com/
-[link_fmriprep]: https://github.com/poldracklab/FMRIPREP
+[link_appian]: https://github.com/APPIAN-PET/APPIAN/
 [link_signupinstructions]: https://help.github.com/articles/signing-up-for-a-new-github-account
 [link_react]: https://github.com/blog/2119-add-reactions-to-pull-requests-issues-and-comments
-[link_issues]: https://github.com/poldracklab/FMRIPREP/issues
-[link_labels]: https://github.com/poldracklab/FMRIPREP/labels
+[link_issues]: https://github.com/APPIAN-PET/APPIAN/issues
+[link_labels]: https://github.com/APPIAN-PET/APPIAN/labels
 [link_discussingissues]: https://help.github.com/articles/discussing-projects-in-issues-and-pull-requests
 
-[link_bugs]: https://github.com/poldracklab/FMRIPREP/labels/bug
-[link_helpwanted]: https://github.com/poldracklab/FMRIPREP/labels/help%20wanted
-[link_feature]: https://github.com/poldracklab/FMRIPREP/labels/feature
+[link_bugs]: https://github.com/APPIAN-PET/APPIAN/labels/bug
+[link_helpwanted]: https://github.com/APPIAN-PET/APPIAN/labels/help%20wanted
+[link_feature]: https://github.com/APPIAN-PET/APPIAN/labels/feature
 
-[link_style_guide]: https://github.com/poldracklab/fmriprep/blob/master/CONTRIBUTING.md#fmriprep-coding-style-guide
+[link_style_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md#fmriprep-coding-style-guide
 [link_pullrequest]: https://help.github.com/articles/creating-a-pull-request/
 [link_fork]: https://help.github.com/articles/fork-a-repo/
 [link_pushpullblog]: https://www.igvita.com/2011/12/19/dont-push-your-pull-requests/
 [link_branches]: https://help.github.com/articles/creating-and-deleting-branches-within-your-repository/
 [link_updateupstreamwiki]: https://help.github.com/articles/syncing-a-fork/
 [link_stemmrolemodels]: https://github.com/KirstieJane/STEMMRoleModels
-[link_zenodo]: https://github.com/poldracklab/FMRIPREP/blob/master/.zenodo.json
-[link_devel]: http://fmriprep.readthedocs.io/en/latest/contributors.html
+[link_zenodo]: https://github.com/APPIAN-PET/APPIAN/blob/master/.zenodo.json
+[link_devel]: http://appian.readthedocs.io/en/latest/contributors.html

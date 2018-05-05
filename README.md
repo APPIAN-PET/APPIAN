@@ -21,7 +21,11 @@ For those interested in extending or contributing to APPIAN please check out our
 
 ## User Documentation
 
-Users seeking more information can check the [user guide][link_user_guide] and read the paper here (coming soon).
+Users seeking more information can check the [user guide][link_user_guide].
+
+## Publications
+1. APPIAN overview paper (coming soon)
+2. APPIAN automated QC paper (coming soon)
 
 ## Contributors
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)

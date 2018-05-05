@@ -120,7 +120,7 @@ You're awesome. :wave::smiley:
 [link_helpwanted]: https://github.com/APPIAN-PET/APPIAN/labels/help%20wanted
 [link_feature]: https://github.com/APPIAN-PET/APPIAN/labels/feature
 
-[link_style_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md#fmriprep-coding-style-guide
+[link_style_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md#appian-coding-style-guide
 [link_pullrequest]: https://help.github.com/articles/creating-a-pull-request/
 [link_fork]: https://help.github.com/articles/fork-a-repo/
 [link_pushpullblog]: https://www.igvita.com/2011/12/19/dont-push-your-pull-requests/

@@ -6,11 +6,11 @@
 	1.2 [Masking](#masking) \
 	1.3 [Partial-Volume Correction](#pvc) \
 	1.4 [Reporting of Results](#results) \
-	1.5 [Quality Control](#qc)  \
-2. [File Formats](#fileformat) \
-3. [Useage](#useage) \
-4. [Examples](#example) \
-5. [User Options](#options) \
+	1.5 [Quality Control](#qc)
+2. [File Formats](#fileformat)
+3. [Useage](#useage)
+4. [Examples](#example)
+5. [User Options](#options)
 
 ## Pipeline Overview  <a name="overview"></a>
 ### Coregistration <a name="coregistration"></a>

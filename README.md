@@ -15,11 +15,11 @@ docker pull tffunck/appian:latest
 That’s it, APPIAN is installed on your computer. 
 
 
-## Developper / Contributer Documentation
+## Documentation
+### Developers
+For those interested in extending or contributing to APPIAN please check out our [developper guide][link_contributing]. 
 
-For those interested in extending or contributing to APPIAN please check out our documentation [here][link_contributing]. 
-
-## User Documentation
+### Users
 
 Users seeking more information can check the [user guide][link_user_guide].
 

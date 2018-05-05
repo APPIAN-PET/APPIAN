@@ -17,11 +17,11 @@ That’s it, APPIAN is installed on your computer.
 
 ## Developper / Contributer Documentation
 
-For those interested in extending or contributing to APPIAN please check out our documentation [here][./CONTRIBUTING.md]. 
+For those interested in extending or contributing to APPIAN please check out our documentation [here][link_contributing]. 
 
 ## User Documentation
 
-Users seeking more information can check the [user guide][./USERGUIDE.md] and read the paper here (coming soon).
+Users seeking more information can check the [user guide][link_user_guide] and read the paper here (coming soon).
 
 ## Contributors
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)
@@ -39,3 +39,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+[link_contributing]: https://github.com/APPIAN-PET/APPIAN/CONTRIBUTING.m
+
+[link_user_guide]: https://github.com/APPIAN-PET/APPIAN/USERGUIDE.md

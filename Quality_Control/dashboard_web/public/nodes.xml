@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qc>
+  <scan cid="real" prefix="raclo" sid="04">
+    <node name="t1Masking">
+      <inMnc>
+        <nativeT1>raclo/civet/04_real/native/D1D2_04_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <T1brainmask>raclo/out/preproc/masking/_args_sid04.cidreal/t1Masking/D1D2_04_t1_nuc_brainmask.mnc</T1brainmask>
+        <T1headmask>raclo/out/preproc/masking/_args_sid04.cidreal/t1Masking/D1D2_04_t1_nuc_headmask.mnc</T1headmask>
+      </outMnc>
+    </node>
+    <node name="refMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/04_real/final/D1D2_04_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/04_real/native/D1D2_04_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid04.cidreal/refMasking/D1D2_04_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="roiMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/04_real/final/D1D2_04_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/04_real/native/D1D2_04_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid04.cidreal/roiMasking/D1D2_04_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="petVolume">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/rpetExcludeFr/raclo_04_real_petExcludeFr.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/petVolume/raclo_04_real_petExcludeFr_sum.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="petMasking">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/rpetVolume/raclo_04_real_petVolume.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/rpetVolume/raclo_04_real_petVolume_headMask.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="pet2mri">
+      <inMnc>
+        <in_target_file>raclo/civet/04_real/native/D1D2_04_t1_nuc.mnc</in_target_file>
+        <in_source_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/rpetVolume/raclo_04_real_petVolume.mnc</in_source_file>
+      </inMnc>
+      <outMnc>
+        <out_file_img>raclo/out/preproc/to_pet_space/_args_sid04.cidreal/pet2mri/raclo_04_real_petVolume_TO_D1D2_04_t1_nuc_LinReg.mnc</out_file_img>
+      </outMnc>
+    </node>
+    <node name="gtm">
+      <inMnc>
+        <input_file>raclo/out/preproc/pet_prelimaries/_args_sid04.cidreal/rpetCenter/raclo_04_real_petCenter.mnc</input_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/PVC/_args_sid04.cidreal/gtm/raclo_04_real_petCenter_gtm.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="fixHeaderNode">
+      <outMnc>
+        <out_file>raclo/out/preproc/tka_pvc/convertParametric/_args_sid04.cidreal/conversionNode/raclo_04_real_petCenter_gtm_lp.mnc</out_file>
+      </outMnc>
+    </node>
+  </scan>
+  <scan cid="real" prefix="raclo" sid="05">
+    <node name="roiMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/05_real/final/D1D2_05_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/05_real/native/D1D2_05_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid05.cidreal/roiMasking/D1D2_05_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="petVolume">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/rpetExcludeFr/raclo_05_real_petExcludeFr.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/petVolume/raclo_05_real_petExcludeFr_sum.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="petMasking">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/rpetVolume/raclo_05_real_petVolume.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/rpetVolume/raclo_05_real_petVolume_headMask.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="t1Masking">
+      <inMnc>
+        <nativeT1>raclo/civet/05_real/native/D1D2_05_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <T1brainmask>raclo/out/preproc/masking/_args_sid05.cidreal/t1Masking/D1D2_05_t1_nuc_brainmask.mnc</T1brainmask>
+        <T1headmask>raclo/out/preproc/masking/_args_sid05.cidreal/t1Masking/D1D2_05_t1_nuc_headmask.mnc</T1headmask>
+      </outMnc>
+    </node>
+    <node name="pet2mri">
+      <inMnc>
+        <in_target_file>raclo/civet/05_real/native/D1D2_05_t1_nuc.mnc</in_target_file>
+        <in_source_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/rpetVolume/raclo_05_real_petVolume.mnc</in_source_file>
+      </inMnc>
+      <outMnc>
+        <out_file_img>raclo/out/preproc/to_pet_space/_args_sid05.cidreal/pet2mri/raclo_05_real_petVolume_TO_D1D2_05_t1_nuc_LinReg.mnc</out_file_img>
+      </outMnc>
+    </node>
+    <node name="gtm">
+      <inMnc>
+        <input_file>raclo/out/preproc/pet_prelimaries/_args_sid05.cidreal/rpetCenter/raclo_05_real_petCenter.mnc</input_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/PVC/_args_sid05.cidreal/gtm/raclo_05_real_petCenter_gtm.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="refMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/05_real/final/D1D2_05_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/05_real/native/D1D2_05_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid05.cidreal/refMasking/D1D2_05_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="fixHeaderNode">
+      <outMnc>
+        <out_file>raclo/out/preproc/tka_pvc/convertParametric/_args_sid05.cidreal/conversionNode/raclo_05_real_petCenter_gtm_lp.mnc</out_file>
+      </outMnc>
+    </node>
+  </scan>
+  <scan cid="real" prefix="raclo" sid="06">
+    <node name="roiMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/06_real/final/D1D2_06_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/06_real/native/D1D2_06_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid06.cidreal/roiMasking/D1D2_06_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="t1Masking">
+      <inMnc>
+        <nativeT1>raclo/civet/06_real/native/D1D2_06_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <T1brainmask>raclo/out/preproc/masking/_args_sid06.cidreal/t1Masking/D1D2_06_t1_nuc_brainmask.mnc</T1brainmask>
+        <T1headmask>raclo/out/preproc/masking/_args_sid06.cidreal/t1Masking/D1D2_06_t1_nuc_headmask.mnc</T1headmask>
+      </outMnc>
+    </node>
+    <node name="refMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/06_real/final/D1D2_06_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/06_real/native/D1D2_06_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid06.cidreal/refMasking/D1D2_06_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="petVolume">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/rpetExcludeFr/raclo_06_real_petExcludeFr.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/petVolume/raclo_06_real_petExcludeFr_sum.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="petMasking">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/rpetVolume/raclo_06_real_petVolume.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/rpetVolume/raclo_06_real_petVolume_headMask.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="pet2mri">
+      <inMnc>
+        <in_target_file>raclo/civet/06_real/native/D1D2_06_t1_nuc.mnc</in_target_file>
+        <in_source_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/rpetVolume/raclo_06_real_petVolume.mnc</in_source_file>
+      </inMnc>
+      <outMnc>
+        <out_file_img>raclo/out/preproc/to_pet_space/_args_sid06.cidreal/pet2mri/raclo_06_real_petVolume_TO_D1D2_06_t1_nuc_LinReg.mnc</out_file_img>
+      </outMnc>
+    </node>
+    <node name="gtm">
+      <inMnc>
+        <input_file>raclo/out/preproc/pet_prelimaries/_args_sid06.cidreal/rpetCenter/raclo_06_real_petCenter.mnc</input_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/PVC/_args_sid06.cidreal/gtm/raclo_06_real_petCenter_gtm.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="fixHeaderNode">
+      <outMnc>
+        <out_file>raclo/out/preproc/tka_pvc/convertParametric/_args_sid06.cidreal/conversionNode/raclo_06_real_petCenter_gtm_lp.mnc</out_file>
+      </outMnc>
+    </node>
+  </scan>
+  <scan cid="real" prefix="raclo" sid="01">
+    <node name="roiMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/01_real/final/D1D2_01_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/01_real/native/D1D2_01_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid01.cidreal/roiMasking/D1D2_01_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="refMasking">
+      <inMnc>
+        <T1Tal>raclo/civet/01_real/final/D1D2_01_t1_tal.mnc</T1Tal>
+        <nativeT1>raclo/civet/01_real/native/D1D2_01_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <RegionalMaskTal>raclo/out/preproc/masking/_args_sid01.cidreal/refMasking/D1D2_01_t1_nuc_RegionalMaskTAL.mnc</RegionalMaskTal>
+      </outMnc>
+    </node>
+    <node name="t1Masking">
+      <inMnc>
+        <nativeT1>raclo/civet/01_real/native/D1D2_01_t1_nuc.mnc</nativeT1>
+      </inMnc>
+      <outMnc>
+        <T1brainmask>raclo/out/preproc/masking/_args_sid01.cidreal/t1Masking/D1D2_01_t1_nuc_brainmask.mnc</T1brainmask>
+        <T1headmask>raclo/out/preproc/masking/_args_sid01.cidreal/t1Masking/D1D2_01_t1_nuc_headmask.mnc</T1headmask>
+      </outMnc>
+    </node>
+    <node name="petVolume">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/rpetExcludeFr/raclo_01_real_petExcludeFr.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/petVolume/raclo_01_real_petExcludeFr_sum.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="petMasking">
+      <inMnc>
+        <in_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/rpetVolume/raclo_01_real_petVolume.mnc</in_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/rpetVolume/raclo_01_real_petVolume_headMask.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="pet2mri">
+      <inMnc>
+        <in_target_file>raclo/civet/01_real/native/D1D2_01_t1_nuc.mnc</in_target_file>
+        <in_source_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/rpetVolume/raclo_01_real_petVolume.mnc</in_source_file>
+      </inMnc>
+      <outMnc>
+        <out_file_img>raclo/out/preproc/to_pet_space/_args_sid01.cidreal/pet2mri/raclo_01_real_petVolume_TO_D1D2_01_t1_nuc_LinReg.mnc</out_file_img>
+      </outMnc>
+    </node>
+    <node name="gtm">
+      <inMnc>
+        <input_file>raclo/out/preproc/pet_prelimaries/_args_sid01.cidreal/rpetCenter/raclo_01_real_petCenter.mnc</input_file>
+      </inMnc>
+      <outMnc>
+        <out_file>raclo/out/preproc/PVC/_args_sid01.cidreal/gtm/raclo_01_real_petCenter_gtm.mnc</out_file>
+      </outMnc>
+    </node>
+    <node name="fixHeaderNode">
+      <outMnc>
+        <out_file>raclo/out/preproc/tka_pvc/convertParametric/_args_sid01.cidreal/conversionNode/raclo_01_real_petCenter_gtm_lp.mnc</out_file>
+      </outMnc>
+    </node>
+  </scan>
+</qc>

@@ -30,6 +30,7 @@ import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import reference_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
+import Quality_Control.dashboard as dash
 version = "1.0"
 
 
@@ -288,7 +289,7 @@ if __name__ == "__main__":
 
     #Results reporting
     qc_opts.add_option("","--group-stats",dest="group_stats",help="Calculate quantitative group-wise descriptive statistics.", action='store_const', const=True, default=True)  #FIXME Add to options
-
+    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=True)
 
 
     #

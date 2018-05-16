@@ -58,6 +58,8 @@ def group_level_descriptive_statistics(opts, args):
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
+    surf_mesh = traits.File(desc="Surface mesh (.obj) ")
+    surf_mask = traits.File(desc="Surface mask (.txt) ")
     header = traits.Dict(desc="PET Header")
     out_file_3d = traits.File(desc="3d Output file ")
     out_file_4d = traits.File(desc="4d Output file ")
@@ -90,6 +92,8 @@ class resultsCommand( BaseInterface):
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
         resultsReport.inputs.vol_roi = self.inputs.mask
+        if  isdefined(self.inputs.surf_mesh) and isdefined(self.inputs.surf_mask) :
+            resultsReport.inputs.surf_roi = self.inputs.surf_mesh + ' ' + self.inputs.surf_mask
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
         print resultsReport.cmdline
         resultsReport.run()
@@ -131,7 +135,7 @@ class resultsCommand( BaseInterface):
 class groupstatsInput(MINCCommandInputSpec):   
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
-    surf_roi = traits.File(argstr="-s %s %s", desc="obj and txt files containing surface ROI")
+    surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
     label = traits.Str(desc="Label for output file")
 
@@ -150,9 +154,8 @@ class groupstatsCommand(MINCCommand, Info):
 
         if not isdefined(self.inputs.out_file):
             if label == None: label_str=''
-            else: label_str=label + '_'
+            else : label_str=label + '_'
             self.inputs.out_file = os.getcwd() + os.sep + label_str +  "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
-
 
         return super(groupstatsCommand, self)._parse_inputs(skip=skip)
 

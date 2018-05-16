@@ -219,13 +219,14 @@ def run_scan_level(opts,args):
         datasourceSurf.inputs.acq=opts.acq
         datasourceSurf.inputs.rec=opts.rec
         datasourceSurf.inputs.field_template =dict(
-            gm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial."+opts.surf_ext,
-            wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opts.surf_ext,
+            #gm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial."+opts.surf_ext,
+            #wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opts.surf_ext,
             mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext
+            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.*" #FIXME Not sure what BIDS spec is for a surface mask
         )
         datasourceSurf.inputs.template_args = dict(
-            gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
-            wm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
+            #gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
+            #wm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
             mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
         )
 
@@ -423,6 +424,10 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', resultsReport, "task")
             workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReport, "header")
             workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, resultsReport, 'mask')
+            if opts.use_surfaces:
+                workflow.connect(datasourceSurf, 'mid_surf', resultsReport, "surf_mesh")
+                workflow.connect(datasourceSurf, 'surf_mask', resultsReport, 'surf_mask')
+
             workflow.connect(node, img, resultsReport, 'in_file')
             workflow.connect(node, img, datasink, node.name)
     

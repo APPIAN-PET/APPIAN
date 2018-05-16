@@ -1,18 +1,18 @@
 # APPIAN User Guide
 
 # Table of Contents
-1. Overview
-	1.1 [Coregistration](#coregistration)
-	1.2 [Masking](#masking)
-	1.3 [Partial-Volume Correction](#pvc)
-	1.4 [Reporting of Results](#results)
-	1.5 [Quality Control](#qc) 
+1. [Overview](#overview) \
+	1.1 [Coregistration](#coregistration) \
+	1.2 [Masking](#masking) \
+	1.3 [Partial-Volume Correction](#pvc) \
+	1.4 [Reporting of Results](#results) \
+	1.5 [Quality Control](#qc)
 2. [File Formats](#fileformat)
 3. [Useage](#useage)
 4. [Examples](#example)
 5. [User Options](#options)
 
-## Pipeline Overview
+## Pipeline Overview  <a name="overview"></a>
 ### Coregistration <a name="coregistration"></a>
 The first processing step is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
 

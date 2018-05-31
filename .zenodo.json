@@ -4,25 +4,25 @@
 
 {
 
-"name": “Funck, Thomas”,
+"name": "Funck, Thomas",
 
-"affiliation": “Montreal Neurological Institute, McGill University"
-
-},
-
-{
-
-"name": “Larcher, Kevin”,
-
-"affiliation":“Biospective Inc.”,
+"affiliation": "Montreal Neurological Institute, McGill University"
 
 },
 
 {
 
-"name": “Toussaint, Paule-J.",
+"name": "Larcher, Kevin",
 
-"affiliation": “Montreal Neurological Institute and Hospital, McGill University",
+"affiliation": "Biospective Inc.",
+
+},
+
+{
+
+"name": "Toussaint, Paule-J.",
+
+"affiliation": "Montreal Neurological Institute and Hospital, McGill University",
 
 }
 
@@ -38,15 +38,15 @@
 
 "preprocessing",
 
-“PET”,
+"PET",
 
-“kinetic modelling”,
+"kinetic modelling",
 
 "BIDS"
 
 ],
 
-"license": “MIT”,
+"license": "MIT",
 
 "upload_type": "software"
 

@@ -1,15 +1,15 @@
 # Contributing to APPIAN
 
-Here's a guide that will hopefully make it easy to participate. If you have any questions that are not answered below, please don't hesitate to shoot us an email (thomas.funck@mail.mcgill.ca). One day we'll have a mailing list or forum, but not yet.
-These guidelines are designed to make it as easy as possible to get involved. If you have any questions that aren't discussed below, please let us know by opening an [issue][link_issues]!
+Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide] or below, please do not hesitate to send us an email (thomas.funck@mail.mcgill.ca). One day we will have a mailing list or forum, but not yet.
+These guidelines are designed to make it as easy as possible to get involved. If you have any questions that are not discussed below, please let us know by opening an [issue][link_issues]!
 
-Before you start you'll need to set up a free [GitHub][link_github] account and sign in. Here are some [instructions][link_signupinstructions].
+Before you start you will need to set up a free [GitHub][link_github] account and sign in. Here are some [instructions][link_signupinstructions].
 
 ### Labels
 
 The current list of labels are [here][link_labels] and include:
 
-* [![Help Wanted](https://img.shields.io/badge/-help%20wanted-159818.svg)][link_helpwanted] *These issues contain a task that a member of the team has determined we need additional help with.*
+* [![Help Wanted](https://img.shields.io/badge/-help%20wanted-159818.svg)][link_helpwanted] *These issues contain a task that a member of the team has determined could benefit from additional help.*
 
     If you feel that you can contribute to one of these issues, we especially encourage you to do so!
 
@@ -18,10 +18,10 @@ The current list of labels are [here][link_labels] and include:
     If you find new a bug, please give as much detail as possible in your issue, including steps to recreate the error.
     If you experience the same bug as one already listed, please add any additional information that you have as a comment.
 
-* [![Feature](https://img.shields.io/badge/-feature-0052cc.svg)][link_feature] *These issues are asking for new features to be added to the project.*
+* [![Enhancement](https://img.shields.io/badge/-feature-0052cc.svg)][link_enhancement] *These issues are asking for new features to be added to the project.*
 
     Please try to make sure that your requested feature is distinct from any others that have already been requested or implemented.
-    If you find one that's similar but there are subtle differences please reference the other request in your issue.
+    If you find one that is similar but contains subtle differences please reference the other request in your issue.
 
 ## Making a change
 
@@ -29,18 +29,18 @@ We appreciate all contributions to APPIAN, but those accepted fastest will follo
 
 **1. Comment on an existing issue or open a new issue referencing your addition.**
 
-This allows other members of the APPIAN development team to confirm that you aren't overlapping with work that's currently underway and that everyone is on the same page with the goal of the work you're going to carry out.
+This allows other members of the APPIAN development team to confirm that you are not overlapping with work that is currently underway, and that everyone is on the same page with the goal of the work you are going to carry out.
 
 [This blog][link_pushpullblog] is a nice explanation of why putting this work in up front is so useful to everyone involved.
 
 **2. [Fork][link_fork] the [APPIAN repository][link_appian] to your profile.**
 
 This is now your own unique copy of APPIAN.
-Changes here won't effect anyone else's work, so it's a safe space to explore edits to the code!
+Changes here will not effect anyone else's work, so it is a safe space to explore edits to the code!
 
 Make sure to [keep your fork up to date][link_updateupstreamwiki] with the master repository.
 
-**3. Make the changes you've discussed, following the [APPIAN coding style guide][link_style_guide].**
+**3. Make the changes you have discussed, following the [APPIAN coding style guide][link_style_guide].**
 
 Try to keep the changes focused. If you feel tempted to "branch out" then please make a [new branch][link_branches].
 It can also be helpful to test your changes locally, using an [APPIAN development environment][link_devel].
@@ -98,7 +98,7 @@ myworkflow_rh_wf = init_workflow_wf(name='myworkflow_rh_wf')
 
 We welcome and recognize all contributions from documentation to testing to code development.
 You can see a list of current contributors in our [zenodo file][link_zenodo].
-If you are new to the project, don't forget to add your name and affiliation there!
+If you are new to the project, remember to add your name and affiliation there!
 
 ## Thank you!
 
@@ -110,6 +110,7 @@ You're awesome. :wave::smiley:
 
 [link_github]: https://github.com/
 [link_appian]: https://github.com/APPIAN-PET/APPIAN/
+[link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md
 [link_signupinstructions]: https://help.github.com/articles/signing-up-for-a-new-github-account
 [link_react]: https://github.com/blog/2119-add-reactions-to-pull-requests-issues-and-comments
 [link_issues]: https://github.com/APPIAN-PET/APPIAN/issues
@@ -118,9 +119,9 @@ You're awesome. :wave::smiley:
 
 [link_bugs]: https://github.com/APPIAN-PET/APPIAN/labels/bug
 [link_helpwanted]: https://github.com/APPIAN-PET/APPIAN/labels/help%20wanted
-[link_feature]: https://github.com/APPIAN-PET/APPIAN/labels/feature
+[link_enhancement]: https://github.com/APPIAN-PET/APPIAN/labels/enhancement
 
-[link_style_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md#fmriprep-coding-style-guide
+[link_style_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md#appian-coding-style-guide
 [link_pullrequest]: https://help.github.com/articles/creating-a-pull-request/
 [link_fork]: https://help.github.com/articles/fork-a-repo/
 [link_pushpullblog]: https://www.igvita.com/2011/12/19/dont-push-your-pull-requests/

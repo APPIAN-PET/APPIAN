@@ -32,8 +32,115 @@
             
   <div class="section" id="documentation-for-the-code">
 <h1>Documentation for the Code<a class="headerlink" href="#documentation-for-the-code" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="scanlevel">
-<h2>scanLevel<a class="headerlink" href="#scanlevel" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-scanLevel">
+<span id="scanlevel"></span><h2>scanLevel<a class="headerlink" href="#module-scanLevel" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="scanLevel.assign_datasource_values">
+<code class="descclassname">scanLevel.</code><code class="descname">assign_datasource_values</code><span class="sig-paren">(</span><em>label_img</em>, <em>field_template_dict</em>, <em>template_args_dict</em>, <em>base_label</em>, <em>infields_list</em>, <em>label_template_string</em>, <em>label_template_variables</em>, <em>str1</em>, <em>str2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scanLevel.html#assign_datasource_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scanLevel.assign_datasource_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function sets up the strings and dictionaries that are then used to create the appropriate Nipype DataGrabber.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>label_img</strong> – label_img</li>
+<li><strong>field_template_dict</strong> – Dictionary of strings for template</li>
+<li><strong>template_args_dict</strong> – Dictionary of variable arguments for templates</li>
+<li><strong>base_label</strong> – base_label</li>
+<li><strong>infields_list</strong> – infields_list</li>
+<li><strong>label_template_string</strong> – label_template_string</li>
+<li><strong>label_template_variables</strong> – label_template_variables</li>
+<li><strong>str1</strong> – str1</li>
+<li><strong>str2</strong> – str2</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="scanLevel.printOptions">
+<code class="descclassname">scanLevel.</code><code class="descname">printOptions</code><span class="sig-paren">(</span><em>opts</em>, <em>subject_ids</em>, <em>session_ids</em>, <em>task_ids</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scanLevel.html#printOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scanLevel.printOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print basic options input by user</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>opts</strong> – User-defined options.</li>
+<li><strong>subject_ids</strong> – Subject IDs</li>
+<li><strong>session_ids</strong> – Session variable IDs</li>
+<li><strong>task_ids</strong> – Task variable IDs</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="scanLevel.run_scan_level">
+<code class="descclassname">scanLevel.</code><code class="descname">run_scan_level</code><span class="sig-paren">(</span><em>opts</em>, <em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scanLevel.html#run_scan_level"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scanLevel.run_scan_level" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is the main function for setting up and then running the scanLevel analysis. It first uses &lt;preinfosource&gt; to identify which scans exist for the which combination of  task, session, and subject IDs. This is stored in &lt;valid_args&gt;, which is then passed to inforsource. Infosource iterates over the valid subjects and uses DataGrabber to find the input files for each of these subjects. Depdning on the user-options defined in &lt;opts&gt;, for each scan PET-T1 co-registration, partial-volume correction, tracer kinetic analysis and results reporting are performed.</p>
+<a class="reference internal image-reference" href="_images/aafig-9464c6597e846ff81c8b6b3761bb80e45178a744.svg"><img alt="_images/aafig-9464c6597e846ff81c8b6b3761bb80e45178a744.svg" height="538.0" src="_images/aafig-9464c6597e846ff81c8b6b3761bb80e45178a744.svg" width="608.0" /></a>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>opts</strong> (<em>argparser</em>) – User-defined options</li>
+<li><strong>args</strong> (<em>list</em>) – List of subjects</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns int:</th><td class="field-body"><p class="first last">Return code 0 == success</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="scanLevel.set_datasource_inputs">
+<code class="descclassname">scanLevel.</code><code class="descname">set_datasource_inputs</code><span class="sig-paren">(</span><em>opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scanLevel.html#set_datasource_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scanLevel.set_datasource_inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Setup data source based on user-options.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>opts</strong> – User-defined options
+:type opts: argparser</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="scanLevel.set_label_parameters">
+<code class="descclassname">scanLevel.</code><code class="descname">set_label_parameters</code><span class="sig-paren">(</span><em>level</em>, <em>var</em>, <em>ext</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/scanLevel.html#set_label_parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scanLevel.set_label_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the label_string and label_variables for the datasource</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>level</strong> (<em>String</em>) – &lt;level&gt; equals “atlas” if a filepath is given, otherwise uses BIDS label-string</li>
+<li><strong>var</strong> (<em>String</em>) – String variable name for image type</li>
+<li><strong>ext</strong> (<em>String</em>) – File Extension</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name" colspan="2">Returns [label_string, label_variables]:</th></tr>
+<tr class="field-even field"><td>&#160;</td><td class="field-body"><p class="first last">List with two elements: string used to identify image, a list of variables that are used to “fill-in” label_string</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="module-Initialization.initialization">
 <span id="initialization"></span><h2>Initialization<a class="headerlink" href="#module-Initialization.initialization" title="Permalink to this headline">¶</a></h2>
@@ -205,11 +312,181 @@
 </dd></dl>
 
 </div>
-<div class="section" id="masking">
-<h2>Masking<a class="headerlink" href="#masking" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-Masking.masking">
+<span id="masking"></span><h2>Masking<a class="headerlink" href="#module-Masking.masking" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="Masking.masking.Labels">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">Labels</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#Labels"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.Labels" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="Masking.masking.Labels.input_spec">
+<code class="descname">input_spec</code><a class="headerlink" href="#Masking.masking.Labels.input_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Masking.masking.LabelsInput" title="Masking.masking.LabelsInput"><code class="xref py py-class docutils literal notranslate"><span class="pre">LabelsInput</span></code></a></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Masking.masking.Labels.output_spec">
+<code class="descname">output_spec</code><a class="headerlink" href="#Masking.masking.Labels.output_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Masking.masking.LabelsOutput" title="Masking.masking.LabelsOutput"><code class="xref py py-class docutils literal notranslate"><span class="pre">LabelsOutput</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="Masking.masking.LabelsInput">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">LabelsInput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#LabelsInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.LabelsInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Masking.masking.LabelsOutput">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">LabelsOutput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#LabelsOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.LabelsOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Masking.masking.PETheadMasking">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">PETheadMasking</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#PETheadMasking"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.PETheadMasking" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="Masking.masking.PETheadMasking.input_spec">
+<code class="descname">input_spec</code><a class="headerlink" href="#Masking.masking.PETheadMasking.input_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Masking.masking.PETheadMaskingInput" title="Masking.masking.PETheadMaskingInput"><code class="xref py py-class docutils literal notranslate"><span class="pre">PETheadMaskingInput</span></code></a></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Masking.masking.PETheadMasking.output_spec">
+<code class="descname">output_spec</code><a class="headerlink" href="#Masking.masking.PETheadMasking.output_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Masking.masking.PETheadMaskingOutput" title="Masking.masking.PETheadMaskingOutput"><code class="xref py py-class docutils literal notranslate"><span class="pre">PETheadMaskingOutput</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="Masking.masking.PETheadMaskingInput">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">PETheadMaskingInput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#PETheadMaskingInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.PETheadMaskingInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Masking.masking.PETheadMaskingOutput">
+<em class="property">class </em><code class="descclassname">Masking.masking.</code><code class="descname">PETheadMaskingOutput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#PETheadMaskingOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.PETheadMaskingOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Masking.masking.get_workflow">
+<code class="descclassname">Masking.masking.</code><code class="descname">get_workflow</code><span class="sig-paren">(</span><em>name</em>, <em>infosource</em>, <em>datasink</em>, <em>opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Masking/masking.html#get_workflow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Masking.masking.get_workflow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create workflow to produce labeled images.</p>
+<ol class="arabic simple">
+<li>Invert T1 Native to MNI 152 transformation</li>
+<li>Transform</li>
+<li>Transform headmask from MNI 152 to T1 native</li>
+<li>Transform brainmask from MNI 152 to T1 native</li>
+<li>Create PVC labeled image</li>
+<li>Create quantification labeled image</li>
+<li>Create results labeled image</li>
+</ol>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> – Name for workflow</li>
+<li><strong>infosource</strong> – Infosource for basic variables like subject id (sid) and condition id (cid)</li>
+<li><strong>datasink</strong> – Node in which output data is sent</li>
+<li><strong>opts</strong> – User options</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">workflow</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
-<div class="section" id="registration">
-<h2>Registration<a class="headerlink" href="#registration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-Registration.registration">
+<span id="registration"></span><h2>Registration<a class="headerlink" href="#module-Registration.registration" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="Registration.registration.PETtoT1LinRegInput">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">PETtoT1LinRegInput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#PETtoT1LinRegInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.PETtoT1LinRegInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Registration.registration.PETtoT1LinRegOutput">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">PETtoT1LinRegOutput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#PETtoT1LinRegOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.PETtoT1LinRegOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Registration.registration.PETtoT1LinRegRunning">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">PETtoT1LinRegRunning</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#PETtoT1LinRegRunning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.PETtoT1LinRegRunning" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="Registration.registration.PETtoT1LinRegRunning.input_spec">
+<code class="descname">input_spec</code><a class="headerlink" href="#Registration.registration.PETtoT1LinRegRunning.input_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Registration.registration.PETtoT1LinRegInput" title="Registration.registration.PETtoT1LinRegInput"><code class="xref py py-class docutils literal notranslate"><span class="pre">PETtoT1LinRegInput</span></code></a></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Registration.registration.PETtoT1LinRegRunning.output_spec">
+<code class="descname">output_spec</code><a class="headerlink" href="#Registration.registration.PETtoT1LinRegRunning.output_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Registration.registration.PETtoT1LinRegOutput" title="Registration.registration.PETtoT1LinRegOutput"><code class="xref py py-class docutils literal notranslate"><span class="pre">PETtoT1LinRegOutput</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="Registration.registration.get_workflow">
+<code class="descclassname">Registration.registration.</code><code class="descname">get_workflow</code><span class="sig-paren">(</span><em>name</em>, <em>infosource</em>, <em>opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#get_workflow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.get_workflow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create workflow to perform PET to T1 co-registration.</p>
+<ol class="arabic simple">
+<li>PET to T1 coregistration with brain masks</li>
+<li>PET to T1 coregistration without brain masks (OPTIONAL)</li>
+<li>Transform T1 MRI brainmask and headmask from MNI 152 to T1 native</li>
+<li>Resample 4d PET image to T1 space</li>
+<li>Resample 4d PET image to MNI 152 space</li>
+</ol>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> – Name for workflow</li>
+<li><strong>infosource</strong> – Infosource for basic variables like subject id (sid) and condition id (cid)</li>
+<li><strong>datasink</strong> – Node in which output data is sent</li>
+<li><strong>opts</strong> – User options</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">workflow</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="Registration.registration.nLinRegInput">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">nLinRegInput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#nLinRegInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.nLinRegInput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Registration.registration.nLinRegOutput">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">nLinRegOutput</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#nLinRegOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.nLinRegOutput" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="Registration.registration.nLinRegRunning">
+<em class="property">class </em><code class="descclassname">Registration.registration.</code><code class="descname">nLinRegRunning</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Registration/registration.html#nLinRegRunning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Registration.registration.nLinRegRunning" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="Registration.registration.nLinRegRunning.input_spec">
+<code class="descname">input_spec</code><a class="headerlink" href="#Registration.registration.nLinRegRunning.input_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Registration.registration.nLinRegInput" title="Registration.registration.nLinRegInput"><code class="xref py py-class docutils literal notranslate"><span class="pre">nLinRegInput</span></code></a></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Registration.registration.nLinRegRunning.output_spec">
+<code class="descname">output_spec</code><a class="headerlink" href="#Registration.registration.nLinRegRunning.output_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#Registration.registration.nLinRegOutput" title="Registration.registration.nLinRegOutput"><code class="xref py py-class docutils literal notranslate"><span class="pre">nLinRegOutput</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 <div class="section" id="module-Partial_Volume_Correction.pvc">
 <span id="pvc"></span><h2>PVC<a class="headerlink" href="#module-Partial_Volume_Correction.pvc" title="Permalink to this headline">¶</a></h2>
@@ -384,7 +661,7 @@ Finally, ECAT images are converted back to MINC.</p>
 
 <dl class="data">
 <dt id="Tracer_Kinetic.tka.reference_methods">
-<code class="descclassname">Tracer_Kinetic.tka.</code><code class="descname">reference_methods</code><em class="property"> = ['pp-roi', 'pp', 'lp', 'srtm', 'suvr']</em><a class="headerlink" href="#Tracer_Kinetic.tka.reference_methods" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">Tracer_Kinetic.tka.</code><code class="descname">reference_methods</code><em class="property"> = ['pp-roi', 'pp', 'lp-roi', 'lp', 'srtm', 'suvr']</em><a class="headerlink" href="#Tracer_Kinetic.tka.reference_methods" title="Permalink to this definition">¶</a></dt>
 <dd><span class="target" id="module-tka"></span></dd></dl>
 
 </div>
@@ -402,10 +679,10 @@ Finally, ECAT images are converted back to MINC.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Documentation for the Code</a><ul>
-<li><a class="reference internal" href="#scanlevel">scanLevel</a></li>
+<li><a class="reference internal" href="#module-scanLevel">scanLevel</a></li>
 <li><a class="reference internal" href="#module-Initialization.initialization">Initialization</a></li>
-<li><a class="reference internal" href="#masking">Masking</a></li>
-<li><a class="reference internal" href="#registration">Registration</a></li>
+<li><a class="reference internal" href="#module-Masking.masking">Masking</a></li>
+<li><a class="reference internal" href="#module-Registration.registration">Registration</a></li>
 <li><a class="reference internal" href="#module-Partial_Volume_Correction.pvc">PVC</a></li>
 <li><a class="reference internal" href="#module-Tracer_Kinetic.tka">Quantification</a></li>
 <li><a class="reference internal" href="#results">Results</a></li>

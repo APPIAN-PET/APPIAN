@@ -263,9 +263,32 @@ class PETheadMasking(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-
+"""
+.. module:: masking
+    :platform: Unix
+    :synopsis: Module to create labeled images. 
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 
 def get_workflow(name, infosource, datasink, opts):
+    '''
+        Create workflow to produce labeled images.
+
+        1. Invert T1 Native to MNI 152 transformation
+        2. Transform
+        3. Transform headmask from MNI 152 to T1 native
+        4. Transform brainmask from MNI 152 to T1 native
+        5. Create PVC labeled image
+        6. Create quantification labeled image
+        7. Create results labeled image
+
+        :param name: Name for workflow
+        :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
+        :param datasink: Node in which output data is sent
+        :param opts: User options
+        
+        :returns: workflow
+    '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brainmask", "brainmask_t1", "brainmask_mni", "headmask_t1", "headmask_mni", "results_label_img_t1", "results_label_img_mni" ]
     in_list=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_header_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]
@@ -278,7 +301,6 @@ def get_workflow(name, infosource, datasink, opts):
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
     #Define empty node for output
-    #outputnode = pe.Node(niu.IdentityInterface(fields=out_list), name='outputnode')
 
     node_name="MNI2T1xfm"
     invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
@@ -293,8 +315,6 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(inputnode, 'nativeT1', headmaskNode, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', headmaskNode, 'mniT1')
     workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinMNIT1Xfm')
-    #workflow.connect(headmaskNode, 'LabelsT1', outputnode, 'headmask_t1')
-    #workflow.connect(headmaskNode, 'LabelsMNI', outputnode, 'headmask_mni')  
     node_name="brainmask"
     brainmaskNode = pe.Node(interface=Labels(), name=node_name)
     brainmaskNode.inputs.space = "icbm152"
@@ -304,8 +324,6 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(invert_MNI2T1, 'output_file', brainmaskNode, 'LinMNIT1Xfm')
     workflow.connect(inputnode, 'nativeT1', brainmaskNode, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', brainmaskNode, 'mniT1')
-    #workflow.connect(brainmaskNode, 'LabelsT1', outputnode, 'brainmask_t1')
-    #workflow.connect(brainmaskNode, 'LabelsMNI', outputnode, 'brainmask_mni')
 
     node_name="pet_brainmask"
     petMasking = pe.Node(interface=PETheadMasking(), name=node_name)
@@ -313,7 +331,6 @@ def get_workflow(name, infosource, datasink, opts):
     petMasking.inputs.total_factor = opts.total_factor
     workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
     workflow.connect(inputnode, 'pet_header_json', petMasking, 'in_json')
-    #workflow.connect(petMasking, 'out_file', outputnode, 'pet_brainmask' ) 
 
     if not opts.nopvc:
         node_name="pvcLabels"
@@ -332,9 +349,6 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brainmaskNode, 'LabelsT1', pvcLabels , 'brainmask_t1')
         workflow.connect(brainmaskNode, 'LabelsMNI', pvcLabels, 'brainmask_mni')
 
-        #workflow.connect(pvcLabels, 'LabelsMNI', outputnode, 'pvc_label_img_mni'  )
-        #workflow.connect(pvcLabels, 'LabelsT1', outputnode, 'pvc_label_img_t1'  )
-
     if not opts.tka_method == None:
         node_name="tkaLabels"
         tkaLabels = pe.Node(interface=Labels(), name=node_name)
@@ -352,9 +366,6 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brainmaskNode, 'LabelsT1', tkaLabels , 'brainmask_t1')
         workflow.connect(brainmaskNode, 'LabelsMNI', tkaLabels, 'brainmask_mni')
 
-        #workflow.connect(tkaLabels, 'LabelsMNI', outputnode,'tka_label_img_mni'  )
-        #workflow.connect(tkaLabels, 'LabelsT1', outputnode, 'tka_label_img_t1'  )
-    
     node_name="resultsLabels"
     resultsLabels = pe.Node(interface=Labels(), name=node_name)
     resultsLabels.inputs.space = opts.results_label_space
@@ -370,7 +381,5 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(brainmaskNode, 'LabelsT1', resultsLabels , 'brainmask_t1')
     workflow.connect(brainmaskNode, 'LabelsMNI', resultsLabels, 'brainmask_mni')
     workflow.connect(invert_MNI2T1, 'output_file', resultsLabels, 'LinMNIT1Xfm')
-    #workflow.connect(resultsLabels, 'LabelsMNI', outputnode, 'results_label_img_mni'  )
-    #workflow.connect(resultsLabels, 'LabelsT2', outputnode, 'results_label_img_t1'  )
     
     return(workflow)

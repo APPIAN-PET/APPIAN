@@ -38,8 +38,9 @@ def unique_file(files, attributes):
 
 def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
     args=[]
+    print(subjects)
+    print(session_ids)
     for sub in subjects:
-        print sub
         for ses in session_ids:
             for task in task_ids:
 				sub_arg='sub-'+sub
@@ -64,6 +65,7 @@ def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
 						print "Could not find PET for ", sub, ses, task, pet_fn
 					if not os.path.exists(civet_fn) :
 						print "Could not find CIVET for ", sub, ses, task, civet_fn
+    print(args)
     return args
 
 class SplitArgsOutput(TraitedSpec):
@@ -319,10 +321,28 @@ class PETexcludeFrRunning(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-
+"""
+.. module:: initialization 
+    :platform: Unix
+    :synopsis: Workflow to initialize PET images
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 
 def get_workflow(name, infosource, datasink, opts):
+    '''
+    Nipype workflow that initializes the PET images by 
+        1. Centering the PET image: petCenter
+        2. Exlcude start and end frames: petExcludeFr
+        3. Average 4D PET image into 3D image: petVolume
+        4. Extract information from header
 
+    :param name: Name of workflow
+    :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
+    :param datasink: Node in which output data is sent
+    :param opts: User options
+
+    :returns: workflow
+    '''
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
@@ -331,17 +351,6 @@ def get_workflow(name, infosource, datasink, opts):
 
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
-
-    #get_steps = pe.Node(interface=get_stepCommand(), name="get_steps")
-    #workflow.connect(inputnode, 't1', get_steps, 'in_file')
-    
-    #node_name="petResample"
-    #petResample= pe.Node(interface=ResampleCommand(), name=node_name)
-    #petResample.inputs.interpolation = 'trilinear'
-	#petResample.inputs.tfm_input_sampling = True
-    #workflow.connect(inputnode, 'pet', petResample, 'in_file')
-    #workflow.connect(get_steps, 'step', petResample, 'step')
-	
 
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
@@ -355,23 +364,13 @@ def get_workflow(name, infosource, datasink, opts):
     petExFr.inputs.run = opts.prun
     rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-
     node_name="petVolume"
     petVolume = pe.Node(interface=minc.Average(), name=node_name)
-    #MIC: petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
     petVolume.inputs.avgdim = 'time'
     petVolume.inputs.width_weighted = True
     petVolume.inputs.clobber = True
     petVolume.inputs.verbose = opts.verbose 
-    rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
-    node_name="petBlur"
-    #MIC: petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
-    petBlur = pe.Node(interface=minc.Blur(), name=node_name)
-    petBlur.inputs.fwhm = 3
-    petBlur.inputs.clobber = True
-    #MIC: petBlur.inputs.verbose = opts.verbose 
+    rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"),name="r"+node_name)
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
@@ -380,51 +379,29 @@ def get_workflow(name, infosource, datasink, opts):
     petSettings.inputs.run = opts.prun
     rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-    # node_name="petCenterSettings"
-    # petCenterSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
-    # petCenterSettings.inputs.verbose = opts.verbose
-    # petCenterSettings.inputs.clobber = True
-    # petCenterSettings.inputs.run = opts.prun
-    # rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
-    # workflow.connect([(inputnode, petSettings, [('pet', 'in_file')])])
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
 
     workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
-    workflow.connect([#(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetCenter, [('sid', 'sid')]),
+    workflow.connect([(infosource, rPetCenter, [('sid', 'sid')]),
                       (infosource, rPetCenter, [('cid', 'cid')])
                     ])
-    #workflow.connect(rPetCenter, 'out_file', datasink, 'coregistered')
 
-    # workflow.connect([(petCenter, petCenterSettings, [('out_file', 'in_file')])])
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
 
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
     workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
-    workflow.connect([#(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetExFr, [('sid', 'sid')]),
+    workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),
                       (infosource, rPetExFr, [('cid', 'cid')])
                     ])
-    #workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
 
-
-    #MIC: workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])
     workflow.connect([(rPetExFr, petVolume, [('out_file', 'input_files')])])
 
-    #MIC: workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
-    workflow.connect([(petVolume, petBlur, [('output_file', 'input_file')])])
-    #MIC: workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
-    workflow.connect([(petBlur, rPetVolume, [('output_file', 'in_file')])])
+    workflow.connect([(petVolume, rPetVolume, [('output_file', 'in_file')])])
    
    
-    workflow.connect([#(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetVolume, [('sid', 'sid')]),
+    workflow.connect([(infosource, rPetVolume, [('sid', 'sid')]),
                       (infosource, rPetVolume, [('cid', 'cid')])
                     ])
-    #workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
-
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
     workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')

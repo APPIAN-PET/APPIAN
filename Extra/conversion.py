@@ -17,12 +17,13 @@ from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 import nipype.interfaces.minc as minc
 from Extra.resample import param2xfmCommand
 from Extra.modifHeader import ModifyHeaderCommand, FixHeaderCommand
-from Extra.turku import imgunitCommand
 from shutil import move, copyfile
 import nibabel as nib
 from sys import argv
 from re import sub
 from pyminc.volumes.factory import *
+
+from Extra.turku import imgunitCommand, e7emhdrInterface, eframeCommand, sifCommand
 
 
 class convertOutput(TraitedSpec):
@@ -143,46 +144,7 @@ class ecat2mincCommand(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
-'''
-class minc2ecatOutput(TraitedSpec):
-    out_file = File(desc="PET image with correct time frames.")
 
-class minc2ecatInput(CommandLineInputSpec):
-    in_file = File(exists=True, mandatory=True, desc="PET file")
-    header  = File(exists=True, desc="PET header file")
-    out_file= File(argstr="%s", desc="MINC PET file")
-    like_file= File(exists=True, mandatory=True, desc="Template MINC file")
-
-class minc2ecatCommand(BaseInterface):
-    input_spec = minc2ecatInput
-    output_spec = minc2ecatOutput
-
-    def _run_interface(self, runtime): 
-        in_fn = self.inputs.in_file
-        like_fn = self.inputs.like_file
-        fn = os.path.splitext(os.path.basename(self.inputs.in_file))
-        self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.mnc'
-        minc_vol = volumFromFile(in_fn)
-        ecat_vol = nib.ecat.load(out_fn)
-        data = ecat_vol.get_data()
-        data = data.reshape(minc_vol.data.shape)
-        for y in range(data.shape[1]):
-            temp = np.copy(data[:,y,:])
-            for z in range(temp.shape[0]) :
-                for x in range(temp.shape[1]) :
-                    data[z,y,x] = temp[x,z]
-            del temp
-        minc_vol.data = data
-        minc_vol.writeFile()
-        minc_vol.closeVolume()
-         
-        return runtime
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-'''
 
 def ecattomincWorkflow(name):
     workflow = pe.Workflow(name=name)
@@ -226,6 +188,11 @@ class minc2ecatCommand(BaseInterface):
         conversionNode.run()     
        
         if isdefined(self.inputs.header):
+            isotopeNode = e7emhdrInterface()
+            isotopeNode.inputs.in_file = conversionNode.inputs.out_file
+            isotopeNode.inputs.header = self.inputs.header
+            isotopeNode.run()
+
             sifNode = sifCommand()
             sifNode.inputs.in_file = self.inputs.in_file
             sifNode.inputs.header = self.inputs.header
@@ -233,7 +200,8 @@ class minc2ecatCommand(BaseInterface):
         
             eframeNode = eframeCommand()
             eframeNode.inputs.frame_file = sifNode.inputs.out_file 
-            eframeNode.inputs.pet_file = conversionNode.inputs.out_file 
+            eframeNode.inputs.pet_file = isotopeNode.inputs.out_file 
+            print(eframeNode.cmdline)
             eframeNode.run()
 
             imgunitNode = imgunitCommand()
@@ -253,93 +221,6 @@ class minc2ecatCommand(BaseInterface):
         return outputs
 
 
-
-class eframeOutput(TraitedSpec):
-    pet_file = File(desc="PET image with correct time frames.")
-    #out_file_bkp = File(desc="PET image with correct times frames backup.")
-
-class eframeInput(CommandLineInputSpec):
-    #out_file = File(desc="PET image with correct time frames.")
-    out_file_bkp = File(desc="PET image with correct times frames backup.")
-    pet_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
-    frame_file = File(exists=True, argstr="%s", position=-1, desc="PET file")
-    unit = traits.Bool(argstr="-sec", position=-3, usedefault=True, default_value=True, desc="Time units are in seconds.")
-    silent = traits.Bool(argstr="-s", position=-4, usedefault=True, default_value=True, desc="Silence outputs.")
-
-
-class eframeCommand(CommandLine):
-    input_spec =  eframeInput
-    output_spec = eframeOutput
-
-    _cmd = "eframe"
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["pet_file"] = self.inputs.pet_file
-        #outputs["out_file_bkp"] = self.inputs.out_file_bkp
-        return outputs
-
-
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        #if not isdefined(self.inputs.out_file):
-        #    self.inputs.out_file = self.inputs.in_file
-        #if not isdefined(self.inputs.out_file_bkp):
-        #    self.inputs.out_file_bkp = self.inputs.in_file + '.bak'
-        return super(eframeCommand, self)._parse_inputs(skip=skip)
-
-
-class sifOutput(TraitedSpec):
-    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
-
-class sifInput(CommandLineInputSpec):
-    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
-    in_file = File(argstr="%s",  desc="Minc PET image.")
-    header= traits.File(exists=True, argstr="%s", desc="PET header file")
-
-
-class sifCommand(BaseInterface):
-    input_spec =  sifInput
-    output_spec = sifOutput
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-    def _gen_output(self, basefile):
-        fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
-        return dname+ os.sep+fname_list[0] + "_frames.sif"
-
-
-    def _run_interface(self, runtime):
-        #Define the output file based on the input file
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-
-        in_file = self.inputs.in_file
-        out_file = self.inputs.out_file
-
-        print(self.inputs.header)
-        data = json.load( open( self.inputs.header, "rb" ) )
-        if data['time']['frames-time'] == 'unknown':
-            start = 0
-            print 'Warning: Converting \"unknown\" start time to 0.'
-        else:
-            start=np.array(data['time']['frames-time'], dtype=float)
-        if data['time']['frames-length'] == 'unknown':
-            duration=1.0
-            print 'Warning: Converting \"unknown\" time duration to 1.'
-        else:
-            duration=np.array(data['time']['frames-length'], dtype=float    )
-            end=start+duration
-            df=pd.DataFrame(data={ "Start" : start, "Duration" : duration})
-            df=df.reindex_axis(["Start", "Duration"], axis=1)
-            df.to_csv(out_file, sep=" ", header=True, index=False )
-        return runtime
 
 
 class minctoecatOutput(TraitedSpec):

@@ -121,6 +121,12 @@ class PVCOutput(TraitedSpec):
     out_file = File( desc="Output PET image in T1 native space")
 
 import shutil
+"""
+.. module:: pvc
+    :platform: Unix
+    :synopsis: Module to perform image registration. 
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 class PVCCommand(BaseInterface):
     input_spec =  PVCInput
     output_spec = PVCOutput

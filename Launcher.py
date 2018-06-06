@@ -158,8 +158,8 @@ if __name__ == "__main__":
     usage = "usage: "
     parser = OptionParser(usage=usage,version=version)
     group= OptionGroup(parser,"File options (mandatory)")
-    group.add_option("-s","--sourcedir",dest="sourceDir",  help="Input file directory")
-    group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
+    group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Input file directory")
+    group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
     
     group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
 

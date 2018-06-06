@@ -16,7 +16,12 @@ from Extra.concat import concat_df
 from Quality_Control.qc import metric_columns
 
 results_columns = metric_columns + ['frame']
-
+"""
+.. module:: Results_Report.results
+    :platform: Unix
+    :synopsis: Module to get results from output image
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 ######################################
 # Group level descriptive statistics #
 ######################################
@@ -116,11 +121,6 @@ class resultsCommand( BaseInterface):
             integrate_resultsReport.run()   
         
         return runtime
-
-    #def _parse_inputs(self):
-    #    if not isdefined(self.inputs.out_file):
-    #        [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
-    #    return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :

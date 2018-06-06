@@ -3,7 +3,6 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import pyminc.volumes.factory as pyminc
-from Tracer_Kinetic.tka import loganROI
 import matplotlib as mpl
 from scipy.integrate import simps
 mpl.use('Agg')

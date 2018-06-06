@@ -1,5 +1,6 @@
 # vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
 # vim: filetype plugin indent on
+
 import os
 import sys
 import argparse
@@ -31,27 +32,61 @@ import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
+"""
+.. module:: scanLevel
+    :platform: Unix
+    :synopsis: Module to launch scan level analysis.
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
+
 def set_datasource_inputs(opts):
-    ### Set the inputs for the labeled image for datasource
-    [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_img', 'pvc_img_string', opts.img_ext )
-    [ tka_label_img_string, tka_label_img_variables  ] = set_label_parameters(opts.tka_label_level, 'tka_label_img', 'tka_img_string', opts.img_ext )
-    [ results_label_img_string, results_label_img_variables  ] = set_label_parameters(opts.results_label_level, 'results_label_img', 'results_img_string', opts.img_ext )
-    ### Set the inputs for the template image for datasource
-    [ pvc_label_template_string, pvc_label_template_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_label_template', 'pvc_template_string',opts.img_ext )
-    [ tka_label_template_string, tka_label_template_variables  ] = set_label_parameters(opts.tka_label_level, 'tka_label_template', 'tka_template_string', opts.img_ext )
-    [ results_label_template_string, results_label_template_variables  ] = set_label_parameters(opts.results_label_level, 'results_label_template', 'results_template_string', opts.img_ext )
+    """Setup data source based on user-options.
 
+    :param opts: User-defined options
+        :type opts: argparser
+    :returns:  
+        infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string 
+    """
 
+    # Set the inputs for the labeled image for datasource.
+    # This is a bit complicated because there are many possible ways in which the 
+    # user can define these labeled images. The simplest approach is to use a 
+    # labeled image in T1 native space. A more complicated approach is to to use an
+    # atlas defined in some other space, in which case we need both the labeled image
+    # and the template image on which the labeled image is defined. 
+
+    # Set PVC label DataGrabber inputs:
+    [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_level, 'pvc_img_string', opts.img_ext )
+    # Set quantification label DataGrabber inputs
+    [ tka_label_img_string, tka_label_img_variables  ] = set_label_parameters(opts.tka_label_level,  'tka_img_string', opts.img_ext )
+    # Set results label DataGrabber inputs
+    [ results_label_img_string, results_label_img_variables  ] = set_label_parameters(opts.results_label_level,  'results_img_string', opts.img_ext )
+
+    # Set the inputs for the template image for DataGrabber
+    # Set the inputs for the PVC template image
+    [ pvc_label_template_string, pvc_label_template_variables  ] = set_label_parameters(opts.pvc_label_level,  'pvc_template_string',opts.img_ext )
+    # Set the inputs for the quantification template image
+    [ tka_label_template_string, tka_label_template_variables  ] = set_label_parameters(opts.tka_label_level,  'tka_template_string', opts.img_ext )
+    # Set the inputs for the results template image
+    [ results_label_template_string, results_label_template_variables  ] = set_label_parameters(opts.results_label_level,  'results_template_string', opts.img_ext )
+
+    
     if opts.pvc_label_img[1] == None: pvc_label_img_string = opts.sourceDir + os.sep + pvc_label_img_string 
     if opts.tka_label_img[1] == None: tka_label_img_string = opts.sourceDir + os.sep + tka_label_img_string 
     if opts.results_label_img[1] == None: results_label_img_string = opts.sourceDir + os.sep + results_label_img_string 
 
-    ### 
-    infields_list=['sid', 'ses', 'task', 'acq', 'rec'] 
+    #List of variables used to identify PET image
+    infields_list=['sid', 'ses', 'task', 'acq', 'rec']
+    #List of strings that define the variable names for label images
     base_label=['pvc_label_img','tka_label_img', 'results_label_img' ] 
+    #List of structural images that are used by APPIAN
     base_images=['nativeT1',  'nativeT1nuc',  'T1Tal',  'brainmaskTal',  'headmaskTal',  'clsmask', 'segmentation', 'pet']
+    #List of transformation files from T1 native space to MNI152 space. 
+    #First is a linear transform, second is a non-linear transform.
     base_transforms=[ 'xfmT1MNI' ,'xfmT1MNInl']
     base_outputs = base_images + base_transforms  + base_label 
+    
+    #Dictionary for basic structural inputs to DataGrabber
     field_template_dict =dict(
         nativeT1=opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.'+opts.img_ext,
         nativeT1nuc=opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.*'+opts.img_ext, 
@@ -63,10 +98,14 @@ def set_datasource_inputs(opts):
         clsmask=opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*space-mni_variant-cls_dtissue.*'+opts.img_ext,
         segmentation=opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_variant-seg_dtissue.*'+opts.img_ext,
         pet=opts.sourceDir+os.sep+'sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.*'+opts.img_ext,
+        #PVC label string 
         pvc_label_img = pvc_label_img_string,
+        #TKA label string
         tka_label_img = tka_label_img_string,
+        #Results label string
         results_label_img = results_label_img_string,
     )
+
     template_args_dict = dict(
         nativeT1=[[ 'sid', 'ses', 'sid', 'ses']],
         nativeT1nuc=[[ 'sid', 'ses', 'sid', 'ses']],
@@ -83,21 +122,23 @@ def set_datasource_inputs(opts):
         results_label_img = results_label_img_variables,
     )
 
-    #infields_list += ['pvc_img_string','tka_img_string','results_img_string' ] 
+    # If not pvc_label_img[1] == None then that means we are using a labeled image 
+    # requires a corresponding template. Otherwise, the image is defined in T1 native or
+    # MNI 152. The same applies for PVC and quantification stage
     if not opts.pvc_label_img[1] == None: 
-        #assign pvc input to datasource
+        #Assign pvc input to datasource
         pvc_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.pvc_label_img, field_template_dict, template_args_dict, base_label, infields_list, pvc_label_template_string, pvc_label_template_variables, 'pvc_label_template' , 'pvc_template_string'  )
         base_outputs.append('pvc_label_template')
     else : pvc_template_string = ''
     
     if not opts.tka_label_img[1] == None: 
-        #assign tka input to datasource
+        #Assign tka input to datasource
         tka_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.tka_label_img, field_template_dict, template_args_dict, base_label, infields_list, tka_label_template_string, tka_label_template_variables, 'tka_label_template' , 'tka_template_string'  )
         base_outputs.append('tka_label_template')
     else : tka_template_string = ''
 
     if not opts.results_label_img[1] == None: 
-        #assign results input to datasource
+        #Assign results input to datasource
         results_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.results_label_img, field_template_dict, template_args_dict, base_label, infields_list, results_label_template_string, results_label_template_variables, 'results_label_template' , 'results_template_string'  )
         base_outputs.append('results_label_template')
     else : results_template_string = ''
@@ -106,6 +147,19 @@ def set_datasource_inputs(opts):
  
 
 def assign_datasource_values(label_img, field_template_dict, template_args_dict, base_label, infields_list, label_template_string, label_template_variables, str1, str2 ):
+    """
+    This function sets up the strings and dictionaries that are then used to create the appropriate Nipype DataGrabber. 
+
+    :param label_img: label_img
+    :param field_template_dict: Dictionary of strings for template 
+    :param template_args_dict: Dictionary of variable arguments for templates
+    :param base_label: base_label 
+    :param infields_list: infields_list
+    :param label_template_string: label_template_string
+    :param label_template_variables: label_template_variables
+    :param str1: str1
+    :param str2: str2
+    """
     template_string = label_img[1]
     field_template_dict= dict(field_template_dict.items() + [[str1, label_template_string]] )
     template_args_dict = dict( template_args_dict.items() + [[str1, label_template_variables]] )
@@ -115,8 +169,16 @@ def assign_datasource_values(label_img, field_template_dict, template_args_dict,
 
 
 def printOptions(opts,subject_ids,session_ids,task_ids):
-    uname = os.popen('uname -s -n -r').read()
+    """
+    Print basic options input by user
 
+    :param opts: User-defined options.
+    :param subject_ids: Subject IDs
+    :param session_ids: Session variable IDs
+    :param task_ids: Task variable IDs
+
+    """
+    uname = os.popen('uname -s -n -r').read()
     print "\n"
     print "* Pipeline started at "+time.strftime("%c")+"on "+uname
     print "* Command line is : \n "+str(sys.argv)+"\n"
@@ -126,12 +188,20 @@ def printOptions(opts,subject_ids,session_ids,task_ids):
     #   print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
     print "* Sessions : ", session_ids, "\n"
     print "* Tasks : " , task_ids , "\n"
-    #print "* PVC labels : ", opts.ROIAtlasLabels, "\n"
-    #print "* TKA labels : ", opts.ROIAtlasLabels, "\n"
-    #print "* Results labels : ", opts.ROIAtlasLabels, "\n"
 
-def set_label_parameters(level, label_img, var , ext ):
-    '''Set the label_string and label_variables for the datasource '''
+def set_label_parameters(level, var , ext ):
+    """
+    Set the label_string and label_variables for the datasource
+    
+    :param level: <level> equals "atlas" if a filepath is given, otherwise uses BIDS label-string
+    :param var: String variable name for image type
+    :param ext: File Extension
+    :type level: String
+    :type var: String
+    :type ext: String
+
+    :returns [label_string, label_variables]: List with two elements: string used to identify image, a list of variables that are used to "fill-in" label_string
+    """
     if level  == "atlas": 
         label_string = "%s"
         label_variables = [[ var ]]
@@ -141,17 +211,69 @@ def set_label_parameters(level, label_img, var , ext ):
     return [ label_string, label_variables ]
 
 
+def run_scan_level(opts,args): 
+    """
+    This is the main function for setting up and then running the scanLevel analysis. It first uses <preinfosource> to identify which scans exist for the which combination of  task, session, and subject IDs. This is stored in <valid_args>, which is then passed to inforsource. Infosource iterates over the valid subjects and uses DataGrabber to find the input files for each of these subjects. Depdning on the user-options defined in <opts>, for each scan PET-T1 co-registration, partial-volume correction, tracer kinetic analysis and results reporting are performed. 
 
-def run_scan_level(opts,args):  
+    .. aafig::
+        
+       +-------------+
+       |Preinfosource| 
+       +-----+-------+
+             |
+             |
+        +----+-----+
+        |Infosource|
+        +-+---+---++
+          |   |   |
+          |   |   |
+          |   |   |
+         +++ +++ +++
+         |D| |D| |D| = "DataGrabber"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |I| |I| |I| = "Initialization"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |M| |M| |M| = "Masking"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |C| |C| |C| = "Coregistration"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |P| |P| |P| = "Partial volume correction"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |T| |T| |T| = "Tracer kinetic analysis"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |R| |R| |R| = "Results report"
+         +++ +++ +++
+
+    :param opts: User-defined options
+    :type opts: argparser
+    :param args: List of subjects
+    :type args: list
+
+    :returns int: Return code 0 == success
+    """
+
     if args:
         subjects_ids = args
     else:
         print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
         sys.exit(1)
-
+    #If the sessionList has been defined as a "," separated list, split it into list
     if isinstance(opts.sessionList, str):
         opts.sessionList=opts.sessionList.split(',')
     session_ids=opts.sessionList
+    #If the taskList has been defined as a "," separated list, split it into list
     if isinstance(opts.taskList, str):
         opts.taskList=opts.taskList.split(',')
     task_ids=opts.taskList
@@ -221,8 +343,9 @@ def run_scan_level(opts,args):
         datasourceSurf.inputs.field_template =dict(
             #gm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial."+opts.surf_ext,
             #wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opts.surf_ext,
-            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext
-            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.*" #FIXME Not sure what BIDS spec is for a surface mask
+            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext,
+            #FIXME Not sure what BIDS spec is for a surface mask
+            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.txt" 
         )
         datasourceSurf.inputs.template_args = dict(
             #gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
@@ -296,6 +419,7 @@ def run_scan_level(opts,args):
         pet_results_mask_file='resultsLabels.LabelsT1'
         pet_pvc_mask_file='pvcLabels.LabelsT1'
         t1=t1_type
+
     ###################
     # PET prelimaries #
     ###################
@@ -467,5 +591,7 @@ def run_scan_level(opts,args):
         workflow.run(plugin='MultiProc', plugin_args=plugin_args)
     else : 
         workflow.run()
+
+    return 0
 
 

@@ -1,6 +1,6 @@
 # Contributing to APPIAN
 
-Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide], in the [Developer API guide][link_sphinx] (still in progress), or below, please do not hesitate to send us an email (tffunck@gmail.com). One day we will have a mailing list or forum, but not yet.
+Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide], in the [Developer API guide][link_html] (still in progress, best viewed locally), or below, please do not hesitate to send us an email (tffunck@gmail.com). One day we will have a mailing list or forum, but not yet.
 These guidelines are designed to make it as easy as possible to get involved. If you have any questions that are not discussed below, please let us know by opening an [issue][link_issues]!
 
 Before you start you will need to set up a free [GitHub][link_github] account and sign in. Here are some [instructions][link_signupinstructions].

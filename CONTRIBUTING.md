@@ -111,7 +111,39 @@ The variable <opts> stores user inputs. The function <check_options> checks if c
 
 If your model requires options that are not yet defined in APPIAN, you can add it to the "Launcher.py" file. The Launcher.py file uses the standard [Python argument parser][link_argparse]. 
     
-    
+## APPIAN documentation style
+Documentation should be provided for all contributions. Documentation is automatically generated using [Sphinx][link_sphinx]
+The basic template for documentation should include text in the following format at the start of the module:
+
+    """
+    .. module:: <module name>
+       :platform: Unix
+       :synopsis: <what your module does> 
+    .. moduleauthor:: <your name + email>
+    """
+
+The template for documenting functions is as follows :
+
+    def my_function(var1, var2)
+        '''
+        Text describing in detail what your function is supposed to do. In this case, the function adds var1 to var2.
+
+        :param var1: This is the first argument!
+        :param var2: This is another argument!
+        :type var1: int
+        :type var2: int
+
+        :returns: var3 : This is the variable that gets returned by this function!
+    '''
+    var3 = var1 + var2
+    returns var3
+
+Code that is documented in this fashion will automatically be compiled into an elegent [html file][link_html]. If you're adding a new module, then you should add it to the [config.py][link_config] file.
+
+
+Additionally, please use block comments for every non-trivial operation in your code.
+
+
 ## APPIAN coding style guide
 
 Whenever possible, instances of Nodes and Workflows should use the same names
@@ -194,9 +226,11 @@ You're awesome. :wave::smiley:
 [link_devel]: http://appian.readthedocs.io/en/latest/contributors.html
 
 [link_voxel]: https://github.com/APPIAN-PET/APPIAN/tree/master/Tracer_Kinetic/quant_method_lp.py
-[link_roi]:https://github.com/APPIAN-PET/APPIAN/tree/master/Tracer_Kinetic/quant_method_lp-roi.py
+[link_roi]: https://github.com/APPIAN-PET/APPIAN/tree/master/Tracer_Kinetic/quant_method_lp-roi.py
 [link_dft]: http://www.turkupetcentre.net/petanalysis/format_tpc_dft.html
-[link_turku] : http://www.turkupetcentre.net/petanalysis/image_tools.html 
-[link_traits] : http://docs.enthought.com/traits/traits_user_manual/intro.html
+[link_turku]: http://www.turkupetcentre.net/petanalysis/image_tools.html 
+[link_traits]: http://docs.enthought.com/traits/traits_user_manual/intro.html
 [link_nipype]: http://nipype.readthedocs.io/en/latest/devel/interface_specs.html
 [link_argparse]: https://docs.python.org/3/library/argparse.html
+[link_html]:  https://github.com/APPIAN-PET/APPIAN/_build/html/code.html 
+[link_config]: https://github.com/APPIAN-PET/APPIAN/blob/master/conf.py 

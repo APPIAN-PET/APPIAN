@@ -49,7 +49,69 @@ It can also be helpful to test your changes locally, using an [APPIAN developmen
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
+## Adding PET quantification models
 
+APPIAN has been designed to facilitate the additition of new models for PET quantification. Here's how to add your model to APPIAN:
+
+### 1 Add model to Tracer_Kinetic
+
+In the Tracer_Kinetic directory, create a new python file called quant_method_<your-model-name>.py. 
+
+### 2 Format of "quant_method_<your-model-name>.py"
+For examples of how to format the "quant_method_<your-model-name>.py", here is an exmaple of a [voxelwise][link_voxel] model and here is an [ROI-based][link_roi] model. 
+
+#### 2.1 Import template
+The "quant_method_<your-model-name>.py" file must import the "Tracer_Kinetic/quantification_template.py" module, which contains the basic template for Nipype nodes for performing PET quantification.
+
+#### 2.2 Set variables
+Next, the "quant_method_<your-model-name>.py" file requires 4 variables : in_file_format, out_file_format, reference, and voxelwise. <in_file_format> and <out_file_format> define the the formats of the inputs and outputs to the PET quantification algorithm. For example, if you wish to implement one of the [voxelwise][link_voxel] models from the [Turku PET Centre][link_turku]--which use the ECAT format--then you would set these variables as :
+
+    in_file_format="ECAT"
+    out_file_format="ECAT"
+    
+As another example, if you wish to use an [ROI-based][link_roi] method then the variables would be: 
+
+    in_file_format="ECAT"
+    out_file_format="DFT"
+    
+The "DFT" format is set because the [Turku][link_turku] algorithms will save the results out ROI-based methods as a [".dft"][link_dft] file.
+You can also stick to implementing models in using the default MINC files for input and output as follows: 
+
+    in_file_format="MINC"
+    out_file_format="MINC"
+ 
+#### 2.3 Setup classes
+
+Next, the <reference> variable is a boolean (True/False) that specifies whether the model uses a reference region (3D volume, defined in the quantification label file) or a reference TAC (defined as a [".dft"][link_dft]). Set to "False" if your model does not require some sort of reference, e.g., SUV.
+    
+Finally, the <voxelwise> variable specifies whether the model is "voxelwise" or "ROI-based". Set to "True" for voxelwise analysis and "False" for ROI-based analysis.
+
+The "quant_method_<your-model-name>.py" file requires that you set up 3 classes. 
+
+    class quantInput(MINCCommandInputSpec):
+
+    class quantOutput(TraitedSpec):
+
+    class quantCommand(quantificationCommand):
+
+The "quantInput" and "quantOutput" function is where you define the inputs and outputs to your model based on ["traits"][link_traits]. It is very important to note that the input PET file and output parametric file must be called "in_file" and "out_file", respectively. The "quantCommand" inherits from the template in "Tracer_Kinetic/quantification_template.py" and requires that you define two attributes: <\_cmd> and <\_suffix>. The <\_cmd> variable defines the function that will be run in the command line. The <\_suffix> variable is the suffix that will be appended to the input PET file to create the output file name. <\_suffix> should be the same as <your-model-name>.
+
+For more information on input specification and traits, check out the [Nipype documentation][link_nipype].
+
+#### 2.4 Check & assign user options 
+
+The last thing the "quant_method_<your-model-name>.py" file needs is a function that will be used to assign variables to the PET quantification node based on user inputs:
+
+
+        def check_options(tkaNode, opts):
+
+The variable <opts> stores user inputs. The function <check_options> checks if certain options have been specified by the user and assigns them to the node. For example:
+        
+       if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
+
+If your model requires options that are not yet defined in APPIAN, you can add it to the "Launcher.py" file. The Launcher.py file uses the standard [Python argument parser][link_argparse]. 
+    
+    
 ## APPIAN coding style guide
 
 Whenever possible, instances of Nodes and Workflows should use the same names
@@ -130,3 +192,11 @@ You're awesome. :wave::smiley:
 [link_stemmrolemodels]: https://github.com/KirstieJane/STEMMRoleModels
 [link_zenodo]: https://github.com/APPIAN-PET/APPIAN/blob/master/.zenodo.json
 [link_devel]: http://appian.readthedocs.io/en/latest/contributors.html
+
+[link_voxel]: https://github.com/APPIAN-PET/APPIAN/tree/master/Tracer_Kinetic/quant_method_lp.py
+[link_roi]:https://github.com/APPIAN-PET/APPIAN/tree/master/Tracer_Kinetic/quant_method_lp-roi.py
+[link_dft]: http://www.turkupetcentre.net/petanalysis/format_tpc_dft.html
+[link_turku] : http://www.turkupetcentre.net/petanalysis/image_tools.html 
+[link_traits] : http://docs.enthought.com/traits/traits_user_manual/intro.html
+[link_nipype]: http://nipype.readthedocs.io/en/latest/devel/interface_specs.html
+[link_argparse]: https://docs.python.org/3/library/argparse.html

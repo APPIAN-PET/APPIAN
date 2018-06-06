@@ -232,5 +232,5 @@ You're awesome. :wave::smiley:
 [link_traits]: http://docs.enthought.com/traits/traits_user_manual/intro.html
 [link_nipype]: http://nipype.readthedocs.io/en/latest/devel/interface_specs.html
 [link_argparse]: https://docs.python.org/3/library/argparse.html
-[link_html]:  https://github.com/APPIAN-PET/APPIAN/blob/master/_build/html/code.html
-[link_config]: https://github.com/APPIAN-PET/APPIAN/blob/master/conf.py 
+[link_html]:  https://htmlpreview.github.com/APPIAN-PET/APPIAN/blob/master/_build/html/code.html
+[link_config]:  github.com/APPIAN-PET/APPIAN/blob/master/conf.py 

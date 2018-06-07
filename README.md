@@ -29,7 +29,7 @@ Users seeking more information can check the [user guide][link_user_guide].
 2. APPIAN automated QC paper (coming soon)
 
 ## Contributors
-Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\
+Thomas Funck, PhD Candidate (tffunck@gmail.com)\
 Kevin Larcher, MSc Eng.\
 Paule Joanne Toussaint, PhD
 

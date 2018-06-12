@@ -104,7 +104,7 @@ The "quant_method_<your-model-name>.py" file requires that you set up 3 classes.
 
     class quantOutput(TraitedSpec):
 
-    class quantCommand(quantificationCommand):
+    class quantCommand(pvcCommand):
 
 The "quantInput" and "quantOutput" function is where you define the inputs and outputs to your model based on ["traits"][link_traits]. It is very important to note that the input PET file and output parametric file must be called "in_file" and "out_file", respectively. The "quantCommand" inherits from the template in "Tracer_Kinetic/quantification_template.py" and requires that you define two attributes: <\_cmd> and <\_suffix>. The <\_cmd> variable defines the function that will be run in the command line. The <\_suffix> variable is the suffix that will be appended to the input PET file to create the output file name. <\_suffix> should be the same as <your-model-name>.
 

@@ -2,10 +2,15 @@
 Table of Contents
 =================
 [Introduction](#introduction)
+
 [Installation](#installation)
+
 [Documentation](#documentation)
+
 [Publications](#publications)
-[About us](#About us)
+
+[About us](#about-us)
+
 [Terms and Conditions](#terms-and-conditions)
 
 

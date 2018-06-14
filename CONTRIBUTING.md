@@ -1,5 +1,19 @@
 # Contributing to APPIAN
+Table of Contents
+=================
+[Introduction](#introduction)
 
+[Labels](#labels)
+
+[Making a change](#making-a-change)
+
+[Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
+
+[APPIAN coding style guide](#appian-coding-style-guide)
+
+[Recognizing contributions](#recognizing-contributions)
+
+### Introduction
 Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide], in the [Developer API guide][link_html] (still in progress, best viewed locally), or below, please do not hesitate to send us an email (tffunck@gmail.com). One day we will have a mailing list or forum, but not yet.
 These guidelines are designed to make it as easy as possible to get involved. If you have any questions that are not discussed below, please let us know by opening an [issue][link_issues]!
 

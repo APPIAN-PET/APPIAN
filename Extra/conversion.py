@@ -127,12 +127,6 @@ class ecat2mincCommand(BaseInterface):
                 for x in range(temp.shape[1]) :
                     data[z,y,x] = temp[x,z]
             del temp
-        #for x in range(data.shape[0]):
-        #    temp = np.copy(data[x,:,:])
-        #    for z in range(temp.shape[0]) :
-        #        for y in range(temp.shape[1]) :
-        #            data[z,y,x] = temp[x,z]
-        #    del temp
 
         minc_vol.data = data
         minc_vol.writeFile()
@@ -310,16 +304,65 @@ class nii2mncOutput(TraitedSpec):
 
 class nii2mncInput(CommandLineInputSpec):
     out_file = File( argstr="%s", position=-1, desc="minc file")
+    like_file = File( argstr="%s", position=-1, desc="minc file")
     in_file= File(exists=True, argstr="%s", position=-2, desc="nifti file")
 
-class nii2mncCommand(CommandLine):
+class nii2mncCommand(BaseInterface):
     input_spec =  nii2mncInput
     output_spec = nii2mncOutput
 
     _cmd = "nii2mnc"
+    def _run_interface(self, runtime):
+        in_fn = self.inputs.in_file
+        fn = os.path.splitext(os.path.basename(self.inputs.in_file))
+        self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.mnc'
+
+        minc_vol = volumeLikeFile(self.inputs.like_file, out_fn)
+        test = nib.nifti1.load(in_fn)
+
+        if len(test.shape) > 3 :
+            tmax = test.shape[3]
+        else : 
+            tmax = 1
+        print(test.shape)
+        print(tmax)
+
+        zmax=test.shape[0]
+        ymax=test.shape[1]
+        xmax=test.shape[2]
+
+        if len(test.shape) > 3 :
+            ar = np.zeros([tmax,zmax,ymax,xmax])
+        else : 
+            ar = np.zeros([zmax,ymax,xmax])
+
+        zz, yy, xx = np.meshgrid(range(zmax), range(ymax), range(xmax) )
+        zz = zz.flatten()
+        yy = yy.flatten()
+        xx = xx.flatten()
+        data =  np.copy(test.dataobj)
+
+        print("data", data.shape)
+        print("ar", ar.shape)
+        print(minc_vol.data.shape)
+        if tmax > 1 :
+            for t in range(tmax) : 
+                ar[t,zz,yy,xx] = data[zz,yy,xx,t]
+        else :
+            ar[zz,yy,xx] = data[zz,yy,xx]
+
+
+        minc_vol.data = ar
+        minc_vol.writeFile()
+        minc_vol.closeVolume()
+
+        return runtime
+
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file) :
+             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
@@ -333,9 +376,81 @@ class nii2mncCommand(CommandLine):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-        	self.inputs.out_file = self._gen_output(self.inputs.in_file)
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(nii2mncCommand, self)._parse_inputs(skip=skip)
 
+
+
+class mnc2niiOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="convert from minc to nii")
+
+class mnc2niiInput(CommandLineInputSpec):
+    out_file = File( argstr="%s", position=-1, desc="nii file")
+    in_file= File(exists=True, argstr="%s", position=-2, desc="minc file")
+
+class mnc2niiCommand(BaseInterface):
+    input_spec =  mnc2niiInput
+    output_spec = mnc2niiOutput
+
+    #_cmd = "mnc2nii"
+    
+    def _run_interface(self, runtime): 
+        in_fn = self.inputs.in_file
+        fn = os.path.splitext(os.path.basename(self.inputs.in_file))
+        self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.nii'
+
+        test = nib.minc2.load(in_fn)
+
+        if len(test.shape) > 3 :
+            tmax = test.shape[0]
+            offset = 1
+        else : 
+            tmax = 1
+            offset = 0
+
+        zmax=test.shape[offset+0]
+        ymax=test.shape[offset+1]
+        xmax=test.shape[offset+2]
+
+        if len(test.shape) > 3 :
+            ar = np.zeros([zmax,ymax,xmax,tmax])
+        else : 
+            ar = np.zeros([zmax,ymax,xmax])
+
+        zz, yy, xx = np.meshgrid(range(zmax), range(ymax), range(xmax) )
+        zz = zz.flatten()
+        yy = yy.flatten()
+        xx = xx.flatten()
+        data =  np.copy(test.dataobj)
+
+        if tmax > 1 :
+            for t in range(tmax) : 
+                ar[zz,yy,xx,t] = data[t,zz,yy,xx]
+        else :
+            ar[zz,yy,xx] = data[zz,yy,xx]
+
+        out = nib.nifti1.Nifti1Image(ar , test.affine)
+        nib.save( out, out_fn )
+
+        return runtime
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + ".nii"
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+        	self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        return super(mnc2niiCommand, self)._parse_inputs(skip=skip)
 
 ##################
 ### ecattominc ###

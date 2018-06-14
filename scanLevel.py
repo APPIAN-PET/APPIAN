@@ -484,20 +484,22 @@ def run_scan_level(opts,args):
     # Partial-volume correction #
     #############################
     if not opts.nopvc :
-        pvcNode = pe.Node(interface=pvc.PVCCommand(), name="pvc")
-        pvcNode.inputs.fwhm = opts.scanner_fwhm[0]
-        pvcNode.inputs.max_iterations = opts.max_iterations
-        pvcNode.inputs.tolerance = opts.tolerance
-        pvcNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
-        pvcNode.inputs.z_fwhm = opts.scanner_fwhm[0]
-        pvcNode.inputs.y_fwhm = opts.scanner_fwhm[1]
-        pvcNode.inputs.x_fwhm = opts.scanner_fwhm[2]
-        pvcNode.inputs.pvc_method = opts.pvc_method
-        workflow.connect(pet_input_node, pet_input_file, pvcNode, "input_file") #CHANGE
-        workflow.connect(pet_mask_node, pet_pvc_mask_file, pvcNode, "mask") #CHANGE
+        pvc_wf = pvc.get_pvc_workflow("pvc", infosource, datasink, opts) 
+        #workflow.connect(pet_input_node, pet_input_file, pvc_wf, "input_file")
+        #pvcNode = pe.Node(interface=pvc.PVCCommand(), name="pvc")
+        #pvcNode.inputs.fwhm = opts.scanner_fwhm[0]
+        #pvcNode.inputs.max_iterations = opts.max_iterations
+        #pvcNode.inputs.tolerance = opts.tolerance
+        #pvcNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
+        #pvcNode.inputs.z_fwhm = opts.scanner_fwhm[0]
+        #pvcNode.inputs.y_fwhm = opts.scanner_fwhm[1]
+        #pvcNode.inputs.x_fwhm = opts.scanner_fwhm[2]
+        #pvcNode.inputs.pvc_method = opts.pvc_method
+        workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
+        workflow.connect(pet_mask_node, pet_pvc_mask_file, pvc_wf, "inputnode.mask_file") #CHANGE
 
-        out_node_list += [pvcNode]
-        out_img_list += ['out_file']
+        out_node_list += [pvc_wf]
+        out_img_list += ['outputnode.out_file']
         out_img_dim += ['4']
 
     ###########################

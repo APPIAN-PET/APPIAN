@@ -10,6 +10,8 @@ import ntpath
 import pandas as pd
 import os
 
+from pyminc.volumes.factory import *
+import numpy as np 
 
 
 def _finditem(obj, key):
@@ -67,5 +69,50 @@ class subject_parameterCommand(BaseInterface ):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["parameter"] = self.inputs.parameter
+        return outputs
+
+
+
+class separate_mask_labelsOutput(TraitedSpec):
+	out_file=traits.File(argstr="%s", desc="4D label image")
+
+class separate_mask_labelsInput(TraitedSpec):
+	in_file=traits.File(argstr="%s", desc="3D label image")
+	out_file=traits.File(argstr="%s", desc="4D label image")
+
+class separate_mask_labelsCommand(BaseInterface ):
+    input_spec = separate_mask_labelsInput  
+    output_spec = separate_mask_labelsOutput
+   
+    def _run_interface(self, runtime):
+        vol = volumeFromFile(self.inputs.in_file)
+        
+        #-1 because 0 doesn't need to be included
+        n = len(np.unique(vol.data))-1
+        sizes = [n] + list(vol.data.shape)
+        starts = [0] + list(vol.starts)
+        steps = [1] + list(vol.separations)         
+        
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = self._gen_outputs(self.inputs.in_file)
+        out = volumeFromDescription(self.inputs.out_file, ["time","zspace","yspace","xspace"], sizes , starts, steps)        
+        for t,i in zip( range(n), np.unique( vol.data )) :
+            out.data[t, vol.data == i ] = 1 
+        
+        out.writeFile()
+        out.closeVolume()
+	return(runtime)
+
+    def _gen_outputs(self, fn) :
+        fn_split = os.path.splitext(fn)
+        return os.getcwd() + os.sep +  os.path.basename( fn_split[0] ) + "_4d" + fn_split[1]
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = self._gen_outputs(self.inputs.in_file)
+
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 	

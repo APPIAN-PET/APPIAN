@@ -235,8 +235,8 @@ def get_tka_workflow(name, opts):
     
 
     ### Quantification module
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) )
-    quant_module_fn="quant_method_"+opts.tka_method #+".py"
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
+    quant_module_fn="methods/quant_method_"+opts.tka_method #+".py"
      
     try :
         quant_module = importlib.import_module(quant_module_fn)

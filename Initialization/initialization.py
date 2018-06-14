@@ -234,6 +234,13 @@ class VolCenteringRunning(BaseInterface):
 		if self.inputs.run:
 			run_modifHrd.run()
 
+                node_name="fixIrregularDimension"
+                fixIrregular = ModifyHeaderCommand()
+                fixIrregular.inputs.sinsert = True;
+                fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" "
+                fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
+		fixIrregular.run()
+
 		return runtime
 
 
@@ -358,6 +365,8 @@ def get_workflow(name, infosource, datasink, opts):
     petCenter.inputs.run = opts.prun    
     rPetCenter=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
+
+
     node_name="petExcludeFr"
     petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
     petExFr.inputs.verbose = opts.verbose   
@@ -379,12 +388,16 @@ def get_workflow(name, infosource, datasink, opts):
     petSettings.inputs.run = opts.prun
     rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
+
+
+
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
 
     workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
     workflow.connect([(infosource, rPetCenter, [('sid', 'sid')]),
                       (infosource, rPetCenter, [('cid', 'cid')])
                     ])
+
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
 

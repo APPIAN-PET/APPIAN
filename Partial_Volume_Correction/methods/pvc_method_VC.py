@@ -4,12 +4,8 @@ import nibabel as nib
 
 file_format="NIFTI"
 separate_labels=True
-split_frames=True
-
-
 
 class pvcCommand(petpvc4DCommand):
-    
     _suffix='VC'
 
 

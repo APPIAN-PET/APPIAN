@@ -93,7 +93,12 @@ Next, the <reference> variable is a boolean (True/False) that specifies whether 
 Finally, the <voxelwise> variable specifies whether the model is "voxelwise" or "ROI-based". Set to "True" for voxelwise analysis and "False" for ROI-based analysis.
 
 ##### PVC
-The "pvc_method_<your-model-name>.py" file requires 2 variable : file_format and separate_labels. <file_format> defines the format of the inputs and outputs to the PVC algorithm. <separate_labels> is a boolean variable (True/False) that determines whether to reformat the 3D volume with regional labels into a 4D volume. In this this case, each 3D sub-volume is a binary volume that codes for one of the regions in the original 3D label volume. This option is used for the implementation of [PVCPET][link_pvcpet].
+The "pvc_method_<your-model-name>.py" file requires 2 variable : file_format and separate_labels. <file_format> defines the format of the inputs and outputs to the PVC algorithm. <separate_labels> is a boolean variable (True/False) that determines whether to reformat the 3D volume with regional labels into a 4D volume. In this this case, each 3D sub-volume is a binary volume that codes for one of the regions in the original 3D label volume. For example, in Fig.1.left we have a 3D mask volume with 2 lables: 2=GM, 3=WM. By setting '<seperate_labels=True>', this 3D volume gets split into a 4D volume where the first frame is seen in Fig.1.center and the second frame in Fig.2.right. This option is used for the implementation of [PVCPET][link_pvcpet]. 
+
+<img src="Documentation/mask_3d.png" width="150">|<img src="Documentation/mask_4D_gm.png" width="150">|<img src="Documentation/mask_4D_wm.png" width="150">
+
+Fig.1 left: 3D mask volume with 2 labels; center: first frame of 4D mask volume (GM); left: second frame of 4D mask volume (WM).
+
  
 #### 2.3 Setup classes
 ##### Quantification
@@ -138,8 +143,9 @@ The same as above applies for "pvc_method_<your-model-name>.py", but with "pvcNo
        def check_options(pvcNode, opts):
             if opts.scanner_fwhm != None: tkaNode.inputs.fwhm=opts.scanner_fwhm
             
-#### Additional note for PVC
+#### (\*) Additional note for 4D PVC
 The above assumes that the PVC algorithm will take as input a 4D PET image. However, if the PVC algorithm you are trying to implement in APPIAN only accepts 3D inputs, then the 4D volume has to be split into indivudal time frames. This can be done and has been implemented for [PVCPET][link_pvcpet]; you can find an example [here][link_pvcpet_implementation].
+
 
 ## APPIAN documentation style
 Documentation should be provided for all contributions. Documentation is automatically generated using [Sphinx][link_sphinx]

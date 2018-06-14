@@ -1,4 +1,13 @@
 # APPIAN
+Table of Contents
+=================
+[Introduction](#introduction)
+[Installation](#installation)
+[Documentation](#documentation)
+[Publications](#publications)
+[About us](#About us)
+[Terms and Conditions](#terms-and-conditions)
+
 
 ## Introduction
 APPIAN (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest.  APPIAN also uses a structural brain image (e.g., T1 MRI), images derived from this structural image (e.g., brainmask), and linear transformation file from MRI native to MNI152 space. CIVET is designed to extract surface meshes representing the cortical grey matter and can be used in conjuction with APPIAN. It can be freely used through the [CBRAIN][cbrain] online platform (sign-up is required, but free).
@@ -28,7 +37,7 @@ Users seeking more information can check the [user guide][link_user_guide].
 1. APPIAN overview paper (coming soon)
 2. APPIAN automated QC paper (coming soon)
 
-## Contributors
+## About us
 Thomas Funck, PhD Candidate (tffunck@gmail.com)\
 Kevin Larcher, MSc Eng.\
 Paule Joanne Toussaint, PhD

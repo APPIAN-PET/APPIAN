@@ -93,11 +93,13 @@ Next, the <reference> variable is a boolean (True/False) that specifies whether 
 Finally, the <voxelwise> variable specifies whether the model is "voxelwise" or "ROI-based". Set to "True" for voxelwise analysis and "False" for ROI-based analysis.
 
 ##### PVC
-The "pvc_method_<your-model-name>.py" file requires 2 variable : file_format and separate_labels. <file_format> defines the format of the inputs and outputs to the PVC algorithm. <separate_labels> is a boolean variable (True/False) that determines whether to reformat the 3D volume with regional labels into a 4D volume. In this this case, each 3D sub-volume is a binary volume that codes for one of the regions in the original 3D label volume. For example, in Fig.1.left we have a 3D mask volume with 2 lables: 2=GM, 3=WM. By setting '<seperate_labels=True>', this 3D volume gets split into a 4D volume where the first frame is seen in Fig.1.center and the second frame in Fig.2.right. This option is used for the implementation of [PVCPET][link_pvcpet]. 
+The "pvc_method_<your-model-name>.py" file requires 2 variable : file_format and separate_labels. <file_format> defines the format of the inputs and outputs to the PVC algorithm. <separate_labels> is a boolean variable (True/False) that determines whether to reformat the 3D volume with regional labels into a 4D volume. In this this case, each 3D sub-volume is a binary volume that codes for one of the regions in the original 3D label volume. For example, in Fig.1.A we have a 3D mask volume with 2 lables: 2=GM, 3=WM. By setting '<seperate_labels=True>', this 3D volume gets split into a 4D volume where the first frame is seen in Fig.1.B and the second frame in Fig.2.C. This option is used for the implementation of [PVCPET][link_pvcpet]. 
 
+A | B | C
+--- | --- | ---
 <img src="Documentation/mask_3d.png" width="150">|<img src="Documentation/mask_4D_gm.png" width="150">|<img src="Documentation/mask_4D_wm.png" width="150">
 
-Fig.1 left: 3D mask volume with 2 labels; center: first frame of 4D mask volume (GM); left: second frame of 4D mask volume (WM).
+Fig.1 A: 3D mask volume with 2 labels; B: first frame of 4D mask volume (GM); C: second frame of 4D mask volume (WM).
 
  
 #### 2.3 Setup classes

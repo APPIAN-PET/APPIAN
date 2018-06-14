@@ -49,21 +49,29 @@ It can also be helpful to test your changes locally, using an [APPIAN developmen
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
-## Adding PET quantification models
+## Adding PET quantification and PVC methods
 
-APPIAN has been designed to facilitate the additition of new models for PET quantification. Here's how to add your model to APPIAN:
+APPIAN has been designed to facilitate the additition of new models for PET quantification and PVC algorithms. Here's how to add your method to APPIAN:
 
-### 1 Add model to Tracer_Kinetic
+### 1 Add model to Tracer_Kinetic / Partial_Volume_Correction
+##### Quantification
+To add a PET quantification model, in the Tracer_Kinetic/methods directory, create a new python file called quant_method_<your-model-name>.py. 
 
-In the Tracer_Kinetic directory, create a new python file called quant_method_<your-model-name>.py. 
+##### PVC
+Similarly, to add a PVC method, add a new python file called pvc_method_<your-model-name>.py in Partial_Volume_Correction/methods.
 
-### 2 Format of "quant_method_<your-model-name>.py"
-For examples of how to format the "quant_method_<your-model-name>.py", here is an exmaple of a [voxelwise][link_voxel] model and here is an [ROI-based][link_roi] model. 
+### 2 Format of "<quant/pvc>_method_<your-model-name>.py"
+For examples of how to format the "quant_method_<your-model-name>.py", here is an exmaple of a [voxelwise][link_voxel] model and here is an [ROI-based][link_roi] model. The format for "pvc_method_<your-method-name>.py" is very similar to that for quantification models; you can find an example [here][link_pvc_example].
 
 #### 2.1 Import template
+##### Quantification
 The "quant_method_<your-model-name>.py" file must import the "Tracer_Kinetic/quantification_template.py" module, which contains the basic template for Nipype nodes for performing PET quantification.
 
+##### PVC
+The "pvc_method_<your-model-name>.py" file must import the "Partial_Volume_Correction/methods/pvc_template.py" module, which contains the basic template for Nipype nodes for performing PVC.
+
 #### 2.2 Set variables
+##### Quantification
 Next, the "quant_method_<your-model-name>.py" file requires 4 variables : in_file_format, out_file_format, reference, and voxelwise. <in_file_format> and <out_file_format> define the the formats of the inputs and outputs to the PET quantification algorithm. For example, if you wish to implement one of the [voxelwise][link_voxel] models from the [Turku PET Centre][link_turku]--which use the ECAT format--then you would set these variables as :
 
     in_file_format="ECAT"
@@ -79,12 +87,16 @@ You can also stick to implementing models in using the default MINC files for in
 
     in_file_format="MINC"
     out_file_format="MINC"
- 
-#### 2.3 Setup classes
 
 Next, the <reference> variable is a boolean (True/False) that specifies whether the model uses a reference region (3D volume, defined in the quantification label file) or a reference TAC (defined as a [".dft"][link_dft]). Set to "False" if your model does not require some sort of reference, e.g., SUV.
     
 Finally, the <voxelwise> variable specifies whether the model is "voxelwise" or "ROI-based". Set to "True" for voxelwise analysis and "False" for ROI-based analysis.
+
+##### PVC
+The "pvc_method_<your-model-name>.py" file requires 1 variable : file_format. <file_format> defines the the format of the inputs and outputs to the PVC algorithm.
+ 
+#### 2.3 Setup classes
+##### Quantification
 
 The "quant_method_<your-model-name>.py" file requires that you set up 3 classes. 
 
@@ -92,16 +104,25 @@ The "quant_method_<your-model-name>.py" file requires that you set up 3 classes.
 
     class quantOutput(TraitedSpec):
 
-    class quantCommand(quantificationCommand):
+    class quantCommand(pvcCommand):
 
 The "quantInput" and "quantOutput" function is where you define the inputs and outputs to your model based on ["traits"][link_traits]. It is very important to note that the input PET file and output parametric file must be called "in_file" and "out_file", respectively. The "quantCommand" inherits from the template in "Tracer_Kinetic/quantification_template.py" and requires that you define two attributes: <\_cmd> and <\_suffix>. The <\_cmd> variable defines the function that will be run in the command line. The <\_suffix> variable is the suffix that will be appended to the input PET file to create the output file name. <\_suffix> should be the same as <your-model-name>.
 
 For more information on input specification and traits, check out the [Nipype documentation][link_nipype].
 
+##### PVC
+The "pvc_method_<your-model-name>.py" file requires that you set up 3 classes. 
+
+    class pvcInput(MINCCommandInputSpec):
+
+    class pvcOutput(TraitedSpec):
+
+    class pvcCommand(quantificationCommand):
+
+
 #### 2.4 Check & assign user options 
-
+##### Quantification
 The last thing the "quant_method_<your-model-name>.py" file needs is a function that will be used to assign variables to the PET quantification node based on user inputs:
-
 
         def check_options(tkaNode, opts):
 
@@ -110,6 +131,13 @@ The variable <opts> stores user inputs. The function <check_options> checks if c
        if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
 
 If your model requires options that are not yet defined in APPIAN, you can add it to the "Launcher.py" file. The Launcher.py file uses the standard [Python argument parser][link_argparse]. 
+    
+##### PVC
+The same as above applies for "pvc_method_<your-model-name>.py", but with "pvcNode" instead of "tkaNode":
+       
+       def check_options(pvcNode, opts):
+            if opts.scanner_fwhm != None: tkaNode.inputs.fwhm=opts.scanner_fwhm
+            
     
 ## APPIAN documentation style
 Documentation should be provided for all contributions. Documentation is automatically generated using [Sphinx][link_sphinx]

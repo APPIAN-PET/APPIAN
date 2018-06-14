@@ -93,7 +93,10 @@ Next, the <reference> variable is a boolean (True/False) that specifies whether 
 Finally, the <voxelwise> variable specifies whether the model is "voxelwise" or "ROI-based". Set to "True" for voxelwise analysis and "False" for ROI-based analysis.
 
 ##### PVC
-The "pvc_method_<your-model-name>.py" file requires 1 variable : file_format. <file_format> defines the the format of the inputs and outputs to the PVC algorithm.
+The "pvc_method_<your-model-name>.py" file requires 2 variable : file_format and separate_labels. <file_format> defines the format of the inputs and outputs to the PVC algorithm. <separate_labels> is a boolean variable (True/False) that determines whether to reformat the 3D volume with regional labels into a 4D volume. In this this case, each 3D sub-volume is a binary volume that codes for one of the regions in the original 3D label volume. This option is used for the implementation of [PVCPET][link_pvcpet].
+
+#### Additional note for PVC
+The above assumes that the PVC algorithm will take as input a 4D PET image. However, if the PVC algorithm you are trying to implement in APPIAN only accepts 3D inputs, then the 4D volume has to be split into indivudal time frames. This can be done and has been implemented for [PVCPET][link_pvcpet]; you can find an example [here][link_pvcpet_implementation].
  
 #### 2.3 Setup classes
 ##### Quantification
@@ -262,3 +265,5 @@ You're awesome. :wave::smiley:
 [link_argparse]: https://docs.python.org/3/library/argparse.html
 [link_html]:  https://htmlpreview.github.com/APPIAN-PET/APPIAN/blob/master/_build/html/code.html
 [link_config]:  github.com/APPIAN-PET/APPIAN/blob/master/conf.py 
+[link_pvcpet]:  https://github.com/UCL/PETPVC
+[link_pvcpet_implementation]: https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/methods/petpvc.py

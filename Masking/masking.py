@@ -302,8 +302,7 @@ def get_workflow(name, infosource, datasink, opts):
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
     #Define empty node for output
 
-    node_name="MNI2T1xfm"
-    invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name=node_name)
+    invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name="invert_MNI2T1")
     workflow.connect(inputnode, 'LinT1MNIXfm',invert_MNI2T1 , 'input_file')
     
     node_name="headmask"
@@ -315,6 +314,7 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(inputnode, 'nativeT1', headmaskNode, 'nativeT1')
     workflow.connect(inputnode, 'mniT1', headmaskNode, 'mniT1')
     workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinMNIT1Xfm')
+
     node_name="brainmask"
     brainmaskNode = pe.Node(interface=Labels(), name=node_name)
     brainmaskNode.inputs.space = "icbm152"

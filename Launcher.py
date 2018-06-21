@@ -168,6 +168,7 @@ if __name__ == "__main__":
     group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
+    group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
     group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
     group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)

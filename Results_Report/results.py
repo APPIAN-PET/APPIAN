@@ -26,39 +26,41 @@ results_columns = metric_columns + ['frame']
 # Group level descriptive statistics #
 ######################################
 def group_level_descriptive_statistics(opts, args):
-    #Setup workflow
-    workflow = pe.Workflow(name=opts.preproc_dir)
-    workflow.base_dir = opts.targetDir
-    
-    #Datasink
-    datasink=pe.Node(interface=nio.DataSink(), name="output")
-    datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"
-    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+    for surf in ['', 'surf']:
+        print(surf, "\n")
+        #Setup workflow
+        workflow = pe.Workflow(name=opts.preproc_dir)
+        workflow.base_dir = opts.targetDir
+        
+        #Datasink
+        datasink=pe.Node(interface=nio.DataSink(), name="output")
+        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"+os.sep+surf
+        datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-    #Datagrabber
-    if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_*'+os.sep+'*_3d.csv')
-    else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_*'+os.sep+'*_3d.csv')
+        #Datagrabber
+        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
+        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
 
-    datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
-    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
-    datasource.inputs.template = '*'
-    datasource.inputs.field_template = scan_stats_dict
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+        datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+        datasource.inputs.template = '*'
+        datasource.inputs.field_template = scan_stats_dict
 
-    #Concatenate descriptive statistics
-    concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
-    concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
-    workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-    workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
-   
-    #Calculate descriptive statistics
-    descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
-    workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
-    workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
-    workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
-    workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
-    workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
-    workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
-    workflow.run()
+        #Concatenate descriptive statistics
+        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
+        concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
+        workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
+        workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
+       
+        #Calculate descriptive statistics
+        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
+        workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
+        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
+        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
+        workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
+        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
+        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
+        workflow.run()
 
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")

@@ -32,6 +32,7 @@ import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
+from Masking import surf_masking
 """
 .. module:: scanLevel
     :platform: Unix
@@ -345,13 +346,19 @@ def run_scan_level(opts,args):
             #wm_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm."+opts.surf_ext,
             mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext,
             #FIXME Not sure what BIDS spec is for a surface mask
-            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.txt" 
+            #surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.txt" 
         )
         datasourceSurf.inputs.template_args = dict(
             #gm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
             #wm_surf = [['sid', 'ses', 'sid', 'ses', 'task']],
             mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
         )
+        workflow.connect([
+                (infosource, datasourceSurf, [('sid', 'sid')]),
+                (infosource, datasourceSurf, [('cid', 'cid')]),
+                (infosource, datasourceSurf, [('task', 'task')]),
+                (infosource, datasourceSurf, [('ses', 'ses')]),
+                 ])
 
     #############################################
     ### Define Workflow and basic connections ###
@@ -480,21 +487,23 @@ def run_scan_level(opts,args):
     out_img_list = [pet_input_file]
     out_img_dim = ['4']
 
+    if opts.use_surfaces:
+        ######################
+        # Transform Surfaces #
+        ######################
+        surf_wf = surf_masking.get_surf_workflow('surface_transform', infosource, datasink, opts)
+        workflow.connect(datasourceMINC, 'xfmT1MNI', surf_wf, 'inputnode.T1MNI')
+        workflow.connect(wf_masking, 'invert_MNI2T1.output_file',  surf_wf, 'inputnode.MNIT1')
+        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm",  surf_wf, 'inputnode.PETT1')
+        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm_invert", surf_wf, 'inputnode.T1PET')
+        workflow.connect(datasourceSurf, 'mid_surf', surf_wf, 'inputnode.obj_file')
+        workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, surf_wf, 'inputnode.vol_file')
+
     #############################
     # Partial-volume correction #
     #############################
     if not opts.nopvc :
         pvc_wf = pvc.get_pvc_workflow("pvc", infosource, datasink, opts) 
-        #workflow.connect(pet_input_node, pet_input_file, pvc_wf, "input_file")
-        #pvcNode = pe.Node(interface=pvc.PVCCommand(), name="pvc")
-        #pvcNode.inputs.fwhm = opts.scanner_fwhm[0]
-        #pvcNode.inputs.max_iterations = opts.max_iterations
-        #pvcNode.inputs.tolerance = opts.tolerance
-        #pvcNode.inputs.nvoxel_to_average=opts.nvoxel_to_average
-        #pvcNode.inputs.z_fwhm = opts.scanner_fwhm[0]
-        #pvcNode.inputs.y_fwhm = opts.scanner_fwhm[1]
-        #pvcNode.inputs.x_fwhm = opts.scanner_fwhm[2]
-        #pvcNode.inputs.pvc_method = opts.pvc_method
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(pet_mask_node, pet_pvc_mask_file, pvc_wf, "inputnode.mask_file") #CHANGE
 
@@ -521,7 +530,7 @@ def run_scan_level(opts,args):
            workflow.connect(pet_mask_node, pet_pvc_mask_file, tka_wf, 'inputnode.like_file')
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
         #if opts.tka_method in reference_methods:
-        workflow.connect(pet_mask_node, pet_results_mask_file, tka_wf, "inputnode.mask") #FIXME shouldnt space of labels depend on space of PET image?
+        workflow.connect(pet_mask_node, pet_results_mask_file, tka_wf, "inputnode.mask") 
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
         if opts.arterial :
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
@@ -550,12 +559,21 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', resultsReport, "task")
             workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReport, "header")
             workflow.connect(wf_masking, 'resultsLabels.Labels'+labelSpace, resultsReport, 'mask')
-            if opts.use_surfaces:
-                workflow.connect(datasourceSurf, 'mid_surf', resultsReport, "surf_mesh")
-                workflow.connect(datasourceSurf, 'surf_mask', resultsReport, 'surf_mask')
-
             workflow.connect(node, img, resultsReport, 'in_file')
             workflow.connect(node, img, datasink, node.name)
+
+            if opts.use_surfaces:
+                node_name="results_surf_" + node.name 
+                resultsReportSurf = pe.Node(interface=results.resultsCommand(), name=node_name)
+                resultsReportSurf.inputs.dim = dim
+                resultsReportSurf.inputs.node = node.name
+                workflow.connect(infosource, 'sid', resultsReportSurf, "sub")
+                workflow.connect(infosource, 'ses', resultsReportSurf, "ses")
+                workflow.connect(infosource, 'task', resultsReportSurf, "task")
+                workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReportSurf, "header")
+                workflow.connect(node, img, resultsReportSurf, 'in_file')
+                workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
+                workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
     
     ############################
     # Subject-level QC Metrics #

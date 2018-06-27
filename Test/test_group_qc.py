@@ -510,7 +510,6 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
                                 #Get column number of the current outlier measure
                                 #Reindex the test_df from 0 to the number of rows it has
                                 #Get the series with the calculate the distance measure for the current measure
-                                print(metric_df)
                                 metric_df.index = range(metric_df.shape[0])
                                 metricvalues=metric_df.value.values
                                 if len(metricvalues.shape) == 1 : metricvalues = metricvalues.reshape(-1,1)

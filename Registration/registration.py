@@ -525,8 +525,29 @@ class nLinRegRunning(BaseInterface):
         outputs["out_file_img"] = self.inputs.out_file_img
         
         return outputs
-
+"""
+.. module:: registration
+    :platform: Unix
+    :synopsis: Module to perform image registration. 
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 def get_workflow(name, infosource, opts):
+    '''
+        Create workflow to perform PET to T1 co-registration.
+
+        1. PET to T1 coregistration with brain masks
+        2. PET to T1 coregistration without brain masks (OPTIONAL)
+        3. Transform T1 MRI brainmask and headmask from MNI 152 to T1 native
+        4. Resample 4d PET image to T1 space
+        5. Resample 4d PET image to MNI 152 space
+
+        :param name: Name for workflow
+        :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
+        :param datasink: Node in which output data is sent
+        :param opts: User options
+        
+        :returns: workflow
+    '''
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","pet_headMask","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error"]), name='inputnode')

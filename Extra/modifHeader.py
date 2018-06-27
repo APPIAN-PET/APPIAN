@@ -9,15 +9,15 @@ class ModifyHeaderOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
 
 class ModifyHeaderInput(CommandLineInputSpec):
-    in_file = File(position=-3, argstr="%s", mandatory=True, desc="Image")
+    in_file = File(position=-1, argstr="%s", mandatory=True, desc="Image")
     out_file = File(desc="Image after centering")
 
-    sinsert = traits.Bool(argstr="-sinsert", default_value=False, desc="Insert a string attribute")
-    dinsert = traits.Bool(argstr="-dinsert", default_value=False, desc="Insert a double precision attribute")
-    sappend = traits.Bool(argstr="-sappend", default_value=False, desc="Append a string attribute")
-    dappend = traits.Bool(argstr="-dappend", default_value=False, desc="Append a double precision attribute")
-    delete = traits.Bool(argstr="-delete", default_value=False, desc="Delete an attribute")
-    opt_string = traits.Str(argstr="%s", desc="Option defining the infos to print out")
+    sinsert = traits.Bool(argstr="-sinsert", position=-3, default_value=False, desc="Insert a string attribute")
+    dinsert = traits.Bool(argstr="-dinsert", position=-3, default_value=False, desc="Insert a double precision attribute")
+    sappend = traits.Bool(argstr="-sappend", position=-3, default_value=False, desc="Append a string attribute")
+    dappend = traits.Bool(argstr="-dappend", position=-3, default_value=False, desc="Append a double precision attribute")
+    delete = traits.Bool(argstr="-delete", position=-3, default_value=False, desc="Delete an attribute")
+    opt_string = traits.Str(argstr="%s", position=-2, desc="Option defining the infos to print out")
     header = traits.File(argstr="MINC header for PET image, stored as dictionary")
 
 class ModifyHeaderCommand(CommandLine):

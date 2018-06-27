@@ -1,0 +1,53 @@
+{
+
+"creators": [
+
+{
+
+"name": "Funck, Thomas",
+
+"affiliation": "Montreal Neurological Institute, McGill University"
+
+},
+
+{
+
+"name": "Larcher, Kevin",
+
+"affiliation": "Biospective Inc.",
+
+},
+
+{
+
+"name": "Toussaint, Paule-J.",
+
+"affiliation": "Montreal Neurological Institute and Hospital, McGill University",
+
+}
+
+],
+
+"keywords": [
+
+"neuroimaging",
+
+"workflow",
+
+"pipeline",
+
+"preprocessing",
+
+"PET",
+
+"kinetic modelling",
+
+"BIDS"
+
+],
+
+"license": "MIT",
+
+"upload_type": "software"
+
+}

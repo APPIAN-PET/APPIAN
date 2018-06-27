@@ -1,0 +1,675 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>scanLevel &#8212; APPIAN 0.1.1-alpha documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for scanLevel</h1><div class="highlight"><pre>
+<span></span><span class="c1"># vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch</span>
+<span class="c1"># vim: filetype plugin indent on</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">commands</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pyminc.volumes.factory</span> <span class="k">as</span> <span class="nn">pyminc</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pdb</span>
+
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="k">import</span> <span class="n">OptionParser</span>
+<span class="kn">from</span> <span class="nn">optparse</span> <span class="k">import</span> <span class="n">OptionGroup</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">as</span> <span class="nn">minc</span>
+<span class="kn">import</span> <span class="nn">nipype.pipeline.engine</span> <span class="k">as</span> <span class="nn">pe</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.io</span> <span class="k">as</span> <span class="nn">nio</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">util</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">niu</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">import</span> <span class="n">Rename</span>
+
+<span class="kn">from</span> <span class="nn">Extra.conversion</span> <span class="k">import</span>  <span class="n">nii2mncCommand</span>
+
+<span class="kn">from</span> <span class="nn">Masking</span> <span class="k">import</span> <span class="n">masking</span> <span class="k">as</span> <span class="n">masking</span>
+<span class="kn">import</span> <span class="nn">Registration.registration</span> <span class="k">as</span> <span class="nn">reg</span>
+<span class="kn">import</span> <span class="nn">Initialization.initialization</span> <span class="k">as</span> <span class="nn">init</span>
+<span class="kn">import</span> <span class="nn">Partial_Volume_Correction.pvc</span> <span class="k">as</span> <span class="nn">pvc</span> 
+<span class="kn">import</span> <span class="nn">Results_Report.results</span> <span class="k">as</span> <span class="nn">results</span>
+<span class="kn">import</span> <span class="nn">Tracer_Kinetic.tka</span> <span class="k">as</span> <span class="nn">tka</span>
+<span class="kn">from</span> <span class="nn">Tracer_Kinetic</span> <span class="k">import</span> <span class="n">reference_methods</span><span class="p">,</span> <span class="n">ecat_methods</span>
+<span class="kn">import</span> <span class="nn">Quality_Control.qc</span> <span class="k">as</span> <span class="nn">qc</span>
+<span class="kn">import</span> <span class="nn">Test.test_group_qc</span> <span class="k">as</span> <span class="nn">tqc</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: scanLevel</span>
+<span class="sd">    :platform: Unix</span>
+<span class="sd">    :synopsis: Module to launch scan level analysis.</span>
+<span class="sd">.. moduleauthor:: Thomas Funck &lt;tffunck@gmail.com&gt;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="set_datasource_inputs"><a class="viewcode-back" href="../code.html#scanLevel.set_datasource_inputs">[docs]</a><span class="k">def</span> <span class="nf">set_datasource_inputs</span><span class="p">(</span><span class="n">opts</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Setup data source based on user-options.</span>
+
+<span class="sd">    :param opts: User-defined options</span>
+<span class="sd">        :type opts: argparser</span>
+<span class="sd">    :returns:  </span>
+<span class="sd">        infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Set the inputs for the labeled image for datasource.</span>
+    <span class="c1"># This is a bit complicated because there are many possible ways in which the </span>
+    <span class="c1"># user can define these labeled images. The simplest approach is to use a </span>
+    <span class="c1"># labeled image in T1 native space. A more complicated approach is to to use an</span>
+    <span class="c1"># atlas defined in some other space, in which case we need both the labeled image</span>
+    <span class="c1"># and the template image on which the labeled image is defined. </span>
+
+    <span class="c1"># Set PVC label DataGrabber inputs:</span>
+    <span class="p">[</span> <span class="n">pvc_label_img_string</span><span class="p">,</span> <span class="n">pvc_label_img_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_level</span><span class="p">,</span> <span class="s1">&#39;pvc_img_string&#39;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+    <span class="c1"># Set quantification label DataGrabber inputs</span>
+    <span class="p">[</span> <span class="n">tka_label_img_string</span><span class="p">,</span> <span class="n">tka_label_img_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_label_level</span><span class="p">,</span>  <span class="s1">&#39;tka_img_string&#39;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+    <span class="c1"># Set results label DataGrabber inputs</span>
+    <span class="p">[</span> <span class="n">results_label_img_string</span><span class="p">,</span> <span class="n">results_label_img_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">results_label_level</span><span class="p">,</span>  <span class="s1">&#39;results_img_string&#39;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+
+    <span class="c1"># Set the inputs for the template image for DataGrabber</span>
+    <span class="c1"># Set the inputs for the PVC template image</span>
+    <span class="p">[</span> <span class="n">pvc_label_template_string</span><span class="p">,</span> <span class="n">pvc_label_template_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_level</span><span class="p">,</span>  <span class="s1">&#39;pvc_template_string&#39;</span><span class="p">,</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+    <span class="c1"># Set the inputs for the quantification template image</span>
+    <span class="p">[</span> <span class="n">tka_label_template_string</span><span class="p">,</span> <span class="n">tka_label_template_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_label_level</span><span class="p">,</span>  <span class="s1">&#39;tka_template_string&#39;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+    <span class="c1"># Set the inputs for the results template image</span>
+    <span class="p">[</span> <span class="n">results_label_template_string</span><span class="p">,</span> <span class="n">results_label_template_variables</span>  <span class="p">]</span> <span class="o">=</span> <span class="n">set_label_parameters</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">results_label_level</span><span class="p">,</span>  <span class="s1">&#39;results_template_string&#39;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="p">)</span>
+
+    
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">pvc_label_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">pvc_label_img_string</span> 
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">tka_label_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">tka_label_img_string</span> 
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">results_label_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">results_label_img_string</span> 
+
+    <span class="c1">#List of variables used to identify PET image</span>
+    <span class="n">infields_list</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;acq&#39;</span><span class="p">,</span> <span class="s1">&#39;rec&#39;</span><span class="p">]</span>
+    <span class="c1">#List of strings that define the variable names for label images</span>
+    <span class="n">base_label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;pvc_label_img&#39;</span><span class="p">,</span><span class="s1">&#39;tka_label_img&#39;</span><span class="p">,</span> <span class="s1">&#39;results_label_img&#39;</span> <span class="p">]</span> 
+    <span class="c1">#List of structural images that are used by APPIAN</span>
+    <span class="n">base_images</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span>  <span class="s1">&#39;nativeT1nuc&#39;</span><span class="p">,</span>  <span class="s1">&#39;T1Tal&#39;</span><span class="p">,</span>  <span class="s1">&#39;brainmaskTal&#39;</span><span class="p">,</span>  <span class="s1">&#39;headmaskTal&#39;</span><span class="p">,</span>  <span class="s1">&#39;clsmask&#39;</span><span class="p">,</span> <span class="s1">&#39;segmentation&#39;</span><span class="p">,</span> <span class="s1">&#39;pet&#39;</span><span class="p">]</span>
+    <span class="c1">#List of transformation files from T1 native space to MNI152 space. </span>
+    <span class="c1">#First is a linear transform, second is a non-linear transform.</span>
+    <span class="n">base_transforms</span><span class="o">=</span><span class="p">[</span> <span class="s1">&#39;xfmT1MNI&#39;</span> <span class="p">,</span><span class="s1">&#39;xfmT1MNInl&#39;</span><span class="p">]</span>
+    <span class="n">base_outputs</span> <span class="o">=</span> <span class="n">base_images</span> <span class="o">+</span> <span class="n">base_transforms</span>  <span class="o">+</span> <span class="n">base_label</span> 
+    
+    <span class="c1">#Dictionary for basic structural inputs to DataGrabber</span>
+    <span class="n">field_template_dict</span> <span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+        <span class="n">nativeT1</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*T1w.&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">nativeT1nuc</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*T1w_nuc.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span> 
+        <span class="n">T1Tal</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*_T1w_space-mni.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">xfmT1MNI</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/transforms/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*target-MNI_affine.xfm&#39;</span><span class="p">,</span>
+        <span class="n">xfmT1MNInl</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/transforms/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*target-MNI_warp.xfm&#39;</span><span class="p">,</span>
+        <span class="n">brainmaskTal</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*_space-mni_brainmask.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">headmaskTal</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*_space-mni_skullmask.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">clsmask</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*space-mni_variant-cls_dtissue.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">segmentation</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*_space-mni_variant-seg_dtissue.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="n">pet</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/pet/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">_task-</span><span class="si">%s</span><span class="s1">_acq-</span><span class="si">%s</span><span class="s1">_rec-</span><span class="si">%s</span><span class="s1">_pet.*&#39;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span><span class="p">,</span>
+        <span class="c1">#PVC label string </span>
+        <span class="n">pvc_label_img</span> <span class="o">=</span> <span class="n">pvc_label_img_string</span><span class="p">,</span>
+        <span class="c1">#TKA label string</span>
+        <span class="n">tka_label_img</span> <span class="o">=</span> <span class="n">tka_label_img_string</span><span class="p">,</span>
+        <span class="c1">#Results label string</span>
+        <span class="n">results_label_img</span> <span class="o">=</span> <span class="n">results_label_img_string</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">template_args_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="n">nativeT1</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">nativeT1nuc</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">T1Tal</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">xfmT1MNI</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">xfmT1MNInl</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">brainmaskTal</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">headmaskTal</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">clsmask</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">segmentation</span><span class="o">=</span><span class="p">[[</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">]],</span>
+        <span class="n">pet</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;acq&#39;</span><span class="p">,</span> <span class="s1">&#39;rec&#39;</span><span class="p">]],</span>
+        <span class="n">pvc_label_img</span> <span class="o">=</span> <span class="n">pvc_label_img_variables</span><span class="p">,</span>
+        <span class="n">tka_label_img</span> <span class="o">=</span> <span class="n">tka_label_img_variables</span><span class="p">,</span>
+        <span class="n">results_label_img</span> <span class="o">=</span> <span class="n">results_label_img_variables</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># If not pvc_label_img[1] == None then that means we are using a labeled image </span>
+    <span class="c1"># requires a corresponding template. Otherwise, the image is defined in T1 native or</span>
+    <span class="c1"># MNI 152. The same applies for PVC and quantification stage</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="c1">#Assign pvc input to datasource</span>
+        <span class="n">pvc_template_string</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span> <span class="o">=</span> <span class="n">assign_datasource_values</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span><span class="p">,</span> <span class="n">pvc_label_template_string</span><span class="p">,</span> <span class="n">pvc_label_template_variables</span><span class="p">,</span> <span class="s1">&#39;pvc_label_template&#39;</span> <span class="p">,</span> <span class="s1">&#39;pvc_template_string&#39;</span>  <span class="p">)</span>
+        <span class="n">base_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;pvc_label_template&#39;</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="n">pvc_template_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="c1">#Assign tka input to datasource</span>
+        <span class="n">tka_template_string</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span> <span class="o">=</span> <span class="n">assign_datasource_values</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span><span class="p">,</span> <span class="n">tka_label_template_string</span><span class="p">,</span> <span class="n">tka_label_template_variables</span><span class="p">,</span> <span class="s1">&#39;tka_label_template&#39;</span> <span class="p">,</span> <span class="s1">&#39;tka_template_string&#39;</span>  <span class="p">)</span>
+        <span class="n">base_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;tka_label_template&#39;</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="n">tka_template_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="c1">#Assign results input to datasource</span>
+        <span class="n">results_template_string</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span> <span class="o">=</span> <span class="n">assign_datasource_values</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span><span class="p">,</span> <span class="n">results_label_template_string</span><span class="p">,</span> <span class="n">results_label_template_variables</span><span class="p">,</span> <span class="s1">&#39;results_label_template&#39;</span> <span class="p">,</span> <span class="s1">&#39;results_template_string&#39;</span>  <span class="p">)</span>
+        <span class="n">base_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;results_label_template&#39;</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> <span class="n">results_template_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="k">return</span> <span class="n">infields_list</span><span class="p">,</span> <span class="n">base_outputs</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">base_transforms</span><span class="p">,</span> <span class="n">base_images</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">pvc_template_string</span><span class="p">,</span> <span class="n">tka_template_string</span><span class="p">,</span> <span class="n">results_template_string</span> </div>
+ 
+
+<div class="viewcode-block" id="assign_datasource_values"><a class="viewcode-back" href="../code.html#scanLevel.assign_datasource_values">[docs]</a><span class="k">def</span> <span class="nf">assign_datasource_values</span><span class="p">(</span><span class="n">label_img</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span><span class="p">,</span> <span class="n">label_template_string</span><span class="p">,</span> <span class="n">label_template_variables</span><span class="p">,</span> <span class="n">str1</span><span class="p">,</span> <span class="n">str2</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function sets up the strings and dictionaries that are then used to create the appropriate Nipype DataGrabber. </span>
+
+<span class="sd">    :param label_img: label_img</span>
+<span class="sd">    :param field_template_dict: Dictionary of strings for template </span>
+<span class="sd">    :param template_args_dict: Dictionary of variable arguments for templates</span>
+<span class="sd">    :param base_label: base_label </span>
+<span class="sd">    :param infields_list: infields_list</span>
+<span class="sd">    :param label_template_string: label_template_string</span>
+<span class="sd">    :param label_template_variables: label_template_variables</span>
+<span class="sd">    :param str1: str1</span>
+<span class="sd">    :param str2: str2</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">template_string</span> <span class="o">=</span> <span class="n">label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">field_template_dict</span><span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">field_template_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="o">+</span> <span class="p">[[</span><span class="n">str1</span><span class="p">,</span> <span class="n">label_template_string</span><span class="p">]]</span> <span class="p">)</span>
+    <span class="n">template_args_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span> <span class="n">template_args_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="o">+</span> <span class="p">[[</span><span class="n">str1</span><span class="p">,</span> <span class="n">label_template_variables</span><span class="p">]]</span> <span class="p">)</span>
+    <span class="n">base_label</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">str1</span><span class="p">)</span>
+    <span class="n">infields_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">str2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">template_string</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">infields_list</span> </div>
+
+
+<div class="viewcode-block" id="printOptions"><a class="viewcode-back" href="../code.html#scanLevel.printOptions">[docs]</a><span class="k">def</span> <span class="nf">printOptions</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span><span class="n">subject_ids</span><span class="p">,</span><span class="n">session_ids</span><span class="p">,</span><span class="n">task_ids</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Print basic options input by user</span>
+
+<span class="sd">    :param opts: User-defined options.</span>
+<span class="sd">    :param subject_ids: Subject IDs</span>
+<span class="sd">    :param session_ids: Session variable IDs</span>
+<span class="sd">    :param task_ids: Task variable IDs</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">uname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">popen</span><span class="p">(</span><span class="s1">&#39;uname -s -n -r&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="nb">print</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="nb">print</span> <span class="s2">&quot;* Pipeline started at &quot;</span><span class="o">+</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%c</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;on &quot;</span><span class="o">+</span><span class="n">uname</span>
+    <span class="nb">print</span> <span class="s2">&quot;* Command line is : </span><span class="se">\n</span><span class="s2"> &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="nb">print</span> <span class="s2">&quot;* The source directory is : &quot;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span>
+    <span class="nb">print</span> <span class="s2">&quot;* The target directory is : &quot;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">targetDir</span><span class="o">+</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="nb">print</span> <span class="s2">&quot;* Data-set Subject ID(s) is/are : &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">subject_ids</span><span class="p">))</span><span class="o">+</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="c1">#   print &quot;* PET conditions : &quot;+ &#39;,&#39;.join(opts.condiList)+&quot;\n&quot;</span>
+    <span class="nb">print</span> <span class="s2">&quot;* Sessions : &quot;</span><span class="p">,</span> <span class="n">session_ids</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="nb">print</span> <span class="s2">&quot;* Tasks : &quot;</span> <span class="p">,</span> <span class="n">task_ids</span> <span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span></div>
+
+<div class="viewcode-block" id="set_label_parameters"><a class="viewcode-back" href="../code.html#scanLevel.set_label_parameters">[docs]</a><span class="k">def</span> <span class="nf">set_label_parameters</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="n">var</span> <span class="p">,</span> <span class="n">ext</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set the label_string and label_variables for the datasource</span>
+<span class="sd">    </span>
+<span class="sd">    :param level: &lt;level&gt; equals &quot;atlas&quot; if a filepath is given, otherwise uses BIDS label-string</span>
+<span class="sd">    :param var: String variable name for image type</span>
+<span class="sd">    :param ext: File Extension</span>
+<span class="sd">    :type level: String</span>
+<span class="sd">    :type var: String</span>
+<span class="sd">    :type ext: String</span>
+
+<span class="sd">    :returns [label_string, label_variables]: List with two elements: string used to identify image, a list of variables that are used to &quot;fill-in&quot; label_string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">level</span>  <span class="o">==</span> <span class="s2">&quot;atlas&quot;</span><span class="p">:</span> 
+        <span class="n">label_string</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span>
+        <span class="n">label_variables</span> <span class="o">=</span> <span class="p">[[</span> <span class="n">var</span> <span class="p">]]</span>
+    <span class="k">else</span><span class="p">:</span> 
+        <span class="n">label_string</span> <span class="o">=</span> <span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/anat/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">*</span><span class="si">%s</span><span class="s1">*&#39;</span> <span class="o">+</span> <span class="n">ext</span>
+        <span class="n">label_variables</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="n">var</span><span class="p">]</span> <span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span> <span class="n">label_string</span><span class="p">,</span> <span class="n">label_variables</span> <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="run_scan_level"><a class="viewcode-back" href="../code.html#scanLevel.run_scan_level">[docs]</a><span class="k">def</span> <span class="nf">run_scan_level</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span><span class="n">args</span><span class="p">):</span> 
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the main function for setting up and then running the scanLevel analysis. It first uses &lt;preinfosource&gt; to identify which scans exist for the which combination of  task, session, and subject IDs. This is stored in &lt;valid_args&gt;, which is then passed to inforsource. Infosource iterates over the valid subjects and uses DataGrabber to find the input files for each of these subjects. Depdning on the user-options defined in &lt;opts&gt;, for each scan PET-T1 co-registration, partial-volume correction, tracer kinetic analysis and results reporting are performed. </span>
+
+<span class="sd">    .. aafig::</span>
+<span class="sd">        </span>
+<span class="sd">       +-------------+</span>
+<span class="sd">       |Preinfosource| </span>
+<span class="sd">       +-----+-------+</span>
+<span class="sd">             |</span>
+<span class="sd">             |</span>
+<span class="sd">        +----+-----+</span>
+<span class="sd">        |Infosource|</span>
+<span class="sd">        +-+---+---++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |D| |D| |D| = &quot;DataGrabber&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |I| |I| |I| = &quot;Initialization&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |M| |M| |M| = &quot;Masking&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |C| |C| |C| = &quot;Coregistration&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |P| |P| |P| = &quot;Partial volume correction&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |T| |T| |T| = &quot;Tracer kinetic analysis&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">          |   |   |</span>
+<span class="sd">         +++ +++ +++</span>
+<span class="sd">         |R| |R| |R| = &quot;Results report&quot;</span>
+<span class="sd">         +++ +++ +++</span>
+
+<span class="sd">    :param opts: User-defined options</span>
+<span class="sd">    :type opts: argparser</span>
+<span class="sd">    :param args: List of subjects</span>
+<span class="sd">    :type args: list</span>
+
+<span class="sd">    :returns int: Return code 0 == success</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+        <span class="n">subjects_ids</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">*******ERROR********: </span><span class="se">\n</span><span class="s2">     The subject IDs are not listed in the command-line </span><span class="se">\n</span><span class="s2">********************</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1">#If the sessionList has been defined as a &quot;,&quot; separated list, split it into list</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">sessionList</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">opts</span><span class="o">.</span><span class="n">sessionList</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sessionList</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+    <span class="n">session_ids</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sessionList</span>
+    <span class="c1">#If the taskList has been defined as a &quot;,&quot; separated list, split it into list</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">taskList</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">opts</span><span class="o">.</span><span class="n">taskList</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">taskList</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+    <span class="n">task_ids</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">taskList</span>
+
+    <span class="c1">###Define args with exiting subject and condition combinations</span>
+    <span class="n">valid_args</span><span class="o">=</span><span class="n">init</span><span class="o">.</span><span class="n">gen_args</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="n">session_ids</span><span class="p">,</span> <span class="n">task_ids</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">acq</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">rec</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+    <span class="n">preinfosource</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">util</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">,</span><span class="s1">&#39;results_labels&#39;</span><span class="p">,</span><span class="s1">&#39;tka_labels&#39;</span><span class="p">,</span><span class="s1">&#39;pvc_labels&#39;</span><span class="p">,</span> <span class="s1">&#39;pvc_erode_times&#39;</span><span class="p">,</span> <span class="s1">&#39;tka_erode_times&#39;</span><span class="p">,</span> <span class="s1">&#39;results_erode_times&#39;</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;preinfosource&quot;</span><span class="p">)</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">iterables</span> <span class="o">=</span> <span class="p">(</span> <span class="s1">&#39;args&#39;</span><span class="p">,</span> <span class="n">valid_args</span> <span class="p">)</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">results_labels</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_labels</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tka_labels</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_labels</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_labels</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_labels</span> 
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">results_erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_erode_times</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tka_erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_erode_times</span>
+    <span class="n">preinfosource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_erode_times</span>
+    <span class="c1">###Infosource###</span>
+    <span class="n">infosource</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">init</span><span class="o">.</span><span class="n">SplitArgsRunning</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;infosource&quot;</span><span class="p">)</span>
+
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Workflow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">preproc_dir</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">base_dir</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">targetDir</span>
+
+    <span class="c1">#################</span>
+    <span class="c1">###Datasources###</span>
+    <span class="c1">#################</span>
+    <span class="c1">#Subject ROI datasource</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">arterial</span><span class="p">:</span>
+        <span class="n">datasourceArterial</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span> <span class="n">interface</span><span class="o">=</span><span class="n">nio</span><span class="o">.</span><span class="n">DataGrabber</span><span class="p">(</span><span class="n">infields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;acq&#39;</span> <span class="p">],</span>  <span class="n">outfields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;arterial_file&#39;</span><span class="p">],</span> <span class="n">raise_on_empty</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">sort_filelist</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;datasourceArterial&quot;</span><span class="p">)</span>
+        <span class="n">datasourceArterial</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">base_directory</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span>
+        <span class="n">datasourceArterial</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+        <span class="n">datasourceArterial</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">acq</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">acq</span>
+        <span class="n">datasourceArterial</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">field_template</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">arterial_file</span><span class="o">=</span><span class="s1">&#39;sub-</span><span class="si">%s</span><span class="s1">/_ses-</span><span class="si">%s</span><span class="s1">/pet/sub-</span><span class="si">%s</span><span class="s1">_ses-</span><span class="si">%s</span><span class="s1">_task-</span><span class="si">%s</span><span class="s1">_acq-</span><span class="si">%s</span><span class="s1">_*.dft&#39;</span><span class="p">)</span>
+        <span class="n">datasourceArterial</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template_args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">arterial_file</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span><span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;acq&#39;</span><span class="p">]])</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([</span>  <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasourceArterial</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)]),</span> 
+                            <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasourceArterial</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">)]),</span>
+                            <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasourceArterial</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">)])</span>
+                            <span class="p">])</span>
+    
+    <span class="n">infields_list</span><span class="p">,</span> <span class="n">base_outputs</span><span class="p">,</span> <span class="n">base_label</span><span class="p">,</span> <span class="n">base_transforms</span><span class="p">,</span> <span class="n">base_images</span><span class="p">,</span> <span class="n">template_args_dict</span><span class="p">,</span> <span class="n">field_template_dict</span><span class="p">,</span> <span class="n">pvc_template_string</span><span class="p">,</span> <span class="n">tka_template_string</span><span class="p">,</span> <span class="n">results_template_string</span> <span class="o">=</span> <span class="n">set_datasource_inputs</span><span class="p">(</span><span class="n">opts</span><span class="p">)</span>
+
+    <span class="n">datasource</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span> <span class="n">interface</span><span class="o">=</span><span class="n">nio</span><span class="o">.</span><span class="n">DataGrabber</span><span class="p">(</span><span class="n">infields</span><span class="o">=</span><span class="n">infields_list</span><span class="p">,</span> <span class="n">outfields</span><span class="o">=</span><span class="n">base_outputs</span><span class="p">,</span> <span class="n">raise_on_empty</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort_filelist</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;datasource&quot;</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_template_string</span><span class="o">=</span><span class="n">pvc_template_string</span> 
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tka_template_string</span><span class="o">=</span><span class="n">tka_template_string</span> 
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">results_template_string</span><span class="o">=</span><span class="n">results_template_string</span>
+    
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tka_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">results_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_img_string</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">base_directory</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span> <span class="c1"># opts.sourceDir</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+    <span class="c1">### Variables to use from template</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">acq</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">acq</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">rec</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">rec</span>
+    <span class="c1">### Templates for input</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">field_template</span> <span class="o">=</span> <span class="n">field_template_dict</span>
+    <span class="c1">### Templates for template args</span>
+    <span class="n">datasource</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template_args</span> <span class="o">=</span> <span class="n">template_args_dict</span> 
+
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">use_surfaces</span><span class="p">:</span>
+        <span class="n">datasourceSurf</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span> <span class="n">interface</span><span class="o">=</span><span class="n">nio</span><span class="o">.</span><span class="n">DataGrabber</span><span class="p">(</span><span class="n">infields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;acq&#39;</span><span class="p">,</span> <span class="s1">&#39;rec&#39;</span><span class="p">],</span> <span class="n">outfields</span><span class="o">=</span><span class="p">[</span> <span class="s1">&#39;gm_surf&#39;</span><span class="p">,</span> <span class="s1">&#39;wm_surf&#39;</span><span class="p">,</span> <span class="s1">&#39;mid_surf&#39;</span><span class="p">],</span> <span class="n">raise_on_empty</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort_filelist</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;datasourceSurf&quot;</span><span class="p">)</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">base_directory</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">acq</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">acq</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">rec</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">rec</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">field_template</span> <span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+            <span class="c1">#gm_surf=&quot;sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_pial.&quot;+opts.surf_ext,</span>
+            <span class="c1">#wm_surf=&quot;sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_smoothwm.&quot;+opts.surf_ext,</span>
+            <span class="n">mid_surf</span><span class="o">=</span><span class="s2">&quot;sub-</span><span class="si">%s</span><span class="s2">/_ses-</span><span class="si">%s</span><span class="s2">/anat/sub-</span><span class="si">%s</span><span class="s2">_ses-</span><span class="si">%s</span><span class="s2">_task-</span><span class="si">%s</span><span class="s2">_midthickness.&quot;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">surf_ext</span><span class="p">,</span>
+            <span class="c1">#FIXME Not sure what BIDS spec is for a surface mask</span>
+            <span class="n">surf_mask</span><span class="o">=</span><span class="s2">&quot;sub-</span><span class="si">%s</span><span class="s2">/_ses-</span><span class="si">%s</span><span class="s2">/anat/sub-</span><span class="si">%s</span><span class="s2">_ses-</span><span class="si">%s</span><span class="s2">_task-</span><span class="si">%s</span><span class="s2">_midthickness_mask.txt&quot;</span> 
+        <span class="p">)</span>
+        <span class="n">datasourceSurf</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">template_args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="c1">#gm_surf = [[&#39;sid&#39;, &#39;ses&#39;, &#39;sid&#39;, &#39;ses&#39;, &#39;task&#39;]],</span>
+            <span class="c1">#wm_surf = [[&#39;sid&#39;, &#39;ses&#39;, &#39;sid&#39;, &#39;ses&#39;, &#39;task&#39;]],</span>
+            <span class="n">mid_surf</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">]]</span>
+        <span class="p">)</span>
+
+    <span class="c1">#############################################</span>
+    <span class="c1">### Define Workflow and basic connections ###</span>
+    <span class="c1">#############################################</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([</span>
+                    <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasource</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)]),</span>
+                    <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasource</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;cid&#39;</span><span class="p">,</span> <span class="s1">&#39;cid&#39;</span><span class="p">)]),</span>
+                    <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasource</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">)]),</span>
+                    <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">datasource</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">)]),</span>
+                     <span class="p">])</span>
+
+    <span class="c1">############################################################</span>
+    <span class="c1">### Convert NII to MINC if necessary.                      # </span>
+    <span class="c1">### Pass to identity node that serves as pseudo-datasource #</span>
+    <span class="c1">############################################################</span>
+    <span class="n">datasourceMINC</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">base_outputs</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;datasourceMINC&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">base_transforms</span><span class="p">)):</span>
+        <span class="nb">print</span> <span class="n">base_transforms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="n">base_transforms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">,</span> <span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">base_transforms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">base_images</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">img_ext</span> <span class="o">==</span> <span class="s1">&#39;nii&#39;</span><span class="p">:</span>
+            <span class="n">nii2mncNode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">nii2mncCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">base_images</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_nii2mncNode&#39;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="n">base_images</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">nii2mncNode</span><span class="p">,</span> <span class="s2">&quot;in_file&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">nii2mncNode</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">base_images</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="n">base_images</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">base_images</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">t1_type</span><span class="o">=</span><span class="s1">&#39;nativeT1nuc&#39;</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">coregistration_target_image</span> <span class="o">==</span> <span class="s1">&#39;raw&#39;</span><span class="p">:</span>
+        <span class="n">t1_type</span><span class="o">=</span><span class="s1">&#39;nativeT1&#39;</span>
+    
+    <span class="c1">##############</span>
+    <span class="c1">###Datasink###</span>
+    <span class="c1">##############</span>
+    <span class="n">datasink</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">nio</span><span class="o">.</span><span class="n">DataSink</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">)</span>
+    <span class="n">datasink</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">base_directory</span><span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">targetDir</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> 
+    <span class="n">datasink</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">substitutions</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;_cid_&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;sid_&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)]</span>
+
+    <span class="c1">###Set the appropriate nodes and inputs for desired &quot;analysis_level&quot;</span>
+    <span class="n">wf_pet2mri</span><span class="o">=</span><span class="n">reg</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">(</span><span class="s2">&quot;pet-coregistration&quot;</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
+    <span class="n">wf_masking</span><span class="o">=</span><span class="n">masking</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">(</span><span class="s2">&quot;masking&quot;</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">analysis_space</span> <span class="o">==</span> <span class="s1">&#39;icbm152&#39;</span><span class="p">:</span>
+        <span class="n">labelSpace</span><span class="o">=</span><span class="s1">&#39;MNI&#39;</span>
+        <span class="n">pet_input_node</span><span class="o">=</span><span class="n">wf_pet2mri</span>
+        <span class="n">pet_input_file</span><span class="o">=</span><span class="s1">&#39;outputnode.petmni_img_4d&#39;</span>
+        <span class="n">pet_mask_node</span><span class="o">=</span><span class="n">wf_masking</span>
+        <span class="n">pet_results_mask_file</span><span class="o">=</span><span class="s1">&#39;resultsLabels.LabelsMNI&#39;</span>
+        <span class="n">pet_pvc_mask_file</span><span class="o">=</span><span class="s1">&#39;pvcLabels.LabelsMNI&#39;</span>
+        <span class="n">t1</span><span class="o">=</span><span class="s2">&quot;T1Tal&quot;</span>
+    <span class="k">elif</span> <span class="n">opts</span><span class="o">.</span><span class="n">analysis_space</span> <span class="o">==</span> <span class="s1">&#39;pet&#39;</span><span class="p">:</span>
+        <span class="n">labelSpace</span><span class="o">=</span><span class="s1">&#39;PET&#39;</span>
+        <span class="n">pet_input_node</span><span class="o">=</span><span class="n">wf_init_pet</span>
+        <span class="n">pet_input_file</span><span class="o">=</span><span class="s1">&#39;outputnode.pet_center&#39;</span>
+        <span class="n">pet_mask_node</span><span class="o">=</span><span class="n">wf_pet2mri</span>
+        <span class="n">pet_results_mask_file</span><span class="o">=</span><span class="s2">&quot;outputnode.results_label_img_pet&quot;</span>
+        <span class="n">pet_pvc_mask_file</span><span class="o">=</span><span class="s2">&quot;outputnode.pvc_label_img_pet&quot;</span>
+        <span class="n">t1</span><span class="o">=</span><span class="n">t1_type</span>
+    <span class="k">elif</span> <span class="n">opts</span><span class="o">.</span><span class="n">analysis_space</span> <span class="o">==</span> <span class="s1">&#39;t1&#39;</span><span class="p">:</span>
+        <span class="n">labelSpace</span><span class="o">=</span><span class="s1">&#39;T1&#39;</span>
+        <span class="n">pet_input_node</span><span class="o">=</span><span class="n">wf_pet2mri</span>
+        <span class="n">pet_input_file</span><span class="o">=</span><span class="s1">&#39;outputnode.petmri_img_4d&#39;</span>
+        <span class="n">pet_mask_node</span><span class="o">=</span><span class="n">wf_masking</span>
+        <span class="n">pet_results_mask_file</span><span class="o">=</span><span class="s1">&#39;resultsLabels.LabelsT1&#39;</span>
+        <span class="n">pet_pvc_mask_file</span><span class="o">=</span><span class="s1">&#39;pvcLabels.LabelsT1&#39;</span>
+        <span class="n">t1</span><span class="o">=</span><span class="n">t1_type</span>
+
+    <span class="c1">###################</span>
+    <span class="c1"># PET prelimaries #</span>
+    <span class="c1">###################</span>
+    <span class="n">wf_init_pet</span><span class="o">=</span><span class="n">init</span><span class="o">.</span><span class="n">get_workflow</span><span class="p">(</span><span class="s2">&quot;prelimaries&quot;</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s1">&#39;pet&#39;</span><span class="p">,</span> <span class="n">wf_init_pet</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet&quot;</span><span class="p">)</span>
+        
+    <span class="c1">###########</span>
+    <span class="c1"># Masking #</span>
+    <span class="c1">###########</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">t1_type</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.nativeT1&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s1">&#39;xfmT1MNI&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.LinT1MNIXfm&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s1">&#39;T1Tal&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.mniT1&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s1">&#39;brainmaskTal&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.brainmask&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;pvc_labels&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pvc_labels&quot;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;pvc_label_img&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pvc_label_img&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="o">!=</span> <span class="kc">None</span> <span class="p">:</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;tka_labels&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.tka_labels&quot;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;tka_label_img&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.tka_label_img&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;results_labels&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.results_labels&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;pvc_erode_times&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pvc_erode_times&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;tka_erode_times&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.tka_erode_times&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">preinfosource</span><span class="p">,</span> <span class="s1">&#39;results_erode_times&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.results_erode_times&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;headmaskTal&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.headmask&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;results_label_img&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.results_label_img&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_volume&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet_volume&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_header_json&#39;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet_header_json&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;pvc_label_template&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.pvc_label_template&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;tka_label_template&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.tka_label_template&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_img</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasource</span><span class="p">,</span> <span class="s2">&quot;results_label_template&quot;</span><span class="p">,</span> <span class="n">wf_masking</span><span class="p">,</span> <span class="s2">&quot;inputnode.results_label_template&quot;</span><span class="p">)</span>
+    
+    <span class="c1">##################</span>
+    <span class="c1"># Coregistration #</span>
+    <span class="c1">##################</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_volume&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet_volume&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_center&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet_volume_4d&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;brainmask.LabelsT1&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.t1_brain_mask&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">t1_type</span> <span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span><span class="s2">&quot;inputnode.nativeT1nuc&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s1">&#39;T1Tal&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span><span class="s2">&quot;inputnode.T1Tal&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="s2">&quot;xfmT1MNI&quot;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span><span class="s2">&quot;inputnode.xfmT1MNI&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span><span class="s1">&#39;pet_brainmask.out_file&#39;</span><span class="p">,</span><span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.pet_headMask&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;headmask.LabelsT1&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.t1_headMask&quot;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;resultsLabels.LabelsT1&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.results_label_img_t1&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="o">!=</span> <span class="kc">None</span> <span class="p">:</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;tkaLabels.LabelsT1&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.tka_label_img_t1&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;pvcLabels.LabelsT1&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.pvc_label_img_t1&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">test_group_qc</span> <span class="p">:</span>
+        <span class="n">misregistration</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">util</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;misregistration&quot;</span><span class="p">)</span>
+        <span class="n">misregistration</span><span class="o">.</span><span class="n">iterables</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span><span class="n">tqc</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">misregistration</span><span class="p">,</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s2">&quot;inputnode.error&quot;</span><span class="p">)</span>
+
+    <span class="n">out_node_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">wf_pet2mri</span><span class="p">]</span> 
+    <span class="n">out_img_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">pet_input_file</span><span class="p">]</span>
+    <span class="n">out_img_dim</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;4&#39;</span><span class="p">]</span>
+
+    <span class="c1">#############################</span>
+    <span class="c1"># Partial-volume correction #</span>
+    <span class="c1">#############################</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span> <span class="p">:</span>
+        <span class="n">pvcNode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">pvc</span><span class="o">.</span><span class="n">PVCCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pvc&quot;</span><span class="p">)</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">fwhm</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">scanner_fwhm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">max_iterations</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tolerance</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nvoxel_to_average</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">nvoxel_to_average</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">z_fwhm</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">scanner_fwhm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">y_fwhm</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">scanner_fwhm</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">x_fwhm</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">scanner_fwhm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_method</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_input_node</span><span class="p">,</span> <span class="n">pet_input_file</span><span class="p">,</span> <span class="n">pvcNode</span><span class="p">,</span> <span class="s2">&quot;input_file&quot;</span><span class="p">)</span> <span class="c1">#CHANGE</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_mask_node</span><span class="p">,</span> <span class="n">pet_pvc_mask_file</span><span class="p">,</span> <span class="n">pvcNode</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">)</span> <span class="c1">#CHANGE</span>
+
+        <span class="n">out_node_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">pvcNode</span><span class="p">]</span>
+        <span class="n">out_img_list</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;out_file&#39;</span><span class="p">]</span>
+        <span class="n">out_img_dim</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;4&#39;</span><span class="p">]</span>
+
+    <span class="c1">###########################</span>
+    <span class="c1"># Tracer kinetic analysis #</span>
+    <span class="c1">###########################</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span> 
+            <span class="n">tka_target_wf</span> <span class="o">=</span> <span class="n">pvcNode</span>
+            <span class="n">tka_target_img</span><span class="o">=</span><span class="s1">&#39;out_file&#39;</span>
+        <span class="k">else</span> <span class="p">:</span> 
+            <span class="n">tka_target_wf</span> <span class="o">=</span> <span class="n">pet_input_node</span> <span class="c1"># #CHANGE</span>
+            <span class="n">tka_target_img</span><span class="o">=</span> <span class="n">pet_input_file</span> <span class="c1"># ##CHANGE</span>
+                
+        <span class="n">tka_wf</span><span class="o">=</span><span class="n">tka</span><span class="o">.</span><span class="n">get_tka_workflow</span><span class="p">(</span><span class="s2">&quot;tka&quot;</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
+        <span class="n">header_type</span><span class="o">=</span><span class="s1">&#39;outputnode.pet_header_json&#39;</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;suvr&quot;</span><span class="p">]</span> <span class="p">:</span> <span class="n">header_type</span> <span class="o">=</span> <span class="s1">&#39;outputnode.pet_header_dict&#39;</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="n">header_type</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.header&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="ow">in</span> <span class="n">ecat_methods</span> <span class="p">:</span> 
+           <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_mask_node</span><span class="p">,</span> <span class="n">pet_pvc_mask_file</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s1">&#39;inputnode.like_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.sid&quot;</span><span class="p">)</span>
+        <span class="c1">#if opts.tka_method in reference_methods:</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_mask_node</span><span class="p">,</span> <span class="n">pet_results_mask_file</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.mask&quot;</span><span class="p">)</span> <span class="c1">#FIXME shouldnt space of labels depend on space of PET image?</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tka_target_wf</span><span class="p">,</span> <span class="n">tka_target_img</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.in_file&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">arterial</span> <span class="p">:</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceArterial</span><span class="p">,</span> <span class="s1">&#39;arterial_file&#39;</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.reference&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="ow">in</span> <span class="n">reference_methods</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;suvr&#39;</span><span class="p">]:</span> <span class="c1">#FIXME should not just add suvr like this </span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;tkaLabels.LabelsMNI&#39;</span><span class="p">,</span> <span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;inputnode.reference&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_type</span><span class="o">==</span><span class="s2">&quot;ROI&quot;</span><span class="p">:</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tka_wf</span><span class="p">,</span> <span class="s2">&quot;outputnode.out_fit_file&quot;</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="s1">&#39;tka&#39;</span><span class="p">)</span>
+        
+        <span class="n">out_node_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">tka_wf</span><span class="p">]</span>
+        <span class="n">out_img_list</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;outputnode.out_file&#39;</span><span class="p">]</span>
+        <span class="n">out_img_dim</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;3&#39;</span><span class="p">]</span>
+    
+    <span class="c1">#######################################</span>
+    <span class="c1"># Connect nodes for reporting results #</span>
+    <span class="c1">#######################################</span>
+    <span class="c1">#Results report for PET</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">no_results_report</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">node</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">out_node_list</span><span class="p">,</span> <span class="n">out_img_list</span><span class="p">,</span> <span class="n">out_img_dim</span><span class="p">):</span>
+            <span class="nb">print</span> <span class="s2">&quot;outputnode&quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;image name&quot;</span><span class="p">,</span> <span class="n">img</span>
+            <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;results_&quot;</span> <span class="o">+</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> 
+            <span class="n">resultsReport</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">results</span><span class="o">.</span><span class="n">resultsCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+            <span class="n">resultsReport</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
+            <span class="n">resultsReport</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">node</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s2">&quot;sub&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s2">&quot;ses&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_init_pet</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_header_dict&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s2">&quot;header&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;resultsLabels.Labels&#39;</span><span class="o">+</span><span class="n">labelSpace</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s1">&#39;mask&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">use_surfaces</span><span class="p">:</span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceSurf</span><span class="p">,</span> <span class="s1">&#39;mid_surf&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s2">&quot;surf_mesh&quot;</span><span class="p">)</span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceSurf</span><span class="p">,</span> <span class="s1">&#39;surf_mask&#39;</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s1">&#39;surf_mask&#39;</span><span class="p">)</span>
+
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">resultsReport</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    
+    <span class="c1">############################</span>
+    <span class="c1"># Subject-level QC Metrics #</span>
+    <span class="c1">############################</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">group_qc</span> <span class="ow">or</span> <span class="n">opts</span><span class="o">.</span><span class="n">test_group_qc</span> <span class="p">:</span>
+        <span class="c1">#Automated QC: PET to MRI linear coregistration </span>
+        <span class="n">distance_metricNode</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">coreg_qc_metricsCommand</span><span class="p">(),</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;coreg_qc_metrics&quot;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s1">&#39;outputnode.petmri_img&#39;</span><span class="p">,</span>  <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;pet&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_pet2mri</span><span class="p">,</span> <span class="s1">&#39;outputnode.pet_brain_mask&#39;</span><span class="p">,</span> <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;pet_brain_mask&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">datasourceMINC</span><span class="p">,</span> <span class="n">t1_type</span><span class="p">,</span>  <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;t1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">wf_masking</span><span class="p">,</span> <span class="s1">&#39;brainmask.LabelsT1&#39;</span><span class="p">,</span> <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;t1_brain_mask&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="n">distance_metricNode</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span>
+            <span class="c1">#Automated QC: PVC </span>
+            <span class="n">pvc_qc_metricsNode</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">qc</span><span class="o">.</span><span class="n">pvc_qc_metrics</span><span class="p">(),</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;pvc_qc_metrics&quot;</span><span class="p">)</span>
+            <span class="n">pvc_qc_metricsNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">fwhm</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">scanner_fwhm</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_input_node</span><span class="p">,</span> <span class="n">pet_input_file</span><span class="p">,</span> <span class="n">pvc_qc_metricsNode</span><span class="p">,</span> <span class="s1">&#39;pve&#39;</span><span class="p">)</span> <span class="c1">##CHANGE</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pvcNode</span><span class="p">,</span> <span class="s2">&quot;out_file&quot;</span><span class="p">,</span> <span class="n">pvc_qc_metricsNode</span><span class="p">,</span> <span class="s1">&#39;pvc&#39;</span>  <span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="n">pvc_qc_metricsNode</span><span class="p">,</span> <span class="s2">&quot;sub&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">,</span> <span class="n">pvc_qc_metricsNode</span><span class="p">,</span> <span class="s2">&quot;ses&quot;</span><span class="p">)</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="s1">&#39;task&#39;</span><span class="p">,</span> <span class="n">pvc_qc_metricsNode</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">)</span>
+
+    <span class="c1">#vizualization graph of the workflow</span>
+    <span class="c1">#workflow.write_graph(opts.targetDir+os.sep+&quot;workflow_graph.dot&quot;, graph2use = &#39;exec&#39;)</span>
+
+    <span class="n">printOptions</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span><span class="n">subjects_ids</span><span class="p">,</span><span class="n">session_ids</span><span class="p">,</span><span class="n">task_ids</span><span class="p">)</span>
+    <span class="c1">#run the work flow</span>
+    <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">num_threads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="p">:</span>
+        <span class="n">plugin_args</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;n_procs&#39;</span> <span class="p">:</span> <span class="n">opts</span><span class="o">.</span><span class="n">num_threads</span><span class="p">,</span>
+                   <span class="c1">#&#39;memory_gb&#39; : num_gb, &#39;status_callback&#39; : log_nodes_cb</span>
+                      <span class="p">}</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">plugin</span><span class="o">=</span><span class="s1">&#39;MultiProc&#39;</span><span class="p">,</span> <span class="n">plugin_args</span><span class="o">=</span><span class="n">plugin_args</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="mi">0</span></div>
+
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Thomas Funck, Kevin Larcher.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

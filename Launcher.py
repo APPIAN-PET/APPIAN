@@ -65,6 +65,7 @@ def get_mask_list(sourceDir, ROIMask ):
     return([1])
 
 def get_opt_list(option,opt,value,parser):
+    print(value)
     setattr(parser.values,option.dest,value.split(','))
 
 
@@ -158,8 +159,8 @@ if __name__ == "__main__":
     usage = "usage: "
     parser = OptionParser(usage=usage,version=version)
     group= OptionGroup(parser,"File options (mandatory)")
-    group.add_option("-s","--sourcedir",dest="sourceDir",  help="Input file directory")
-    group.add_option("-t","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
+    group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Input file directory")
+    group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
     
     group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
 
@@ -167,6 +168,7 @@ if __name__ == "__main__":
     group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
     group.add_option("--surf",dest="use_surfaces",type='string',help="Uses surfaces")
+    group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
     group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
     group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
@@ -247,7 +249,7 @@ if __name__ == "__main__":
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
     group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
-    group.add_option("","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', action='callback', callback=get_opt_list,default=None)
+    group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', default=None)
     group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
     group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
     group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=1)

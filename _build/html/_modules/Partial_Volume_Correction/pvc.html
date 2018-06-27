@@ -1,0 +1,353 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Partial_Volume_Correction.pvc &#8212; APPIAN 0.1.1-alpha documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Partial_Volume_Correction.pvc</h1><div class="highlight"><pre>
+<span></span><span class="c1"># vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a</span>
+<span class="kn">import</span> <span class="nn">nipype.pipeline.engine</span> <span class="k">as</span> <span class="nn">pe</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">niu</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="p">(</span><span class="n">TraitedSpec</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">traits</span><span class="p">,</span> <span class="n">InputMultiPath</span><span class="p">,</span>
+                                    <span class="n">BaseInterface</span><span class="p">,</span> <span class="n">OutputMultiPath</span><span class="p">,</span> <span class="n">BaseInterfaceInputSpec</span><span class="p">,</span> <span class="n">isdefined</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">nipype.utils.filemanip</span> <span class="k">import</span> <span class="p">(</span><span class="n">load_json</span><span class="p">,</span> <span class="n">save_json</span><span class="p">,</span> <span class="n">split_filename</span><span class="p">,</span> <span class="n">fname_presuffix</span><span class="p">,</span> <span class="n">copyfile</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">ntpath</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="n">CommandLine</span><span class="p">,</span> <span class="n">CommandLineInputSpec</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="p">(</span><span class="n">TraitedSpec</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">traits</span><span class="p">,</span> <span class="n">InputMultiPath</span><span class="p">,</span><span class="n">isdefined</span><span class="p">)</span>
+
+<div class="viewcode-block" id="gtmInput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.gtmInput">[docs]</a><span class="k">class</span> <span class="nc">gtmInput</span><span class="p">(</span><span class="n">CommandLineInputSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;image to operate on&quot;</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">position</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-mask </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Integer mask file&quot;</span><span class="p">)</span>
+    <span class="n">input_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-pet </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET file&quot;</span><span class="p">)</span>
+    <span class="n">fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-fwhm </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF all axes&quot;</span><span class="p">)</span></div>
+     
+<div class="viewcode-block" id="gtmOutput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.gtmOutput">[docs]</a><span class="k">class</span> <span class="nc">gtmOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output PET image&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="gtmCommand"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.gtmCommand">[docs]</a><span class="k">class</span> <span class="nc">gtmCommand</span><span class="p">(</span><span class="n">CommandLine</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span>  <span class="n">gtmInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">gtmOutput</span>
+    <span class="n">_cmd</span><span class="o">=</span><span class="s1">&#39;gtm&#39;</span>
+    <span class="n">_suffix</span><span class="o">=</span><span class="s1">&#39;gtm&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">,</span> <span class="n">_suffix</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> 
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_suffix</span> <span class="o">+</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+<div class="viewcode-block" id="idSURFInput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.idSURFInput">[docs]</a><span class="k">class</span> <span class="nc">idSURFInput</span><span class="p">(</span><span class="n">CommandLineInputSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;image to operate on&quot;</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">position</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-mask </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Integer mask file&quot;</span><span class="p">)</span>
+    <span class="n">input_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-pet </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET file&quot;</span><span class="p">)</span>
+    <span class="n">fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-fwhm </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF all axes&quot;</span><span class="p">)</span>
+     
+    <span class="n">max_iterations</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-max-iterations </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Maximum number of iterations&quot;</span><span class="p">)</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-tolerance </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Tolerance&quot;</span><span class="p">)</span>
+    <span class="n">nvoxel_to_average</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-nvoxel-to-average </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Number of voxels to average over.&quot;</span><span class="p">)</span></div>
+<div class="viewcode-block" id="idSURFOutput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.idSURFOutput">[docs]</a><span class="k">class</span> <span class="nc">idSURFOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output PET image&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="idSURFCommand"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.idSURFCommand">[docs]</a><span class="k">class</span> <span class="nc">idSURFCommand</span><span class="p">(</span><span class="n">CommandLine</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span>  <span class="n">idSURFInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">idSURFOutput</span>
+    <span class="n">_cmd</span><span class="o">=</span><span class="s1">&#39;idSURF&#39;</span>
+    <span class="n">_suffix</span><span class="o">=</span><span class="s1">&#39;idSURF&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">,</span> <span class="n">_suffix</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> 
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_suffix</span> <span class="o">+</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+<div class="viewcode-block" id="petpvcInput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.petpvcInput">[docs]</a><span class="k">class</span> <span class="nc">petpvcInput</span><span class="p">(</span><span class="n">CommandLineInputSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;image to operate on&quot;</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">position</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-mask </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Integer mask file&quot;</span><span class="p">)</span>
+    <span class="n">input_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-pet </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET file&quot;</span><span class="p">)</span>
+    <span class="n">z_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-z </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along z-axis&quot;</span><span class="p">)</span>
+    <span class="n">y_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-y </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along y-axis&quot;</span><span class="p">)</span>
+    <span class="n">x_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-x </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along x-axis&quot;</span><span class="p">)</span>
+
+    <span class="n">max_iterations</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-k </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Maximum number of iterations&quot;</span><span class="p">)</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-s </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Tolerance&quot;</span><span class="p">)</span></div>
+<div class="viewcode-block" id="petpvcOutput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.petpvcOutput">[docs]</a><span class="k">class</span> <span class="nc">petpvcOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output PET image&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="petpvcCommand"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.petpvcCommand">[docs]</a><span class="k">class</span> <span class="nc">petpvcCommand</span><span class="p">(</span><span class="n">CommandLine</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span>  <span class="n">petpvcInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">petpvcOutput</span>
+    <span class="n">_cmd</span><span class="o">=</span><span class="s1">&#39;petpvc&#39;</span>
+    <span class="n">_suffix</span><span class="o">=</span><span class="s1">&#39;petpvc&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">,</span> <span class="n">_suffix</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> 
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_suffix</span> <span class="o">+</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+<div class="viewcode-block" id="PVCInput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.PVCInput">[docs]</a><span class="k">class</span> <span class="nc">PVCInput</span><span class="p">(</span><span class="n">CommandLineInputSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-o </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;image to operate on&quot;</span><span class="p">)</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">position</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-mask </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Integer mask file&quot;</span><span class="p">)</span>
+    <span class="n">input_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-pet </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET file&quot;</span><span class="p">)</span>
+    <span class="n">z_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-z </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along z-axis&quot;</span><span class="p">)</span>
+    <span class="n">y_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-y </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along y-axis&quot;</span><span class="p">)</span>
+    <span class="n">x_fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-x </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF along x-axis&quot;</span><span class="p">)</span>
+    <span class="n">fwhm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-fwhm </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;FWHM of PSF all axes&quot;</span><span class="p">)</span>
+     
+    <span class="n">max_iterations</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-max-iterations </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Maximum number of iterations&quot;</span><span class="p">)</span>
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-tolerance </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Tolerance&quot;</span><span class="p">)</span>
+    <span class="n">nvoxel_to_average</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-nvoxel-to-average </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Number of voxels to average over.&quot;</span><span class="p">)</span>
+    <span class="n">pvc_method</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;--pvc </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">mandatory</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PVC type&quot;</span><span class="p">)</span></div>
+  
+<div class="viewcode-block" id="PVCOutput"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.PVCOutput">[docs]</a><span class="k">class</span> <span class="nc">PVCOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output PET image in T1 native space&quot;</span><span class="p">)</span></div>
+
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: pvc</span>
+<span class="sd">    :platform: Unix</span>
+<span class="sd">    :synopsis: Module to perform image registration. </span>
+<span class="sd">.. moduleauthor:: Thomas Funck &lt;tffunck@gmail.com&gt;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PVCCommand"><a class="viewcode-back" href="../../code.html#Partial_Volume_Correction.pvc.PVCCommand">[docs]</a><span class="k">class</span> <span class="nc">PVCCommand</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span>  <span class="n">PVCInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">PVCOutput</span>
+    <span class="c1">#def __init__(self, pvc_method):</span>
+    <span class="c1">#    pass</span>
+    <span class="c1">#self._cmd = pvc_method </span>
+    <span class="c1">#    self._suffix = &quot;_&quot; + self._cmd </span>
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+        <span class="n">petpvc_method_list</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;LABBE&#39;</span><span class="p">,</span> <span class="s2">&quot;RL&quot;</span><span class="p">,</span> <span class="s2">&quot;VC&quot;</span><span class="p">,</span> <span class="s2">&quot;RBV&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+RBV&quot;</span><span class="p">,</span> <span class="s2">&quot;RBV+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;RBV+RL&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+RBV+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+RBV+RL&quot;</span><span class="p">,</span> <span class="s2">&quot;STC&quot;</span><span class="p">,</span> <span class="s2">&quot;MTC&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+MTC&quot;</span><span class="p">,</span> <span class="s2">&quot;MTC+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;MTC+RL&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+MTC+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;LABBE+MTC+RL&quot;</span><span class="p">,</span> <span class="s2">&quot;IY&quot;</span><span class="p">,</span> <span class="s2">&quot;IY+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;IY+RL&quot;</span><span class="p">,</span> <span class="s2">&quot;MG&quot;</span><span class="p">,</span> <span class="s2">&quot;MG+VC&quot;</span><span class="p">,</span> <span class="s2">&quot;MG+RL&quot;</span> <span class="p">]</span>
+        <span class="c1">#pvc_method_dict = { &#39;GTM&#39;:gtm, &#39;idSURF&#39;:idSURF, petpvc_method_list   }</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;GTM&#39;</span><span class="p">,</span> <span class="s1">&#39;gtm&#39;</span><span class="p">]</span> <span class="p">:</span>
+            <span class="n">pvcNode</span> <span class="o">=</span> <span class="n">gtmCommand</span><span class="p">()</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">fwhm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">fwhm</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span><span class="p">)</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span> <span class="o">==</span> <span class="s1">&#39;idSURF&#39;</span><span class="p">:</span>
+            <span class="n">pvcNode</span> <span class="o">=</span> <span class="n">idSURFCommand</span><span class="p">()</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">fwhm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">z_fwhm</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tolerance</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tolerance</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nvoxel_to_average</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nvoxel_to_average</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">max_iterations</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span><span class="p">)</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span> <span class="ow">in</span> <span class="n">petpvc_method_list</span><span class="p">:</span>
+            <span class="n">pvcNode</span> <span class="o">=</span> <span class="n">petpvcCommand</span><span class="p">()</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">z_fwhm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">z_fwhm</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">y_fwhm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">y_fwhm</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">x_fwhm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">x_fwhm</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mask</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">max_iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">max_iterations</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tolerance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">tolerance</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span><span class="p">)</span>
+            <span class="n">pvcNode</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="nb">print</span> <span class="n">pvcNode</span><span class="o">.</span><span class="n">cmdline</span>
+        <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">PVC:&#39;</span><span class="p">,</span> <span class="n">pvcNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span>
+
+        <span class="k">return</span> <span class="n">runtime</span>
+
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">pvc_method</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span>
+
+    <span class="k">def</span> <span class="nf">_gen_filename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;out_file&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_list_outputs</span><span class="p">()[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">,</span> <span class="n">_suffix</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="nb">print</span>  <span class="n">dname</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">_suffix</span><span class="p">,</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span><span class="o">+</span> <span class="n">_suffix</span> <span class="o">+</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_parse_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">skip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">skip</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">PVCCommand</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_parse_inputs</span><span class="p">(</span><span class="n">skip</span><span class="o">=</span><span class="n">skip</span><span class="p">)</span></div>
+
+<span class="sd">&#39;&#39;&#39;class PVCCommand(CommandLine):</span>
+<span class="sd">    input_spec =  PVCInput</span>
+<span class="sd">    output_spec = PVCOutput</span>
+<span class="sd">    _cmd=&#39;idSURF&#39;</span>
+<span class="sd">    _suffix=&#39;_idSURF&#39; </span>
+<span class="sd">    #FIXME: Should make this node with basicinterface so that it can have multiple &quot;subnodes&quot;</span>
+<span class="sd">    # that will execute the proper pvc technique</span>
+<span class="sd">    #def __init__(self, pvc_method):</span>
+<span class="sd">    #    pass</span>
+<span class="sd">    #self._cmd = pvc_method </span>
+<span class="sd">    #    self._suffix = &quot;_&quot; + self._cmd </span>
+
+<span class="sd">    def _list_outputs(self):</span>
+<span class="sd">        outputs = self.output_spec().get()</span>
+<span class="sd">        outputs[&quot;out_file&quot;] = self.inputs.out_file</span>
+<span class="sd">        return outputs</span>
+
+<span class="sd">    def _gen_filename(self, name):</span>
+<span class="sd">        if name == &quot;out_file&quot;:</span>
+<span class="sd">            return self._list_outputs()[&quot;out_file&quot;]</span>
+<span class="sd">        return None</span>
+
+<span class="sd">    def _gen_output(self, basefile, _suffix):</span>
+<span class="sd">        fname = ntpath.basename(basefile)</span>
+<span class="sd">        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension</span>
+<span class="sd">        dname = os.getcwd() </span>
+<span class="sd">        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]</span>
+
+<span class="sd">    def _parse_inputs(self, skip=None):</span>
+<span class="sd">        if skip is None:</span>
+<span class="sd">            skip = []</span>
+<span class="sd">        if not isdefined(self.inputs.out_file):</span>
+<span class="sd">            self.inputs.out_file = self._gen_output(self.inputs.input_file, self._suffix)</span>
+<span class="sd">        return super(PVCCommand, self)._parse_inputs(skip=skip)</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">def get_workflow(name, infosource, datasink, opts):</span>
+
+<span class="sd">    workflow = pe.Workflow(name=name)</span>
+
+<span class="sd">    #Define input node that will receive input from outside of workflow</span>
+<span class="sd">    inputnode = pe.Node(niu.IdentityInterface(fields=[&quot;pet_center&quot;, &quot;pet_mask&quot;]), name=&#39;inputnode&#39;)</span>
+
+<span class="sd">    #Define empty node for output</span>
+<span class="sd">    outputnode = pe.Node(niu.IdentityInterface(fields=[&quot;out_file&quot;]), name=&#39;outputnode&#39;)</span>
+<span class="sd">    node_name=opts.pvc_method</span>
+<span class="sd">    PVCNode = pe.Node(interface=PVCCommand(), name=node_name)</span>
+<span class="sd">    if opts.pvc_method == &quot;gtm&quot;:</span>
+<span class="sd">        PVCNode.inputs.fwhm = opts.scanner_fwhm[0]</span>
+<span class="sd">    elif opts.pvc_method == &quot;idSURF&quot;:</span>
+<span class="sd">        PVCNode.inputs.fwhm = opts.scanner_fwhm[0]</span>
+<span class="sd">        PVCNode.inputs.max_iterations = opts.max_iterations</span>
+<span class="sd">        PVCNode.inputs.tolerance = opts.tolerance</span>
+<span class="sd">        #PVCNode.inputs.denoise_fwhm = opts.denoise_fwhm</span>
+<span class="sd">        #PVCNode.inputs.lambda_var = opts.lambda_var</span>
+<span class="sd">        PVCNode.inputs.nvoxel_to_average=opts.nvoxel_to_average</span>
+<span class="sd">    else:</span>
+<span class="sd">        PVCNode.inputs.z_fwhm = opts.scanner_fwhm[0]</span>
+<span class="sd">        PVCNode.inputs.y_fwhm = opts.scanner_fwhm[1]</span>
+<span class="sd">        PVCNode.inputs.x_fwhm = opts.scanner_fwhm[2]</span>
+<span class="sd">        PVCNode.inputs.pvc_method = opts.pvc_method</span>
+<span class="sd">    workflow.connect([</span>
+<span class="sd">                    (inputnode, PVCNode, [(&#39;pet_center&#39;,&#39;input_file&#39;)]),</span>
+<span class="sd">                    (inputnode, PVCNode, [(&#39;pet_mask&#39;,&#39;mask&#39;)])</span>
+<span class="sd">                    ])</span>
+<span class="sd">    workflow.connect(PVCNode, &#39;out_file&#39;, datasink, &#39;pvc&#39;)</span>
+<span class="sd">    workflow.connect(PVCNode, &#39;out_file&#39;, outputnode, &quot;out_file&quot;)</span>
+
+<span class="sd">    return(workflow)</span>
+<span class="sd">&#39;&#39;&#39;</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Thomas Funck, Kevin Larcher.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

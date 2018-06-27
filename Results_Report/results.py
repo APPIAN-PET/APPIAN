@@ -16,48 +16,57 @@ from Extra.concat import concat_df
 from Quality_Control.qc import metric_columns
 
 results_columns = metric_columns + ['frame']
-
+"""
+.. module:: Results_Report.results
+    :platform: Unix
+    :synopsis: Module to get results from output image
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 ######################################
 # Group level descriptive statistics #
 ######################################
 def group_level_descriptive_statistics(opts, args):
-    #Setup workflow
-    workflow = pe.Workflow(name=opts.preproc_dir)
-    workflow.base_dir = opts.targetDir
-    
-    #Datasink
-    datasink=pe.Node(interface=nio.DataSink(), name="output")
-    datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"
-    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+    for surf in ['', 'surf']:
+        print(surf, "\n")
+        #Setup workflow
+        workflow = pe.Workflow(name=opts.preproc_dir)
+        workflow.base_dir = opts.targetDir
+        
+        #Datasink
+        datasink=pe.Node(interface=nio.DataSink(), name="output")
+        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"+os.sep+surf
+        datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-    #Datagrabber
-    if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_*'+os.sep+'*_3d.csv')
-    else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_*'+os.sep+'*_3d.csv')
+        #Datagrabber
+        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
+        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
 
-    datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
-    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
-    datasource.inputs.template = '*'
-    datasource.inputs.field_template = scan_stats_dict
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+        datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+        datasource.inputs.template = '*'
+        datasource.inputs.field_template = scan_stats_dict
 
-    #Concatenate descriptive statistics
-    concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
-    concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
-    workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-    workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
-   
-    #Calculate descriptive statistics
-    descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
-    workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
-    workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
-    workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
-    workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
-    workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
-    workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
-    workflow.run()
+        #Concatenate descriptive statistics
+        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
+        concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
+        workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
+        workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
+       
+        #Calculate descriptive statistics
+        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
+        workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
+        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
+        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
+        workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
+        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
+        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
+        workflow.run()
 
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
+    surf_mesh = traits.File(desc="Surface mesh (.obj) ")
+    surf_mask = traits.File(desc="Surface mask (.txt) ")
     header = traits.Dict(desc="PET Header")
     out_file_3d = traits.File(desc="3d Output file ")
     out_file_4d = traits.File(desc="4d Output file ")
@@ -90,6 +99,8 @@ class resultsCommand( BaseInterface):
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
         resultsReport.inputs.vol_roi = self.inputs.mask
+        if  isdefined(self.inputs.surf_mesh) and isdefined(self.inputs.surf_mask) :
+            resultsReport.inputs.surf_roi = self.inputs.surf_mesh + ' ' + self.inputs.surf_mask
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
         print resultsReport.cmdline
         resultsReport.run()
@@ -113,11 +124,6 @@ class resultsCommand( BaseInterface):
         
         return runtime
 
-    #def _parse_inputs(self):
-    #    if not isdefined(self.inputs.out_file):
-    #        [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
-    #    return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
-
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
             [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
@@ -131,7 +137,7 @@ class resultsCommand( BaseInterface):
 class groupstatsInput(MINCCommandInputSpec):   
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
-    surf_roi = traits.File(argstr="-s %s %s", desc="obj and txt files containing surface ROI")
+    surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
     label = traits.Str(desc="Label for output file")
 
@@ -150,9 +156,8 @@ class groupstatsCommand(MINCCommand, Info):
 
         if not isdefined(self.inputs.out_file):
             if label == None: label_str=''
-            else: label_str=label + '_'
+            else : label_str=label + '_'
             self.inputs.out_file = os.getcwd() + os.sep + label_str +  "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
-
 
         return super(groupstatsCommand, self)._parse_inputs(skip=skip)
 

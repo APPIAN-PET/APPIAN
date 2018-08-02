@@ -1,21 +1,28 @@
 # APPIAN
 
-##Introduction
-APPIAN is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest.  The input to APPIAN depends on the CIVET processing pipeline. CIVET is designed to extract surface meshes representing the cortical grey matter. It can be freely used through the CBRAIN online platform (sign-up is required, but free).
-The pipeline is implemented in Python using the Nipype library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, APPIAN is  language agnostic.
+## Introduction
 
-##Installation 
+``APPIAN`` is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of ``APPIAN`` is to facilitate reproducible research and to make PET tracer kinetic data analysis easier for users with moderate computing skills. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run statistical tests of interest.  The input to ``APPIAN`` relies on object (.obj) files that contain surface meshes representing cortical grey matter -- for instance, surfaces could be extracted using [``CIVET``][link_civet], which can be freely used through the [``CBRAIN``][link_cbrain] online platform (sign-up to ``CBRAIN`` is required, but free).
+The pipeline is implemented in Python using the [Nipype][link_nipypertd] library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, ``APPIAN`` is  language agnostic.
 
-APPIAN is currently only available through Docker. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run and ensures that the software can always be run in the same environment. This means that all of the dependencies needed by APPIAN are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide to installing Docker on Ubuntu, Debian, Mac, Windows, other.  
+## Installation 
 
-Once docker is installed, simply run the following command on your command line terminal:
+``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide to installing Docker on Ubuntu, Debian, Mac, Windows, or other, [visit this link][link_dockerinstall].  
+
+Once Docker is installed, simply run the following command line on your terminal:
 
 docker pull tffunck/appian:latest
 
-That’s it, APPIAN is installed on your computer. 
+That’s it, ``APPIAN`` is installed on your computer. 
 
 
-##User Documentation
+## User Documentation
 https://docs.google.com/document/d/1GjPd-EoICuGWy3BVwJkHsud_znFQFVsopS9Y-6GnrcU/edit?usp=sharing
 
-##Developper / Contributer Documentation
+## Developer / Contributor Documentation
+
+[link_dockerinstall]: https://docs.docker.com/install/
+[link_civet]: https://mcin-cnim.ca/technology/civet/
+[link_cbrain]: https://github.com/aces/cbrain/wiki
+[link_nipypertd]: https://nipype.readthedocs.io/en/latest/
+[link_dockerhome]: https://docs.docker.com/

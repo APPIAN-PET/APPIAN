@@ -15,7 +15,10 @@ Table of Contents
 
 
 ## Introduction
-APPIAN (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest.  APPIAN also uses a structural brain image (e.g., T1 MRI), images derived from this structural image (e.g., brainmask), and linear transformation file from MRI native to MNI152 space. CIVET is designed to extract surface meshes representing the cortical grey matter and can be used in conjuction with APPIAN. It can be freely used through the [CBRAIN][cbrain] online platform (sign-up is required, but free).
+APPIAN (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest. 
+
+APPIAN also uses a structural brain image (e.g., T1 MRI), images derived from this structural image (e.g., brainmask), and linear transformation file from MRI native to MNI152 space. CIVET is designed to extract surface meshes representing the cortical grey matter and can be used in conjuction with APPIAN. It can be freely used through the [CBRAIN][cbrain] online platform (sign-up is required, but free). If CIVET is not used, users must provide the necessary T1 MRI derived files. 
+
 The APPIAN pipeline is implemented in Python using the [Nipype][nipype] library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, APPIAN is  language agnostic.
 
 ## Installation 

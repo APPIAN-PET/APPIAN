@@ -10,7 +10,10 @@ class pvcInput(MINCCommandInputSpec):
     out_file = File(position=3, argstr="-o %s",desc="image to operate on")
     mask_file = File( position=2, argstr="-mask %s", desc="Integer mask file")
     in_file = File(exists=True, position=1, argstr="-pet %s", desc="PET file")
-    fwhm = traits.Float( argstr="-fwhm %f", desc="FWHM of PSF all axes") 
+    x_fwhm = traits.Float( argstr="-x %f", desc="FWHM of PSF x axis") 
+    y_fwhm = traits.Float( argstr="-y %f", desc="FWHM of PSF y axis") 
+    z_fwhm = traits.Float( argstr="-z %f", desc="FWHM of PSF z axis") 
+
 
 class pvcCommand(pvcCommand):
     input_spec =  pvcInput
@@ -19,5 +22,7 @@ class pvcCommand(pvcCommand):
     _suffix='GTM'
 
 def check_options(pvcNode, opts):
-    if opts.scanner_fwhm != None: pvcNode.inputs.fwhm=opts.scanner_fwhm
+    if opts.scanner_fwhm != None: pvcNode.inputs.z_fwhm=opts.scanner_fwhm[0]
+    if opts.scanner_fwhm != None: pvcNode.inputs.y_fwhm=opts.scanner_fwhm[1]
+    if opts.scanner_fwhm != None: pvcNode.inputs.x_fwhm=opts.scanner_fwhm[2]
     return pvcNode

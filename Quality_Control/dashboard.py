@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 import subprocess
 import sys
@@ -79,6 +80,10 @@ def generate_xml(opts, arg):
             {"name" : "pet2mri", 
              "mnc_inputs" : ['in_target_mask','in_target_file','in_source_mask','in_source_file'],
              "mnc_outputs" : ['out_file_img']
+            },
+            {"name" : "pvc", 
+             "mnc_inputs" : ['input_file'],
+             "mnc_outputs" : ['out_file']
             }]
 
     filename=opts.targetDir+"/preproc/graph1.json";
@@ -126,7 +131,7 @@ def generate_xml(opts, arg):
                         if key in listOfNodes[idx]['mnc_inputs']:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmlinmnc, str(key))
-                            xmlkey.text = str(value)
+                            xmlkey.text = str(value).replace(opts.sourceDir+"/",'').replace(opts.targetDir+"/",'')
                             listVolumes.append(str(value))
                 if listOfNodes[idx].has_key("mnc_outputs"):
                     xmloutmnc = SubElement(xmlnode, 'outMnc')
@@ -134,27 +139,36 @@ def generate_xml(opts, arg):
                         if key in listOfNodes[idx]['mnc_outputs']:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmloutmnc, str(key))
-                            xmlkey.text = str(getattr(nodeReport.outputs,key))
+                            xmlkey.text = str(getattr(nodeReport.outputs,key)).replace(opts.targetDir+"/",'').replace(opts.sourceDir+"/",'')
                             listVolumes.append(str(getattr(nodeReport.outputs,key)))
 
 
      
         
     # print listVolumes
-
-    with open(opts.targetDir+"/preproc/nodes.xml","w") as f:
+    with open(opts.targetDir+"/preproc/dashboard/public/nodes.xml","w") as f:
         f.write(prettify(xmlQC))
 
-    for vol in listVolumes:
+    for mincfile in listVolumes:
         rawfile = mincfile+'.raw'
         headerfile = mincfile+'.header'
-        if os.path.exists(rawfile) and os.path.exists(headerfile):
-            adjust_hdr(vol)
-            mnc2vol(vol)
+        if not os.path.exists(rawfile) or not os.path.exists(headerfile):
+            adjust_hdr(mincfile)
+            mnc2vol(mincfile)
 
-
-def generate_dashboard:
-    os.mkdir(opts.targetDir+"/preproc/dashboard");
-    distutils.dir_util.copy_tree('../dashboard_web', opts.targetDir+'/preproc/dashboard/', update=1, verbose=0)
-    soup = bs(open(opts.targetDir+'/preproc/dashboard//pipelineIO.html'), "html.parser")
-    
+def generate_dashboard(opts, arg):
+    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
+        os.makedirs(opts.targetDir+"/preproc/dashboard/");
+    distutils.dir_util.copy_tree('./appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+    generate_xml(opts, arg);
+    os.chdir(opts.targetDir+'/preproc/dashboard/public/')
+    if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
+        os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+    os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+    for sub in glob.glob(os.path.join(opts.sourceDir,'sub*')):
+        if os.path.isdir(sub):
+            dest = os.path.join(opts.targetDir,'preproc/dashboard/public/',os.path.basename(sub))
+            if os.path.exists(dest):
+                os.remove(dest)
+            os.symlink(sub, dest)
+    # soup = bs(open(opts.targetDir+'/preproc/dashboard//pipelineIO.html'), "html.parser")

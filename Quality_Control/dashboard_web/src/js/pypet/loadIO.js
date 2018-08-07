@@ -1,4 +1,4 @@
-function collectIO(appianXML){
+function collectIO(){
     var req = null;
     if (XMLHttpRequest) {
         req = new XMLHttpRequest();
@@ -16,7 +16,7 @@ function collectIO(appianXML){
         }
     };
 
-    req.open('GET', appianXML);
+    req.open('GET', 'nodes.xml');
     req.send(null);
 }
 
@@ -46,25 +46,24 @@ function menuQC(xmlNodes){
 
     tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
-        // cid=tabScans[s].attributes[0].textContent;
-        // sid=tabScans[s].attributes[2].textContent;
-        // prefix=tabScans[s].attributes[1].textContent;
-        cid=tabScans[s].attributes[0].value;
-        sid=tabScans[s].attributes[2].value;
-        prefix=tabScans[s].attributes[1].value;
+        acq=tabScans[s].attributes[0].value;
+        cid=tabScans[s].attributes[1].value;
+        rec=tabScans[s].attributes[2].value;
+        sid=tabScans[s].attributes[3].value;
+        task=tabScans[s].attributes[4].value;
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+prefix+"_"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
         subScan.appendChild(subScanC);
         $("#coreg").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+prefix+"_"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
         subScan.appendChild(subScanC);
         $("#pvc").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+prefix+"_"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
         subScan.appendChild(subScanC);
         $("#tka").append(subScan);
     }

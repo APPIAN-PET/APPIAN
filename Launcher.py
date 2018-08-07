@@ -381,6 +381,10 @@ if __name__ == "__main__":
     elif opts.pstages:
         printStages(opts,args)
     else:
-        if opts.run_scan_level: run_scan_level(opts,args)
-        if opts.run_group_level:run_group_level(opts,args)
+        if opts.run_scan_level:
+            run_scan_level(opts,args)
+            dash.generate_dashboard(opts,args)
+        if opts.run_group_level:
+            dash.generate_dashboard(opts,args)
+            run_group_level(opts,args)
 

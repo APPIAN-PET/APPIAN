@@ -39,9 +39,11 @@ class FixHeaderOutput(TraitedSpec):
 
 #class FixHeaderInput(ModifyHeaderInput):
 class FixHeaderInput(CommandLineInputSpec):
+    tstart = traits.Float(argstr="-dinsert time:start=%f",  desc="Replace start value for time")
     zstart = traits.Float(argstr="-dinsert zspace:start=%f",  desc="Replace start value for zspace")
     ystart = traits.Float(argstr="-dinsert yspace:start=%f",  desc="Replace start value for yspace")
     xstart = traits.Float(argstr="-dinsert xspace:start=%f",  desc="Replace start value for xspace")
+    tstep = traits.Float(argstr="-dinsert time:step=%f",  desc="Replace start value for time")
     zstep = traits.Float(argstr="-dinsert zspace:step=%f",  desc="Replace start value for zstep")
     ystep = traits.Float(argstr="-dinsert yspace:step=%f",  desc="Replace start value for ystep")
     xstep = traits.Float(argstr="-dinsert xspace:step=%f",  desc="Replace start value for xstep")
@@ -66,16 +68,26 @@ class FixHeaderCommand(CommandLine):
             skip = []
         data = json.load(open( header ,"rb"))
 
-		try : 
-			data["time"]["start"][0]
-			self.inputs.tstart = data["time"]["start"[0]
-		except KeyError : pass
+        print(data["time"])
 
-		try : 
-			data["time"]["start"][0]
-			self.inputs.tstart = data["time"]["step"][0]
-		except KeyError : pass
+        try : 
+            #There is a time dimension in header
+            data["time"]
+            
+            #See if there is a start time defined, else set to 0
+            try: 
+                data["time"]["start"][0]
+                self.inputs.tstart = data["time"]["start"][0]
+            except KeyError: 
+                self.inputs.tstart = 0
 
+            try :
+                data["time"]["start"][0]
+                self.inputs.tstep = data["time"]["step"][0]
+            except KeyError : 
+                self.inputs.tstep = 1
+        except KeyError : pass
+        
         self.inputs.zstart = data["zspace"]["start"][0]
         self.inputs.ystart = data["yspace"]["start"][0]
         self.inputs.xstart = data["xspace"]["start"][0]
@@ -83,6 +95,7 @@ class FixHeaderCommand(CommandLine):
         self.inputs.ystep  = data["yspace"]["step"][0]
         self.inputs.xstep  = data["xspace"]["step"][0]
 
+        print(self.inputs)
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
 	

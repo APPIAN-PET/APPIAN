@@ -68,8 +68,6 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         convertPVC=pe.Node(nii2mncCommand(), name="convertPVC")
         workflow.connect(pvcNode, 'out_file', convertPVC, 'in_file')
         workflow.connect(inputnode, 'in_file', convertPVC, 'like_file')
-        workflow.connect(convertPVC, 'out_file', fixHeaderNode, 'in_file')
-        workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
 
         pet_source = convertPET
         pet_file = "out_file" 
@@ -81,17 +79,20 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         pet_source = inputnode
         pet_file = "in_file" 
 
-        workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'out_file')
-        workflow.connect(inputnode, 'header', inputnode, 'out_file')
     else :
         print("Error: not file format specified in module file.\nIn", pvc_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
         exit(1)
 
+
+
     workflow.connect(pet_source, pet_file, pvcNode, 'in_file')
     workflow.connect(mask_source, mask_file, pvcNode, 'mask_file')
 
-    workflow.connect(fixHeaderNode, 'out_file', outputnode, 'in_file')
-    workflow.connect(fixHeaderNode, 'header', outputnode, 'header')
+
+    workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'in_file')
+    workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
+
+    workflow.connect(fixHeaderNode, 'out_file', outputnode, 'out_file')
 
     return(workflow)
 

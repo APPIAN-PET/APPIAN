@@ -473,7 +473,8 @@ def run_scan_level(opts,args):
     workflow.connect(datasourceMINC, "xfmT1MNI", wf_pet2mri,"inputnode.xfmT1MNI")
     workflow.connect(wf_masking,'pet_brainmask.out_file',wf_pet2mri, "inputnode.pet_headMask")
     workflow.connect(wf_masking, 'headmask.LabelsT1', wf_pet2mri, "inputnode.t1_headMask")
-    workflow.connect(wf_masking, 'resultsLabels.LabelsT1', wf_pet2mri, "inputnode.results_label_img_t1")
+    workflow.connect(wf_masking, 'resultsLabels.LabelsT1', wf_pet2mri, "inputnode.results_label_img_t1")  
+    workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_pet2mri, 'inputnode.header')
     if opts.tka_method != None :
         workflow.connect(wf_masking, 'tkaLabels.LabelsT1', wf_pet2mri, "inputnode.tka_label_img_t1")
     if not opts.nopvc:
@@ -486,8 +487,8 @@ def run_scan_level(opts,args):
     out_node_list = [wf_pet2mri] 
     out_img_list = [pet_input_file]
     out_img_dim = ['4']
-	workflow.run()
-	exit(0)
+    workflow.run()
+    
     if opts.use_surfaces:
         ######################
         # Transform Surfaces #
@@ -507,7 +508,7 @@ def run_scan_level(opts,args):
         pvc_wf = pvc.get_pvc_workflow("pvc", infosource, datasink, opts) 
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(pet_mask_node, pet_pvc_mask_file, pvc_wf, "inputnode.mask_file") #CHANGE
-        workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', pvc_wf, "inputnode.header") #CHANGE
+        workflow.connect(wf_init_pet, 'outputnode.pet_header_json', pvc_wf, "inputnode.header") #CHANGE
 
         out_node_list += [pvc_wf]
         out_img_list += ['outputnode.out_file']

@@ -65,6 +65,17 @@ class FixHeaderCommand(CommandLine):
         if skip is None:
             skip = []
         data = json.load(open( header ,"rb"))
+
+		try : 
+			data["time"]["start"][0]
+			self.inputs.tstart = data["time"]["start"[0]
+		except KeyError : pass
+
+		try : 
+			data["time"]["start"][0]
+			self.inputs.tstart = data["time"]["step"][0]
+		except KeyError : pass
+
         self.inputs.zstart = data["zspace"]["start"][0]
         self.inputs.ystart = data["yspace"]["start"][0]
         self.inputs.xstart = data["xspace"]["start"][0]
@@ -73,3 +84,7 @@ class FixHeaderCommand(CommandLine):
         self.inputs.xstep  = data["xspace"]["step"][0]
 
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
+
+	
+
+

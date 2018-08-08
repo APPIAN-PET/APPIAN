@@ -506,6 +506,7 @@ def run_scan_level(opts,args):
         pvc_wf = pvc.get_pvc_workflow("pvc", infosource, datasink, opts) 
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(pet_mask_node, pet_pvc_mask_file, pvc_wf, "inputnode.mask_file") #CHANGE
+        workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', pvc_wf, "inputnode.header") #CHANGE
 
         out_node_list += [pvc_wf]
         out_img_list += ['outputnode.out_file']

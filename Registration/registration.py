@@ -24,6 +24,7 @@ import nipype.interfaces.minc as minc
 from Extra.xfmOp import ConcatCommand
 from Extra.inormalize import InormalizeCommand
 
+from Extra.modifHeader import FixHeaderCommand
 
 
 class PETtoT1LinRegOutput(TraitedSpec):
@@ -573,7 +574,14 @@ def get_workflow(name, infosource, opts):
         pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
 
-    node_name="pet_brain_mask"
+
+    fixHeaderNode = pe.Node(interface=FixHeaderCommand(), name="fixHeaderNode")
+	workflow.connect( inputnode,"header", fixHeaderNode, "header")
+    workflow.connect( pet2mri, 'out_file', fixHeaderNode, 'out_file')
+    
+	final_pet2mri = fixHeaderNode
+
+	node_name="pet_brain_mask"
     pet_brain_mask = pe.Node(interface=minc.Resample(), name=node_name)
     pet_brain_mask.inputs.nearest_neighbour_interpolation = True
     pet_brain_mask.inputs.clobber = True

@@ -69,6 +69,7 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         workflow.connect(pvcNode, 'out_file', convertPVC, 'in_file')
         workflow.connect(inputnode, 'in_file', convertPVC, 'like_file')
         workflow.connect(convertPVC, 'out_file', fixHeaderNode, 'in_file')
+        workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
 
         pet_source = convertPET
         pet_file = "out_file" 
@@ -81,6 +82,7 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         pet_file = "in_file" 
 
         workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'out_file')
+        workflow.connect(inputnode, 'header', inputnode, 'out_file')
     else :
         print("Error: not file format specified in module file.\nIn", pvc_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
         exit(1)

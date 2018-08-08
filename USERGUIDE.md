@@ -14,11 +14,11 @@
 
 ## Pipeline Overview  <a name="overview"></a>
 ### Coregistration <a name="coregistration"></a>
-The first processing step is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
+The first processing step is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
 
 
 ### Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, ki, etc.). Moreover, these masks can be derived from multiple different sources: classification produced by CIVET, classification produced by ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, ki, etc.). Moreover, these masks can be derived from multiple sources: classification produced by CIVET, classification produced by ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
 
  
 ### Partial-volume correction <a name="pvc"></a>
@@ -85,17 +85,17 @@ APPIAN is a Python program (Python 2.7 to be specific) that is launched using a 
 
 python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
 
-When running APPIAN through a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/tka_nipype”:
+When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
 
-python2.7 /opt/tka_nipype/Launcher.py <list of options> <subject names>
+python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
 Running APPIAN with Docker
-APPIAN is run through a Docker container. To launch a container based on an image is to run:
+APPIAN is run in a Docker container. To launch a container based on an image is to run:
 
 Docker run -it <name of image>:<image tag>
 
 or in our case:
 
-docker run -it tffunck/tka:latest
+docker run -it tffunck/appian:latest
 
 Here the “-it” flag means that the container is launched in interactive mode. That is, you will be dropped into a bash shell within the filesystem and will be able to do most of the typical bash/unix stuff you normally do. You can also run the container non-interactively by dropping the “-it” flag and adding a bash command at the end of the line, as follows:
 
@@ -103,33 +103,33 @@ docker run <name of image>:<image tag> <your bash command>
 
 or in our case:
 
-docker run tffunck/tka:latest ls /opt
+docker run tffunck/appian:latest ls /opt
 bin
 doc
 etc
 ...
 
-APPIAN is intended to be flexible and applicable in a wide variety of situations, however this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it’s more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
+APPIAN is intended to be flexible and applicable in a wide variety of situations, however this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
 
-python2.7 /opt/tka_nipype/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
+python2.7 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
 
 
 By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say you data is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
 
-docker run -it -v /path/to/your/data:/path/to/your/data  tffunck/tka:latest
+docker run -it -v /path/to/your/data:/path/to/your/data  tffunck/appian:latest
 
-As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “docker run” command. Assuming that you put your “run.sh” script into the same directory as your date, “/path/to/your/data”, then you would run something like the following commands:
+As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “docker run” command. Assuming that you put your “run.sh” script into the same directory as your data, “/path/to/your/data”, then you would run something like the following commands:
 
-docker run -it -v /path/to/your/data:/path/to/your/data tffunck/tka:latest
+docker run -it -v /path/to/your/data:/path/to/your/data tffunck/appian:latest
 \#You are now in the docker container
 cd /path/to/your/data 
 ./run.sh
 
-Alternatively, you can also run the pipeline through a non-interatctive docker container, as so:
+Alternatively, you can also run the pipeline through a non-interatctive docker container, like so:
 
-docker run /path/to/your/data:/path/to/your/data tffunck/tka:latest /path/to/your/data/run.sh
+docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/your/data/run.sh
 
-Either method will give you the same results, it’s up to you what you find more convenient. 
+Either method will give you the same results, it’s up to you and what you find more convenient. 
 
 ## Example use cases  <a name="example"></a>
 
@@ -140,13 +140,11 @@ Example:
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
 
 Defining your ROI with an atlas
-To use a stereotaxic atlas to define your ROI (flag: --roi-atlas), you need to define the anatomic template on which this atlas is defined (flag: --roi-template) and the volume containing the atlas labels (flag: --roi-mask). APPIAN includes two standard templates for defining stereotaxic atlases: Colin27 and ICBM152. 
+To use a stereotaxic atlas to define your ROI (flag: --roi-atlas), you need to define the anatomical template on which this atlas is defined (flag: --roi-template) and the volume containing the atlas labels (flag: --roi-mask). APPIAN includes two standard templates for defining stereotaxic atlases: Colin27 and ICBM152. 
 
 Example: Using the AAL atlas, defined on the Colin27 template
 
---roi-atlas  --roi-template  /opt/tka_nipype/Atlas/COLIN27/colin27_t1_tal_lin.mnc  --roi-mask /opt/tka_nipype/Atlas/COLIN27/ROI_MNI_AAL_V4.mnc
-References
-
+--roi-atlas  --roi-template  /opt/APPIAN/Atlas/COLIN27/colin27_t1_tal_lin.mnc  --roi-mask /opt/APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V4.mnc
 
 
 ## User Options  <a name="options"></a>

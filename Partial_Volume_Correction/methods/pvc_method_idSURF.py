@@ -23,7 +23,7 @@ class pvcCommand(quantificationCommand):
     _suffix='idSURF'
 
 def check_options(pvcNode, opts):
-    if opts.fwhm != None: pvcNode.inputs.t3max=opts.fwhm
+    if opts.fwhm != None: pvcNode.inputs.t3max=np.mean(opts.scanner_fwhm) #FIXME : rewrite idsurf to take fwhm vector
     if opts.max_iterations != None: pvcNode.inputs.t3min=opts.max_iterations
     if opts.tolerance != None: pvcNode.inputs.nBF=opts.tolerance
     if opts.nvoxel_to_average != None : pvcNode.nvoxel_to_average

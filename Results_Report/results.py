@@ -26,7 +26,12 @@ results_columns = metric_columns + ['frame']
 # Group level descriptive statistics #
 ######################################
 def group_level_descriptive_statistics(opts, args):
-    for surf in ['', 'surf']:
+    vol_surf_list = ['']
+
+    if opts.use_surfaces : 
+        vol_surf_list += ['surf']
+
+    for surf in vol_surf_list:
         print(surf, "\n")
         #Setup workflow
         workflow = pe.Workflow(name=opts.preproc_dir)

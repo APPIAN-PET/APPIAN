@@ -516,8 +516,8 @@ def run_scan_level(opts,args):
     ###########################
     if not opts.tka_method == None:
         if not opts.nopvc: 
-            tka_target_wf = pvcNode
-            tka_target_img='out_file'
+            tka_target_wf = pvc_wf
+            tka_target_img='outputnode.out_file'
         else : 
             tka_target_wf = pet_input_node # #CHANGE
             tka_target_img= pet_input_file # ##CHANGE
@@ -594,7 +594,7 @@ def run_scan_level(opts,args):
             pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
             pvc_qc_metricsNode.inputs.fwhm = opts.scanner_fwhm
             workflow.connect(pet_input_node, pet_input_file, pvc_qc_metricsNode, 'pve') ##CHANGE
-            workflow.connect(pvcNode, "out_file", pvc_qc_metricsNode, 'pvc'  )
+            workflow.connect(tka_target_wf, tka_target_img, pvc_qc_metricsNode, 'pvc'  )
             workflow.connect(infosource, 'sid', pvc_qc_metricsNode, "sub")
             workflow.connect(infosource, 'ses', pvc_qc_metricsNode, "ses")
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")

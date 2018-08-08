@@ -15,11 +15,6 @@ class quantificationCommand(MINCCommand):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
     def _gen_output(self, basefile, _suffix):
         print("_gen_output")
         fname = ntpath.basename(basefile)

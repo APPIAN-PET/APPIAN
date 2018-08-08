@@ -109,62 +109,6 @@ class suvCommand(MINCCommand):
 '''
 
 
-
-'''
-class patlakOutput(TraitedSpec):
-    out_file = File(argstr="-o %s",  desc="Patlak plot ki parametric image.")
-
-class patlakInput(MINCCommandInputSpec):
-    in_file= File(exists=True, position=-5, argstr="%s", desc="PET file")
-    reference = File(exists=True,  position=-4, argstr="%s", desc="Reference file")
-    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
-    end=traits.Float(argstr="%s", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
-    out_file = File(argstr="%s", position=-1, desc="image to operate on")
-    Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
-    LC=traits.Float(argstr="-LC=%f", desc="Lumped constant in MR calculation; default is 1.0")
-    density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
-    thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
-    Max=traits.Float(argstr="-max=%f", default=10000, use_default=True,desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
-    #Min=traits.Float(argstr="-min %f", desc="Lower limit for Vt or DVR values, 0 by default")
-    Filter=traits.Bool(argstr="-filter",  desc="Remove parametric pixel values that over 4x higher than their closest neighbours.")
-    v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
-    n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
-
-
-class patlakCommand(MINCCommand):
-    input_spec =  patlakInput
-    output_spec = patlakOutput
-
-    _cmd = "patlak" #input_spec.pvc_method 
-    _suffix = "_pp" 
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
-    def _gen_output(self, basefile, _suffix):
-        fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
-        return dname+ os.sep+fname_list[0] + _suffix + '.dft'
-
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
-        return super(patlakCommand, self)._parse_inputs(skip=skip)
-
-'''
-
-
-
 standard_fields=["in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
 ecat_methods=["lp", "pp", "lp-roi", "pp-roi", "srtm", "suv"]
 tka_param={}
@@ -236,8 +180,11 @@ def get_tka_workflow(name, opts):
 
     ### Quantification module
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
-    quant_module_fn="methods/quant_method_"+opts.tka_method #+".py"
-     
+    #quant_module_fn="Tracer_Kinetic.methods.quant_method_"+opts.tka_method +".py"
+    quant_module_fn="quant_method_"+opts.tka_method #+".py"
+
+    print("Loading modules", quant_module_fn) 
+    quant_module = importlib.import_module(quant_module_fn)
     try :
         quant_module = importlib.import_module(quant_module_fn)
     except ImportError :
@@ -345,40 +292,6 @@ def get_tka_workflow(name, opts):
                 workflow.connect(inputnode, 'reference', tacReference, 'reference')
         
         workflow.connect(tacReference, 'reference', tkaNode, 'reference')
-
-    '''
-        elif opts.tka_method == 'suv':
-            #Get Body Weight from header or .csv file
-            body_weightNode=pe.Node(interface=subject_parameterCommand(), name="body_weight")
-            body_weightNode.inputs.parameter_name=opts.body_weight
-            workflow.connect(inputnode, 'header', body_weightNode, 'header')
-            workflow.connect(inputnode, 'sid', body_weightNode, 'sid')
-            #Get radiotracer dose from header or .csv file
-            radiotracer_doseNode=pe.Node(interface=subject_parameterCommand(), name="radiotracer_dose")
-            radiotracer_doseNode.inputs.parameter_name=opts.radiotracer_dose
-            workflow.connect(inputnode, 'header', radiotracer_doseNode, 'header')
-            workflow.connect(inputnode, 'sid', radiotracer_doseNode, 'sid')
-            #Create a node for SUV
-            tkaNode = pe.Node(interface=suvCommand(), name=opts.tka_method)
-            tkaNode.inputs.start_time=opts.tka_start_time
-            tkaNode.inputs.end_time=opts.tka_end_time
-            workflow.connect(body_weightNode, 'parameter', tkaNode, 'body_weight')
-            workflow.connect(radiotracer_doseNode, 'parameter', tkaNode, 'radiotracer_dose')
-            workflow.connect(tkaNode, 'out_file', outputnode, 'out_file')
-
-
-        if opts.tka_method == 'srtm':
-            outputnode=pe.Node(niu.IdentityInterface(fields=["out_file","out_fit_file"]), name='outputnode')
-            tkaNode = pe.Node(interface=srtmROICommand(), name='srmtROI')
-            workflow.connect(tkaNode, 'out_fit_file', outputnode, 'out_fit_file')
-        elif opts.tka_method == 'pp-roi' :
-            tacROI = pe.Node(niu.IdentityInterface(fields=["mask"]), name='tacROI')
-            outputnode=pe.Node(niu.IdentityInterface(fields=["out_file"]), name='outputnode')
-            tkaNode = pe.Node(interface=patlakCommand(), name='patlakROI')
-            tkaNode.inputs.end=opts.tka_end_time
-            tkaNode.inputs.start_time=opts.tka_start_time
-        '''
-
 
 
     return(workflow)

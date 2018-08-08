@@ -50,6 +50,7 @@ def get_pvc_workflow(name, infosource, datasink, opts):
     pvcNode = pvc_module.check_options(pvcNode, opts)
 
     fixHeaderNode = pe.Node(interface=FixHeaderCommand(), name="fixHeaderNode")
+    fixHeaderNode.inputs.time_only=True
 
     if pvc_module.separate_labels :
         separate_mask_labelsNode = pe.Node( separate_mask_labelsCommand(), name="separate_mask_labels")

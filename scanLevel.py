@@ -487,7 +487,6 @@ def run_scan_level(opts,args):
     out_node_list = [wf_pet2mri] 
     out_img_list = [pet_input_file]
     out_img_dim = ['4']
-    workflow.run()
     
     if opts.use_surfaces:
         ######################

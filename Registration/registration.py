@@ -688,39 +688,42 @@ def get_workflow(name, infosource, opts):
 
     
     #Resample 4d PET image to T1 space
-    pettot1_4D = pe.Node(interface=minc.Resample(), name='pettot1_4D')
-    pettot1_4D.inputs.output_file='pet_space-t1_4d.mnc'
-    rpettot1_4D=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-t1_pet.mnc"),name="rpettot1_4D")
+    pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
+    pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
+    rpettot1_4d=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-t1_pet.mnc"),name="rpettot1_4d")
     
     
-    workflow.connect(inputnode, 'pet_volume_4d', pettot1_4D, 'input_file')
-    workflow.connect(pet2mri, 'out_file_xfm', pettot1_4D, 'transformation')
-    workflow.connect(inputnode, 'nativeT1nuc', pettot1_4D, 'like')
-    
+    workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
+    workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
+    workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
+	
     pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+    pettot1_4d_header_fixed.inputs.time_only=True
     workflow.connect(inputnode, "header", pettot1_4d_header_fixed, "header" )
-    workflow.connect(pettot1_4D, 'output_file', pettot1_4d_header_fixed, 'in_file')
+    workflow.connect(pettot1_4d, 'output_file', pettot1_4d_header_fixed, 'in_file')
 
-    workflow.connect(pettot1_4d_header_fixed,'out_file', rpettot1_4D, 'in_file' )
-    workflow.connect(infosource, 'sid', rpettot1_4D, 'sid' )
-    workflow.connect(infosource, 'cid', rpettot1_4D, 'cid' )
+    workflow.connect(pettot1_4d_header_fixed,'out_file', rpettot1_4d, 'in_file' )
+    workflow.connect(infosource, 'sid', rpettot1_4d, 'sid' )
+    workflow.connect(infosource, 'cid', rpettot1_4d, 'cid' )
 
     #Resample 4d PET image to MNI space
     #FIXME : Should transform directly from PET to MNI space !
-    t1tomni_4D = pe.Node(interface=minc.Resample(), name='t1tomni_4D')
-    t1tomni_4D.inputs.output_file='pet_space-mni_4d.mnc'
-    workflow.connect(pettot1_4D, 'output_file', t1tomni_4D, 'input_file')
-    workflow.connect(inputnode, "xfmT1MNI", t1tomni_4D, 'transformation')
-    workflow.connect(inputnode, 'T1Tal', t1tomni_4D, 'like')
+    t1tomni_4d = pe.Node(interface=minc.Resample(), name='t1tomni_4d')
+    t1tomni_4d.inputs.output_file='pet_space-mni_4d.mnc'
+    workflow.connect(pettot1_4d, 'output_file', t1tomni_4d, 'input_file')
+    workflow.connect(inputnode, "xfmT1MNI", t1tomni_4d, 'transformation')
+    workflow.connect(inputnode, 'T1Tal', t1tomni_4d, 'like')
     
     t1tomni_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettomni_4d_header_fixed")
+    t1tomni_4d_header_fixed.inputs.time_only=True
+
     workflow.connect(inputnode, "header", t1tomni_4d_header_fixed, "header" )
-    workflow.connect(pettot1_4D, 'output_file', t1tomni_4d_header_fixed, 'in_file')   
+    workflow.connect(t1tomni_4d, 'output_file', t1tomni_4d_header_fixed, 'in_file')   
    
-    rt1tomni_4D=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-mni_pet.mnc"), name="rt1tomni_4D")
-    workflow.connect(t1tomni_4d_header_fixed,'out_file', rt1tomni_4D, 'in_file' )
-    workflow.connect(infosource, 'sid', rt1tomni_4D, 'sid' )
-    workflow.connect(infosource, 'cid', rt1tomni_4D, 'cid' )
+    rt1tomni_4d=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-mni_pet.mnc"), name="rt1tomni_4d")
+    workflow.connect(t1tomni_4d_header_fixed,'out_file', rt1tomni_4d, 'in_file' )
+    workflow.connect(infosource, 'sid', rt1tomni_4d, 'sid' )
+    workflow.connect(infosource, 'cid', rt1tomni_4d, 'cid' )
 
 
     workflow.connect([(final_pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
@@ -739,8 +742,8 @@ def get_workflow(name, infosource, opts):
     workflow.connect([(infosource, rpet_brain_mask, [('sid', 'sid')]),
                       (infosource, rpet_brain_mask, [('cid', 'cid')]) ])
 
-    workflow.connect(rpettot1_4D,'out_file', outputnode, 'petmri_img_4d')
-    workflow.connect(rt1tomni_4D,'out_file', outputnode, 'petmni_img_4d')
+    workflow.connect(rpettot1_4d,'out_file', outputnode, 'petmri_img_4d')
+    workflow.connect(rt1tomni_4d,'out_file', outputnode, 'petmni_img_4d')
     workflow.connect(rPet2MriXfm, 'out_file', outputnode, 'petmri_xfm')
     workflow.connect(rPet2MriXfmInvert, 'out_file', outputnode, 'petmri_xfm_invert')
     workflow.connect(rPet2MriImg, 'out_file', outputnode, 'petmri_img')

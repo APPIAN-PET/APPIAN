@@ -50,7 +50,7 @@ class FixHeaderInput(CommandLineInputSpec):
     header = traits.File(desc="MINC header for PET image stored in dictionary.")
     out_file = File(desc="Image after centering")
     in_file = File(argstr="%s", position=1, desc="Image after centering")
-
+    time_only = traits.Bool(default_value=False)
 #class FixHeaderCommand(ModifyHeaderCommand):
 class FixHeaderCommand(CommandLine):
     input_spec = FixHeaderInput
@@ -87,13 +87,14 @@ class FixHeaderCommand(CommandLine):
             except KeyError : 
                 self.inputs.tstep = 1
         except KeyError : pass
-        
-        self.inputs.zstart = data["zspace"]["start"][0]
-        self.inputs.ystart = data["yspace"]["start"][0]
-        self.inputs.xstart = data["xspace"]["start"][0]
-        self.inputs.zstep  = data["zspace"]["step"][0]
-        self.inputs.ystep  = data["yspace"]["step"][0]
-        self.inputs.xstep  = data["xspace"]["step"][0]
+
+        if not self.inputs.time_only :  
+            self.inputs.zstart = data["zspace"]["start"][0]
+            self.inputs.ystart = data["yspace"]["start"][0]
+            self.inputs.xstart = data["xspace"]["start"][0]
+            self.inputs.zstep  = data["zspace"]["step"][0]
+            self.inputs.ystep  = data["yspace"]["step"][0]
+            self.inputs.xstep  = data["xspace"]["step"][0]
 
         print(self.inputs)
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)

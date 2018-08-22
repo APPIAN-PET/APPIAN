@@ -431,8 +431,6 @@ def run_scan_level(opts,args):
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
 
-    workflow.run()
-    exit(0)
 
     ###Set the appropriate nodes and inputs for desired "analysis_level"
     wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)

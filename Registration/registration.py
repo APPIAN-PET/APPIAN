@@ -41,8 +41,9 @@ class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     out_file_xfm = File(position=-3, argstr="%s", desc="transformation matrix")
     out_file_xfm_invert = File(position=-2, argstr="%s", desc="inverted transformation matrix")
     out_file_img = File(position=-1, argstr="%s", desc="resampled image")
+    lsq =  traits.String(desc="Number of parameters to use for transformation")
     clobber = traits.Bool(position=-5, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(position=-4, argstr="-run", usedefault=False, default_value=False, desc="Run the commands")
+    run = traits.Bool(position=-4, argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(position=-3, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class PETtoT1LinRegRunning(BaseInterface):
@@ -175,7 +176,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_tracc.inputs.simplex=confi.simplex
             run_tracc.inputs.tolerance=confi.tolerance
             run_tracc.inputs.est=confi.est
-            run_tracc.inputs.lsq='lsq6'
+            run_tracc.inputs.lsq=self.inputs.lsq 
             if prev_xfm:
                 run_tracc.inputs.transformation=prev_xfm
             if self.inputs.in_source_mask:
@@ -559,7 +560,7 @@ def get_workflow(name, infosource, opts):
     pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
     pet2mri_withMask.inputs.clobber = True
     pet2mri_withMask.inputs.verbose = opts.verbose
-    pet2mri_withMask.inputs.run = opts.prun
+    #pet2mri_withMask.inputs.run = opts.prun
     rPet2MriImg=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name+"Img")
     rPet2MriXfm=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".xfm"), name="r"+node_name+"Xfm")
     rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+"_invert.xfm"), name="r"+node_name+"XfmInvert")
@@ -569,7 +570,7 @@ def get_workflow(name, infosource, opts):
         pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
         pet2mri.inputs.clobber = True
         pet2mri.inputs.verbose = opts.verbose
-        pet2mri.inputs.run = opts.prun
+        #pet2mri.inputs.run = opts.prun
     else : 
         pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
@@ -620,9 +621,10 @@ def get_workflow(name, infosource, opts):
                       (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
                       ]) 
 
-    if opts.coregistration_target_mask == 'skull': 
-        workflow.connect(inputnode, 't1_headMask',  pet2mri_withMask, 'in_target_mask')
-    elif opts.coregistration_target_mask == 'brain' :
+    #if opts.coregistration_target_mask == 'skull': 
+    #    workflow.connect(inputnode, 't1_headMask',  pet2mri_withMask, 'in_target_mask')
+    #elif opts.coregistration_target_mask == 'brain' :
+    if opts.coregistration_target_mask == 'brain' :
         workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
 
     if opts.test_group_qc :

@@ -24,6 +24,7 @@ from Extra.modifHeader import ModifyHeaderCommand
 from Extra.reshape import  ReshapeCommand
 from glob import glob
 
+
 def unique_file(files, attributes):
 	
 	if len(files) == 1: 
@@ -362,7 +363,7 @@ def get_workflow(name, infosource, datasink, opts):
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
-    petCenter.inputs.run = opts.prun    
+    #petCenter.inputs.run = opts.prun    
     rPetCenter=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
@@ -370,7 +371,7 @@ def get_workflow(name, infosource, datasink, opts):
     node_name="petExcludeFr"
     petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
     petExFr.inputs.verbose = opts.verbose   
-    petExFr.inputs.run = opts.prun
+    #petExFr.inputs.run = opts.prun
     rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petVolume"
@@ -385,7 +386,7 @@ def get_workflow(name, infosource, datasink, opts):
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
     petSettings.inputs.verbose = opts.verbose
     petSettings.inputs.clobber = True
-    petSettings.inputs.run = opts.prun
+    #petSettings.inputs.run = opts.prun
     rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 

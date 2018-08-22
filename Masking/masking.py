@@ -276,7 +276,6 @@ def get_workflow(name, infosource, datasink, opts):
 
         1. Invert T1 Native to MNI 152 transformation
         2. Transform
-        3. Transform headmask from MNI 152 to T1 native
         4. Transform brainmask from MNI 152 to T1 native
         5. Create PVC labeled image
         6. Create quantification labeled image
@@ -290,8 +289,8 @@ def get_workflow(name, infosource, datasink, opts):
         :returns: workflow
     '''
     workflow = pe.Workflow(name=name)
-    out_list=["pet_brainmask", "brainmask_t1", "brainmask_mni", "headmask_t1", "headmask_mni", "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brainmask","headmask", "pet_volume","pet_header_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]
+    out_list=["pet_brainmask", "brainmask_t1", "brainmask_mni",  "results_label_img_t1", "results_label_img_mni" ]
+    in_list=["nativeT1","mniT1","brainmask", "pet_volume","pet_header_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' ]
     if not opts.nopvc: 
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -305,16 +304,6 @@ def get_workflow(name, infosource, datasink, opts):
     invert_MNI2T1 = pe.Node(interface=minc.XfmInvert(), name="invert_MNI2T1")
     workflow.connect(inputnode, 'LinT1MNIXfm',invert_MNI2T1 , 'input_file')
     
-    node_name="headmask"
-    headmaskNode = pe.Node(interface=Labels(), name=node_name)
-    headmaskNode.inputs.space = "icbm152"
-    headmaskNode.inputs.labels = [1]
-    workflow.connect(inputnode, 'headmask', headmaskNode, 'label_img')
-    workflow.connect(inputnode, 'LinT1MNIXfm', headmaskNode, 'LinT1MNIXfm')
-    workflow.connect(inputnode, 'nativeT1', headmaskNode, 'nativeT1')
-    workflow.connect(inputnode, 'mniT1', headmaskNode, 'mniT1')
-    workflow.connect(invert_MNI2T1, 'output_file', headmaskNode, 'LinMNIT1Xfm')
-
     node_name="brainmask"
     brainmaskNode = pe.Node(interface=Labels(), name=node_name)
     brainmaskNode.inputs.space = "icbm152"

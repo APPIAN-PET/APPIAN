@@ -82,23 +82,23 @@ animal_GM=[218,219,210,211,8,4,2,6]
 animal_sGM=[14,16,11,12,53,39,102,203]
 animal_labels=animal_WM + animal_CER + animal_GM + animal_sGM 
 roi_label["results"]={  
-            "roi-user":[],
-            "icbm152":[39,53,16,14,25,72],
-            "civet":[1,2,3,4],
-            "animal":animal_GM+animal_sGM, 
-            "atlas":[]}
+        "roi-user":[],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[1,2,3,4],
+        "animal":animal_GM+animal_sGM, 
+        "atlas":[]}
 roi_label["tka"]={  
-            "roi-user":[1],
-            "icbm152":[39,53,16,14,25,72],
-            "civet":[3],
-            "atlas":[3],
-            "animal":animal_CER}
+        "roi-user":[1],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[3],
+        "atlas":[3],
+        "animal":animal_CER}
 roi_label["pvc"]={
-            "roi-user":[],
-            "icbm152":[39,53,16,14,25,72],
-            "civet":[2,3,4],
-            "animal":animal_labels,
-            "atlas":[]}
+        "roi-user":[],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[2,3,4],
+        "animal":animal_labels,
+        "atlas":[]}
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -115,14 +115,14 @@ def check_masking_options(opts, label_img, label_space):
                         possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
     '''
     d={ "native":{  "string":"roi-user"},
-        "icbm152":{ "string":"roi-user",
-                    "cls":"civet",
-                    "seg":"animal",
-                    "icbm152":"other", #FIXME : Does this make sense? Shouldnt the user provide the path to the atlas and nd not just specify icbm152?
-		    "atlas":"other"},
-        "other":{   "string":"roi-user",
-                    "atlas":'other'}
-    }
+            "icbm152":{ "string":"roi-user",
+                "cls":"civet",
+                "seg":"animal",
+                "icbm152":"other", #FIXME : Does this make sense? Shouldnt the user provide the path to the atlas and nd not just specify icbm152?
+                "atlas":"other"},
+            "other":{   "string":"roi-user",
+                "atlas":'other'}
+            }
     if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
         var ="atlas"
     elif type(label_img[0]) == str:
@@ -141,7 +141,7 @@ def check_masking_options(opts, label_img, label_space):
     except KeyError:
         print "Label Error: "+label_space+" is not compatible with "+label_img[0]
         exit(1)
-    
+
     if label_space == "other":
         if not os.path.exists(label_img[0]) or not os.path.exists(label_img[1]) :
             print "Option \"--label_space other\" requires path to labeled atlas and the image template for the atlas."
@@ -161,7 +161,8 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"File options (mandatory)")
     group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Input file directory")
     group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
-    
+    group.add_option("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
+    group.add_option("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     group.add_option("--scan-level",dest="run_scan_level",action='store_true', default=False, help="Run scan level analysis")
 
     group.add_option("--group-level",dest="run_group_level",action='store_true', default=False, help="Run group level analysis")
@@ -172,8 +173,9 @@ if __name__ == "__main__":
     group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
     group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
-
-    #group.add_option("-c","--civetdir",dest="civetDir",  help="Civet directory")
+    file_dir=os.path.dirname(__file__)
+    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_sym_09a.mnc")
+    group.add_option("--coreg-method", dest="coreg_method",type='string',help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
     parser.add_option_group(group)      
 
     group= OptionGroup(parser,"Scan options","***if not, only baseline condition***")
@@ -181,7 +183,7 @@ if __name__ == "__main__":
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
     parser.add_option_group(group)      
 
- 
+
     # Parse user options
     # Label options
     #
@@ -194,7 +196,6 @@ if __name__ == "__main__":
     #   2) ICBM152: --[type]-label-img  path/to/labeled/atlas
     #   2) Other:   --[type]-label-img  path/to/labeled/atlas path/to/labeled/template
     #   --[type]-label
-
     group= OptionGroup(parser,"Masking options","Tracer Kinetic Analysis")
     label_space_help="Coordinate space of labeled image to use for TKA. Options: [native/icbm152/other] "
     label_img_help="Options: 1. Labeled image from CIVET: \'civet\'/\'animal\'/\'label string\', 2. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 3. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template"
@@ -211,7 +212,7 @@ if __name__ == "__main__":
     parser.add_option_group(group)
 
     # Tracer Kinetic Analysis
-    group= OptionGroup(parser,"Masking options","TKA")
+    group= OptionGroup(parser,"Masking options","Quantification")
     group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='icbm152')
     group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='cls')
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
@@ -219,7 +220,7 @@ if __name__ == "__main__":
     group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
     group.add_option("","--tka-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
-    
+
     #Results
     group= OptionGroup(parser,"Masking options","Results")
     group.add_option("","--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
@@ -230,7 +231,7 @@ if __name__ == "__main__":
     group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
     group.add_option("","--results-labels-ones-only",dest="results_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
-    
+
     ##########################
     # Coregistration Options #
     ##########################
@@ -258,7 +259,7 @@ if __name__ == "__main__":
     parser.add_option_group(group)
 
     #TKA Options
-    group= OptionGroup(parser,"Tracer Kinetic analysis options")
+    group= OptionGroup(parser,"Quantification options")
     group.add_option("","--tka-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type='string', default=None)
     group.add_option("","--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type='float', default=None)
     group.add_option("","--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type='float', default=None)
@@ -282,6 +283,17 @@ if __name__ == "__main__":
     group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
     parser.add_option_group(group)
 
+    #########################
+    ### MRI Preprocessing ###
+    #########################
+    mri_opts = OptionGroup(parser, "MRI Preprocessing")
+    mri_opts.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="ANTS")  
+    mri_opts.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="ANTS")  
+    mri_opts.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
+
+    parser.add_option_group( mri_opts )
+
+
     #Quality Control 
     qc_opts = OptionGroup(parser,"Quality control options")
     qc_opts.add_option("","--group-qc",dest="group_qc",help="Perform quantitative group-wise quality control.", action='store_const', const=True, default=False)  #FIXME Add to options
@@ -298,8 +310,6 @@ if __name__ == "__main__":
     group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
     parser.add_option_group(group)
     group= OptionGroup(parser,"Pipeline control")
-    group.add_option("","--run",dest="prun",help="Run the pipeline.",action='store_true',default=True)
-    group.add_option("","--fake",dest="prun",help="do a dry run, (echo cmds only).",action='store_false',default=True)
     group.add_option("","--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
     group.add_option("","--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
     parser.add_option_group(group)
@@ -322,7 +332,7 @@ if __name__ == "__main__":
     if opts.pvc_label_space in mni_space_names: opts.pvc_label_space = "icbm152"
     if opts.tka_label_space in mni_space_names: opts.tka_label_space = "icbm152"
     if opts.results_label_space in mni_space_names: opts.results_label_space = "icbm152"
-    
+
     #Check inputs for PVC masking 
     opts.pvc_label_img = split_label_img(opts.pvc_label_img)
 
@@ -337,7 +347,7 @@ if __name__ == "__main__":
     opts.results_label_img = split_label_img(opts.results_label_img)
     results_label_type = check_masking_options(opts, opts.results_label_img, opts.results_label_space)
     print results_label_type, opts.results_label_space
-    
+
     #Set default label for atlas ROI
     masks={ "tka":[tka_label_type, opts.tka_label_img], "pvc":[pvc_label_type, opts.pvc_label_img], "results": [results_label_type, opts.results_label_img] }
     #Determine the level at which the labeled image is defined (scan- or atlas-level) 
@@ -347,7 +357,7 @@ if __name__ == "__main__":
     else: opts.tka_label_level = 'scan'
     if os.path.exists(opts.sourceDir + os.sep + opts.results_label_img[0]): opts.results_label_level = 'atlas'
     else: opts.results_label_level = 'scan'
-    
+
     # Set the analysis space based on the label space
     opts.analysis_space = opts.results_label_space
 
@@ -376,7 +386,7 @@ if __name__ == "__main__":
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
-    
+
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:

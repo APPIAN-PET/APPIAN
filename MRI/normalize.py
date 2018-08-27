@@ -18,9 +18,19 @@ def get_workflow(name, valid_args, opts):
 		in_fields += ['brain_mask_mni']
 	if opts.user_t1mni :
 		in_fields += ['xfmT1MNI']
-	
+
+	stages=[opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
+	label_types= ['tka', 'pvc', 'results']
+	label_imgs= [opts.tka_label_img[0], opts.results_label_img[0], opts.pvc_label_img[0] ]
+
 	inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
-	outputnode = pe.Node(niu.IdentityInterface(fields=[ 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 't1_mni', 'classified' ]), name='outputnode')
+
+	out_fields=	[ 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 't1_mni' ]
+	for stage, label_type in zip(stages, label_types):
+		if 'internal_cls' == label_type :
+			out_fields += [ stage+'_label_img']
+
+	outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
 	if not opts.user_t1mni:
 		#Template Brain Mask
@@ -103,11 +113,6 @@ def get_workflow(name, valid_args, opts):
 		tfm_node = inputnode
 		tfm_file = 'xfmT1MRI'
 
-	print(t1_mni_file)
-	print(t1_mni_node)
-	print(tfm_node)
-	print(tfm_file)	
-
 	if not opts.user_brainmask :
 		#Brain Mask MNI-Space
 		t1MNI_brain_mask = pe.Node(interface=mincbeastCommand(), name="t1_mni_brain_mask")
@@ -130,15 +135,15 @@ def get_workflow(name, valid_args, opts):
 	workflow.connect(inputnode, 't1', transform_brain_mask, 'like')
 	workflow.connect(tfm_node, tfm_file, transform_brain_mask, 'transformation')
 
-
-	if True :
-		seg = pe.Node(interface=mincAtroposCommand(), name="segmentation_ants")
-		seg.inputs.dimension=3
-		seg.inputs.number_of_tissue_classes=4 #... opts.
-		seg.inputs.initialization = 'Otsu'
-		workflow.connect(inputnode, 't1',  seg, 'intensity_images' )
-		workflow.connect(transform_brain_mask, 'output_file',  seg, 'mask_image' )
-		workflow.connect(seg, 'classified_image', outputnode, 'classified')
+	for label_type, stage, img in zip(stages, label_types, label_imgs) :
+		if 'antsAtropos' == img :
+			seg = pe.Node(interface=mincAtroposCommand(), name="segmentation_ants")
+			seg.inputs.dimension=3
+			seg.inputs.number_of_tissue_classes=4 #... opts.
+			seg.inputs.initialization = 'Otsu'
+			workflow.connect(inputnode, 't1',  seg, 'intensity_images' )
+			workflow.connect(transform_brain_mask, 'output_file',  seg, 'mask_image' )
+			workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
 
 	workflow.connect(brain_mask_node, brain_mask_file, outputnode, 'brain_mask_mni')
 	workflow.connect(tfm_node, tfm_file, outputnode, 'xfmT1MNI' )

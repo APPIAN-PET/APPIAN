@@ -8,6 +8,7 @@ import Extra.resample as rsl
 from Test.test_group_qc import myIdent
 from os.path import basename
 
+from pyminc.volumes.factory import *
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
@@ -25,6 +26,68 @@ from Extra.xfmOp import ConcatCommand
 from Extra.inormalize import InormalizeCommand
 
 from Extra.modifHeader import FixHeaderCommand
+
+class PETheadMaskingOutput(TraitedSpec):
+    out_file  = File(desc="Headmask from PET volume")
+
+class PETheadMaskingInput(BaseInterfaceInputSpec):
+    in_file = File(exists=True, mandatory=True, desc="PET volume")
+    in_json = File(exists=True, mandatory=True, desc="PET json file")
+    out_file = File(desc="Head mask")
+    slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
+    total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
+
+    clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
+    run = traits.Bool(usedefault=True, default_value=True, desc="Run the commands")
+    verbose = traits.Bool(usedefault=True, default_value=True, desc="Write messages indicating progress")
+
+class PETheadMasking(BaseInterface):
+    input_spec = PETheadMaskingInput
+    output_spec = PETheadMaskingOutput
+    _suffix = "_headmask"
+
+    # def _parse_inputs(self, skip=None):
+    #     if skip is None:
+    #         skip = []
+    #     if not isdefined(self.inputs.out_file):
+    #         self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+    #     return super(PETheadMasking, self)._parse_inputs(skip=skip)
+    def _run_interface(self, runtime):
+
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+            #Load PET 3D volume
+        infile = volumeFromFile(self.inputs.in_file)
+        zmax=infile.sizes[infile.dimnames.index("zspace")]
+        #Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)
+        slice_thresholds=np.amax(infile.data, axis=(1,2)) * self.inputs.slice_factor
+        #Get mean for all values above slice_max
+        slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]])) 
+        slice_mean = np.array([ slice_mean_f(slice_thresholds, infile.data, i)  for i in range(zmax) ])
+        #Remove nan from slice_mean
+        slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
+        #Calculate overall mean from mean of thresholded slices
+        overall_mean = np.mean(slice_mean)
+        #Calcuate threshold
+        threshold = overall_mean * self.inputs.total_factor
+        #Apply threshold and create and write outputfile
+        run_calc = CalcCommand();
+        run_calc.inputs.input_files = self.inputs.in_file 
+        run_calc.inputs.output_file = self.inputs.out_file
+        run_calc.inputs.expression = 'A[0] >= '+str(threshold)+' ? 1 : 0'
+        if self.inputs.verbose:
+            print run_calc.cmdline
+        if self.inputs.run:
+            run_calc.run()
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
 
 
 class PETtoT1LinRegOutput(TraitedSpec):
@@ -552,9 +615,16 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","pet_headMask","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error", "header"]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error", "header" ]), name='inputnode')
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "petmri_img_4d","petmni_img_4d","petmri_xfm","petmri_xfm_invert","tka_label_img_pet","results_label_img_pet","pvc_label_img_pet", "pet_brain_mask"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "petmri_img_4d","petmni_img_4d","petmri_xfm","petmri_xfm_invert","tka_label_img_pet","results_label_img_pet","pvc_label_img_pet", "pet_brain_mask",'LinPETMNIXfm', 'LinMNIPETXfm', 'LinT1PETXfm', 'LinPETT1Xfm' ]), name='outputnode')
+
+    node_name="pet_brainmask"
+    petMasking = pe.Node(interface=PETheadMasking(), name=node_name)
+    petMasking.inputs.slice_factor = opts.slice_factor
+    petMasking.inputs.total_factor = opts.total_factor
+    workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
+    workflow.connect(inputnode, 'header', petMasking, 'in_json')
 
     node_name="pet2mri_withMask"
     pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
@@ -596,35 +666,35 @@ def get_workflow(name, infosource, opts):
     rPet2MriXfm=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_Pet2MriXfm.xfm"), name="rPet2MriXfm")
     rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_Pet2MriXfm_invert.xfm"), name="rPet2MriXfmInvert")
 
-    if not opts.tka_method == None:
-        node_name="pet_tka_mask"
-        petRefMask = pe.Node(interface=minc.Resample(), name=node_name)
-        petRefMask.inputs.nearest_neighbour_interpolation = True
-        petRefMask.inputs.clobber = True
-        rPetRefMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    #if not opts.tka_method == None:
+    #    node_name="pet_tka_mask"
+    #    petRefMask = pe.Node(interface=minc.Resample(), name=node_name)
+    #    petRefMask.inputs.nearest_neighbour_interpolation = True
+    #    petRefMask.inputs.clobber = True
+    #    rPetRefMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-    node_name="pet_results_mask"
-    petROIMask = pe.Node(interface=minc.Resample(), name=node_name)
-    petROIMask.inputs.nearest_neighbour_interpolation = True
-    petROIMask.inputs.clobber = True
-    rPetROIMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    #node_name="pet_results_mask"
+    #petROIMask = pe.Node(interface=minc.Resample(), name=node_name)
+    #petROIMask.inputs.nearest_neighbour_interpolation = True
+    #petROIMask.inputs.clobber = True
+    #rPetROIMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-    if not opts.nopvc:
-        node_name="pet_pvc_mask"
-        petPVCMask = pe.Node(interface=minc.Resample(), name=node_name)
-        petPVCMask.inputs.nearest_neighbour_interpolation = True
-        petPVCMask.inputs.clobber = True
-        rPetPVCMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    #if not opts.nopvc:
+    #    node_name="pet_pvc_mask"
+    #    petPVCMask = pe.Node(interface=minc.Resample(), name=node_name)
+    #    petPVCMask.inputs.nearest_neighbour_interpolation = True
+    #    petPVCMask.inputs.clobber = True
+    #    rPetPVCMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
-                      (inputnode, pet2mri_withMask, [('pet_headMask', 'in_source_mask')]), 
+                      (petMasking, pet2mri_withMask, [('out_file', 'in_source_mask')]), 
                       (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
                       ]) 
 
     #if opts.coregistration_target_mask == 'skull': 
     #    workflow.connect(inputnode, 't1_headMask',  pet2mri_withMask, 'in_target_mask')
     #elif opts.coregistration_target_mask == 'brain' :
-    if opts.coregistration_target_mask == 'brain' :
+    if opts.coregistration_brain_mask :
         workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
 
     if opts.test_group_qc :
@@ -660,32 +730,32 @@ def get_workflow(name, infosource, opts):
         pet_brain_mask = transform_brainmaskNode
         pet_brain_mask_img = 'out_file'
 
-    if not opts.tka_method == None:
-        workflow.connect([  (inputnode, petRefMask, [('tka_label_img_t1', 'input_file' )]),
-                            (inputnode, petRefMask, [('pet_volume', 'like')]), 
-                            (pet2mri, petRefMask, [('out_file_xfm_invert', 'transformation')]) ])
-
-        workflow.connect([(petRefMask, rPetRefMask, [('output_file', 'in_file')])])
-        workflow.connect([(infosource, rPetRefMask, [('sid', 'sid')]),
-                          (infosource, rPetRefMask, [('cid', 'cid')])  ])
-        workflow.connect(rPetRefMask, 'out_file', outputnode, 'tka_label_img_pet')
+    #if not opts.tka_method == None:
+    #    workflow.connect([  (inputnode, petRefMask, [('tka_label_img_t1', 'input_file' )]),
+    #                        (inputnode, petRefMask, [('pet_volume', 'like')]), 
+    #                        (pet2mri, petRefMask, [('out_file_xfm_invert', 'transformation')]) ])
+    #
+    #    workflow.connect([(petRefMask, rPetRefMask, [('output_file', 'in_file')])])
+    #    workflow.connect([(infosource, rPetRefMask, [('sid', 'sid')]),
+    #                      (infosource, rPetRefMask, [('cid', 'cid')])  ])
+    #    workflow.connect(rPetRefMask, 'out_file', outputnode, 'tka_label_img_pet')
     
     
-    workflow.connect([(inputnode, petROIMask, [('results_label_img_t1', 'input_file' )]),
-                      (inputnode, petROIMask, [('pet_volume', 'like')]), 
-                      (pet2mri, petROIMask, [('out_file_xfm_invert', 'transformation')]) ]) 
-    workflow.connect([(petROIMask, rPetROIMask, [('output_file', 'in_file')])])
-    workflow.connect([(infosource, rPetROIMask, [('sid', 'sid')]),
-                      (infosource, rPetROIMask, [('cid', 'cid')]) ])
+    #workflow.connect([(inputnode, petROIMask, [('results_label_img_t1', 'input_file' )]),
+    #                  (inputnode, petROIMask, [('pet_volume', 'like')]), 
+    #                  (pet2mri, petROIMask, [('out_file_xfm_invert', 'transformation')]) ]) 
+    #workflow.connect([(petROIMask, rPetROIMask, [('output_file', 'in_file')])])
+    #workflow.connect([(infosource, rPetROIMask, [('sid', 'sid')]),
+    #                  (infosource, rPetROIMask, [('cid', 'cid')]) ])
     #if not opts.nopvc:
-    if not opts.pvc_method == None :
-        workflow.connect(inputnode,'pvc_label_img_t1', petPVCMask, 'input_file'  )
-        workflow.connect(inputnode,'pet_volume', petPVCMask, 'like'  )
-        workflow.connect(pet2mri, 'out_file_xfm_invert' ,petPVCMask, 'transformation'  )
+    #if not opts.pvc_method == None :
+    #    workflow.connect(inputnode,'pvc_label_img_t1', petPVCMask, 'input_file'  )
+    #    workflow.connect(inputnode,'pet_volume', petPVCMask, 'like'  )
+    #    workflow.connect(pet2mri, 'out_file_xfm_invert' ,petPVCMask, 'transformation'  )
 
-        workflow.connect([(petPVCMask, rPetPVCMask, [('output_file', 'in_file')])])
-        workflow.connect([(infosource, rPetPVCMask, [('sid', 'sid')]), (infosource, rPetPVCMask, [('cid', 'cid')])])
-        workflow.connect(rPetPVCMask, 'out_file', outputnode, 'pvc_label_img_pet')
+     #   workflow.connect([(petPVCMask, rPetPVCMask, [('output_file', 'in_file')])])
+     #   workflow.connect([(infosource, rPetPVCMask, [('sid', 'sid')]), (infosource, rPetPVCMask, [('cid', 'cid')])])
+     #  workflow.connect(rPetPVCMask, 'out_file', outputnode, 'pvc_label_img_pet')
 
 
     
@@ -709,7 +779,14 @@ def get_workflow(name, infosource, opts):
     workflow.connect(infosource, 'cid', rpettot1_4d, 'cid' )
 
     #Resample 4d PET image to MNI space
-    #FIXME : Should transform directly from PET to MNI space !
+
+    PETMNIXfm_node = pe.Node( interface=ConcatCommand(), name="PETMNIXfm_node")
+    workflow.connect(pet2mri, "out_file_xfm", PETMNIXfm_node, "in_file")
+    workflow.connect(inputnode, "xfmT1MNI", PETMNIXfm_node, "in_file_2")
+
+    MNIPETXfm_node = pe.Node(interface=minc.XfmInvert(), name="MNIPETXfm_node")
+    workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
+
     t1tomni_4d = pe.Node(interface=minc.Resample(), name='t1tomni_4d')
     t1tomni_4d.inputs.output_file='pet_space-mni_4d.mnc'
     workflow.connect(pettot1_4d, 'output_file', t1tomni_4d, 'input_file')
@@ -736,19 +813,24 @@ def get_workflow(name, infosource, opts):
     workflow.connect([(infosource, rPet2MriXfm, [('sid', 'sid')]),
                       (infosource, rPet2MriXfm, [('cid', 'cid')])  ])
 
-    workflow.connect([(final_pet2mri, rPet2MriXfmInvert, [('out_file_xfm_invert', 'in_file')])])
+    workflow.connect([(final_pet2mri, rPet2MriXfmInvert, [('out_file_xfm_invert', 'input_file')])])
     workflow.connect([(infosource, rPet2MriXfmInvert, [('sid', 'sid')]),
                       (infosource, rPet2MriXfmInvert, [('cid', 'cid')])  ])
 
     workflow.connect([(pet_brain_mask, rpet_brain_mask, [(pet_brain_mask_img, 'in_file')])])
     workflow.connect([(infosource, rpet_brain_mask, [('sid', 'sid')]),
                       (infosource, rpet_brain_mask, [('cid', 'cid')]) ])
-
+    
+    workflow.connect(final_pet2mri,'out_file_xfm', outputnode, 'LinPETT1Xfm')
+    workflow.connect(final_pet2mri,'out_file_xfm_invert', outputnode, 'LinT1PETXfm')
+    workflow.connect(PETMNIXfm_node, 'out_file', outputnode, 'LinPETMNIXfm' )
+    workflow.connect(MNIPETXfm_node, 'output_file', outputnode, 'LinMNIPETXfm' )
     workflow.connect(rpettot1_4d,'out_file', outputnode, 'petmri_img_4d')
     workflow.connect(rt1tomni_4d,'out_file', outputnode, 'petmni_img_4d')
     workflow.connect(rPet2MriXfm, 'out_file', outputnode, 'petmri_xfm')
     workflow.connect(rPet2MriXfmInvert, 'out_file', outputnode, 'petmri_xfm_invert')
     workflow.connect(rPet2MriImg, 'out_file', outputnode, 'petmri_img')
-    workflow.connect(rPetROIMask, 'out_file', outputnode, 'results_label_img_pet')
+    #workflow.connect(rPetROIMask, 'out_file', outputnode, 'results_label_img_pet')
     workflow.connect(rpet_brain_mask, 'out_file', outputnode,'pet_brain_mask' )
+
     return(workflow)

@@ -33,7 +33,6 @@ from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from Masking import surf_masking
-from Extra.nii2mnc_batch import nii2mnc_batch
 from MRI import normalize
 """
 .. module:: scanLevel
@@ -42,123 +41,122 @@ from MRI import normalize
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def set_datasource_inputs(opts):
-    """Setup data source based on user-options.
 
-    :param opts: User-defined options
-        :type opts: argparser
-    :returns:  
-        infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string 
-    """
-
-    # Set the inputs for the labeled image for datasource.
-    # This is a bit complicated because there are many possible ways in which the 
-    # user can define these labeled images. The simplest approach is to use a 
-    # labeled image in T1 native space. A more complicated approach is to to use an
-    # atlas defined in some other space, in which case we need both the labeled image
-    # and the template image on which the labeled image is defined. 
-
-    # Set PVC label DataGrabber inputs:
-    [ pvc_label_img_string, pvc_label_img_variables  ] = set_label_parameters(opts.pvc_label_type, 'pvc_img_string', opts.img_ext )
-    # Set quantification label DataGrabber inputs
-    [ tka_label_img_string, tka_label_img_variables  ] = set_label_parameters(opts.tka_label_type,  'tka_img_string', opts.img_ext )
-    # Set results label DataGrabber inputs
-    [ results_label_img_string, results_label_img_variables  ] = set_label_parameters(opts.results_label_type,  'results_img_string', opts.img_ext )
-
-    # Set the inputs for the template image for DataGrabber
-    # Set the inputs for the PVC template image
-    #if opts.pvc_label_type == 'atlas-template':
-    [ pvc_label_template_string, pvc_label_template_variables  ] = set_label_parameters(opts.pvc_label_type,  'pvc_template_string',opts.img_ext )
-    # Set the inputs for the quantification template image
-    #if opts.tka_label_type == 'atlas-template':
-    [ tka_label_template_string, tka_label_template_variables  ] = set_label_parameters(opts.tka_label_type,  'tka_template_string', opts.img_ext )
-    # Set the inputs for the results template image
-    #if opts.results_label_type == 'atlas-template':
-    [ results_label_template_string, results_label_template_variables  ] = set_label_parameters(opts.results_label_type,  'results_template_string', opts.img_ext )
-    
-    if opts.pvc_label_img[1] == None: pvc_label_img_string = opts.sourceDir + os.sep + pvc_label_img_string 
-    if opts.tka_label_img[1] == None: tka_label_img_string = opts.sourceDir + os.sep + tka_label_img_string 
-    if opts.results_label_img[1] == None: results_label_img_string = opts.sourceDir + os.sep + results_label_img_string 
-
-    #List of variables used to identify PET image
-    infields_list=['sid', 'ses', 'task', 'acq', 'rec']
-    #List of strings that define the variable names for label images
-    
-    base_label=[]
-    if opts.pvc_label_type != 'internal_cls':
-        base_label+=['pvc_label_img']
-    if opts.tka_label_type != 'internal_cls':
-        base_label+=['tka_label_img']
-    if opts.results_label_type != 'internal_cls':
-        base_label+=['results_label_img']
-
-    #List of structural images that are used by APPIAN
-    base_images=['nativeT1',  'pet']
-
-    #List of transformation files from T1 native space to MNI152 space. 
-    #First is a linear transform, second is a non-linear transform.
-    #base_transforms=[ 'xfmT1MNI' ,'xfmT1MNInl']
-    base_transforms=[ 'xfmT1MNI' ]
-    base_outputs = base_images + base_transforms  + base_label 
+def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
+    pet_str = sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
+    pet_list = ['sid', 'ses', 'sid', 'ses']
+    t1_list =  [ 'sid', 'ses', 'sid', 'ses']
+    t1_str=sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s'
+    if task_list != ['']: 
+        pet_str = pet_str + '_task-%s'
+        t1_str = t1_str + '_task-%s'
+        pet_list += task_list
+        t1_list += task_list
+    if acq != '' :
+        pet_str = pet_str + '_acq-%s'
+        pet_list += ['acq']  
+        infields_list += [ 'acq' ] 
+    if rec != '':
+        pet_str = pet_str + '_rec-%s'
+        pet_list += ['rec']
+        infields_list += ['rec']
+    pet_str = pet_str + '_pet.'+img_ext
     
     #Dictionary for basic structural inputs to DataGrabber
-    field_template_dict =dict(
-        nativeT1=opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_space-nat_T1w.'+opts.img_ext,
-        pet=opts.sourceDir+os.sep+'sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.*'+opts.img_ext,
-        #PVC label string 
-        pvc_label_img = pvc_label_img_string,
-        #TKA label string
-        tka_label_img = tka_label_img_string,
-        #Results label string
-        results_label_img = results_label_img_string,
+    field_template = dict(
+        nativeT1 = t1_str + '_*T1w.'+img_ext,
+        pet=pet_str
     )
 
-    template_args_dict = dict(
-        nativeT1=[[ 'sid', 'ses', 'sid', 'ses', 'task']],
-        pet = [['sid', 'ses', 'sid', 'ses', 'task', 'acq', 'rec']],
-        pvc_label_img = pvc_label_img_variables,
-        tka_label_img = tka_label_img_variables,
-        results_label_img = results_label_img_variables,
+    template_args = dict(
+        nativeT1=[t1_list],
+        pet=[pet_list]
     )
 
-    if opts.user_brainmask :
-        if opts.coregistration_target_mask == 'skull': 
-            field_template_dict["brain_mask_mni"] = opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_skullmask.*'+opts.img_ext
-        else :
-            field_template_dict["brain_mask_mni"] = opts.sourceDir+os.sep+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*_space-mni_brainmask.*'+opts.img_ext
-        base_images += ['brain_mask_mni']
-        template_args_dict["brain_mask_mni"]=[[ 'sid', 'ses', 'sid', 'ses']]
+    datasource.inputs.field_template.update(field_template)
+    datasource.inputs.template_args.update(template_args)
 
-    if opts.user_t1mni :
-        xfmT1MNI=opts.sourceDir+os.sep+'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm'
-        base_images += ['xfmT1MNI']
-        template_args_dict["xfmT1MNI"]=[[ 'sid', 'ses', 'sid', 'ses']]
- 
+    return datasource
 
 
-    # If not pvc_label_img[1] == None then that means we are using a labeled image 
-    # requires a corresponding template. Otherwise, the image is defined in T1 native or
-    # MNI 152. The same applies for PVC and quantification stage
-    if not opts.pvc_label_img[1] == None: 
-        #Assign pvc input to datasource
-        pvc_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.pvc_label_img, field_template_dict, template_args_dict, base_label, infields_list, pvc_label_template_string, pvc_label_template_variables, 'pvc_label_template' , 'pvc_template_string'  )
-        base_outputs.append('pvc_label_template')
-    else : pvc_template_string = ''
+
+def set_label(datasource, img, template, task_list, label_img, template_img, sourceDir, img_ext):
+    '''
+    set_labels(datasource, opts.pvc_label_img[0],  opts.pvc_label_img[1], [],  )
+    '''
+    field_template={}
+    template_args={}
+
+    if template == None :
+        label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
+
+        template_args[label_img]=[['sid', 'ses'] ] 
+        if task_list != [''] :
+            label_img_template += '_task-%s'
+            template_args[label_img][0] +=  task_list  
+        label_img_template +='_*'+img+'T1w.'+img_ext
+        field_template[label_img] = label_img_template
+
+    else :
+        field_template[label_img] = "*"
+        field_template[template_img] = img
+        field_template[template_img] = "*"
+        field_template[template_img] = template
+        
+        template_args[label_img]=['']  
+        template_args[template_img]=['']  
+        datasource.inputs.out_fields += [template_img]
+
+    datasource.inputs.field_template.update( field_template  )
+    datasource.inputs.template_args.update( template_args )
+    return datasource
+
+
+
+
+def set_transform(datasource, task_list, sourceDir):
+    field_template={}
+
+    label_template = sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
+    template_args["xfmT1MNI"] = [['sid', 'ses', 'sid', 'ses' ]]
+    if task_list != [''] :
+        label_template = label_template + "_task-%s"
+        template_args["xfmT1MNI"][0] += task_list
+    label_template = label_template + '*target-MNI_affine.xfm'
     
-    if not opts.tka_label_img[1] == None: 
-        #Assign tka input to datasource
-        tka_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.tka_label_img, field_template_dict, template_args_dict, base_label, infields_list, tka_label_template_string, tka_label_template_variables, 'tka_label_template' , 'tka_template_string'  )
-        base_outputs.append('tka_label_template')
-    else : tka_template_string = ''
+    field_template["xfmT1MNI"] = label_template
 
-    if not opts.results_label_img[1] == None: 
-        #Assign results input to datasource
-        results_template_string, field_template_dict, template_args_dict, base_label, infields_list = assign_datasource_values(opts.results_label_img, field_template_dict, template_args_dict, base_label, infields_list, results_label_template_string, results_label_template_variables, 'results_label_template' , 'results_template_string'  )
-        base_outputs.append('results_label_template')
-    else : results_template_string = ''
+    template_args["xfmT1MNI"][0] = template_args
+    
+    datasource.inputs.field_template.update(field_template)
+    datasource.inputs.template_args.update(template_args)
 
-    return infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string 
- 
+    return datasource
+
+def set_brain_mask(datasource, task_list, coregistration_target_mask, sourceDir) :
+    field_template={}
+    template_args={}
+
+    brain_mask_template = sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_space-mni_'
+    template_args["brain_mask_mni"]=[['sid' ,'ses','sid', 'ses']]
+
+    if task_list != [''] :
+        brain_mask_template = brain_mask_template + "_task-%s"
+        template_args["brain_mask_mni"][0] += task_list
+
+    if coregistration_target_mask == 'skull': 
+       brain_mask_template = brain_mask_template + 'skullmask.*'+img_ext
+    else :
+        brain_mask_template = brain_mask_template + 'brainmask.*'+img_ext
+
+    field_template["brain_mask_mni"] = brain_mask_template
+    
+    datasource.inputs.field_template.update(field_template)
+    datasource.inputs.template_args.update(template_args)
+
+
+    return datasource
+
 
 def assign_datasource_values(label_img, field_template_dict, template_args_dict, base_label, infields_list, label_template_string, label_template_variables, str1, str2 ):
     """
@@ -248,15 +246,15 @@ def run_scan_level(opts,args):
          +++ +++ +++
           |   |   |
          +++ +++ +++
-         |I| |I| |I| = "Initialization"
-         +++ +++ +++
-          |   |   |
-         +++ +++ +++
-         |M| |M| |M| = "Masking"
+         |I| |I| |I| = "PET Initialization"
          +++ +++ +++
           |   |   |
          +++ +++ +++
          |C| |C| |C| = "Coregistration"
+         +++ +++ +++
+          |   |   |
+         +++ +++ +++
+         |M| |M| |M| = "Masking"
          +++ +++ +++
           |   |   |
          +++ +++ +++
@@ -295,15 +293,7 @@ def run_scan_level(opts,args):
 
     ###Define args with exiting subject and condition combinations
     valid_args=init.gen_args(opts, session_ids, task_ids, opts.acq, opts.rec, args)
-
-    infields_list, base_outputs, base_label, base_transforms, base_images, template_args_dict, field_template_dict, pvc_template_string, tka_template_string, results_template_string = set_datasource_inputs(opts)
-
-    ############################################################
-    ### Convert NII to MINC if necessary.                      # 
-    ### Pass to identity node that serves as pseudo-datasource #
-    ############################################################
-    nii2mnc_batch(opts.sourceDir)	
-
+    
     #####################
     ### Preinfosource ###
     #####################
@@ -339,30 +329,36 @@ def run_scan_level(opts,args):
                             (infosource, datasourceArterial, [('ses', 'ses')])
                             ])
     
-
     ### Use DataGrabber to get key input files
-    datasource = pe.Node( interface=nio.DataGrabber(infields=infields_list, outfields=base_outputs, raise_on_empty=True, sort_filelist=False), name="datasource")
-    
-    if not opts.pvc_label_img[1] == None: 
-        datasource.inputs.pvc_template_string=pvc_template_string 
-    if not opts.tka_label_img[1] == None: 
-        datasource.inputs.tka_template_string=tka_template_string 
-    if not opts.results_label_img[1] == None: 
-        datasource.inputs.results_template_string=results_template_string
-    
-    datasource.inputs.tka_img_string = opts.tka_label_img[0]
-    datasource.inputs.results_img_string = opts.results_label_img[0]
-    datasource.inputs.pvc_img_string = opts.pvc_label_img[0]
-    datasource.inputs.base_directory = '/' # opts.sourceDir
-    datasource.inputs.template = '*'
-    ### Variables to use from template
-    datasource.inputs.acq=opts.acq
-    datasource.inputs.rec=opts.rec
-    ### Templates for input
-    datasource.inputs.field_template = field_template_dict
-    ### Templates for template args
-    datasource.inputs.template_args = template_args_dict 
+    infields_list = []
+    base_outputs  = ['nativeT1',  'pet','xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img" ]
 
+    datasource = pe.Node( interface=nio.DataGrabber(infields=infields_list, outfields=base_outputs, raise_on_empty=True, sort_filelist=False), name="datasource")
+    datasource.inputs.template = '*'
+    datasource.inputs.base_directory = '/' # opts.sourceDir
+    datasource.inputs.acq=opts.acq
+    datasource.inputs.rec=opts.rec   
+
+    # Set label datasource
+    datasource.inputs.field_template = {}
+    datasource.inputs.template_args = {}
+    
+    datasource = set_base(datasource,  opts.taskList, opts.acq, opts.rec, opts.sourceDir, opts.img_ext )
+    if opts.pvc_label_type != "internal_cls" :
+        datasource = set_label(datasource, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
+    
+    if opts.tka_label_type != "internal_cls" :
+        datasource = set_label(datasource, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
+
+    if opts.results_label_type != "internal_cls" :
+        datasource = set_label(datasource, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
+
+    if opts.user_t1mni :
+        datasource = set_transform(datasource, task_list, opts.sourceDir)
+
+    if opts.user_brainmask :
+        datasource = set_brain_mask(datasource, opts.coregistration_target_mask, opts.sourceDir)
+        
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
         datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
@@ -408,6 +404,13 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
+
+    ###################
+    # PET prelimaries #
+    ###################
+    wf_init_pet=init.get_workflow("prelimaries", infosource, datasink, opts)
+    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+
     #####################
     # MRI Preprocessing # 
     #####################
@@ -439,13 +442,7 @@ def run_scan_level(opts,args):
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
 
-    ###################
-    # PET prelimaries #
-    ###################
-    wf_init_pet=init.get_workflow("prelimaries", infosource, datasink, opts)
-    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
-
-
+    
     #   
     # Set the appropriate nodes and inputs for desired "analysis_level"
     # and for the source for the labels
@@ -542,7 +539,6 @@ def run_scan_level(opts,args):
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
 
-
     ######################
     # Transform Surfaces #
     ######################
@@ -554,9 +550,6 @@ def run_scan_level(opts,args):
         workflow.connect(wf_pet2mri, "outputnode.petmri_xfm_invert", surf_wf, 'inputnode.T1PET')
         workflow.connect(datasourceSurf, 'mid_surf', surf_wf, 'inputnode.obj_file')
         workflow.connect(wf_masking, 'resultsLabels.out_file', surf_wf, 'inputnode.vol_file')
-
-
-
 
     #############################
     # Partial-volume correction #
@@ -587,7 +580,7 @@ def run_scan_level(opts,args):
         if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header_dict'
         workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
         if opts.tka_method in ecat_methods : 
-           workflow.connect(wf_masking, "pvcLabels.out_file", tka_wf, 'inputnode.like_file')
+           workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, 'inputnode.like_file')
         workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
         #if opts.tka_method in reference_methods:
         workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, "inputnode.mask") 
@@ -622,7 +615,7 @@ def run_scan_level(opts,args):
             workflow.connect(node, img, resultsReport, 'in_file')
             workflow.connect(node, img, datasink, node.name)
 
-            if opts.use_surfaces:
+            if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
                 resultsReportSurf = pe.Node(interface=results.resultsCommand(), name=node_name)
                 resultsReportSurf.inputs.dim = dim

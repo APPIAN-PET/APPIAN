@@ -13,6 +13,7 @@ import pdb
 import nibabel
 import nipype
 
+from Extra.nii2mnc_batch import nii2mnc_batch
 from groupLevel import run_group_level
 from scanLevel import run_scan_level
 
@@ -140,8 +141,8 @@ if __name__ == "__main__":
     group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Input file directory")
     group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
 
-    group.add_option("--radiotracer","--acq",dest="acq",type='string',help="Radiotracer")
-    group.add_option("-r","--rec",dest="rec",type='string',help="Reconstruction algorithm")
+    group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
+    group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
     group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
 
@@ -182,7 +183,7 @@ if __name__ == "__main__":
     parser.add_option_group(group)
     group= OptionGroup(parser,"Masking options","PVC")
     group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='t1', choices=spaces)
-    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='cls')
+    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='antsAtropos')
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
@@ -192,7 +193,7 @@ if __name__ == "__main__":
     # Tracer Kinetic Analysis
     group= OptionGroup(parser,"Masking options","Quantification")
     group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='t1', choices=spaces)
-    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='cls')
+    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='antsAtropos')
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
@@ -203,7 +204,7 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"Masking options","Results")
     group.add_option("","--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
     group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
-    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=1,default='cls')
+    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=1,default='antsAtropos')
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
@@ -228,7 +229,7 @@ if __name__ == "__main__":
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
     group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
-    group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', default=None)
+    group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', nargs=3, default=None)
     group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
     group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
     group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=1)
@@ -265,8 +266,8 @@ if __name__ == "__main__":
     ### MRI Preprocessing ###
     #########################
     mri_opts = OptionGroup(parser, "MRI Preprocessing")
-    mri_opts.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="ANTS")  
-    mri_opts.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="ANTS")  
+    mri_opts.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
+    mri_opts.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
     mri_opts.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
 
     parser.add_option_group( mri_opts )
@@ -357,6 +358,12 @@ if __name__ == "__main__":
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
+
+    ############################################################
+    ### Convert NII to MINC if necessary.                      # 
+    ### Pass to identity node that serves as pseudo-datasource #
+    ############################################################
+    nii2mnc_batch(opts.sourceDir)	
 
     if opts.pscan:
         printScan(opts,args)

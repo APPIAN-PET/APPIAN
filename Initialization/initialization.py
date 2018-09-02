@@ -14,7 +14,7 @@ from pyminc.volumes.factory import *
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+        BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
@@ -26,47 +26,50 @@ from glob import glob
 
 
 def unique_file(files, attributes):
-	
-	if len(files) == 1: 
-		return(files[0])
-	
-	files = [ f for f in files if attributes[0] in f ]
+    
+    if len(files) == 1: 
+        return(files[0])
+   
+    out_files = [ f for a in attributes for f in files if a in f ]
 
-	if attributes == [] or len(files) == 0: return []
-	else: unique_file(files, attributes[1:])
-	return( files[0] ) 
+    if attributes == [] or len(out_files) == 0 : return []
+
+    return( out_files[0] ) 
 
 
 def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
     args=[]
-    print(subjects)
-    print(session_ids)
     for sub in subjects:
         for ses in session_ids:
             for task in task_ids:
-				sub_arg='sub-'+sub
-				ses_arg='ses-'+ses
-				task_arg=rec_arg=acq_arg=""
-				
-				pet_fn=civet_fn=""
-				if not acq == None: acq_arg='acq-'+acq
-				if not rec == None: rec_arg='rec-'+rec
-				pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '_'+ ses_arg + os.sep+ 'pet/*'+ 'ses-'+ses+'*'+'task-'+ task  +'*_pet.mnc' 
-				pet_list=glob(pet_string)
-				if pet_list != []:
-					pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
-				civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
-				if civet_list != []:
-					civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
-				if os.path.exists(pet_fn) and os.path.exists(civet_fn):
-					d={'task':task, 'ses':ses, 'sid':sub}
-					args.append(d)
-				else:
-					if not os.path.exists(pet_fn) :
-						print "Could not find PET for ", sub, ses, task, pet_fn
-					if not os.path.exists(civet_fn) :
-						print "Could not find CIVET for ", sub, ses, task, civet_fn
-    print(args)
+                sub_arg='sub-'+sub
+                ses_arg='ses-'+ses
+                task_arg=rec_arg=acq_arg=""
+
+                pet_fn=mri_fn=""
+                if  acq == '': acq_arg='acq-'+acq
+                if  rec == '': rec_arg='rec-'+rec
+                pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
+                pet_list=glob(pet_string)
+                arg_list = ['sub-'+sub, 'ses-'+ses]
+                if not task == '': arg_list += ['task-'+task]
+                if not acq == '': arg_list += ['acq-'+acq]
+                if not rec == '': arg_list += ['rec-'+rec]
+                if pet_list != []:
+                    pet_fn = unique_file(pet_list, arg_list )
+
+                mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
+                if mri_list != []:
+                    mri_fn = unique_file(mri_list, arg_list )
+
+                if os.path.exists(pet_fn) and os.path.exists(mri_fn):
+                    d={'task':task, 'ses':ses, 'sid':sub}
+                    args.append(d)
+                else:
+                    if not os.path.exists(pet_fn) :
+                        print "Could not find PET for ", sub, ses, task, pet_fn
+                    if not os.path.exists(mri_fn) :
+                        print "Could not find T1 for ", sub, ses, task, mri_fn
     return args
 
 class SplitArgsOutput(TraitedSpec):
@@ -90,14 +93,14 @@ class SplitArgsRunning(BaseInterface):
     output_spec = SplitArgsOutput
 
     def _run_interface(self, runtime):
-       self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
-       self.inputs.task=self.inputs.args['task']
-       self.inputs.ses=self.inputs.args['ses']
-       self.inputs.sid=self.inputs.args['sid']
-       if isdefined(self.inputs.RoiSuffix):
-           self.inputs.RoiSuffix=self.inputs.RoiSuffix
-       return runtime
-
+        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
+        self.inputs.task=self.inputs.args['task']
+        self.inputs.ses=self.inputs.args['ses']
+        self.inputs.sid=self.inputs.args['sid']
+        if isdefined(self.inputs.RoiSuffix):
+            self.inputs.RoiSuffix=self.inputs.RoiSuffix
+        return runtime
+    
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["cid"] = self.inputs.cid
@@ -149,8 +152,8 @@ class MincHdrInfoRunning(BaseInterface):
                 self.type_ = type_
 
         options = [ InfoOptions('-dimnames','time','dimnames','string'),
-                    InfoOptions('-varvalue time','time','frames-time','integer'),
-                    InfoOptions('-varvalue time-width','time','frames-length','integer') ]
+                InfoOptions('-varvalue time','time','frames-time','integer'),
+                InfoOptions('-varvalue time-width','time','frames-length','integer') ]
 
         for opt in options:
             run_mincinfo=InfoCommand()
@@ -179,8 +182,8 @@ class MincHdrInfoRunning(BaseInterface):
                 #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
                 self._params[key][subkey]=data_in 
                 update_minchd_json(self.inputs.out_file, data_in, var, attr)
-        
-        
+
+
         fp=open(self.inputs.out_file)
         header = json.load(fp)
         fp.close()
@@ -209,47 +212,46 @@ class VolCenteringInput(BaseInterfaceInputSpec):
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class VolCenteringRunning(BaseInterface):
-	input_spec = VolCenteringInput
-	output_spec = VolCenteringOutput
-	_suffix = "_center"
+    input_spec = VolCenteringInput
+    output_spec = VolCenteringOutput
+    _suffix = "_center"
 
 
-	def _run_interface(self, runtime):
-		if not isdefined(self.inputs.out_file):
-			fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
-			dname = dname = os.getcwd()
-			self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
+            dname = dname = os.getcwd()
+            self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
 
 
-		shutil.copy(self.inputs.in_file, self.inputs.out_file)
-		infile = volumeFromFile(self.inputs.in_file)
-		for view in ['xspace','yspace','zspace']:
-			start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
+        shutil.copy(self.inputs.in_file, self.inputs.out_file)
+        infile = volumeFromFile(self.inputs.in_file)
+        for view in ['xspace','yspace','zspace']:
+            start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
 
 
-		run_modifHrd=ModifyHeaderCommand()
-		run_modifHrd.inputs.in_file = self.inputs.out_file;
-		run_modifHrd.inputs.dinsert = True;
-		run_modifHrd.inputs.opt_string = view+":start="+str(start);
-		
-		if self.inputs.run:
-			run_modifHrd.run()
+        run_modifHrd=ModifyHeaderCommand()
+        run_modifHrd.inputs.in_file = self.inputs.out_file;
+        run_modifHrd.inputs.dinsert = True;
+        run_modifHrd.inputs.opt_string = view+":start="+str(start);
 
-                node_name="fixIrregularDimension"
-                fixIrregular = ModifyHeaderCommand()
-                fixIrregular.inputs.sinsert = True;
-                fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" "
-                fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
-		fixIrregular.run()
+        if self.inputs.run:
+            run_modifHrd.run()
+            node_name="fixIrregularDimension"
+            fixIrregular = ModifyHeaderCommand()
+            fixIrregular.inputs.sinsert = True;
+            fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" "
+            fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
+        fixIrregular.run()
 
-		return runtime
+        return runtime
 
 
-	def _list_outputs(self):
-		outputs = self.output_spec().get()
-		outputs["out_file"] = self.inputs.out_file
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
 
-		return outputs
+        return outputs
 
 class get_stepOutput(TraitedSpec):
     step =traits.Str(desc="Step size (X, Y, Z)")
@@ -264,7 +266,7 @@ class get_stepCommand(BaseInterface):
     output_spec = get_stepOutput
 
     def _run_interface(self, runtime):
-    	img = volumeFromFile(self.inputs.in_file)
+        img = volumeFromFile(self.inputs.in_file)
         zi=img.dimnames.index('zspace')
         yi=img.dimnames.index('yspace')
         xi=img.dimnames.index('xspace')
@@ -301,7 +303,7 @@ class PETexcludeFrRunning(BaseInterface):
         #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
-    
+
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
@@ -377,7 +379,7 @@ def get_workflow(name, infosource, datasink, opts):
     node_name="petVolume"
     petVolume = pe.Node(interface=minc.Average(), name=node_name)
     petVolume.inputs.avgdim = 'time'
-    petVolume.inputs.width_weighted = True
+    petVolume.inputs.width_weighted = False
     petVolume.inputs.clobber = True
     petVolume.inputs.verbose = opts.verbose 
     rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"),name="r"+node_name)
@@ -396,8 +398,8 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
     workflow.connect([(infosource, rPetCenter, [('sid', 'sid')]),
-                      (infosource, rPetCenter, [('cid', 'cid')])
-                    ])
+        (infosource, rPetCenter, [('cid', 'cid')])
+        ])
 
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
@@ -405,22 +407,22 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
     workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
     workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),
-                      (infosource, rPetExFr, [('cid', 'cid')])
-                    ])
+        (infosource, rPetExFr, [('cid', 'cid')])
+        ])
 
     workflow.connect([(rPetExFr, petVolume, [('out_file', 'input_files')])])
 
     workflow.connect([(petVolume, rPetVolume, [('output_file', 'in_file')])])
-   
-   
+
+
     workflow.connect([(infosource, rPetVolume, [('sid', 'sid')]),
-                      (infosource, rPetVolume, [('cid', 'cid')])
-                    ])
+        (infosource, rPetVolume, [('cid', 'cid')])
+        ])
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
     workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')
     workflow.connect(rPetCenter, 'out_file', outputnode, 'pet_center')
     workflow.connect(rPetVolume, 'out_file', outputnode, 'pet_volume')
 
-    
+
     return(workflow)

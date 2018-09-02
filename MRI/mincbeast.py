@@ -28,6 +28,7 @@ def utar(fn) :
 		tar.close()
 
 def mincbeast_library(template, fn=default_lib_address):
+        print(default_lib_address)
 	base_fn=os.path.basename(fn)
 	file_dir=os.path.dirname(__file__)
 	base_dir = re.sub('.tar', '', base_fn)

@@ -258,25 +258,12 @@ def get_workflow(name, infosource, datasink, opts):
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
     #Define empty node for output
 
-    if not opts.nopvc and opts.pvc_method != None:
-        pvcLabels = pe.Node(interface=Labels(), name="pvcLabels")
-        pvcLabels.inputs.analysis_space = opts.analysis_space
-        pvcLabels.inputs.label_type = opts.pvc_label_type
-    if not opts.tka_method == None:
-        tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
-        tkaLabels.inputs.analysis_space = opts.analysis_space
-        tkaLabels.inputs.label_type = opts.tka_label_type
-
-    resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
-    resultsLabels.inputs.analysis_space = opts.analysis_space
-    resultsLabels.inputs.label_type = opts.results_label_type
-
     MNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
     workflow.connect(inputnode, 'LinT1MNIXfm',MNIT1 , 'input_file')
     MNIPET = pe.Node(interface=minc.XfmInvert(), name="MNIPET")
     workflow.connect(inputnode, 'LinPETMNIXfm',MNIPET , 'input_file')
 
-    if not opts.nopvc and not opts.tka_method == None:
+    if not opts.nopvc and not opts.pvc_method == None:
         pvc_tfm_node, pvc_tfm_file, pvc_tfm_to, pvc_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.pvc_label_space, opts.analysis_space)
         
     if not opts.tka_method == None:
@@ -302,7 +289,10 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")
         like_file="mniT1"
 
-    if not opts.nopvc and not opts.tka_method == None:
+    if not opts.nopvc and not opts.pvc_method == None:
+        pvcLabels = pe.Node(interface=Labels(), name="pvcLabels")
+        pvcLabels.inputs.analysis_space = opts.analysis_space
+        pvcLabels.inputs.label_type = opts.pvc_label_type
         pvcLabels.inputs.space = opts.pvc_label_space
         pvcLabels.inputs.erode_times = opts.pvc_erode_times
         pvcLabels.inputs.brain_only = opts.pvc_labels_brain_only
@@ -314,6 +304,9 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brainmask')
         workflow.connect(pvc_tfm_node, pvc_tfm_file, pvcLabels, "LinXfm")
     if not opts.tka_method == None:
+        tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
+        tkaLabels.inputs.analysis_space = opts.analysis_space
+        tkaLabels.inputs.label_type = opts.tka_label_type
         tkaLabels.inputs.space = opts.tka_label_space
         tkaLabels.inputs.erode_times = opts.tka_erode_times
         tkaLabels.inputs.brain_only = opts.tka_labels_brain_only
@@ -325,6 +318,9 @@ def get_workflow(name, infosource, datasink, opts):
         workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brainmask')
         workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
 
+    resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
+    resultsLabels.inputs.analysis_space = opts.analysis_space
+    resultsLabels.inputs.label_type = opts.results_label_type
     resultsLabels.inputs.space = opts.results_label_space
     resultsLabels.inputs.erode_times = opts.results_erode_times
     resultsLabels.inputs.brain_only = opts.results_labels_brain_only

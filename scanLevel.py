@@ -503,6 +503,8 @@ def run_scan_level(opts,args):
         misregistration.iterables = ('error',tqc.errors)
         workflow.connect(misregistration, 'error', wf_pet2mri, "inputnode.error")
 
+        
+
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
     out_img_dim += ['4']

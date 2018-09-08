@@ -105,6 +105,7 @@ class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     out_file_xfm_invert = File(position=-2, argstr="%s", desc="inverted transformation matrix")
     out_file_img = File(position=-1, argstr="%s", desc="resampled image")
     lsq =  traits.String(desc="Number of parameters to use for transformation")
+    error =  traits.String(desc="Error level by which to mis-register PET image")
     clobber = traits.Bool(position=-5, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     run = traits.Bool(position=-4, argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(position=-3, argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
@@ -253,7 +254,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                 run_tracc.run()
 
             run_resample = minc.Resample();
-            run_resample.inputs.input_file=source
+            run_resample.inputs.input_file=self.inputs.out_file_img
             run_resample.inputs.output_file=tmp_rspl_vol
             run_resample.inputs.like=target
             run_resample.inputs.transformation=tmp_xfm
@@ -267,24 +268,33 @@ class PETtoT1LinRegRunning(BaseInterface):
 
             print '\n'
 
-        ''' 
-        No need for this because the final xfm file includes the initial one
-        if self.inputs.init_file_xfm:
+     
+        #No need for this because the final xfm file includes the initial one
+        if isdefined(self.inputs.error):
+            ###Create rotation xfm files based on transform error
+            transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
+            transformNode.inputs.error = self.inputs.error 
+            
+            ###
             run_concat = minc.ConcatCommand();
-            run_concat.inputs.in_file=self.inputs.init_file_xfm
+            run_concat.inputs.in_file=transformNode.inputs.output_file
             run_concat.inputs.in_file_2=tmp_xfm
             run_concat.inputs.out_file=self.inputs.out_file_xfm
-            if self.inputs.verbose:
-                print run_concat.cmdline
-            if self.inputs.run:
-                run_concat.run()
-        else:'''
-        if self.inputs.verbose:
+            print run_concat.cmdline
+            run_concat.run()
+            
+            tmp_xfm = self.inputs.out_file_xfm
+            
+            misregister_pet = minc.Resample();
+            misregister_pet.inputs.input_file=self.inputs.out_file_img
+            #misregister_pet.inputs.output_file=tmpDir+os.sep+"temp_pet_4d_misaligned.mnc" 
+            misregister_pet.inputs.use_input_sampling=True
+            misregister_pet.inputs.transformation=self.inputs.out_file_xfm
+            shutil.copy(self.inputs.output_file, self.inputs.out_file_img)
+        else :
             cmd=' '.join(['cp', tmp_xfm, self.inputs.out_file_xfm])
             print(cmd)
-        if self.inputs.run:
             shutil.copy(tmp_xfm, self.inputs.out_file_xfm)
-        else: print "\n\nNOPE\n\n"; exit(1);
 
         #Invert transformation
         run_xfmpetinvert = minc.XfmInvert();
@@ -645,6 +655,9 @@ def get_workflow(name, infosource, opts):
         pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
 
+    if isdefined(inputnode.inputs.error) : 
+        final_pet2mri.inputs.error = error
+
     node_name="pet_brain_mask"
     pet_brain_mask = pe.Node(interface=minc.Resample(), name=node_name)
     pet_brain_mask.inputs.nearest_neighbour_interpolation = True
@@ -696,7 +709,6 @@ def get_workflow(name, infosource, opts):
     #elif opts.coregistration_target_mask == 'brain' :
     if opts.coregistration_brain_mask :
         workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
-
     if opts.test_group_qc :
         ###Create rotation xfm files based on transform error
         transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
@@ -719,8 +731,6 @@ def get_workflow(name, infosource, opts):
         workflow.connect(transform_resampleNode, 'out_file', transform_brainmaskNode, 'model_file')
         workflow.connect(pet_brain_mask, pet_brain_mask_img, transform_brainmaskNode, 'in_file')   
 
-
-
         invert_concat_pet2misalign_xfm=pe.Node(interface=minc.XfmInvert(),name="invert_concat_pet2misalign_xfm")
         workflow.connect(pet2misalign_xfm,'out_file',invert_concat_pet2misalign_xfm,'input_file') 
         pet2mri = final_pet2mri = pe.Node(interface=niu.IdentityInterface(fields=["out_file_img", "out_file_xfm", "out_file_xfm_invert"]), name="pet2mri_misaligned") 
@@ -729,7 +739,7 @@ def get_workflow(name, infosource, opts):
         workflow.connect(invert_concat_pet2misalign_xfm, "output_file", final_pet2mri, "out_file_xfm_invert")
         pet_brain_mask = transform_brainmaskNode
         pet_brain_mask_img = 'out_file'
-
+    
     #if not opts.tka_method == None:
     #    workflow.connect([  (inputnode, petRefMask, [('tka_label_img_t1', 'input_file' )]),
     #                        (inputnode, petRefMask, [('pet_volume', 'like')]), 

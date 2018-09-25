@@ -133,6 +133,10 @@ class PETtoT1LinRegRunning(BaseInterface):
         if not isdefined(self.inputs.out_file_img):
             self.inputs.out_file_img = os.getcwd()+os.sep+s_base+"_TO_"+t_base+"_"+self._suffix+ '.mnc'
 
+        #print("\n\n\n")
+        #print( self.inputs.out_file_img )
+        #print("\n\n\n")
+        #exit(0)
 
         prev_xfm = None
         if self.inputs.init_file_xfm:
@@ -254,7 +258,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                 run_tracc.run()
 
             run_resample = minc.Resample();
-            run_resample.inputs.input_file=self.inputs.out_file_img
+            run_resample.inputs.input_file=source
             run_resample.inputs.output_file=tmp_rspl_vol
             run_resample.inputs.like=target
             run_resample.inputs.transformation=tmp_xfm
@@ -823,7 +827,7 @@ def get_workflow(name, infosource, opts):
     workflow.connect([(infosource, rPet2MriXfm, [('sid', 'sid')]),
                       (infosource, rPet2MriXfm, [('cid', 'cid')])  ])
 
-    workflow.connect([(final_pet2mri, rPet2MriXfmInvert, [('out_file_xfm_invert', 'input_file')])])
+    workflow.connect([(final_pet2mri, rPet2MriXfmInvert, [('out_file_xfm_invert', 'in_file')])])
     workflow.connect([(infosource, rPet2MriXfmInvert, [('sid', 'sid')]),
                       (infosource, rPet2MriXfmInvert, [('cid', 'cid')])  ])
 

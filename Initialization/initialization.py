@@ -70,7 +70,9 @@ def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
                         print "Could not find PET for ", sub, ses, task, pet_fn
                     if not os.path.exists(mri_fn) :
                         print "Could not find T1 for ", sub, ses, task, mri_fn
+    print(args)
     return args
+
 
 class SplitArgsOutput(TraitedSpec):
     cid = traits.Str(mandatory=True, desc="Condition ID")
@@ -229,23 +231,20 @@ class VolCenteringRunning(BaseInterface):
         for view in ['xspace','yspace','zspace']:
             start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
 
-
-        run_modifHrd=ModifyHeaderCommand()
-        run_modifHrd.inputs.in_file = self.inputs.out_file;
-        run_modifHrd.inputs.dinsert = True;
-        run_modifHrd.inputs.opt_string = view+":start="+str(start);
-
-        if self.inputs.run:
+            run_modifHrd=ModifyHeaderCommand()
+            run_modifHrd.inputs.in_file = self.inputs.out_file;
+            run_modifHrd.inputs.dinsert = True;
+            run_modifHrd.inputs.opt_string = view+":start="+str(start);
             run_modifHrd.run()
-            node_name="fixIrregularDimension"
-            fixIrregular = ModifyHeaderCommand()
-            fixIrregular.inputs.sinsert = True;
-            fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" "
-            fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
+            
+        node_name="fixIrregularDimension"
+        fixIrregular = ModifyHeaderCommand()
+        fixIrregular.inputs.sinsert = True;
+        fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\"  "
+        fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
         fixIrregular.run()
 
         return runtime
-
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -365,8 +364,6 @@ def get_workflow(name, infosource, datasink, opts):
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
-    #petCenter.inputs.run = opts.prun    
-    rPetCenter=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
 
 
@@ -393,13 +390,7 @@ def get_workflow(name, infosource, datasink, opts):
 
 
 
-
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
-
-    workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
-    workflow.connect([(infosource, rPetCenter, [('sid', 'sid')]),
-        (infosource, rPetCenter, [('cid', 'cid')])
-        ])
 
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
@@ -421,7 +412,7 @@ def get_workflow(name, infosource, datasink, opts):
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
     workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')
-    workflow.connect(rPetCenter, 'out_file', outputnode, 'pet_center')
+    workflow.connect(petCenter, 'out_file', outputnode, 'pet_center')
     workflow.connect(rPetVolume, 'out_file', outputnode, 'pet_volume')
 
 

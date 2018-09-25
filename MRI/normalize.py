@@ -18,14 +18,13 @@ def get_workflow(name, valid_args, opts):
         in_fields += ['brain_mask_mni']
     if opts.user_t1mni :
         in_fields += ['xfmT1MNI']
-
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
     label_imgs= [opts.tka_label_img[0], opts.results_label_img[0], opts.pvc_label_img[0] ]
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
-    out_fields=	[ 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 't1_mni' ]
+    out_fields=	[ 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni' ]
     for stage, label_type in zip(stages, label_types):
         print( stage, label_type )
         if 'internal_cls' == label_type :
@@ -34,14 +33,19 @@ def get_workflow(name, valid_args, opts):
     
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
-    if not opts.user_t1mni:
+    if not opts.user_brainmask : 
         #Template Brain Mask
         template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")
         template_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
         template_brain_mask.inputs.in_file = opts.template
         template_brain_mask.inputs.same_resolution = True
         template_brain_mask.inputs.voxel_size = 4
+        brain_mask_file = "out_file"
+    else :
+        template_brain_mask = inputnode
+        brain_mask_file = "brain_mask_mni"
 
+    if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
             mri2template = pe.Node(interface=mincANTSCommand(args='--float',
                 collapse_output_transforms=True,
@@ -84,7 +88,7 @@ def get_workflow(name, valid_args, opts):
             mri2template.inputs.write_composite_transform=True
             #mri2template.inputs.interpolation=""
             workflow.connect(inputnode, 't1', mri2template, 'moving_image')
-            workflow.connect(template_brain_mask, 'out_file', mri2template, 'fixed_image_mask')  
+            workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'fixed_image_mask')  
 
             t1_mni_file = 'warped_image'
             t1_mni_node=mri2template
@@ -97,7 +101,7 @@ def get_workflow(name, valid_args, opts):
             mri2template.inputs.lsq = "lsq12"
             mri2template.inputs.in_target_file = opts.template
             workflow.connect(inputnode, 't1', mri2template, 'in_source_file'),
-            workflow.connect(template_brain_mask, 'out_file', mri2template, 'in_target_mask') 
+            workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
 
             t1_mni_file = 'out_file_img'
             t1_mni_node=mri2template
@@ -127,8 +131,6 @@ def get_workflow(name, valid_args, opts):
     else :			
         brain_mask_node = inputnode
         brain_mask_file = 'brain_mask_mni'
-    print(brain_mask_node)
-    print(brain_mask_file)
 
     transform_brain_mask = pe.Node(interface=minc.Resample(), name="resample_brain_mask"  )
     transform_brain_mask.inputs.nearest_neighbour_interpolation = True
@@ -150,8 +152,6 @@ def get_workflow(name, valid_args, opts):
     workflow.connect(tfm_node, tfm_file, outputnode, 'xfmT1MNI' )
     workflow.connect(transform_brain_mask, 'output_file', outputnode, 'brain_mask_t1')
     workflow.connect(t1_mni_node, t1_mni_file, outputnode, 't1_mni')
-
-
     return(workflow)
 
 

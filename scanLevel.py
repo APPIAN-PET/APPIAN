@@ -1,4 +1,4 @@
-# vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
+#--user-brainmask --user-brainmask  vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
 # vim: filetype plugin indent on
 
 import os
@@ -60,7 +60,7 @@ def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
         pet_str = pet_str + '_rec-%s'
         pet_list += ['rec']
         infields_list += ['rec']
-    pet_str = pet_str + '_pet.'+img_ext
+    pet_str = pet_str + '*_pet.'+img_ext
     
     #Dictionary for basic structural inputs to DataGrabber
     field_template = dict(
@@ -133,21 +133,23 @@ def set_transform(datasource, task_list, sourceDir):
 
     return datasource
 
-def set_brain_mask(datasource, task_list, coregistration_target_mask, sourceDir) :
+def set_brain_mask(datasource, task_list, coregistration_brain_mask, sourceDir, img_ext) :
     field_template={}
     template_args={}
 
-    brain_mask_template = sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_space-mni_'
+    brain_mask_template = sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*'
     template_args["brain_mask_mni"]=[['sid' ,'ses','sid', 'ses']]
 
     if task_list != [''] :
         brain_mask_template = brain_mask_template + "_task-%s"
         template_args["brain_mask_mni"][0] += task_list
 
-    if coregistration_target_mask == 'skull': 
-       brain_mask_template = brain_mask_template + 'skullmask.*'+img_ext
+    brain_mask_template = brain_mask_template + "_T1w_space-mni"
+
+    if not coregistration_brain_mask : 
+       brain_mask_template = brain_mask_template + '_skullmask.*'+img_ext
     else :
-        brain_mask_template = brain_mask_template + 'brainmask.*'+img_ext
+        brain_mask_template = brain_mask_template + '_brainmask.*'+img_ext
 
     field_template["brain_mask_mni"] = brain_mask_template
     
@@ -180,14 +182,14 @@ def assign_datasource_values(label_img, field_template_dict, template_args_dict,
     return template_string, field_template_dict, template_args_dict, base_label, infields_list 
 
 
-def printOptions(opts,subject_ids,session_ids,task_ids):
+def printOptions(opts,subject_ids,session_ids,task_list):
     """
     Print basic options input by user
 
     :param opts: User-defined options.
     :param subject_ids: Subject IDs
     :param session_ids: Session variable IDs
-    :param task_ids: Task variable IDs
+    :param task_list: Task variable IDs
 
     """
     uname = os.popen('uname -s -n -r').read()
@@ -199,7 +201,7 @@ def printOptions(opts,subject_ids,session_ids,task_ids):
     print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
     #   print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
     print "* Sessions : ", session_ids, "\n"
-    print "* Tasks : " , task_ids , "\n"
+    print "* Tasks : " , task_list , "\n"
 
 def set_label_parameters(level, var , ext ):
     """
@@ -289,10 +291,10 @@ def run_scan_level(opts,args):
     #If the taskList has been defined as a "," separated list, split it into list
     if isinstance(opts.taskList, str):
         opts.taskList=opts.taskList.split(',')
-    task_ids=opts.taskList
+    task_list=opts.taskList
 
     ###Define args with exiting subject and condition combinations
-    valid_args=init.gen_args(opts, session_ids, task_ids, opts.acq, opts.rec, args)
+    valid_args=init.gen_args(opts, session_ids, task_list, opts.acq, opts.rec, args)
     
     #####################
     ### Preinfosource ###
@@ -357,7 +359,7 @@ def run_scan_level(opts,args):
         datasource = set_transform(datasource, task_list, opts.sourceDir)
 
     if opts.user_brainmask :
-        datasource = set_brain_mask(datasource, opts.coregistration_target_mask, opts.sourceDir)
+        datasource = set_brain_mask(datasource, task_list, opts.coregistration_brain_mask, opts.sourceDir, opts.img_ext)
         
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
@@ -415,19 +417,19 @@ def run_scan_level(opts,args):
     # MRI Preprocessing # 
     #####################
     wf_mri_preprocess = normalize.get_workflow("mri_normalize", valid_args, opts)
-    
+     
     #If user wants to input their own brain mask with the option --user-brainmask,
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
     #stereotaxic space in wf_mri_preprocess
     if opts.user_brainmask : 
         brain_mask_mni_node = datasource
         brain_mask_mni_file = 'brain_mask_mni'
-        workflow.connect(datasource, 'brain_mask_mni', wf_mri_preprocess, 'brain_mask_mni')    
+        workflow.connect(datasource, 'brain_mask_mni', wf_mri_preprocess, 'inputnode.brain_mask_mni')    
     else : 
         brain_mask_mni_node = wf_mri_preprocess
         brain_mask_mni_file='outputnode.brain_mask_mni'
         workflow.connect(brain_mask_mni_node, brain_mask_mni_file, datasink, 'wf_mri_preprocess/brain_mask')
-    
+
     #If user wants to input their own t1 space to mni space transform with the option --user-t1mni,
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
     #stereotaxic space in wf_mri_preprocess
@@ -438,11 +440,10 @@ def run_scan_level(opts,args):
     else : 
         t1mni_node = wf_mri_preprocess
         t1mni_file='outputnode.xfmT1MNI'       
-        workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1mni')
+        workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
 
-    
     #   
     # Set the appropriate nodes and inputs for desired "analysis_level"
     # and for the source for the labels
@@ -489,6 +490,7 @@ def run_scan_level(opts,args):
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pet2mri, "inputnode.pet_volume_4d")
     #workflow.connect(wf_masking, 'brainmask.LabelsT1', wf_pet2mri, "inputnode.t1_brain_mask")
+    workflow.connect(wf_mri_preprocess, 'outputnode.brain_mask_t1', wf_pet2mri, 'inputnode.t1_brain_mask')
     workflow.connect(datasource, 'nativeT1' , wf_pet2mri,"inputnode.nativeT1nuc")
     workflow.connect(wf_mri_preprocess, 'outputnode.t1_mni', wf_pet2mri,"inputnode.T1Tal")
     workflow.connect(t1mni_node, t1mni_file, wf_pet2mri,"inputnode.xfmT1MNI")
@@ -502,8 +504,6 @@ def run_scan_level(opts,args):
         misregistration = pe.Node(interface=util.IdentityInterface(fields=['error']), name="misregistration")
         misregistration.iterables = ('error',tqc.errors)
         workflow.connect(misregistration, 'error', wf_pet2mri, "inputnode.error")
-
-        
 
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
@@ -657,7 +657,7 @@ def run_scan_level(opts,args):
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
-    printOptions(opts,subjects_ids,session_ids,task_ids)
+    printOptions(opts,subjects_ids,session_ids,task_list)
     #run the work flow
     if opts.num_threads > 1 :
         plugin_args = {'n_procs' : opts.num_threads,

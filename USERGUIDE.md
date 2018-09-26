@@ -3,7 +3,7 @@
 # Table of Contents
 1. [Overview](#overview) \
 	1.1 [Base Options](#options) \
-	1.2 [MRI Preprocessing](#mri)
+	1.2 [MRI Preprocessing](#mri) \
 	1.3 [Coregistration](#coregistration) \
 	1.4 [Masking](#masking) \
 	1.5 [Partial-Volume Correction](#pvc) \

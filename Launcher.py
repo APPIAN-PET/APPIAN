@@ -11,6 +11,10 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from optparse import OptionParser
 from optparse import OptionGroup
 
+from scanLevel import run_scan_level
+from groupLevel import run_group_level
+
+
 version = "1.0"
 global spaces
 spaces=['pet', 't1', 'stereo']

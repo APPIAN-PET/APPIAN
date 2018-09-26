@@ -337,12 +337,6 @@ FDG is a non-reversibly bound tracer, meaning that once it binds to its target r
 Example:
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
 
-Defining your ROI with an atlas
-To use a stereotaxic atlas to define your ROI (flag: --roi-atlas), you need to define the anatomical template on which this atlas is defined (flag: --roi-template) and the volume containing the atlas labels (flag: --roi-mask). APPIAN includes two standard templates for defining stereotaxic atlases: Colin27 and ICBM152. 
-
-Example: Using the AAL atlas, defined on the Colin27 template
-
---roi-atlas  --roi-template  /opt/APPIAN/Atlas/COLIN27/colin27_t1_tal_lin.mnc  --roi-mask /opt/APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V4.mnc
 
 
 

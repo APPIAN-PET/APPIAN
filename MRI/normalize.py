@@ -16,8 +16,11 @@ def get_workflow(name, valid_args, opts):
     in_fields = ['t1']
     if opts.user_brainmask :
         in_fields += ['brain_mask_mni']
+    
     if opts.user_t1mni :
         in_fields += ['xfmT1MNI']
+
+    print(in_fields)
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
     label_imgs= [opts.tka_label_img[0], opts.results_label_img[0], opts.pvc_label_img[0] ]
@@ -109,15 +112,15 @@ def get_workflow(name, valid_args, opts):
             tfm_file='out_file_xfm'
 
     else :
-        transform_t1 = pe.Node(interface=minc.Resample(), name="resample_brain_mask"  )
+        transform_t1 = pe.Node(interface=minc.Resample(), name="transform_t1"  )
         workflow.connect(inputnode, 't1', transform_t1, 'input_file')
         workflow.connect(inputnode, 'xfmT1MNI', transform_t1, 'transformation')
         transform_t1.inputs.like = opts.template
 
         t1_mni_node = transform_t1
-        t1_mni_file = 'out_file'
+        t1_mni_file = 'output_file'
         tfm_node = inputnode
-        tfm_file = 'xfmT1MRI'
+        tfm_file = 'xfmT1MNI'
 
     if not opts.user_brainmask :
         #Brain Mask MNI-Space
@@ -132,7 +135,7 @@ def get_workflow(name, valid_args, opts):
         brain_mask_node = inputnode
         brain_mask_file = 'brain_mask_mni'
 
-    transform_brain_mask = pe.Node(interface=minc.Resample(), name="resample_brain_mask"  )
+    transform_brain_mask = pe.Node(interface=minc.Resample(), name="transform_brain_mask"  )
     transform_brain_mask.inputs.nearest_neighbour_interpolation = True
     transform_brain_mask.inputs.invert_transformation = True
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_file')

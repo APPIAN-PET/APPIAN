@@ -116,7 +116,7 @@ def set_label(datasource, img, template, task_list, label_img, template_img, sou
 
 def set_transform(datasource, task_list, sourceDir):
     field_template={}
-
+    template_args={}
     label_template = sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
     template_args["xfmT1MNI"] = [['sid', 'ses', 'sid', 'ses' ]]
     if task_list != [''] :
@@ -126,7 +126,7 @@ def set_transform(datasource, task_list, sourceDir):
     
     field_template["xfmT1MNI"] = label_template
 
-    template_args["xfmT1MNI"][0] = template_args
+    #template_args["xfmT1MNI"][0] = template_args
     
     datasource.inputs.field_template.update(field_template)
     datasource.inputs.template_args.update(template_args)
@@ -436,7 +436,7 @@ def run_scan_level(opts,args):
     if opts.user_t1mni : 
         t1mni_node = datasource
         t1mni_file = 'xfmT1MNI'
-        workflow.connect(datasource, 'xfmT1MNI', wf_mri_preprocess, 'xfmT1MNI')    
+        workflow.connect(datasource, 'xfmT1MNI', wf_mri_preprocess, 'inputnode.xfmT1MNI')    
     else : 
         t1mni_node = wf_mri_preprocess
         t1mni_file='outputnode.xfmT1MNI'       
@@ -444,10 +444,10 @@ def run_scan_level(opts,args):
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
 
-    #   
-    # Set the appropriate nodes and inputs for desired "analysis_level"
-    # and for the source for the labels
-    #
+    #####################################################################   
+    # Set the appropriate nodes and inputs for desired "analysis_level" #
+    # and for the source for the labels                                 #
+    #####################################################################
     wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)
     wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
     
@@ -461,7 +461,9 @@ def run_scan_level(opts,args):
         pet_input_node=wf_pet2mri
         pet_input_file='outputnode.petmri_img_4d'
 
-    ### Combine possible label source into one source
+    #################################################
+    # Combine possible label source into one source #
+    #################################################
     if opts.tka_label_type == 'atlas' or opts.tka_label_type == 'user_cls' :
         tka_label_node = datasource
         tka_label_file = 'tka_label_img'
@@ -489,17 +491,11 @@ def run_scan_level(opts,args):
     ##################
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pet2mri, "inputnode.pet_volume_4d")
-    #workflow.connect(wf_masking, 'brainmask.LabelsT1', wf_pet2mri, "inputnode.t1_brain_mask")
     workflow.connect(wf_mri_preprocess, 'outputnode.brain_mask_t1', wf_pet2mri, 'inputnode.t1_brain_mask')
     workflow.connect(datasource, 'nativeT1' , wf_pet2mri,"inputnode.nativeT1nuc")
     workflow.connect(wf_mri_preprocess, 'outputnode.t1_mni', wf_pet2mri,"inputnode.T1Tal")
     workflow.connect(t1mni_node, t1mni_file, wf_pet2mri,"inputnode.xfmT1MNI")
-    #workflow.connect(wf_masking,'pet_brainmask.out_file',wf_pet2mri, "inputnode.pet_headMask")
-    #workflow.connect(wf_masking, 'resultsLabels.LabelsT1', wf_pet2mri, "inputnode.results_label_img_t1")  
-    #if opts.tka_method != None :
-    #    workflow.connect(wf_masking, 'tkaLabels.LabelsT1', wf_pet2mri, "inputnode.tka_label_img_t1")
-    #if not opts.nopvc:
-    #    workflow.connect(wf_masking, 'pvcLabels.LabelsT1', wf_pet2mri, "inputnode.pvc_label_img_t1")
+    
     if opts.test_group_qc :
         misregistration = pe.Node(interface=util.IdentityInterface(fields=['error']), name="misregistration")
         misregistration.iterables = ('error',tqc.errors)

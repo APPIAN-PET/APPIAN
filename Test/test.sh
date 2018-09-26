@@ -2,7 +2,7 @@ SCRIPTPATH="$( cd "$(dirname "$0")"; cd .. ; pwd -P )"
 
 i=0
 
-docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --sourcedir /APPIAN/Test/test_data_fmz --targetdir /APPIAN/Test/out_test_fmz --user-brainmask --fwhm 2.5 2.5 2.5 --tasks 1 --sessions I 01";
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --sourcedir /APPIAN/Test/test_data_fmz --targetdir /APPIAN/Test/out_test_fmz --user-brainmask --user-t1mni --fwhm 2.5 2.5 2.5 --tasks 1 --sessions I 01";
 #docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --sourcedir /APPIAN/Test/test_data --targetdir /APPIAN/Test/out_test_${i} --fwhm 4 4 4 --sessions 01 01";  
 exit 0
 # T1 Brain Mask

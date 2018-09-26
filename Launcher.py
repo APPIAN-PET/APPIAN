@@ -3,34 +3,14 @@
 import os
 import sys
 import argparse
-import commands
-import shutil
-import tempfile
-import time
 import pyminc.volumes.factory as pyminc
 import numpy as np
-import pdb
-import nibabel
-import nipype
 
 from Extra.nii2mnc_batch import nii2mnc_batch
-from groupLevel import run_group_level
-from scanLevel import run_scan_level
 
 from optparse import OptionParser
 from optparse import OptionGroup
 
-from Extra.conversion import  nii2mncCommand
-
-from Masking import masking as masking
-import Registration.registration as reg
-import Initialization.initialization as init
-import Partial_Volume_Correction.pvc as pvc 
-import Results_Report.results as results
-import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import reference_methods
-import Quality_Control.qc as qc
-import Test.test_group_qc as tqc
 version = "1.0"
 global spaces
 spaces=['pet', 't1', 'stereo']
@@ -114,15 +94,19 @@ def check_masking_options(opts, label_img):
         label_type      label type tells you what kind of labled image we're dealing with. there are several
                         possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
     '''
+    
     if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
+    # 1) Atlas 
         label_type ="atlas"
-        if os.path.exists(opts.sourceDir + os.sep + label_img[0]) : 
+        if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
             label_type="atlas-template"
     elif label_img[0] in internal_cls_methods :
+    # 2) Internal classification metion
         label_type = 'internal_cls'
     elif type(label_img[0]) == str:
+    # 3) String that defines user classification
         label_type='user_cls'
-    else: 
+    else : 
         print "Label error: ", label_img, label_space
         exit(1)
 
@@ -145,42 +129,51 @@ if __name__ == "__main__":
     group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
     group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
+    parser.add_option_group(group)      
+
+    #############################
+    # MRI Preprocessing Options #
+    #############################
+    group= OptionGroup(parser,"MRI preprocessing options")
+    group.add_option("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
+    group.add_option("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
+    group.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
+    group.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
+    group.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
+
 
     parser.add_option_group(group)      
 
+    ###################
+    # Surface Options #
+    ###################
+    group= OptionGroup(parser,"Surface options")
+    group.add_option("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
+    group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
+    group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
+    parser.add_option_group(group)      
+
+    ######################
+    # Additional Options #
+    ######################
     group= OptionGroup(parser,"File options (Optional)")
     group.add_option("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Run group level analysis")
     group.add_option("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Run scan level analysis")
-    group.add_option("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
-    group.add_option("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
-    group.add_option("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
-    group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
+
     group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
-    group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     group.add_option("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
+    
     file_dir=os.path.dirname(__file__)
     group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_sym_09a.mnc")
     parser.add_option_group(group)      
 
-
-    # Parse user options
-    # Label options
-    #
-    #   Type:               PVC, TKA, Results
-    #   Labeled Image:      CIVET Classify, Animal, ICBM152, Stereotaxic Atlas, Manual 
-    #   Template:           None,           None,   ICBM152, User Selected,     None
-    #   Labels:             
-    #   --[type]-label-space [CIVET/ANIMAL/ICBM152/Stereotaxic/Manual]
-    #   1) T1 Native:  --[type]-label-img "classify" / "animal" / "roi string" 
-    #   2) ICBM152: --[type]-label-img  path/to/labeled/atlas
-    #   2) Other:   --[type]-label-img  path/to/labeled/atlas path/to/labeled/template
-    #   --[type]-label
-    group= OptionGroup(parser,"Masking options","Tracer Kinetic Analysis")
+    ###################
+    # Masking options #
+    ###################
     label_space_help="Coordinate space of labeled image to use for TKA. Options: [pet/t1/stereo] "
-    label_img_help="Options: 1. Labeled image from CIVET: \'civet\'/\'animal\'/\'label string\', 2. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 3. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template"
+    label_img_help="Options: 1. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 2. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template 3. Internal classification method (" + ', '.join(internal_cls_methods) + ') 4. String that identifies labels in anat/ directory to be used as mask' 
     #PVC
-    parser.add_option_group(group)
     group= OptionGroup(parser,"Masking options","PVC")
     group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='t1', choices=spaces)
     group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='antsAtropos')
@@ -190,7 +183,7 @@ if __name__ == "__main__":
     group.add_option("","--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_option_group(group)
 
-    # Tracer Kinetic Analysis
+    # Quantification
     group= OptionGroup(parser,"Masking options","Quantification")
     group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='t1', choices=spaces)
     group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='antsAtropos')
@@ -232,9 +225,8 @@ if __name__ == "__main__":
     group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', nargs=3, default=None)
     group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
     group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
-    group.add_option("","--pvc-lambda",dest="lambda_var",help="Lambda for PVC algorithm (smoothing parameter for anisotropic diffusion)",type='float', default=1)
-    group.add_option("","--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter.",type='float', default=1)
-    group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over.",type='int', default=64)
+    group.add_option("","--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter (for IdSURF).",type='float', default=1)
+    group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over (for IdSURF).",type='int', default=64)
     parser.add_option_group(group)
 
     #TKA Options
@@ -262,26 +254,17 @@ if __name__ == "__main__":
     group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
     parser.add_option_group(group)
 
-    #########################
-    ### MRI Preprocessing ###
-    #########################
-    mri_opts = OptionGroup(parser, "MRI Preprocessing")
-    mri_opts.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
-    mri_opts.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
-    mri_opts.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
-
-    parser.add_option_group( mri_opts )
-
-
     #Quality Control 
     qc_opts = OptionGroup(parser,"Quality control options")
-    qc_opts.add_option("","--group-qc",dest="group_qc",help="Perform quantitative group-wise quality control.", action='store_const', const=True, default=False)  #FIXME Add to options
+    qc_opts.add_option("","--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
     qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)
 
     #Results reporting
-    qc_opts.add_option("","--group-stats",dest="group_stats",help="Calculate quantitative group-wise descriptive statistics.", action='store_const', const=True, default=True)  #FIXME Add to options
-
+    
+    qc_opts = OptionGroup(parser,"Results reporting options")
+    qc_opts.add_option("","--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
+    parser.add_option_group(qc_opts)
 
 
     #
@@ -324,13 +307,6 @@ if __name__ == "__main__":
 
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
-    #Determine the level at which the labeled image is defined (scan- or atlas-level) 
-    #if os.path.exists(opts.sourceDir + os.sep + opts.tka_label_img[0]): opts.pvc_label_level = 'atlas' 
-    #else: opts.pvc_label_level = 'scan'
-    #if os.path.exists(opts.sourceDir + os.sep + opts.pvc_label_img[0]): opts.tka_label_level = 'atlas'
-    #else: opts.tka_label_level = 'scan'
-    #if os.path.exists(opts.sourceDir + os.sep + opts.results_label_img[0]): opts.results_label_level = 'atlas'
-    #else: opts.results_label_level = 'scan'
 
     roi_label = set_labels(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask
@@ -359,10 +335,9 @@ if __name__ == "__main__":
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
 
-    ############################################################
-    ### Convert NII to MINC if necessary.                      # 
-    ### Pass to identity node that serves as pseudo-datasource #
-    ############################################################
+    #######################################
+    ### Convert NII to MINC if necessary. # 
+    #######################################
     nii2mnc_batch(opts.sourceDir)	
 
     if opts.pscan:

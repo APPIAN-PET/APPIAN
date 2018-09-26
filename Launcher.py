@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
-    group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='baseline')
+    group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
     parser.add_option_group(group)      
 

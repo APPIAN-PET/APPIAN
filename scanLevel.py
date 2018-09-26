@@ -90,11 +90,13 @@ def set_label(datasource, img, template, task_list, label_img, template_img, sou
     if template == None :
         label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
 
-        template_args[label_img]=[['sid', 'ses'] ] 
+        template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
         if task_list != [''] :
             label_img_template += '_task-%s'
             template_args[label_img][0] +=  task_list  
-        label_img_template +='_*'+img+'T1w.'+img_ext
+        #label_img_template +='_*'+img+'T1w.'+img_ext
+        label_img_template +='*_variant-'+img+'_dtissue.'+img_ext
+
         field_template[label_img] = label_img_template
 
     else :
@@ -492,6 +494,8 @@ def run_scan_level(opts,args):
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pet2mri, "inputnode.pet_volume_4d")
     workflow.connect(wf_mri_preprocess, 'outputnode.brain_mask_t1', wf_pet2mri, 'inputnode.t1_brain_mask')
+
+    workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_pet2mri, 'inputnode.header')
     workflow.connect(datasource, 'nativeT1' , wf_pet2mri,"inputnode.nativeT1nuc")
     workflow.connect(wf_mri_preprocess, 'outputnode.t1_mni', wf_pet2mri,"inputnode.T1Tal")
     workflow.connect(t1mni_node, t1mni_file, wf_pet2mri,"inputnode.xfmT1MNI")
@@ -510,7 +514,7 @@ def run_scan_level(opts,args):
     ###########
     workflow.connect(datasource, 'nativeT1', wf_masking, "inputnode.nativeT1")
     workflow.connect(t1mni_node, t1mni_file, wf_masking, "inputnode.LinT1MNIXfm")
-    workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_pet2mri, 'inputnode.header')
+    workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_masking, 'inputnode.pet_header_json')
     workflow.connect(wf_pet2mri, "outputnode.LinPETT1Xfm", wf_masking, "inputnode.LinPETT1Xfm")
     workflow.connect(wf_pet2mri, "outputnode.LinT1PETXfm", wf_masking, "inputnode.LinT1PETXfm")
     workflow.connect(wf_pet2mri, "outputnode.LinPETMNIXfm", wf_masking, "inputnode.LinPETMNIXfm")
@@ -536,7 +540,7 @@ def run_scan_level(opts,args):
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
-
+    
     ######################
     # Transform Surfaces #
     ######################

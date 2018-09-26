@@ -87,8 +87,6 @@ class Labels(BaseInterface):
             run_mincmorph.run()
             out_file_1 = temp_mask_clean
 
-        #Copy temp_mask[_clean] to first output
-        shutil.copy(out_file_1, self.inputs.out_file)
         out_file_1 = self.inputs.out_file
        
         # 3) Co-registration
@@ -136,6 +134,10 @@ class Labels(BaseInterface):
         #    print run_resample.cmdline
         #    run_resample.run()
         label = run_resample.inputs.output_file
+
+        #Copy to output
+        shutil.copy(label, self.inputs.out_file)
+        #self.inputs.out_file = run_resample.inputs.output_file
 
         # 6) Mask brain for T1 and MNI labels
         if self.inputs.brain_only :
@@ -274,7 +276,8 @@ def get_workflow(name, infosource, datasink, opts):
     if opts.analysis_space != "stereo"  :
         brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
-        
+        #brain_mask_node.inputs.output_file="brain_mask_space-"+opts.analysis_space+".mnc" 
+
         workflow.connect(inputnode, "brainmask", brain_mask_node, "input_file")
         if opts.analysis_space == "t1" :
             workflow.connect(MNIT1, "output_file", brain_mask_node, "transformation")
@@ -284,6 +287,9 @@ def get_workflow(name, infosource, datasink, opts):
             workflow.connect(MNIPET, "output_file", brain_mask_node, "transformation")
             workflow.connect(inputnode, "pet_volume", brain_mask_node, "like")
             like_file="pet_volume"
+        else :
+            print("Error: Analysis space must be one of pet,stereo,t1 but is",opts.analysis_space)
+            exit(1)
     else :
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
         workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")

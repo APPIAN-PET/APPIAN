@@ -55,11 +55,11 @@ def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
     if acq != '' :
         pet_str = pet_str + '_acq-%s'
         pet_list += ['acq']  
-        infields_list += [ 'acq' ] 
+        #infields_list += [ 'acq' ] 
     if rec != '':
         pet_str = pet_str + '_rec-%s'
         pet_list += ['rec']
-        infields_list += ['rec']
+        #infields_list += ['rec']
     pet_str = pet_str + '*_pet.'+img_ext
     
     #Dictionary for basic structural inputs to DataGrabber

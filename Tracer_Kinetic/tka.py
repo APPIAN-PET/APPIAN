@@ -10,6 +10,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.base import MINCCommand, MINCCommandInputSpec
 from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow)
+from Extra.modifHeader import FixHeaderCommand
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
@@ -225,11 +226,15 @@ def get_tka_workflow(name, opts):
     ### Setup output from quantification function
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
-        convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
+        #convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
+        convertParametric_to_minc=pe.Node(ecattomincCommand(), name="convertParametric_to_minc")
+        convertParametric = pe.Node(interface=FixHeaderCommand(), name="convertParametric")
         
         #Connect quantification node to output node
-        workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
-        workflow.connect(inputnode, 'like_file', convertParametric, 'like_file')
+        workflow.connect(tkaNode, 'out_file', convertParametric_to_minc, 'in_file')
+        #workflow.connect(inputnode, 'like_file', convertParametric, 'like_file')
+        #workflow.connect(inputnode, 'header', convertParametric, 'header')
+        workflow.connect(convertParametric_to_minc, 'out_file', convertParametric, 'in_file')
         workflow.connect(inputnode, 'header', convertParametric, 'header')
 
         tka_source = convertParametric

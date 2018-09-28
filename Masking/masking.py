@@ -248,7 +248,7 @@ def get_workflow(name, infosource, datasink, opts):
         :returns: workflow
     '''
     workflow = pe.Workflow(name=name)
-    out_list=["pet_brainmask", "brainmask_t1", "brainmask_mni",  "results_label_img_t1", "results_label_img_mni" ]
+    out_list=["pet_brainmask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
     in_list=["nativeT1","mniT1","brainmask", "pet_volume","pet_header_json", "results_labels", "results_label_space","results_label_template","results_label_img", 'LinT1MNIXfm', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times' , "LinPETMNIXfm", "LinMNIPETXfm", "LinT1PETXfm", "LinPETT1Xfm"]
     if not opts.nopvc: 
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
@@ -258,6 +258,7 @@ def get_workflow(name, infosource, datasink, opts):
         in_list +=  ["tka_labels", "tka_label_space","tka_label_template","tka_label_img"]
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=out_list), name='outputnode')
     #Define empty node for output
 
     MNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
@@ -339,4 +340,5 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
 
    
+    workflow.connect(brain_mask_node,"output_file", outputnode, 'brain_mask')
     return(workflow)

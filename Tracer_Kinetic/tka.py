@@ -269,7 +269,7 @@ def get_tka_workflow(name, opts):
         workflow.connect(extractROI, 'out_file', tkaNode, 'in_file')
 
 
-    workflow.connect(tka_source, 'out_file', outputnode, 'out_file')
+    workflow.connect(tka_source, 'output_file', outputnode, 'out_file')
     
     ### Reference Region / TAC
     if  quant_module.reference :

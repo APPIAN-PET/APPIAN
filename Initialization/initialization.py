@@ -23,6 +23,7 @@ from Extra.info import  InfoCommand
 from Extra.modifHeader import ModifyHeaderCommand
 from Extra.reshape import  ReshapeCommand
 from glob import glob
+from Extra.modifHeader import FixHeaderCommand
 
 
 def unique_file(files, attributes):
@@ -208,6 +209,7 @@ class VolCenteringOutput(TraitedSpec):
 
 class VolCenteringInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
+    header = File(desc="Header")
     out_file = File(argstr="%s", desc="Image after centering")
 
     run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
@@ -243,6 +245,13 @@ class VolCenteringRunning(BaseInterface):
         fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\"  "
         fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
         fixIrregular.run()
+
+
+        pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+        pettot1_4d_header_fixed.inputs.time_only=True
+        pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
+        pettot1_4d_header_fixed.inputs.header = self.inputs.header
+
 
         return runtime
 
@@ -361,6 +370,9 @@ def get_workflow(name, infosource, datasink, opts):
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
 
+    header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
+    workflow.connect(inputnode, 'pet',  header_init, 'in_file')
+    
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
@@ -378,12 +390,10 @@ def get_workflow(name, infosource, datasink, opts):
     petVolume.inputs.avgdim = 'time'
     petVolume.inputs.width_weighted = False
     petVolume.inputs.clobber = True
-    petVolume.inputs.verbose = opts.verbose 
     rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"),name="r"+node_name)
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
-    petSettings.inputs.verbose = opts.verbose
     petSettings.inputs.clobber = True
     #petSettings.inputs.run = opts.prun
     rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
@@ -391,7 +401,7 @@ def get_workflow(name, infosource, datasink, opts):
 
 
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
-
+    workflow.connect(header_init, 'out_file', petCenter, 'header')
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
 

@@ -683,26 +683,6 @@ def get_workflow(name, infosource, opts):
     rPet2MriXfm=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_Pet2MriXfm.xfm"), name="rPet2MriXfm")
     rPet2MriXfmInvert=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_Pet2MriXfm_invert.xfm"), name="rPet2MriXfmInvert")
 
-    #if not opts.tka_method == None:
-    #    node_name="pet_tka_mask"
-    #    petRefMask = pe.Node(interface=minc.Resample(), name=node_name)
-    #    petRefMask.inputs.nearest_neighbour_interpolation = True
-    #    petRefMask.inputs.clobber = True
-    #    rPetRefMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-    #node_name="pet_results_mask"
-    #petROIMask = pe.Node(interface=minc.Resample(), name=node_name)
-    #petROIMask.inputs.nearest_neighbour_interpolation = True
-    #petROIMask.inputs.clobber = True
-    #rPetROIMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-    #if not opts.nopvc:
-    #    node_name="pet_pvc_mask"
-    #    petPVCMask = pe.Node(interface=minc.Resample(), name=node_name)
-    #    petPVCMask.inputs.nearest_neighbour_interpolation = True
-    #    petPVCMask.inputs.clobber = True
-    #    rPetPVCMask=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
     workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
                       (petMasking, pet2mri_withMask, [('out_file', 'in_source_mask')]), 
                       (inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
@@ -776,21 +756,17 @@ def get_workflow(name, infosource, opts):
     #Resample 4d PET image to T1 space
     pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
     pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
-    rpettot1_4d=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-t1_pet.mnc"),name="rpettot1_4d")
+    #rpettot1_4d=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-t1_pet.mnc"),name="rpettot1_4d")
     
     
     workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
     workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
     workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
 	
-    pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
-    pettot1_4d_header_fixed.inputs.time_only=True
-    workflow.connect(inputnode, "header", pettot1_4d_header_fixed, "header" )
-    workflow.connect(pettot1_4d, 'output_file', pettot1_4d_header_fixed, 'in_file')
-
-    workflow.connect(pettot1_4d_header_fixed,'out_file', rpettot1_4d, 'in_file' )
-    workflow.connect(infosource, 'sid', rpettot1_4d, 'sid' )
-    workflow.connect(infosource, 'cid', rpettot1_4d, 'cid' )
+    #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+    #pettot1_4d_header_fixed.inputs.time_only=True
+    #workflow.connect(inputnode, "header", pettot1_4d_header_fixed, "header" )
+    #workflow.connect(pettot1_4d, 'output_file', pettot1_4d_header_fixed, 'in_file')
 
     #Resample 4d PET image to MNI space
 
@@ -802,23 +778,16 @@ def get_workflow(name, infosource, opts):
     workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
 
     t1tomni_4d = pe.Node(interface=minc.Resample(), name='t1tomni_4d')
-    t1tomni_4d.inputs.output_file='pet_space-mni_4d.mnc'
     workflow.connect(pettot1_4d, 'output_file', t1tomni_4d, 'input_file')
     workflow.connect(inputnode, "xfmT1MNI", t1tomni_4d, 'transformation')
     workflow.connect(inputnode, 'T1Tal', t1tomni_4d, 'like')
     
-    t1tomni_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettomni_4d_header_fixed")
-    t1tomni_4d_header_fixed.inputs.time_only=True
+    #t1tomni_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettomni_4d_header_fixed")
+    #t1tomni_4d_header_fixed.inputs.time_only=True
 
-    workflow.connect(inputnode, "header", t1tomni_4d_header_fixed, "header" )
-    workflow.connect(t1tomni_4d, 'output_file', t1tomni_4d_header_fixed, 'in_file')   
+    #workflow.connect(inputnode, "header", t1tomni_4d_header_fixed, "header" )
+    #workflow.connect(t1tomni_4d, 'output_file', t1tomni_4d_header_fixed, 'in_file')   
    
-    rt1tomni_4d=pe.Node(interface=Rename(format_string="sid-%(sid)s_task-%(cid)s_space-mni_pet.mnc"), name="rt1tomni_4d")
-    workflow.connect(t1tomni_4d_header_fixed,'out_file', rt1tomni_4d, 'in_file' )
-    workflow.connect(infosource, 'sid', rt1tomni_4d, 'sid' )
-    workflow.connect(infosource, 'cid', rt1tomni_4d, 'cid' )
-
-
     workflow.connect([(final_pet2mri, rPet2MriImg, [('out_file_img', 'in_file')])])
     workflow.connect([(infosource, rPet2MriImg, [('sid', 'sid')]),
                       (infosource, rPet2MriImg, [('cid', 'cid')]) ])
@@ -839,12 +808,11 @@ def get_workflow(name, infosource, opts):
     workflow.connect(final_pet2mri,'out_file_xfm_invert', outputnode, 'LinT1PETXfm')
     workflow.connect(PETMNIXfm_node, 'out_file', outputnode, 'LinPETMNIXfm' )
     workflow.connect(MNIPETXfm_node, 'output_file', outputnode, 'LinMNIPETXfm' )
-    workflow.connect(rpettot1_4d,'out_file', outputnode, 'petmri_img_4d')
-    workflow.connect(rt1tomni_4d,'out_file', outputnode, 'petmni_img_4d')
+    workflow.connect(pettot1_4d,'output_file', outputnode, 'petmri_img_4d')
+    workflow.connect(t1tomni_4d,'output_file', outputnode, 'petmni_img_4d')
     workflow.connect(rPet2MriXfm, 'out_file', outputnode, 'petmri_xfm')
     workflow.connect(rPet2MriXfmInvert, 'out_file', outputnode, 'petmri_xfm_invert')
     workflow.connect(rPet2MriImg, 'out_file', outputnode, 'petmri_img')
-    #workflow.connect(rPetROIMask, 'out_file', outputnode, 'results_label_img_pet')
     workflow.connect(rpet_brain_mask, 'out_file', outputnode,'pet_brain_mask' )
 
     return(workflow)

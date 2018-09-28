@@ -5,7 +5,7 @@ i=0
 #docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --sourcedir /APPIAN/Test/test_data_fmz --targetdir /APPIAN/Test/out_test_fmz --user-brainmask --user-t1mni --fwhm 2.5 2.5 2.5 --tasks 1 --sessions I 01";
 
 
-docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py  --user-brainmas --user-t1mni  --no-group-qc --pvc-label-space stereo  --pvc-label-img "cls"  --tka-label-space stereo --tka-method 'lp' --tka-label-img "cls" --tka-labels-brain-only --tka-labels-ones-only  --tka-label 3 --tka-label-erosion 5 --results-label-space stereo  --results-labels-brain-only --results-label 2 --results-label-img "cls" --sourcedir /APPIAN/Test/test_data_fmz --targetdir /APPIAN/Test/out_test_fmz  --tasks 1 --sessions I  --pet-scanner HRRT  01";
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py  --user-brainmas --user-t1mni  --pvc-label-space stereo  --pvc-label-img "cls"  --tka-label-space stereo --tka-method 'lp' --tka-label-img "cls" --tka-labels-brain-only --tka-labels-ones-only  --tka-label 3 --tka-label-erosion 5 --results-label-space stereo  --results-labels-brain-only --results-label 2 --results-label-img "cls" --sourcedir /APPIAN/Test/test_data_fmz --targetdir /APPIAN/Test/out_test_fmz  --tasks 1 --sessions I  --pet-scanner HRRT  01";
 
 
 exit 0

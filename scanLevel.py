@@ -566,6 +566,7 @@ def run_scan_level(opts,args):
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['4']
 
+    workflow.run(); exit(0)
     ###########################
     # Tracer kinetic analysis #
     ###########################
@@ -639,7 +640,9 @@ def run_scan_level(opts,args):
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
         workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
         workflow.connect(datasource, 'nativeT1',  distance_metricNode, 't1')
-        workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
+        #workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
+        #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')
+        workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')
         workflow.connect(infosource, 'ses', distance_metricNode, 'ses')
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')

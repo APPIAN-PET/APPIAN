@@ -93,7 +93,7 @@ def get_pvc_workflow(name, infosource, datasink, opts):
     workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'in_file')
     workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
 
-    workflow.connect(fixHeaderNode, 'out_file', outputnode, 'out_file')
+    workflow.connect(fixHeaderNode, 'output_file', outputnode, 'out_file')
 
     return(workflow)
 

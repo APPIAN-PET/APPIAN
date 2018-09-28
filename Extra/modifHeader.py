@@ -35,7 +35,7 @@ class ModifyHeaderCommand(CommandLine):
 
 
 class FixHeaderOutput(TraitedSpec):
-    out_file = File(desc="Image after centering")
+    output_file = File(desc="Image after centering")
 
 #class FixHeaderInput(ModifyHeaderInput):
 class FixHeaderInput(CommandLineInputSpec):
@@ -48,7 +48,7 @@ class FixHeaderInput(CommandLineInputSpec):
     ystep = traits.Float(argstr="-dinsert yspace:step=%f",  desc="Replace start value for ystep")
     xstep = traits.Float(argstr="-dinsert xspace:step=%f",  desc="Replace start value for xstep")
     header = traits.File(desc="MINC header for PET image stored in dictionary.")
-    out_file = File(desc="Image after centering")
+    output_file = File(desc="Image after centering")
     in_file = File(argstr="%s", position=1, desc="Image after centering")
     time_only = traits.Bool(default_value=False)
 #class FixHeaderCommand(ModifyHeaderCommand):
@@ -58,11 +58,11 @@ class FixHeaderCommand(CommandLine):
     _cmd = "minc_modify_header"
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.in_file
+        outputs["output_file"] = self.inputs.in_file
         return outputs
 
     def _parse_inputs(self, skip=None):
-        self.inputs.out_file = self.inputs.in_file
+        self.inputs.output_file = self.inputs.in_file
         header=self.inputs.header
         if skip is None:
             skip = []

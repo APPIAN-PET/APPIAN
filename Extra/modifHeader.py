@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import json
+import shutil
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
 
 class ModifyHeaderOutput(TraitedSpec):
@@ -62,13 +63,11 @@ class FixHeaderCommand(CommandLine):
         return outputs
 
     def _parse_inputs(self, skip=None):
-        self.inputs.output_file = self.inputs.in_file
+        self.inputs.output_file = self.inputs.in_file #
         header=self.inputs.header
         if skip is None:
             skip = []
         data = json.load(open( header ,"rb"))
-
-        print(data["time"])
 
         try : 
             #There is a time dimension in header
@@ -95,10 +94,53 @@ class FixHeaderCommand(CommandLine):
             self.inputs.zstep  = data["zspace"]["step"][0]
             self.inputs.ystep  = data["yspace"]["step"][0]
             self.inputs.xstep  = data["xspace"]["step"][0]
-
-        print(self.inputs)
+        
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
-	
+
+class FixHeaderLinkInput(CommandLineInputSpec):
+    tstart = traits.Float(argstr="-dinsert time:start=%f",  desc="Replace start value for time")
+    zstart = traits.Float(argstr="-dinsert zspace:start=%f",  desc="Replace start value for zspace")
+    ystart = traits.Float(argstr="-dinsert yspace:start=%f",  desc="Replace start value for yspace")
+    xstart = traits.Float(argstr="-dinsert xspace:start=%f",  desc="Replace start value for xspace")
+    tstep = traits.Float(argstr="-dinsert time:step=%f",  desc="Replace start value for time")
+    zstep = traits.Float(argstr="-dinsert zspace:step=%f",  desc="Replace start value for zstep")
+    ystep = traits.Float(argstr="-dinsert yspace:step=%f",  desc="Replace start value for ystep")
+    xstep = traits.Float(argstr="-dinsert xspace:step=%f",  desc="Replace start value for xstep")
+    header = traits.File(desc="MINC header for PET image stored in dictionary.")
+    output_file = File(desc="Image after centering")
+    in_file = File(argstr="%s", position=1, desc="Image after centering")
+    time_only = traits.Bool(default_value=False)
+
+class FixHeaderLinkOutput(TraitedSpec):
+    output_file = File(desc="Image after centering")
+
+class FixHeaderLinkCommand(BaseInterface):
+    input_spec = FixHeaderLinkInput
+    output_spec = FixHeaderLinkOutput
+
+    def _run_interface(self, runtime):
+
+        self.inputs.output_file = os.getcwd() + os.sep + os.path.basename(self.inputs.in_file)
+        #FIXME : Need a better solution for fixing file headers bc this uses a lot of memory
+        shutil.copy(self.inputs.in_file, self.inputs.output_file)
+        
+        fix_header_node = FixHeaderCommand()
+        fix_header_node.inputs.in_file = self.inputs.output_file
+        fix_header_node.inputs.header = self.inputs.header
+        fix_header_node.run()
+
+        #os.symlink(self.inputs.in_file, self.inputs.output_file)
+        print("Hello Running FixHeaderLinkCommand")
+        print(self.inputs.in_file, self.inputs.output_file)
+
+        return runtime
+
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["output_file"] = self.inputs.output_file 
+        return outputs
+
 
 

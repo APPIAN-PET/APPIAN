@@ -25,7 +25,7 @@ import nipype.interfaces.minc as minc
 from Extra.xfmOp import ConcatCommand
 from Extra.inormalize import InormalizeCommand
 
-from Extra.modifHeader import FixHeaderCommand
+from Extra.modifHeader import FixHeaderCommand, FixHeaderLinkCommand
 
 class PETheadMaskingOutput(TraitedSpec):
     out_file  = File(desc="Headmask from PET volume")

@@ -540,7 +540,6 @@ def run_scan_level(opts,args):
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
-    
     ######################
     # Transform Surfaces #
     ######################
@@ -565,8 +564,7 @@ def run_scan_level(opts,args):
         out_node_list += [pvc_wf]
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['4']
-
-    workflow.run(); exit(0)
+    
     ###########################
     # Tracer kinetic analysis #
     ###########################

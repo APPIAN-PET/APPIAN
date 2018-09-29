@@ -508,17 +508,17 @@ def run_scan_level(opts,args):
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
     out_img_dim += ['4']
-    
+
     ###########
     # Masking #
     ###########
     workflow.connect(datasource, 'nativeT1', wf_masking, "inputnode.nativeT1")
     workflow.connect(t1mni_node, t1mni_file, wf_masking, "inputnode.LinT1MNIXfm")
     workflow.connect(wf_init_pet, 'outputnode.pet_header_json', wf_masking, 'inputnode.pet_header_json')
-    workflow.connect(wf_pet2mri, "outputnode.LinPETT1Xfm", wf_masking, "inputnode.LinPETT1Xfm")
-    workflow.connect(wf_pet2mri, "outputnode.LinT1PETXfm", wf_masking, "inputnode.LinT1PETXfm")
-    workflow.connect(wf_pet2mri, "outputnode.LinPETMNIXfm", wf_masking, "inputnode.LinPETMNIXfm")
-    workflow.connect(wf_pet2mri, "outputnode.LinMNIPETXfm", wf_masking, "inputnode.LinMNIPETXfm")
+    workflow.connect(wf_pet2mri, "outputnode.petmri_xfm", wf_masking, "inputnode.LinPETT1Xfm")
+    workflow.connect(wf_pet2mri, "outputnode.mripet_xfm", wf_masking, "inputnode.LinT1PETXfm")
+    workflow.connect(wf_pet2mri, "outputnode.petmni_xfm", wf_masking, "inputnode.LinPETMNIXfm")
+    workflow.connect(wf_pet2mri, "outputnode.mnipet_xfm", wf_masking, "inputnode.LinMNIPETXfm")
     workflow.connect(wf_mri_preprocess, 'outputnode.t1_mni', wf_masking, "inputnode.mniT1")
     workflow.connect(brain_mask_mni_node, brain_mask_mni_file, wf_masking, "inputnode.brainmask")
     if not opts.nopvc:
@@ -540,6 +540,7 @@ def run_scan_level(opts,args):
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
+
     ######################
     # Transform Surfaces #
     ######################
@@ -629,6 +630,7 @@ def run_scan_level(opts,args):
                 workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
                 workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
     
+    workflow.run(); exit(0)
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -636,7 +638,7 @@ def run_scan_level(opts,args):
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
-        workflow.connect(wf_pet2mri, 'outputnode.pet_brain_mask', distance_metricNode, 'pet_brain_mask')
+        workflow.connect(wf_pet2mri,'outputnode.pet_brain_mask',distance_metricNode,'pet_brain_mask')
         workflow.connect(datasource, 'nativeT1',  distance_metricNode, 't1')
         #workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
         #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')

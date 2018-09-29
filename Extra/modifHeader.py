@@ -120,7 +120,6 @@ class FixHeaderLinkCommand(BaseInterface):
     output_spec = FixHeaderLinkOutput
 
     def _run_interface(self, runtime):
-
         self.inputs.output_file = os.getcwd() + os.sep + os.path.basename(self.inputs.in_file)
         #FIXME : Need a better solution for fixing file headers bc this uses a lot of memory
         shutil.copy(self.inputs.in_file, self.inputs.output_file)
@@ -131,8 +130,8 @@ class FixHeaderLinkCommand(BaseInterface):
         fix_header_node.run()
 
         #os.symlink(self.inputs.in_file, self.inputs.output_file)
-        print("Hello Running FixHeaderLinkCommand")
-        print(self.inputs.in_file, self.inputs.output_file)
+        print("\n\nRunning FixHeaderLinkCommand\n\n")
+        #print(self.inputs.in_file, self.inputs.output_file)
 
         return runtime
 

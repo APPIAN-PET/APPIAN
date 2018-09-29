@@ -340,5 +340,5 @@ def get_workflow(name, infosource, datasink, opts):
     workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
 
    
-    workflow.connect(brain_mask_node,"output_file", outputnode, 'brain_mask')
+    #workflow.connect(brain_mask_node,"output_file", outputnode, 'brain_mask')
     return(workflow)

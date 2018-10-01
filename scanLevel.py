@@ -412,7 +412,7 @@ def run_scan_level(opts,args):
     ###################
     # PET prelimaries #
     ###################
-    wf_init_pet=init.get_workflow("prelimaries", infosource, datasink, opts)
+    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
     workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
 
     #####################
@@ -430,7 +430,7 @@ def run_scan_level(opts,args):
     else : 
         brain_mask_mni_node = wf_mri_preprocess
         brain_mask_mni_file='outputnode.brain_mask_mni'
-        workflow.connect(brain_mask_mni_node, brain_mask_mni_file, datasink, 'wf_mri_preprocess/brain_mask')
+        #workflow.connect(brain_mask_mni_node, brain_mask_mni_file, datasink, 'wf_mri_preprocess/brain_mask')
 
     #If user wants to input their own t1 space to mni space transform with the option --user-t1mni,
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
@@ -442,7 +442,7 @@ def run_scan_level(opts,args):
     else : 
         t1mni_node = wf_mri_preprocess
         t1mni_file='outputnode.xfmT1MNI'       
-        workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
+        #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
 
@@ -451,7 +451,7 @@ def run_scan_level(opts,args):
     # and for the source for the labels                                 #
     #####################################################################
     wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)
-    wf_masking=masking.get_workflow("masking", infosource, datasink, opts)
+    wf_masking=masking.get_workflow("masking", infosource, opts)
     
     if opts.analysis_space == 'stereo':
         pet_input_node=wf_pet2mri
@@ -528,9 +528,9 @@ def run_scan_level(opts,args):
         workflow.connect(preinfosource, 'tka_labels', wf_masking, "inputnode.tka_labels")
         workflow.connect(tka_label_node, tka_label_file, wf_masking, "inputnode.tka_label_img")
     workflow.connect(preinfosource, 'results_labels', wf_masking, "inputnode.results_labels")
-    workflow.connect(preinfosource, 'pvc_erode_times', wf_masking, "inputnode.pvc_erode_times")
-    workflow.connect(preinfosource, 'tka_erode_times', wf_masking, "inputnode.tka_erode_times")
-    workflow.connect(preinfosource, 'results_erode_times', wf_masking, "inputnode.results_erode_times")
+    #workflow.connect(preinfosource, 'pvc_erode_times', wf_masking, "inputnode.pvc_erode_times")
+    #workflow.connect(preinfosource, 'tka_erode_times', wf_masking, "inputnode.tka_erode_times")
+    #workflow.connect(preinfosource, 'results_erode_times', wf_masking, "inputnode.results_erode_times")
     workflow.connect(results_label_node, results_label_file, wf_masking, "inputnode.results_label_img")
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
 
@@ -557,7 +557,7 @@ def run_scan_level(opts,args):
     # Partial-volume correction #
     #############################
     if not opts.nopvc :
-        pvc_wf = pvc.get_pvc_workflow("pvc", infosource, datasink, opts) 
+        pvc_wf = pvc.get_pvc_workflow("pvc", infosource, opts) 
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(wf_masking, "pvcLabels.out_file", pvc_wf, "inputnode.mask_file") #CHANGE
         workflow.connect(wf_init_pet, 'outputnode.pet_header_json', pvc_wf, "inputnode.header") #CHANGE
@@ -591,8 +591,8 @@ def run_scan_level(opts,args):
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
         elif opts.tka_method in reference_methods + ['suvr']: #FIXME should not just add suvr like this 
             workflow.connect(wf_masking, 'tkaLabels.out_file', tka_wf, "inputnode.reference")
-        if opts.tka_type=="ROI":
-            workflow.connect(tka_wf, "outputnode.out_fit_file", datasink, 'tka')
+        #if opts.tka_type=="ROI":
+        #    workflow.connect(tka_wf, "outputnode.out_fit_file", datasink, 'tka')
         
         out_node_list += [tka_wf]
         out_img_list += ['outputnode.out_file']
@@ -612,11 +612,12 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'sid', resultsReport, "sub")
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")
-            workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReport, "header")
+            workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReport, "header")
+            #workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
-            workflow.connect(node, img, datasink, node.name)
-
+            #workflow.connect(node, img, datasink, node.name)
+            
             if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
                 resultsReportSurf = pe.Node(interface=results.resultsCommand(), name=node_name)
@@ -630,7 +631,6 @@ def run_scan_level(opts,args):
                 workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
                 workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
     
-    workflow.run(); exit(0)
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -638,11 +638,11 @@ def run_scan_level(opts,args):
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
         workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
-        workflow.connect(wf_pet2mri,'outputnode.pet_brain_mask',distance_metricNode,'pet_brain_mask')
+        workflow.connect(wf_pet2mri,'pet_brain_mask.output_file',distance_metricNode,'pet_brain_mask')
         workflow.connect(datasource, 'nativeT1',  distance_metricNode, 't1')
-        #workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
+        workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
         #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')
-        workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')
+        #workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')
         workflow.connect(infosource, 'ses', distance_metricNode, 'ses')
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')

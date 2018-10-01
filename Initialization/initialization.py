@@ -346,7 +346,7 @@ class PETexcludeFrRunning(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_workflow(name, infosource, datasink, opts):
+def get_workflow(name, infosource, opts):
     '''
     Nipype workflow that initializes the PET images by 
         1. Centering the PET image: petCenter

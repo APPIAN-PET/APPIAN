@@ -23,7 +23,7 @@ from Extra.modifHeader import FixHeaderLinkCommand
 """
 
 
-def get_pvc_workflow(name, infosource, datasink, opts):
+def get_pvc_workflow(name, infosource, opts):
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file', 'mask_file', 'header']), name='inputnode')

@@ -281,6 +281,11 @@ def run_scan_level(opts,args):
     :returns int: Return code 0 == success
     """
 
+    opts.calculate_t1_pet_space = False
+    if opts.group_qc or opts.test_group_qc :
+        opts.calculate_t1_pet_space = True
+
+
     if args:
         subjects_ids = args
     else:
@@ -637,9 +642,9 @@ def run_scan_level(opts,args):
     if opts.group_qc or opts.test_group_qc :
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
-        workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
+        workflow.connect(wf_init_pet, 'outputnode.pet_volume',  distance_metricNode, 'pet')
         workflow.connect(wf_pet2mri,'pet_brain_mask.output_file',distance_metricNode,'pet_brain_mask')
-        workflow.connect(datasource, 'nativeT1',  distance_metricNode, 't1')
+        workflow.connect(wf_pet2mri, 't1_pet_space.output_file',  distance_metricNode, 't1')
         workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
         #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')
         #workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')

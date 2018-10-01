@@ -664,9 +664,20 @@ def get_workflow(name, infosource, opts):
     pet_brain_mask_img = 'output_file'
     
     workflow.connect([(inputnode, pet_brain_mask, [('t1_brain_mask', 'input_file' )]),
-                        (pet2mri, pet_brain_mask, [('out_file_img', 'like')]), 
+                        (inputnode, pet_brain_mask, [('pet_volume', 'like')]), 
                         (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
                     ]) 
+
+
+    if opts.calculate_t1_pet_space :
+        t1_pet_space = pe.Node(interface=minc.Resample(), name="t1_pet_space")
+        t1_pet_space.inputs.clobber = True
+        workflow.connect([(inputnode, t1_pet_space, [('nativeT1nuc', 'input_file' )]),
+                            (inputnode, t1_pet_space, [('pet_volume', 'like')]), 
+                            (pet2mri, t1_pet_space, [('out_file_xfm_invert', 'transformation')])
+                        ]) 
+
+
 
     if opts.no_mask :
         workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),

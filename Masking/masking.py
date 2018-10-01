@@ -270,8 +270,12 @@ def get_workflow(name, infosource, opts):
     if not opts.tka_method == None:
        tka_tfm_node, tka_tfm_file, tka_tfm_to, tka_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.tka_label_space, opts.analysis_space)
     
-    results_tfm_node, results_tfm_file, results_tfm_to, results_target_fil = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space)
-
+    results_tfm_node, results_tfm_file, results_tfm_to, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space)
+    
+    brain_mask_tfm_node, brain_mask_tfm_file, brain_mask_tfm_to, brain_mask_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, 'stereo', 'pet')
+    ###################
+    # Brain Mask Node #
+    ###################
     if opts.analysis_space != "stereo"  :
         brain_mask_node = pe.Node(minc.Resample(), "brain_mask_node")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
@@ -293,6 +297,7 @@ def get_workflow(name, infosource, opts):
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
         workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")
         like_file="mniT1"
+
 
 
     resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")

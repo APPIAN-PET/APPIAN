@@ -135,6 +135,13 @@ if __name__ == "__main__":
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
     parser.add_option_group(group)      
 
+    ###############
+    # Information #
+    ###############
+    group= OptionGroup(parser,"Options to supplement PET header information")
+    group.add_option("","--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type='float', default=0)
+    parser.add_option_group(group)      
+
     #############################
     # MRI Preprocessing Options #
     #############################
@@ -342,8 +349,7 @@ if __name__ == "__main__":
     #######################################
     ### Convert NII to MINC if necessary. # 
     #######################################
-    nii2mnc_batch(opts.sourceDir)	
-
+    opts.json = nii2mnc_batch(opts.sourceDir)	
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:

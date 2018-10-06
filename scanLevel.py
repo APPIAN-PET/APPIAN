@@ -115,6 +115,26 @@ def set_label(datasource, img, template, task_list, label_img, template_img, sou
 
 
 
+def set_json_header(datasource, task_list, sourceDir):
+    field_template={}
+    template_args={}
+    json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
+    json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
+    if task_list != ['']: 
+        json_header_str = t1_str + '_task-%s'
+        json_header_list += task_list
+
+    if task_list != [''] :
+        json_header_template = label_template + "_task-%s"
+        json_header_list[0] += task_list
+    json_header_str = json_header_str + '*.json'
+    
+    field_template["json_header"] = json_header_str
+    template_args["json_header"] = json_header_list
+
+    datasource.inputs.field_template.update(field_template)
+    datasource.inputs.template_args.update(template_args)
+    return datasource
 
 def set_transform(datasource, task_list, sourceDir):
     field_template={}
@@ -128,11 +148,8 @@ def set_transform(datasource, task_list, sourceDir):
     
     field_template["xfmT1MNI"] = label_template
 
-    #template_args["xfmT1MNI"][0] = template_args
-    
     datasource.inputs.field_template.update(field_template)
     datasource.inputs.template_args.update(template_args)
-
     return datasource
 
 def set_brain_mask(datasource, task_list, coregistration_brain_mask, sourceDir, img_ext) :
@@ -157,8 +174,6 @@ def set_brain_mask(datasource, task_list, coregistration_brain_mask, sourceDir, 
     
     datasource.inputs.field_template.update(field_template)
     datasource.inputs.template_args.update(template_args)
-
-
     return datasource
 
 
@@ -340,7 +355,7 @@ def run_scan_level(opts,args):
     
     ### Use DataGrabber to get key input files
     infields_list = []
-    base_outputs  = ['nativeT1',  'pet','xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img" ]
+    base_outputs  = ['nativeT1',  'pet','xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img", "json_header" ]
 
     datasource = pe.Node( interface=nio.DataGrabber(infields=infields_list, outfields=base_outputs, raise_on_empty=True, sort_filelist=False), name="datasource")
     datasource.inputs.template = '*'
@@ -367,7 +382,10 @@ def run_scan_level(opts,args):
 
     if opts.user_brainmask :
         datasource = set_brain_mask(datasource, task_list, opts.coregistration_brain_mask, opts.sourceDir, opts.img_ext)
-        
+    
+    if opts.json :
+        datasource = set_json_header(datasource, task_list, opts.sourceDir)   
+    
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
         datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
@@ -419,6 +437,8 @@ def run_scan_level(opts,args):
     ###################
     wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
     workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+    if opts.json :
+        workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
 
     #####################
     # MRI Preprocessing # 
@@ -636,6 +656,7 @@ def run_scan_level(opts,args):
                 workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
                 workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
     
+    workflow.run(); exit(0)	
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -655,7 +676,7 @@ def run_scan_level(opts,args):
         if not opts.nopvc:
             #Automated QC: PVC 
             pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
-            pvc_qc_metricsNode.inputs.fwhm = opts.scanner_fwhm
+            pvc_qc_metricsNode.inputs.fwhm = list(opts.scanner_fwhm)
             workflow.connect(pet_input_node, pet_input_file, pvc_qc_metricsNode, 'pve') ##CHANGE
             workflow.connect(tka_target_wf, tka_target_img, pvc_qc_metricsNode, 'pvc'  )
             workflow.connect(infosource, 'sid', pvc_qc_metricsNode, "sub")

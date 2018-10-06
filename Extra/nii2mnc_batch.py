@@ -21,10 +21,11 @@ def find(src, match):
 
 def nii2mnc_batch(sourceDir, clobber=False):
     nii_files = find(sourceDir, "*nii*") 
+    ret = False
+
     for f in nii_files :
             
         f_out = re.sub( '.nii', '.mnc',  re.sub('.gz', '', f))
-        
         if not os.path.exists(f_out) or clobber :
             if (f.endswith("gz")):
                 f_gunzip = re.sub('.gz','', f)
@@ -35,7 +36,8 @@ def nii2mnc_batch(sourceDir, clobber=False):
             nii2mnc.inputs.in_file = f 
             nii2mnc.inputs.out_file=f_out
             nii2mnc.run()
-    return 0 	
+        ret = True
+    return ret 	
 
 if __name__ == '__main__' : 
 	import sys

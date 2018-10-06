@@ -331,10 +331,10 @@ class integrate_TACCommand( BaseInterface):
        
         if time_frames == [] :
             try :
-                header['ecat_acquisition']['frame_lengths']
-                time_frames = [ float(h) for h in  header['ecat_acquisition']["frame_lengths"] ]
-                for i in range(1, len(time_frames)) :
-                    time_frames[i] = time_frames[i] + time_frames[i-1]
+                header['Time']['FrameTimes']['Values']
+                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+                #for i in range(1, len(time_frames)) :
+                #    time_frames[i] = time_frames[i] + time_frames[i-1]
                     
             except ValueError : 
                 time_frames = []

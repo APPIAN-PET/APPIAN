@@ -25,6 +25,101 @@ from Extra.reshape import  ReshapeCommand
 from glob import glob
 from Extra.modifHeader import FixHeaderCommand
 
+global isotope_dict
+isotope_dict={
+        "C-11" : 20.334*60 ,
+        "F-18" : 109.7*60,
+        "O-15" : 122.24
+        }
+
+def string_test(s):
+    t = type(s)
+    if  t == str : return True
+    elif t == unicode : return True
+    elif t == ascii : return True
+    return False
+
+
+def recursive_dict_search(d, target, level=0):
+    if level == 0 : print("Target:", target)
+    level+=1
+    for k,v  in zip(d.keys(), d.values()) :
+        print("\t"*level, str(level) + " key:",k, string_test(k) , target.lower() == k.lower())
+        if string_test(k) :
+            if target.lower() == k.lower() :
+                print("\t"*level,"Return:",k)
+                return [k]
+        if type(v) == dict :
+            return [k] + recursive_dict_search(v, target, level)
+        
+    return [None]
+
+def fix_df(d, target):
+    dict_path = recursive_dict_search(d,target)
+    temp_d = d
+    value=None
+    if not None in dict_path :
+        for i in dict_path :
+            temp_d = temp_d[i]
+        value = temp_d[0]
+    return value
+
+def set_isotope_halflife(d, user_halflife=None, target="radionuclide_halflife"):
+    #find path in dictionary to target 
+    dict_path = recursive_dict_search(d, target=target)
+    #if there is no path to target, try backup
+    if None in dict_path :
+        halflife = fix_df(d, "halflife")
+        if halflife == None :
+            isotope  = fix_df(d, "isotope")
+            try :
+                halflife = isotope_dict[ isotope ]
+            except KeyError :
+                if user_halflife != None :
+                    halflife = user_halflife
+                else :
+                    print("Could not find either halflife or isotope")
+                    exit(1)
+    else :
+        temp_d = d
+        for i in dict_path :
+            temp_d = temp_d[i]
+    try :
+        d["acquisition"]
+    except :
+        d["acquisition"]={"radionuclide_halflife": halflife }
+    d["acquisition"]["radionuclide_halflife"] = halflife
+    return d
+
+
+
+def set_frame_duration(d,json_frame_path=["Time","FrameTimes","Values"]):
+    #find path in dictionary to target 
+    dict_path = recursive_dict_search(d, target="FrameLengths")
+    #if there is no path to target, try backup
+    if None in dict_path :
+        temp_d = d
+        for i in json_frame_path :
+            temp_d = temp_d[i]
+        frame_times = temp_d
+        print("Frame Times", frame_times)
+        FrameLengths=[]
+        for s, e in frame_times :
+            FrameLengths.append(e-s)
+    else :
+        temp_d = d
+        for i in dict_path :
+            temp_d = temp_d[i]
+        FrameLengths=temp_d
+    try :
+        d["Time"]["FrameTimes"]
+    except KeyError :
+        d["Time"]["FrameTimes"]={"Duration":FrameLengths}
+    else :
+        d["Time"]["FrameTimes"]["Duration"]=FrameLengths
+
+    return d
+    
 
 def unique_file(files, attributes):
     
@@ -114,10 +209,6 @@ class SplitArgsRunning(BaseInterface):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
 
-
-
-
-
 class MincHdrInfoOutput(TraitedSpec):
     out_file = File(desc="Output file")
     header = traits.Dict(desc="Dictionary")
@@ -125,6 +216,8 @@ class MincHdrInfoOutput(TraitedSpec):
 
 class MincHdrInfoInput(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc="Native dynamic PET image")
+    halflife = traits.Float(desc="Radioisotope halflife (in seconds)")
+    json_header = File(desc="PET header")
     out_file = File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -142,7 +235,7 @@ class MincHdrInfoRunning(BaseInterface):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
             dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
             self.inputs.out_file = dname+ os.sep+fname + self._suffix
-        try:
+        try :
             os.remove(self.inputs.out_file)
         except OSError:
             pass
@@ -168,8 +261,7 @@ class MincHdrInfoRunning(BaseInterface):
             run_mincinfo.inputs.json_type = opt.type_
             run_mincinfo.inputs.error = 'unknown'
 
-            if self.inputs.verbose:
-                print run_mincinfo.cmdline
+            print run_mincinfo.cmdline
             if self.inputs.run:
                 run_mincinfo.run()
 
@@ -186,9 +278,15 @@ class MincHdrInfoRunning(BaseInterface):
                 self._params[key][subkey]=data_in 
                 update_minchd_json(self.inputs.out_file, data_in, var, attr)
 
-
-        fp=open(self.inputs.out_file)
+        fp=open(self.inputs.out_file, "r+")
         header = json.load(fp)
+        if isdefined(self.inputs.json_header) :
+            json_header = json.load(open(self.inputs.json_header, "r+"))
+            header.update(json_header)
+            header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
+            header = set_frame_duration(header)
+        fp.seek(0)
+        json.dump(header, fp, sort_keys=True, indent=4)
         fp.close()
 
         self._params=header
@@ -364,7 +462,7 @@ def get_workflow(name, infosource, opts):
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
-    default_field=["pet"] # ["pet", "t1"]
+    default_field=["pet","json_header"] # ["pet", "t1"]
     inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
 
     #Define empty node for output
@@ -392,6 +490,7 @@ def get_workflow(name, infosource, opts):
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
+    petSettings.inputs.halflife = opts.halflife
     petSettings.inputs.clobber = True
     #petSettings.inputs.run = opts.prun
     #rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
@@ -400,7 +499,8 @@ def get_workflow(name, infosource, opts):
     workflow.connect(header_init, 'out_file', petCenter, 'header')
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
-
+    if opts.json :
+        workflow.connect(inputnode, 'json_header', petSettings, 'json_header')
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
     #workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
     #workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),

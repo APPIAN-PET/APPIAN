@@ -121,7 +121,7 @@ def set_json_header(datasource, task_list, sourceDir):
     json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
     if task_list != ['']: 
-        json_header_str = t1_str + '_task-%s'
+        json_header_str = json_header_str + '_task-%s'
         json_header_list += task_list
 
     if task_list != [''] :
@@ -439,7 +439,7 @@ def run_scan_level(opts,args):
     workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
     if opts.json :
         workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
-
+    #workflow.run(); exit(0) 
     #####################
     # MRI Preprocessing # 
     #####################

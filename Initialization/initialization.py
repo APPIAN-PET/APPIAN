@@ -44,13 +44,19 @@ def recursive_dict_search(d, target, level=0):
     if level == 0 : print("Target:", target)
     level+=1
     for k,v  in zip(d.keys(), d.values()) :
-        print("\t"*level, str(level) + " key:",k, string_test(k) , target.lower() == k.lower())
+        print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
+        
+        #End condition
         if string_test(k) :
-            if target.lower() == k.lower() :
+            if target.lower() in k.lower().split("_") :
                 print("\t"*level,"Return:",k)
                 return [k]
+        
+        #Search dictionary
         if type(v) == dict :
-            return [k] + recursive_dict_search(v, target, level)
+            test = [k] + recursive_dict_search(v, target, level)
+            if not None in test :
+                return test
         
     return [None]
 
@@ -64,38 +70,45 @@ def fix_df(d, target):
         value = temp_d[0]
     return value
 
-def set_isotope_halflife(d, user_halflife=None, target="radionuclide_halflife"):
+def set_isotope_halflife(d, user_halflife=None, target="halflife"):
     #find path in dictionary to target 
     dict_path = recursive_dict_search(d, target=target)
     #if there is no path to target, try backup
     if None in dict_path :
-        halflife = fix_df(d, "halflife")
-        if halflife == None :
-            isotope  = fix_df(d, "isotope")
-            try :
-                halflife = isotope_dict[ isotope ]
-            except KeyError :
-                if user_halflife != None :
-                    halflife = user_halflife
-                else :
-                    print("Could not find either halflife or isotope")
-                    exit(1)
+        isotope  = fix_df(d, "isotope")
+        try :
+            halflife = isotope_dict[ isotope ]
+        except KeyError :
+            if user_halflife != None :
+                halflife = user_halflife
+            else :
+                print("Could not find either halflife or isotope")
+                exit(1)
     else :
         temp_d = d
         for i in dict_path :
             temp_d = temp_d[i]
+        halflife = temp_d
+    
+    if type(halflife) == list :
+        halflife=halflife[0]
+
     try :
         d["acquisition"]
     except :
         d["acquisition"]={"radionuclide_halflife": halflife }
-    d["acquisition"]["radionuclide_halflife"] = halflife
+    else :  
+        d["acquisition"]["radionuclide_halflife"] = halflife
+
     return d
 
 
 
 def set_frame_duration(d,json_frame_path=["Time","FrameTimes","Values"]):
     #find path in dictionary to target 
-    dict_path = recursive_dict_search(d, target="FrameLengths")
+    #dict_path = recursive_dict_search(d, target="FrameLengths")
+    dict_path = recursive_dict_search(d, target="frames-length")
+    
     #if there is no path to target, try backup
     if None in dict_path :
         temp_d = d
@@ -111,12 +124,39 @@ def set_frame_duration(d,json_frame_path=["Time","FrameTimes","Values"]):
         for i in dict_path :
             temp_d = temp_d[i]
         FrameLengths=temp_d
+    print FrameLengths
+
+    #For reading from MINC file, no need if BIDS json header is provided
+    values_dict_path = recursive_dict_search(d, target="frames-time")
+    Values=None
+    if not None in values_dict_path :
+        temp_d = d
+        for i in values_dict_path :
+            temp_d = temp_d[i]
+        x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
+        Values=zip( temp_d, x.astype(str)  )
+        
+
+
+    try : 
+        d["Time"] 
+    except KeyError :
+        d["Time"]={}
+
+    
+
     try :
         d["Time"]["FrameTimes"]
     except KeyError :
         d["Time"]["FrameTimes"]={"Duration":FrameLengths}
     else :
         d["Time"]["FrameTimes"]["Duration"]=FrameLengths
+
+    try :
+        d["Time"]["FrameTimes"]["Values"]
+    except KeyError :
+        d["Time"]["FrameTimes"]["Values"]=Values
+
 
     return d
     
@@ -250,11 +290,11 @@ class MincHdrInfoRunning(BaseInterface):
         options = [ InfoOptions('-dimnames','time','dimnames','string'),
                 InfoOptions('-varvalue time','time','frames-time','integer'),
                 InfoOptions('-varvalue time-width','time','frames-length','integer') ]
-
+        temp_out_file=os.getcwd()+os.sep+"temp.json"
         for opt in options:
             run_mincinfo=InfoCommand()
             run_mincinfo.inputs.in_file = self.inputs.in_file
-            run_mincinfo.inputs.out_file = self.inputs.out_file
+            run_mincinfo.inputs.out_file = temp_out_file
             run_mincinfo.inputs.opt_string = opt.command
             run_mincinfo.inputs.json_var = opt.variable
             run_mincinfo.inputs.json_attr = opt.attribute
@@ -276,15 +316,19 @@ class MincHdrInfoRunning(BaseInterface):
                 attr = str(subkey)
                 #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
                 self._params[key][subkey]=data_in 
-                update_minchd_json(self.inputs.out_file, data_in, var, attr)
+                update_minchd_json(temp_out_file, data_in, var, attr)
 
-        fp=open(self.inputs.out_file, "r+")
+        fp=open(temp_out_file, "r")
         header = json.load(fp)
+        fp.close
+
+        fp=open(self.inputs.out_file, "w+")
+
         if isdefined(self.inputs.json_header) :
             json_header = json.load(open(self.inputs.json_header, "r+"))
             header.update(json_header)
-            header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
-            header = set_frame_duration(header)
+        header = set_frame_duration(header)
+        header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
         fp.seek(0)
         json.dump(header, fp, sort_keys=True, indent=4)
         fp.close()

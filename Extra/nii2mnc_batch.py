@@ -24,7 +24,6 @@ def nii2mnc_batch(sourceDir, clobber=False):
     ret = False
 
     for f in nii_files :
-            
         f_out = re.sub( '.nii', '.mnc',  re.sub('.gz', '', f))
         if not os.path.exists(f_out) or clobber :
             if (f.endswith("gz")):

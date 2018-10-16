@@ -439,7 +439,7 @@ def run_scan_level(opts,args):
     workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
     if opts.json :
         workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
-    #workflow.run(); exit(0) 
+    
     #####################
     # MRI Preprocessing # 
     #####################
@@ -656,7 +656,6 @@ def run_scan_level(opts,args):
                 workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
                 workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
     
-    workflow.run(); exit(0)	
     ############################
     # Subject-level QC Metrics #
     ############################

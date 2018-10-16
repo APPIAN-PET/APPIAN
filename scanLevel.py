@@ -61,10 +61,10 @@ def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
         pet_list += ['rec']
         #infields_list += ['rec']
     pet_str = pet_str + '*_pet.'+img_ext
-    
+    t1_str = t1_str + '_*T1w.'+img_ext
     #Dictionary for basic structural inputs to DataGrabber
     field_template = dict(
-        nativeT1 = t1_str + '_*T1w.'+img_ext,
+        nativeT1 = t1_str,
         pet=pet_str
     )
 
@@ -75,7 +75,6 @@ def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
 
     datasource.inputs.field_template.update(field_template)
     datasource.inputs.template_args.update(template_args)
-
     return datasource
 
 
@@ -431,7 +430,6 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
-
     ###################
     # PET prelimaries #
     ###################
@@ -677,7 +675,8 @@ def run_scan_level(opts,args):
             pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
             pvc_qc_metricsNode.inputs.fwhm = list(opts.scanner_fwhm)
             workflow.connect(pet_input_node, pet_input_file, pvc_qc_metricsNode, 'pve') ##CHANGE
-            workflow.connect(tka_target_wf, tka_target_img, pvc_qc_metricsNode, 'pvc'  )
+            #workflow.connect(tka_target_wf, tka_target_img, pvc_qc_metricsNode, 'pvc'  )
+            workflow.connect(pvc_wf, "outputnode.out_file", pvc_qc_metricsNode, 'pvc'  )
             workflow.connect(infosource, 'sid', pvc_qc_metricsNode, "sub")
             workflow.connect(infosource, 'ses', pvc_qc_metricsNode, "ses")
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")

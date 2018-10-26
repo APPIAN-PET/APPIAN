@@ -17,7 +17,8 @@
 ## Pipeline Overview  <a name="overview"></a>
 
 ## Base User Options  <a name="options"></a>
-APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (-s), a target directory where the outputs will be stored (-t), the prefix label of your study (-p), and the directory containing the CIVET outputs for each subject (-c). 
+APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (-s), a target directory where the outputs will be stored (-t), the list of sessions during which the scans were acquired (-sessions). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
+
 ####  File options (mandatory):
     -s SOURCEDIR, --source=SOURCEDIR, --sourcedir=SOURCEDIR
                         Input file directory
@@ -26,11 +27,10 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
-    --sessions=SESSIONLIST
-                        comma-separated list of conditions or scans
-    --tasks=TASKLIST    comma-separated list of conditions or scans
+    --sessions=SESSIONLIST comma-separated list of sessions
 
 #### File options (Optional):
+    --tasks=TASKLIST    comma-separated list of conditions or scans
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
     --img-ext=IMG_EXT   Extension to use for images.
@@ -77,7 +77,7 @@ The first processing step in PET processing is the coregistration of the T1 imag
                         		thresholded means of each slice.
 
 ### Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, ki, etc.). Moreover, these masks can be derived from multiple sources: classification produced by CIVET, classification produced by ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
 
   #### Masking options: PVC
 
@@ -144,8 +144,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
     --results-labels-brain-only
                         Mask results labels with brain mask
     --results-labels-ones-only
-                        Flag to signal threshold so that label image is only
-                        1s and 0s
+                        Flag to signal threshold so that label image is only 1s and 0s
 
 
 ### Partial-volume correction <a name="pvc"></a>

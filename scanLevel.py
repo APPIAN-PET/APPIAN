@@ -438,7 +438,6 @@ def run_scan_level(opts,args):
     if opts.json :
         workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
     
-    workflow.run(); exit(0)
     #####################
     # MRI Preprocessing # 
     #####################

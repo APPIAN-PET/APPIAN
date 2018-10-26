@@ -44,7 +44,7 @@ def recursive_dict_search(d, target, level=0):
     if level == 0 : print("Target:", target)
     level+=1
     for k,v  in zip(d.keys(), d.values()) :
-        print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
+        #print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
         
         #End condition
         if string_test(k) :
@@ -104,59 +104,50 @@ def set_isotope_halflife(d, user_halflife=None, target="halflife"):
 
 
 
-def set_frame_duration(d,json_frame_path=["Time","FrameTimes","Values"]):
+def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes","Values"], verbose=True):
     #find path in dictionary to target 
     #dict_path = recursive_dict_search(d, target="FrameLengths")
-    dict_path = recursive_dict_search(d, target="frames-length")
-    
-    #if there is no path to target, try backup
-    if None in dict_path :
-        temp_d = d
-        for i in json_frame_path :
-            temp_d = temp_d[i]
-        frame_times = temp_d
-        print("Frame Times", frame_times)
-        FrameLengths=[]
-        for s, e in frame_times :
-            FrameLengths.append(e-s)
-    else :
+  
+    if minc_input : # MINC Input
+        dict_path = recursive_dict_search(d, target="frames-length")
         temp_d = d
         for i in dict_path :
             temp_d = temp_d[i]
         FrameLengths=temp_d
-    print FrameLengths
 
-    #For reading from MINC file, no need if BIDS json header is provided
-    values_dict_path = recursive_dict_search(d, target="frames-time")
-    Values=None
-    if not None in values_dict_path :
-        temp_d = d
-        for i in values_dict_path :
-            temp_d = temp_d[i]
+        values_dict_path = recursive_dict_search(d, target="frames-time")
+        Values=None
+        if not None in values_dict_path :
+            temp_d = d
+            if verbose : print( values_dict_path )
+            for i in values_dict_path :
+                temp_d = temp_d[i]
+
+        FrameLengths=list(np.diff(temp_d))
+        FrameLengths.append(FrameLengths[-1])
+        print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
         x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
         Values=zip( temp_d, x.astype(str)  )
-        
 
-
-    try : 
-        d["Time"] 
-    except KeyError :
         d["Time"]={}
+        d["Time"]["FrameTimes"]={}
+        d["Time"]["FrameTimes"]={"Duration": FrameLengths}
+        d["Time"]["FrameTimes"]={"Values":Values}
+    else : #NIFTI Input
+        frame_times=[]
 
-    
+        print(d) #["FrameTimes"])
+        try :
+            frame_times = d["Time"]["FrameTimes"]["Values"]
+        except KeyError :
+            print("\nError Could not find Time:FrameTimes:Values in header\n")
+            exit(1)
+        FrameLengths=[]
+        for s, e in frame_times :
+            FrameLengths.append(e-s)
 
-    try :
-        d["Time"]["FrameTimes"]
-    except KeyError :
-        d["Time"]["FrameTimes"]={"Duration":FrameLengths}
-    else :
-        d["Time"]["FrameTimes"]["Duration"]=FrameLengths
-
-    try :
-        d["Time"]["FrameTimes"]["Values"]
-    except KeyError :
-        d["Time"]["FrameTimes"]["Values"]=Values
-
+        d["Time"]["FrameTimes"]={"Duration": FrameLengths}
+        #if there is no path to target, try backup
 
     return d
     
@@ -280,6 +271,11 @@ class MincHdrInfoRunning(BaseInterface):
         except OSError:
             pass
 
+        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+        #pettot1_4d_header_fixed.inputs.time_only=True
+        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
+        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
+
         class InfoOptions:
             def __init__(self, command, variable, attribute, type_):
                 self.command = command
@@ -327,7 +323,12 @@ class MincHdrInfoRunning(BaseInterface):
         if isdefined(self.inputs.json_header) :
             json_header = json.load(open(self.inputs.json_header, "r+"))
             header.update(json_header)
-        header = set_frame_duration(header)
+       
+        minc_input=True
+        if isdefined(self.inputs.json_header) : 
+            minc_input=False
+        print("\n\nMINC INPUT =", minc_input, self.inputs.json_header)
+        header = set_frame_duration(header, minc_input)
         header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
         fp.seek(0)
         json.dump(header, fp, sort_keys=True, indent=4)
@@ -369,7 +370,6 @@ class VolCenteringRunning(BaseInterface):
             dname = dname = os.getcwd()
             self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
 
-
         shutil.copy(self.inputs.in_file, self.inputs.out_file)
         infile = volumeFromFile(self.inputs.in_file)
         for view in ['xspace','yspace','zspace']:
@@ -388,12 +388,10 @@ class VolCenteringRunning(BaseInterface):
         fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
         fixIrregular.run()
 
-
-        pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
-        pettot1_4d_header_fixed.inputs.time_only=True
-        pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
-        pettot1_4d_header_fixed.inputs.header = self.inputs.header
-
+        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+        #pettot1_4d_header_fixed.inputs.time_only=True
+        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
+        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
 
         return runtime
 
@@ -512,8 +510,8 @@ def get_workflow(name, infosource, opts):
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
 
-    header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
-    workflow.connect(inputnode, 'pet',  header_init, 'in_file')
+    #header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
+    #workflow.connect(inputnode, 'pet',  header_init, 'in_file')
     
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
@@ -540,7 +538,7 @@ def get_workflow(name, infosource, opts):
     #rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
-    workflow.connect(header_init, 'out_file', petCenter, 'header')
+    #workflow.connect(header_init, 'out_file', petCenter, 'header')
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
     if opts.json :

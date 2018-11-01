@@ -66,6 +66,9 @@ class mincbeastInput(CommandLineInputSpec):
 	library_dir = File( argstr="%s", position=-3, desc="image to operate on")
 	voxel_size = traits.Int( argstr="-voxel_size %s", position=-4, default=3, use_default=True  )
 	same_resolution = traits.Bool(argstr="-same_resolution", position=-5, default=True, use_default=True )
+	median = traits.Bool(argstr="-median", position=-6, default=True, use_default=True )
+	fill = traits.Bool(argstr="-fill", position=-7, default=True, use_default=True )
+	configuration = File(argstr="-configuration %s", position=-8  )
 
 class mincbeastCommand(CommandLine):
 	input_spec =  mincbeastInput

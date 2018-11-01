@@ -468,7 +468,7 @@ def run_scan_level(opts,args):
         #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
-
+    workflow.run(); exit(0)
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
     # and for the source for the labels                                 #

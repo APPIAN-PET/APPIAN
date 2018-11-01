@@ -173,8 +173,8 @@ if __name__ == "__main__":
     group.add_option("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
     
-    file_dir=os.path.abspath(__file__)
-    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_sym_09a.mnc")
+    file_dir, fn =os.path.split( os.path.abspath(__file__) )
+    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
     parser.add_option_group(group)      
 
     ###################

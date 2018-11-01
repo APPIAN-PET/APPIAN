@@ -6,6 +6,7 @@ from nipype.interfaces.ants import registration, segmentation
 import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
+import os
 from MRI.mincbeast import mincbeastCommand, mincbeast_library
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
@@ -40,9 +41,10 @@ def get_workflow(name, valid_args, opts):
         #Template Brain Mask
         template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")
         template_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
+        template_brain_mask.inputs.configuration = template_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
         template_brain_mask.inputs.in_file = opts.template
         template_brain_mask.inputs.same_resolution = True
-        template_brain_mask.inputs.voxel_size = 4
+        template_brain_mask.inputs.voxel_size = 2
         brain_mask_file = "out_file"
     else :
         template_brain_mask = inputnode
@@ -101,7 +103,6 @@ def get_workflow(name, valid_args, opts):
             mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
             mri2template.inputs.clobber = True
             mri2template.inputs.verbose = opts.verbose
-            mri2template.inputs.lsq = "lsq12"
             mri2template.inputs.in_target_file = opts.template
             workflow.connect(inputnode, 't1', mri2template, 'in_source_file'),
             workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
@@ -126,8 +127,12 @@ def get_workflow(name, valid_args, opts):
         #Brain Mask MNI-Space
         t1MNI_brain_mask = pe.Node(interface=mincbeastCommand(), name="t1_mni_brain_mask")
         t1MNI_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
+        t1MNI_brain_mask.inputs.configuration = t1MNI_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
         t1MNI_brain_mask.inputs.same_resolution = True
-        t1MNI_brain_mask.inputs.voxel_size = 4
+        t1MNI_brain_mask.inputs.voxel_size = 2
+        t1MNI_brain_mask.inputs.median = True
+        t1MNI_brain_mask.inputs.fill = True
+
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )
         brain_mask_node = t1MNI_brain_mask
         brain_mask_file = 'out_file'

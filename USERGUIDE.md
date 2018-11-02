@@ -61,6 +61,14 @@ Brain tissue extraction is performed in stereotaxic space using BEaST (Eskildsen
     --brain-extraction-method=MRI_BRAIN_EXTRACT_METHOD	Method to use to extract brain mask from MRI
     --segmentation-method=MRI_SEGMENTATION_METHOD	Method to segment mask from MRI
 
+##### If you use the MRI preprocessing module, please cite the following :
+
+###### Brain mask extraction:
+Simon Fristed Eskildsen, Pierrick Coupé, Vladimir Fonov, José V. Manjón, Kelvin K. Leung, Nicolas Guizard, Shafik N. Wassef, Lasse Riis Østergaard and D. Louis Collins: “BEaST: Brain extraction based on nonlocal segmentation technique”, NeuroImage, Volume 59, Issue 3, pp. 2362–2373.
+http://dx.doi.org/10.1016/j.neuroimage.2011.09.012
+
+###### Non-uniformity correction
+J.G. Sled, A.P. Zijdenbos and A.C. Evans, "A non-parametric method for automatic correction of intensity non-uniformity in MRI data",in "IEEE Transactions on Medical Imaging", vol. 17, n. 1, pp. 87-97, 1998 
 
 ### Coregistration <a name="coregistration"></a>
 The first processing step in PET processing is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.

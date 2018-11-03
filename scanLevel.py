@@ -121,11 +121,11 @@ def set_json_header(datasource, task_list, sourceDir):
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
     if task_list != ['']: 
         json_header_str = json_header_str + '_task-%s'
-        json_header_list += task_list
-
-    if task_list != [''] :
-        json_header_template = label_template + "_task-%s"
         json_header_list[0] += task_list
+
+    #if task_list != [''] :
+    #    json_header_template = label_template + "_task-%s"
+    #    json_header_list[0] += task_list
     json_header_str = json_header_str + '*.json'
     
     field_template["json_header"] = json_header_str

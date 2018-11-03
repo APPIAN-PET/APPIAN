@@ -716,7 +716,7 @@ def get_workflow(name, infosource, opts):
         transform_resampleNode=pe.Node(interface=rsl.ResampleCommand(),name="transform_resampleNode")
         transform_resampleNode.inputs.use_input_sampling=True;
         workflow.connect(transformNode, 'out_file', transform_resampleNode, 'transformation')
-        workflow.connect(fixHeaderNode, 'out_file', transform_resampleNode, 'in_file')
+        workflow.connect(pet2mri, 'out_file_img', transform_resampleNode, 'in_file')
 
         ### Concatenate pet2mri and misalignment xfm
         pet2misalign_xfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_xfm")
@@ -768,5 +768,5 @@ def get_workflow(name, infosource, opts):
     workflow.connect(final_pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
     workflow.connect(final_pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
     workflow.connect(final_pet2mri, 'out_file_img', outputnode, 'petmri_img')
-    workflow.connect(pet_brain_mask, 'output_file', outputnode,'pet_brain_mask' )
+    workflow.connect(pet_brain_mask, 'out_file', outputnode,'pet_brain_mask' )
     return workflow 

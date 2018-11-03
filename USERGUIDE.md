@@ -61,6 +61,13 @@ Brain tissue extraction is performed in stereotaxic space using BEaST (Eskildsen
     --brain-extraction-method=MRI_BRAIN_EXTRACT_METHOD	Method to use to extract brain mask from MRI
     --segmentation-method=MRI_SEGMENTATION_METHOD	Method to segment mask from MRI
 
+##### If you use the MRI preprocessing module, please cite the following :
+
+###### Brain mask extraction:
+Eskildsen, S.F., Coupé, P., Fonov, V., Manjón, J.V.,Leung, K.K., Guizard, N., Wassef, S.N., Østergaard, L.R., Collins, D.L. “BEaST: Brain extraction based on nonlocal segmentation technique”, NeuroImage, Volume 59, Issue 3, pp. 2362–2373. http://dx.doi.org/10.1016/j.neuroimage.2011.09.012
+
+###### Non-uniformity correction
+J.G. Sled, A.P. Zijdenbos and A.C. Evans, "A non-parametric method for automatic correction of intensity non-uniformity in MRI data",in "IEEE Transactions on Medical Imaging", vol. 17, n. 1, pp. 87-97, 1998 
 
 ### Coregistration <a name="coregistration"></a>
 The first processing step in PET processing is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
@@ -75,6 +82,8 @@ The first processing step in PET processing is the coregistration of the T1 imag
                         		threshold slices. Lower value means larger mask.
     --total-factor=TOTAL_FACTOR		Value (between 0. to 1.) that is multiplied by the
                         		thresholded means of each slice.
+##### Please cite the following paper for the coregistration stage
+Collins, D.L., Neelin, P., Peters, T.M., Evans, A.C. Automatic 3D intersubject registration of MR volumetric data in standardized Talairach space. Journal of Computer Assisted Tomography. 18 (2), 192–205. 1994
 
 ### Masking <a name="masking"></a>
 The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
@@ -162,7 +171,38 @@ Partial-volume correction (PVC) is often necessary to account for the loss of re
     --pvc-denoise-fwhm=DENOISE_FWHM	FWHM of smoothing filter (for IdSURF).
     --pvc-nvoxel-to-average=NVOXEL_TO_AVERAGE Number of voxels to average over (for IdSURF).
 
+##### References
+###### Geometric Transfer Matrix (GTM)
+Rousset, O.G., Ma, Y., Evans, A.C., 1998. Correction for Partial Volume Effects in PET : Principle and Validation. J. Nucl. Med. 39, 904–911.
 
+###### Surface-based iterative deconvolution (idSURF)
+Funck, T., Paquette, C., Evans, A., Thiel, A., 2014. Surface-based partial-volume correction for high-resolution PET. Neuroimage 102, 674–87. doi:10.1016/j.neuroimage.2014.08.037
+
+###### Muller-Gartner (MG)
+Muller-Gartner, H.W., Links, J.M., Prince, J.L., Bryan, R.N., McVeigh, E., Leal, J.P., Davatzikos, C., Frost, J.J. Measurement of radiotracer concentration in brain gray matter using positron emission tomography: MRI-based correction for partial volume effects. Journal of Cerebral Blood Flow and Metabolism 12, 571–583. 1992
+
+###### Labbé (LAB) 
+Labbe C, Koepp M, Ashburner J, Spinks T, Richardson M, Duncan J, et al. Absolute PET quantification with correction for partial volume effects within cerebral structures. In: Carson RE, Daube-Witherspoon ME, Herscovitch P, editors. Quantitative functional brain imaging with positron emission tomography. San Diego, CA: Academic Press; 1998. p. 67–76.
+
+###### Multi-target Correction (MTC) 
+Erlandsson K, Wong A T, van Heertum R, Mann J J and Parsey R V 2006 An improved method for voxel-based partial volume correction in PET and SPECT. Neuroimage 31(2), T84 
+
+###### Region-based voxel-wise correction (RBV)
+Thomas B A, Erlandsson K, Modat M, Thurfjell L, Vandenberghe R, Ourselin S and Hutton B F 2011 The importance of appropriate partial volume correction for PET quantification in Alzheimer’s disease. Eur. J. Nucl. Med. Mol. Imaging. 38(6), 1104–19.
+
+###### Iterative Yang (IY)
+Erlandsson K, Buvat I, Pretorius P H, Thomas B A and Hutton B F. 2012. A review of partial volume correction techniques for emission tomography and their applications in neurology, cardiology and oncology Phys. Med. Biol. 57 R119
+
+###### Van-Cittert (RVC) 
+NA
+
+###### Richardson–Lucy (RL)
+Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J. Opt. Soc. Am. 62, 55. doi:10.1364/JOSA.62.000055
+
+###### PETPVC
+Note: MG, LAB, MTC, IY, RVC, RL are all implemented with PETPVC. You should therefore cite the following paper if you use one of these. 
+
+Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
 
 ### Quantification
 Tracer kinetic analysis (TKA) allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate TKA method will depend on the radiotracer. Certain models, e.g., the Logan plot and simplified reference tissue model, are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three TKA methods are implemented: Logan plot, Patlak-Gjedde plot, and the simplified reference tissue model.
@@ -211,7 +251,18 @@ Tracer kinetic analysis (TKA) allows for the quantification of physiological or 
                         subject names and injected radiotracer dose (MBq).
     --tka-type=TKA_TYPE
                         Type of tka analysis: voxel or roi.
+##### References
+###### Logan Plot (lp)
+Logan, J., Fowler, J.S., Volkow, N.D., Wang, G.-J., Ding, Y.-S., Alexoff, D.L., 1996. Distribution Volume Ratios Without Blood Sampling from Graphical Analysis of PET Data. J. Cereb. Blood Flow Metab. 16, 834–840. doi:10.1097/00004647-199609000-00008
 
+###### Patlak-Gjedde Plot (pp)
+Please cite both of the following papers when using the Patlak-Gjedde method
+Patlak, C. S., Blasberg, R. G., and Fenstermacher, J. D. (1983). Graphical evaluation of blood-to-brain transfer constants from multiple-time uptake data. J. Cereb. Blood Flow Metab. 3, 1–7. doi: 10.1038/jcbfm.1983.1
+
+Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain uptake of glucose analogs in vivo: a re-examination. Brain Res. 257, 237–274. doi: 10.1016/0165-0173(82)90018-2
+
+###### Simplified Reference Tissue Model (srtm)
+Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.
 
 ### Reporting of results <a name="results"></a>
 The ROI masks described in section 1.b are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and python) for further statistical analysis. 
@@ -234,44 +285,22 @@ Quantitative quality control functions by calculating a metric that attempts to 
 ## File Formats  <a name="fileformat"></a>
 APPIAN uses the BIDS file format specification for PET:
 
-sub-<participant_label>/
-      [_ses-<session_label>/]
-pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
+### Required
+#### PET (native PET space)
+sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
 
-Specifically, the PET inputs in APPIAN use the ‘_ses-<session_label>’ subdirectory and the following attributes: ‘_ses-<session_label>’, ‘_task-<task_label>’, ‘_acq-<label>’, ‘_rec-<label>’.
-
-Example:
-
-APPIAN also requires derivative images, that is, images that have have been derived from raw, specifically raw T1 images. There is a current BIDS proposal for standardized derivative file names. These are implemented in APPIAN and will be updated as the BIDS standard evolves.
-#### T1w :
+#### T1w (native T1 space) :
 'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
-#### T1w_nuc: 
-'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.mnc'
-#### T1 (MNI space): 
-'sub-%s/_ses-%s/final/sub-%s_ses-%s*_T1w_space-mni.mnc
-#### Brain mask (no skull): 
+
+### Optional
+#### Linear Transform from T1 native to stereotaxic: 
 'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
-#### Brain mask (skull): 
-sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_warp.xfm
-#### Linear Transform: 
+
+#### Brain mask (stereotaxic space): 
 sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
-#### Non-linear Transform: 
-'sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_skullmask.mnc
-#### GM-WM classify mask: 
-’sub-%s/_ses-%s/mask/sub-%s_ses-%s*space-mni_variant-cls_dtissue.mnc'
+
 #### T1 Segmentation: 
 sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
-
-        nativeT1=,
-        nativeT1nuc=,
-        T1Tal=',
-        xfmT1Tal=',
-        xfmT1Talnl='',
-        brainmaskTal='',
-        headmaskTal=',
-        clsmask=',
-        segmentation=,
-        pet='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.mnc'
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
@@ -335,14 +364,3 @@ FDG is a non-reversibly bound tracer, meaning that once it binds to its target r
    
 Example:
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
-
-
-
-
-
- 
-
-## References
-Collins, et al. 1994.  J. Comput. Assist. Tomogr. 18 (2), 192–205. 
-
-

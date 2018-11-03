@@ -468,7 +468,7 @@ def run_scan_level(opts,args):
         #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
-    workflow.run(); exit(0)
+    
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
     # and for the source for the labels                                 #
@@ -511,9 +511,9 @@ def run_scan_level(opts,args):
         results_label_file = 'outputnode.results_label_img'
 
    
-    ##################
-    # Coregistration #
-    ##################
+    #############################
+    # PET-to-MRI Coregistration #
+    #############################
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_pet2mri, "inputnode.pet_volume")
     workflow.connect(wf_init_pet, 'outputnode.pet_center', wf_pet2mri, "inputnode.pet_volume_4d")
     workflow.connect(wf_mri_preprocess, 'outputnode.brain_mask_t1', wf_pet2mri, 'inputnode.t1_brain_mask')
@@ -531,6 +531,9 @@ def run_scan_level(opts,args):
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
     out_img_dim += ['4']
+    #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
+    # and the number of dimensions of these images       
+
 
     ###########
     # Masking #
@@ -545,18 +548,20 @@ def run_scan_level(opts,args):
     workflow.connect(wf_mri_preprocess, 'outputnode.t1_mni', wf_masking, "inputnode.mniT1")
     workflow.connect(brain_mask_mni_node, brain_mask_mni_file, wf_masking, "inputnode.brainmask")
     if not opts.nopvc:
+        #If PVC method has been set, define binary masks to contrain PVC
         workflow.connect(preinfosource, 'pvc_labels', wf_masking, "inputnode.pvc_labels")
         workflow.connect(pvc_label_node, pvc_label_file, wf_masking, "inputnode.pvc_label_img")
     if opts.tka_method != None :
+        #If TKA method has been set, define binary masks for reference region
         workflow.connect(preinfosource, 'tka_labels', wf_masking, "inputnode.tka_labels")
         workflow.connect(tka_label_node, tka_label_file, wf_masking, "inputnode.tka_label_img")
+    #Results labels are always set
     workflow.connect(preinfosource, 'results_labels', wf_masking, "inputnode.results_labels")
-    #workflow.connect(preinfosource, 'pvc_erode_times', wf_masking, "inputnode.pvc_erode_times")
-    #workflow.connect(preinfosource, 'tka_erode_times', wf_masking, "inputnode.tka_erode_times")
-    #workflow.connect(preinfosource, 'results_erode_times', wf_masking, "inputnode.results_erode_times")
     workflow.connect(results_label_node, results_label_file, wf_masking, "inputnode.results_label_img")
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
 
+    # If <pvc/tka/results>_label_img[1] has been set, this means that label_img[0] contains the file path
+    # to stereotaxic atlas and label_img[1] contains the file path to the template image for the atlas
     if not opts.pvc_label_img[1] == None: 
         workflow.connect(datasource, "pvc_label_template", wf_masking, "inputnode.pvc_label_template")
     if not opts.tka_label_img[1] == None: 
@@ -584,7 +589,8 @@ def run_scan_level(opts,args):
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(wf_masking, "pvcLabels.out_file", pvc_wf, "inputnode.mask_file") #CHANGE
         workflow.connect(wf_init_pet, 'outputnode.pet_header_json', pvc_wf, "inputnode.header") #CHANGE
-
+        #Add the outputs of PVC to list that keeps track of the outputnodes, images, and the number 
+        #of dimensions of these images
         out_node_list += [pvc_wf]
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['4']
@@ -614,9 +620,9 @@ def run_scan_level(opts,args):
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
         elif opts.tka_method in reference_methods + ['suvr']: #FIXME should not just add suvr like this 
             workflow.connect(wf_masking, 'tkaLabels.out_file', tka_wf, "inputnode.reference")
-        #if opts.tka_type=="ROI":
-        #    workflow.connect(tka_wf, "outputnode.out_fit_file", datasink, 'tka')
         
+        #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
+        # and the number of dimensions of these images       
         out_node_list += [tka_wf]
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['3']
@@ -624,7 +630,9 @@ def run_scan_level(opts,args):
     #######################################
     # Connect nodes for reporting results #
     #######################################
-    #Results report for PET
+    # For each of the nodes in the outputnode list pass the output image to mincgroupstats.
+    # This will print out descriptive statistics for the labelled regions in the mask image
+    # for the output image. 
     if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
             print "outputnode", node.name, "image name", img

@@ -194,11 +194,12 @@ class PETtoT1LinRegRunning(BaseInterface):
             lsq1=self.inputs.lsq    
             lsq2=self.inputs.lsq    
             lsq3=self.inputs.lsq    
+            lsq4=self.inputs.lsq    
         else :
-            lsq1="lsq3"    
-            lsq2="lsq6"    
-            lsq3="lsq7"    
-            lsq4="lsq9"    
+            lsq1="lsq6"    
+            lsq2="lsq7"    
+            lsq3="lsq8"    
+            lsq4="lsq12"    
 
         conf1 = conf("blur", "-est_translations", 10, 6, "8 8 8", 0.01, 8, lsq1)
         conf2 = conf("blur", "", 6, 6, "4 4 4", 0.004, 6, lsq2)

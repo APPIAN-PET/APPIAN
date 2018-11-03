@@ -109,6 +109,7 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     #dict_path = recursive_dict_search(d, target="FrameLengths")
   
     if minc_input : # MINC Input
+        print("Check header for MINC input")
         dict_path = recursive_dict_search(d, target="frames-length")
         temp_d = d
         for i in dict_path :
@@ -131,12 +132,12 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
 
         d["Time"]={}
         d["Time"]["FrameTimes"]={}
-        d["Time"]["FrameTimes"]={"Duration": FrameLengths}
-        d["Time"]["FrameTimes"]={"Values":Values}
+        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
+        d["Time"]["FrameTimes"]["Values"] =Values
     else : #NIFTI Input
+        print("Check header for NIFTI input")
         frame_times=[]
 
-        print(d) #["FrameTimes"])
         try :
             frame_times = d["Time"]["FrameTimes"]["Values"]
         except KeyError :
@@ -146,7 +147,7 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
         for s, e in frame_times :
             FrameLengths.append(e-s)
 
-        d["Time"]["FrameTimes"]={"Duration": FrameLengths}
+        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
         #if there is no path to target, try backup
 
     return d

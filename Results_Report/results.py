@@ -12,6 +12,7 @@ import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 
+import json
 from Extra.concat import concat_df
 from Quality_Control.qc import metric_columns
 
@@ -72,7 +73,7 @@ class resultsInput(MINCCommandInputSpec):
     mask = traits.File(desc="ROI PET mask ")
     surf_mesh = traits.File(desc="Surface mesh (.obj) ")
     surf_mask = traits.File(desc="Surface mask (.txt) ")
-    header = traits.Dict(desc="PET Header")
+    header = traits.File(desc="PET Header")
     out_file_3d = traits.File(desc="3d Output file ")
     out_file_4d = traits.File(desc="4d Output file ")
     dim = traits.Str("Number of dimensions")
@@ -301,7 +302,7 @@ class descriptive_statisticsCommand( BaseInterface):
 ### TKA metrics
 class integrate_TACInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
-    header = traits.Dict(desc="Input file ")
+    header = traits.File(desc="PET Header file ")
     out_file = traits.File(desc="Output file ")
 
 class integrate_TACOutput(TraitedSpec):
@@ -317,7 +318,8 @@ class integrate_TACCommand( BaseInterface):
         return out_file 
 
     def _run_interface(self, runtime):
-        header = self.inputs.header
+        
+        header = json.load(open( self.inputs.header ,"rb"))
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1
@@ -329,10 +331,10 @@ class integrate_TACCommand( BaseInterface):
        
         if time_frames == [] :
             try :
-                header['ecat_acquisition']['frame_lengths']
-                time_frames = [ float(h) for h in  header['ecat_acquisition']["frame_lengths"] ]
-                for i in range(1, len(time_frames)) :
-                    time_frames[i] = time_frames[i] + time_frames[i-1]
+                header['Time']['FrameTimes']['Values']
+                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+                #for i in range(1, len(time_frames)) :
+                #    time_frames[i] = time_frames[i] + time_frames[i-1]
                     
             except ValueError : 
                 time_frames = []

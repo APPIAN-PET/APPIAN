@@ -6,7 +6,8 @@ from nipype.interfaces.ants import registration, segmentation
 import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
-from MRI.mincbeast import mincbeastCommand, mincbeast_library
+import os
+from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
@@ -36,17 +37,19 @@ def get_workflow(name, valid_args, opts):
     
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
-    if not opts.user_brainmask : 
-        #Template Brain Mask
-        template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")
-        template_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
-        template_brain_mask.inputs.in_file = opts.template
-        template_brain_mask.inputs.same_resolution = True
-        template_brain_mask.inputs.voxel_size = 4
-        brain_mask_file = "out_file"
-    else :
-        template_brain_mask = inputnode
-        brain_mask_file = "brain_mask_mni"
+    library_dir, template_rsl = mincbeast_library(opts.template)
+    #if not opts.user_brainmask : 
+    #    #Template Brain Mask
+    #    template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")
+    #    template_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
+    #    template_brain_mask.inputs.configuration = template_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
+    #    template_brain_mask.inputs.in_file = opts.template
+    #    template_brain_mask.inputs.same_resolution = True
+    #    template_brain_mask.inputs.voxel_size = 2
+    #    brain_mask_file = "out_file"
+    #else :
+    #    template_brain_mask = inputnode
+    #    brain_mask_file = "brain_mask_mni"
 
     if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
@@ -91,22 +94,28 @@ def get_workflow(name, valid_args, opts):
             mri2template.inputs.write_composite_transform=True
             #mri2template.inputs.interpolation=""
             workflow.connect(inputnode, 't1', mri2template, 'moving_image')
-            workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'fixed_image_mask')  
+            #workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'fixed_image_mask')  
 
             t1_mni_file = 'warped_image'
             t1_mni_node=mri2template
             tfm_node= mri2template
             tfm_file='composite_transform'
         else :
-            mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
-            mri2template.inputs.clobber = True
-            mri2template.inputs.verbose = opts.verbose
-            mri2template.inputs.lsq = "lsq12"
-            mri2template.inputs.in_target_file = opts.template
-            workflow.connect(inputnode, 't1', mri2template, 'in_source_file'),
-            workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
+            #mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
+            #mri2template = pe.Node(interface=beast_normalize(), name="minctracc_registration")
+            mri2template = pe.Node(interface=beast_normalize(), name="mri_normalize")
+            #mri2template.inputs.clobber = True
+            #mri2template.inputs.verbose = opts.verbose
+            template_name = os.path.splitext(os.path.basename(template_rsl))[0]
+            template_dir = os.path.dirname(opts.template)
+            #mri2template.inputs.in_target_file = opts.template
+            mri2template.inputs.modelname = template_name
+            mri2template.inputs.modeldir = template_dir
+            #workflow.connect(inputnode, 't1', mri2template, 'in_source_file')
+            workflow.connect(inputnode, 't1', mri2template, 'in_file')
+            #workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
 
-            t1_mni_file = 'out_file_img'
+            t1_mni_file = 'out_file_vol'
             t1_mni_node=mri2template
             tfm_node= mri2template
             tfm_file='out_file_xfm'
@@ -125,9 +134,13 @@ def get_workflow(name, valid_args, opts):
     if not opts.user_brainmask :
         #Brain Mask MNI-Space
         t1MNI_brain_mask = pe.Node(interface=mincbeastCommand(), name="t1_mni_brain_mask")
-        t1MNI_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
+        t1MNI_brain_mask.inputs.library_dir  = library_dir
+        t1MNI_brain_mask.inputs.configuration = t1MNI_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
         t1MNI_brain_mask.inputs.same_resolution = True
-        t1MNI_brain_mask.inputs.voxel_size = 4
+        t1MNI_brain_mask.inputs.voxel_size = 2
+        t1MNI_brain_mask.inputs.median = True
+        t1MNI_brain_mask.inputs.fill = True
+
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )
         brain_mask_node = t1MNI_brain_mask
         brain_mask_file = 'out_file'

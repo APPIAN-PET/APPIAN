@@ -135,6 +135,13 @@ if __name__ == "__main__":
     group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
     parser.add_option_group(group)      
 
+    ###############
+    # Information #
+    ###############
+    group= OptionGroup(parser,"Options to supplement PET header information")
+    group.add_option("","--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type='float', default=0)
+    parser.add_option_group(group)      
+
     #############################
     # MRI Preprocessing Options #
     #############################
@@ -144,8 +151,6 @@ if __name__ == "__main__":
     group.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
     group.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
     group.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
-
-
     parser.add_option_group(group)      
 
     ###################
@@ -168,8 +173,8 @@ if __name__ == "__main__":
     group.add_option("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
     group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
     
-    file_dir=os.path.dirname(__file__)
-    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_sym_09a.mnc")
+    file_dir, fn =os.path.split( os.path.abspath(__file__) )
+    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
     parser.add_option_group(group)      
 
     ###################
@@ -321,11 +326,12 @@ if __name__ == "__main__":
     if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
     
     ###Check PVC options and set defaults if necessary
-    if opts.scanner_fwhm == None and opts.pet_scanner == None:
+    if opts.pvc_method != None and opts.scanner_fwhm == None and opts.pet_scanner == None:
         print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
         print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
         print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
         exit(1)
+    
     if not opts.pet_scanner == None:
         if opts.pet_scanner in pet_scanners.keys():
             opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
@@ -342,8 +348,8 @@ if __name__ == "__main__":
     #######################################
     ### Convert NII to MINC if necessary. # 
     #######################################
-    nii2mnc_batch(opts.sourceDir)	
-
+    opts.json = nii2mnc_batch(opts.sourceDir)	
+    
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:

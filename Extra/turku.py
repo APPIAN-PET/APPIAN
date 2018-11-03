@@ -12,6 +12,36 @@ import os
 import numpy as np
 import pandas as pd
 
+global isotope_dict
+isotope_dict={
+        "C-11":100,
+        "F-18":200
+        }
+
+def recursive_dict_search(d, target):
+    for k,v  in zip(d.keys(), d.values()) :
+        d_type = type( v )
+        if type(k) == str :
+            if target.lower() == k.lower() :
+                return [k]
+        if d_type == dict :
+            return [k] + recursive_dict_search(d[k], target)
+        return [None]
+
+def fix_df(d, target):
+    dict_path = recursive_dict_search(d,target)
+    temp_d = d
+    value=None
+    for i in dict_path :
+        if i == None : break
+        temp_d = temp_d[i]
+    for key in temp_d.keys() :
+        if type(key) != str : continue
+        if key.lower() == target.lower() :
+            value = temp_d[key]
+    return value
+
+
 class imgunitInput(CommandLineInputSpec): #CommandLineInputSpec):
     in_file = File(argstr="%s", position=-1, desc="Input image.")
     out_file = File(desc="Output image.")
@@ -74,7 +104,9 @@ class e7emhdrInterface(BaseInterface): #CommandLine):
         data = json.load( open( self.inputs.header, "rb" ) )
         e7emhdrNode = e7emhdrCommand() 
         e7emhdrNode.inputs.in_file = self.inputs.in_file
-        e7emhdrNode.inputs.isotope = str(data["acquisition"]["radionuclide_halflife"][0])
+        
+     	e7emhdrNode.inputs.isotope = str(data["acquisition"]["radionuclide_halflife"])
+                
         e7emhdrNode.run()
         self.inputs.out_file = self.inputs.in_file
 
@@ -163,18 +195,27 @@ class sifCommand(BaseInterface):
 
         print(self.inputs.header)
         data = json.load( open( self.inputs.header, "rb" ) )
-        if data['time']['frames-time'] == 'unknown':
-            start = 0
-            print 'Warning: Converting \"unknown\" start time to 0.'
-        else:
-            start=np.array(data['time']['frames-time'], dtype=float)
-        if data['time']['frames-length'] == 'unknown':
-            duration=1.0
-            print 'Warning: Converting \"unknown\" time duration to 1.'
-        else:
-            duration=np.array(data['time']['frames-length'], dtype=float    )
-            end=start+duration
-            df=pd.DataFrame(data={ "Start" : start, "Duration" : duration})
-            df=df.reindex_axis(["Start", "Duration"], axis=1)
-            df.to_csv(out_file, sep=" ", header=True, index=False )
+       
+        #if data['Time']['frames-time'] == 'unknown':
+        #    start = 0
+        #    print 'Warning: Converting \"unknown\" start time to 0.'
+        #else :
+        #    start=np.array(data['time']['frames-time'], dtype=float)
+
+        #if data['time']['frames-length'] == 'unknown':
+        #    duration=1.0
+        #    print 'Warning: Converting \"unknown\" time duration to 1.'
+        #else :
+        #    duration=np.array(data['time']['frames-length'], dtype=float    )
+
+        frame_times = data["Time"]["FrameTimes"]["Values"]
+        start=[]
+        duration = data["Time"]["FrameTimes"]["Duration"]
+        for s, e in frame_times :
+            start.append(s)
+
+        print("Start -- Duration:", start, duration)
+        df=pd.DataFrame(data={ "Start" : start, "Duration" : duration})
+        df=df.reindex_axis(["Start", "Duration"], axis=1)
+        df.to_csv(out_file, sep=" ", header=True, index=False )
         return runtime

@@ -196,9 +196,17 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
     mri_data=mri.data.flatten()
     t1_mask_data=t1_mask.data.flatten()
     pet_mask_data=pet_mask.data.flatten()
+    
+    if not pet.data.shape == mri.data.shape : 
+        print("Dimension mismatch between pet and mri:")
+        print(pet_fn, pet_mask.data.shape) 
+        print(mri_fn, t1_mask.data.shape)
+        exit(1)
+
     if not t1_mask_data.shape == pet_mask_data.shape : 
-        print("Dimension mismatch between pet and mri:", pet_fn, mri_fn)
-        print( pet_mask.data.shape, t1_mask.data.shape)
+        print("Dimension mismatch between masks pet and mri:")
+        print(pet_brain_fn, pet_mask.data.shape) 
+        print(t1_brain_fn, t1_mask.data.shape)
         exit(1)
 
     overlap = t1_mask_data * pet_mask_data

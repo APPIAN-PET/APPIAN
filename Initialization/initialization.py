@@ -124,6 +124,7 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
             for i in values_dict_path :
                 temp_d = temp_d[i]
 
+        temp_d = [ float(i) for i in temp_d ]
         FrameLengths=list(np.diff(temp_d))
         FrameLengths.append(FrameLengths[-1])
         print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
@@ -364,7 +365,6 @@ class VolCenteringRunning(BaseInterface):
     output_spec = VolCenteringOutput
     _suffix = "_center"
 
-
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
@@ -429,8 +429,6 @@ class get_stepCommand(BaseInterface):
         outputs = self.output_spec().get()
         outputs["step"] = self.inputs.step
         return outputs
-
-
 
 class PETexcludeFrOutput(TraitedSpec):
     out_file = File(desc="Image after centering")

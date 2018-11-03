@@ -259,17 +259,6 @@ sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
 #### T1 Segmentation: 
 sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
 
-        nativeT1=,
-        nativeT1nuc=,
-        T1Tal=',
-        xfmT1Tal=',
-        xfmT1Talnl='',
-        brainmaskTal='',
-        headmaskTal=',
-        clsmask=',
-        segmentation=,
-        pet='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.mnc'
-
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
 ## Usage <a name="useage"></a>

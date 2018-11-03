@@ -242,31 +242,20 @@ Quantitative quality control functions by calculating a metric that attempts to 
 ## File Formats  <a name="fileformat"></a>
 APPIAN uses the BIDS file format specification for PET:
 
-sub-<participant_label>/
-      [_ses-<session_label>/]
-pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
+### Required
+#### PET (native PET space)
+sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
 
-Specifically, the PET inputs in APPIAN use the ‘_ses-<session_label>’ subdirectory and the following attributes: ‘_ses-<session_label>’, ‘_task-<task_label>’, ‘_acq-<label>’, ‘_rec-<label>’.
-
-Example:
-
-APPIAN also requires derivative images, that is, images that have have been derived from raw, specifically raw T1 images. There is a current BIDS proposal for standardized derivative file names. These are implemented in APPIAN and will be updated as the BIDS standard evolves.
-#### T1w :
+#### T1w (native T1 space) :
 'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
-#### T1w_nuc: 
-'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.mnc'
-#### T1 (MNI space): 
-'sub-%s/_ses-%s/final/sub-%s_ses-%s*_T1w_space-mni.mnc
-#### Brain mask (no skull): 
+
+### Optional
+#### Linear Transform from T1 native to stereotaxic: 
 'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
-#### Brain mask (skull): 
-sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_warp.xfm
-#### Linear Transform: 
+
+#### Brain mask (stereotaxic space): 
 sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
-#### Non-linear Transform: 
-'sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_skullmask.mnc
-#### GM-WM classify mask: 
-’sub-%s/_ses-%s/mask/sub-%s_ses-%s*space-mni_variant-cls_dtissue.mnc'
+
 #### T1 Segmentation: 
 sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
 

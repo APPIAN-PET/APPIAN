@@ -273,7 +273,7 @@ if __name__ == "__main__":
     #Results reporting
     qc_opts = OptionGroup(parser,"Results reporting options")
     qc_opts.add_option("","--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
-    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=True)
+    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)
 
 

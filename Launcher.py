@@ -14,7 +14,6 @@ from optparse import OptionGroup
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
 
-
 version = "1.0"
 global spaces
 spaces=['pet', 't1', 'stereo']
@@ -270,9 +269,9 @@ if __name__ == "__main__":
     parser.add_option_group(qc_opts)
 
     #Results reporting
-    
     qc_opts = OptionGroup(parser,"Results reporting options")
     qc_opts.add_option("","--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
+    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=True)
     parser.add_option_group(qc_opts)
 
 
@@ -355,6 +354,12 @@ if __name__ == "__main__":
     elif opts.pstages:
         printStages(opts,args)
     else:
-        if opts.run_scan_level: run_scan_level(opts,args)
-        if opts.run_group_level:run_group_level(opts,args)
+        if opts.run_scan_level:
+            run_scan_level(opts,args)
+            if opts.dashboard:
+                dash.generate_dashboard(opts,args)
+        if opts.run_group_level:
+            run_group_level(opts,args)
+            if opts.dashboard:
+                dash.link_stats(opts,args)
 

@@ -203,4 +203,4 @@ def link_stats(opts, arg):
     # distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
     if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/stats')):
         os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
-    os.symlink('../../../stats', os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
+    os.symlink('../../stats', os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))

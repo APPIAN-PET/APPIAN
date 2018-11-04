@@ -60,25 +60,11 @@ def adjust_hdr(mincfile):
             "zspace" : '0.,0.,1.',
         } [str(dim)]
         cmd("minc_modify_header -sinsert {}:direction_cosines='{}' {}".format(dim, dir_cosine, mincfile))
+    if n_dims == 4:
+        cmd("minc_modify_header -dinsert time:start=0 {}".format(mincfile))
+        cmd("minc_modify_header -dinsert time:step=1 {}".format(mincfile))
 
 def mnc2vol(mincfile):
-    # image_precision = cmd("mincinfo -vartype image {}".format(mincfile)).replace("_","")
-    # image_signtype = cmd("mincinfo -attvalue image:signtype {}".format(mincfile)).replace("_","")
-    # datatype = {
-    #     "byte signed" : "int8",
-    #     "byte unsigned" : "uint8",
-    #     "short signed" : "int16",
-    #     "short unsigned" : "uint16",
-    #     "int signed" : "int32",
-    #     "int unsigned" : "uint32",
-    #     "int signed" : "int32",
-    #     "int unsigned" : "uint32",
-    #     "float signed" : "float32",
-    #     "float" : "float32",
-    #     "double" : "float64",
-    # }[str(image_precision+" "+image_signtype)]
-
-
     f = h5py.File(mincfile)
     datatype = str(f['minc-2.0/image/0']['image'].dtype)
     rawfile = mincfile+'.raw'
@@ -107,7 +93,7 @@ def generate_xml_nodes(opts, arg):
              "mnc_outputs" : {"node" : opts.pvc_method, "file" : 'out_file'}
             },
             {"name" : "tka",
-             "mnc_inputs" : {"node" : "convertParametric", "file" : 'out_file'},
+             "mnc_inputs" : {"node" : "convertParametric", "file" : 'output_file'},
              "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
             }
             ]

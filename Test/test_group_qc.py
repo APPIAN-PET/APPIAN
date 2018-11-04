@@ -579,9 +579,12 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
 
 def plot_metrics(dfi, out_fn, color=cm.spectral):
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
+    
+    dfi["sub"]=dfi["sub"].map(str)+" / "+dfi["task"].map(str)+" / "+dfi["ses"].map(str) 
     f=lambda x: float( str(x).split('.')[-1] )
     dfi.error = dfi.error.apply(f)
     dfi = dfi.sort_values(by=["errortype", "error"])
+    
     for roi, df0 in dfi.groupby(["roi"]):
         plt.clf()
         plt.figure()

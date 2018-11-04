@@ -572,7 +572,8 @@ class plot_qcCommand (BaseInterface):
         else:
             print("Unrecognized data frame")
             exit(1)
-        
+        df["sub"]="sub: "+df["sub"].map(str)+" task: "+df["task"].map(str)+" ses: "+df["ses"].map(str) 
+        print(df)
         plt.clf()
         fig, ax = plt.subplots()
         plt.figure(1)

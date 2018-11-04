@@ -14,7 +14,7 @@ import sys
 import importlib
 from Extra.conversion import nii2mncCommand, mnc2niiCommand
 from Extra.extra import separate_mask_labelsCommand
-from Extra.modifHeader import FixHeaderCommand
+from Extra.modifHeader import FixHeaderLinkCommand
 """
 .. module:: pvc
     :platform: Unix
@@ -23,7 +23,7 @@ from Extra.modifHeader import FixHeaderCommand
 """
 
 
-def get_pvc_workflow(name, infosource, datasink, opts):
+def get_pvc_workflow(name, infosource, opts):
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=['in_file', 'mask_file', 'header']), name='inputnode')
@@ -49,7 +49,7 @@ def get_pvc_workflow(name, infosource, datasink, opts):
     pvcNode = pe.Node(interface=pvc_module.pvcCommand(), name=opts.pvc_method)
     pvcNode = pvc_module.check_options(pvcNode, opts)
 
-    fixHeaderNode = pe.Node(interface=FixHeaderCommand(), name="fixHeaderNode")
+    fixHeaderNode = pe.Node(interface=FixHeaderLinkCommand(), name="fixHeaderNode")
     fixHeaderNode.inputs.time_only=True
 
     if pvc_module.separate_labels :
@@ -57,7 +57,6 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         workflow.connect(inputnode, 'mask_file', separate_mask_labelsNode, 'in_file' )
         mask_source=separate_mask_labelsNode
         mask_file="out_file"
-
 
     if pvc_module.file_format == "NIFTI" : 
         convertPET=pe.Node(mnc2niiCommand(), name="convertPET")
@@ -74,26 +73,20 @@ def get_pvc_workflow(name, infosource, datasink, opts):
         pet_file = "out_file" 
         mask_source = convertMask
         mask_file="out_file"
-       
-
     elif pvc_module.file_format == "MINC"  :
         pet_source = inputnode
         pet_file = "in_file" 
-
     else :
         print("Error: not file format specified in module file.\nIn", pvc_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
         exit(1)
 
-
-
     workflow.connect(pet_source, pet_file, pvcNode, 'in_file')
     workflow.connect(mask_source, mask_file, pvcNode, 'mask_file')
-
 
     workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'in_file')
     workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
 
-    workflow.connect(fixHeaderNode, 'out_file', outputnode, 'out_file')
+    workflow.connect(fixHeaderNode, 'output_file', outputnode, 'out_file')
 
     return(workflow)
 

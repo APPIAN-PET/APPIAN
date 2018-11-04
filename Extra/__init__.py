@@ -1,8 +1,9 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 
+from . import *
 
-from .base import (MINCCommand, Info)
+'''from .base import (MINCCommand, Info)
 from .maths import (MathsCommand, ConstantMathsCommand, Constant2MathsCommand)
 from .resample import ResampleCommand
 from .morphomat import MorphCommand
@@ -18,3 +19,4 @@ from .concat import ConcatCommand
 from .modifHeader import ModifyHeaderCommand
 
 from .gzip_test import GZipTask
+'''

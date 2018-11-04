@@ -1,6 +1,8 @@
 # Contributing to APPIAN
 Table of Contents
 =================
+[To Do](#to-do)
+
 [Introduction](#introduction)
 
 [Labels](#labels)
@@ -12,6 +14,14 @@ Table of Contents
 [APPIAN coding style guide](#appian-coding-style-guide)
 
 [Recognizing contributions](#recognizing-contributions)
+
+###To Do
+
+#### Finish changes to label management
+#### Set up automatic testing
+#### Read in JSON from Nifti files
+#### Implement/test surface masks
+
 
 ### Introduction
 Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide], in the [Developer API guide][link_html] (still in progress, best viewed locally), or below, please do not hesitate to send us an email (tffunck@gmail.com). One day we will have a mailing list or forum, but not yet.

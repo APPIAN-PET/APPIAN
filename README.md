@@ -42,11 +42,12 @@ For those interested in extending or contributing to APPIAN please check out our
 Users seeking more information can check the [user guide][link_user_guide].
 
 ## Publications
-1. APPIAN overview paper (coming soon)
+1. Funck, T., Larcher K., Toussaint, P.J., Evans, A.C., Thiel, A. (2018). APPIAN: Automated Pipeline for PET Image Analysis. Frontiers in Neuroinformatics. 12, 64.  https://doi.org/10.3389/fninf.2018.00064 
+
 2. APPIAN automated QC paper (coming soon)
 
 ## About us
-Thomas Funck, PhD Candidate (tffunck@gmail.com)\
+Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\
 Kevin Larcher, MSc Eng.\
 Paule Joanne Toussaint, PhD
 

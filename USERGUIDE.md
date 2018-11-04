@@ -2,79 +2,305 @@
 
 # Table of Contents
 1. [Overview](#overview) \
-	1.1 [Coregistration](#coregistration) \
-	1.2 [Masking](#masking) \
-	1.3 [Partial-Volume Correction](#pvc) \
-	1.4 [Reporting of Results](#results) \
-	1.5 [Quality Control](#qc)
+	1.1 [Base Options](#options) \
+	1.2 [MRI Preprocessing](#mri) \
+	1.3 [Coregistration](#coregistration) \
+	1.4 [Masking](#masking) \
+	1.5 [Partial-Volume Correction](#pvc) \
+	1.6 [Reporting of Results](#results) \
+	1.7 [Quality Control](#qc)
 2. [File Formats](#fileformat)
 3. [Useage](#useage)
 4. [Examples](#example)
-5. [User Options](#options)
+
 
 ## Pipeline Overview  <a name="overview"></a>
-### Coregistration <a name="coregistration"></a>
-The first processing step is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
 
+## Base User Options  <a name="options"></a>
+APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (-s), a target directory where the outputs will be stored (-t), the list of sessions during which the scans were acquired (-sessions). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
+
+####  File options (mandatory):
+    -s SOURCEDIR, --source=SOURCEDIR, --sourcedir=SOURCEDIR
+                        Input file directory
+    -t TARGETDIR, --target=TARGETDIR, --targetdir=TARGETDIR
+                        Directory where output data will be saved in
+    --radiotracer=ACQ, --acq=ACQ
+                        Radiotracer
+    -r REC, --rec=REC   Reconstruction algorithm
+    --sessions=SESSIONLIST comma-separated list of sessions
+
+#### File options (Optional):
+    --tasks=TASKLIST    comma-separated list of conditions or scans
+    --no-group-level    Run group level analysis
+    --no-scan-level     Run scan level analysis
+    --img-ext=IMG_EXT   Extension to use for images.
+    --analysis-space=ANALYSIS_SPACE
+                        Coordinate space in which PET processing will be
+                        performed (Default=pet)
+    --threads=NUM_THREADS
+                        Number of threads to use. (defult=1)
+    --stereotaxic-template=TEMPLATE
+                        Template image in stereotaxic space
+####  Surface options:
+    --surf              Uses surfaces
+    --surf-space=SURFACE_SPACE
+                        Set space of surfaces from : "pet", "t1", "icbm152"
+                        (default=icbm152)
+    --surf-ext=SURF_EXT
+                        Extension to use for surfaces
+
+### MRI Preprocessing <a name="mri"></a>
+Prior to performing PET processing, T1 structural preprocessing can be performed if the user does not provide a binary brain mask volume and a transformation file that maps the T1 MR image into stereotaxic space. If these inputs are not provided, APPIAN will automatically coregister the T1 MR image to stereotaxic space. By default, the stereotaxic space is defined on the ICBM 152 6th generation non-linear brain atlas (Mazziotta et al., 2001), but users can provide their own stereotaxic template if desired. Coregistration is performed using an iterative implementation of minctracc (Collins et al., 1994). 
+
+Brain tissue extraction is performed in stereotaxic space using BEaST (Eskildsen et al., 2012). In addition, tissue segmentation can also be performed on the normalized T1 MR image. Currently, only ANTs Atropos package (Avants et al., 2011) has been implemented for T1 tissue segmentation but this can be extended based on user needs.
+
+#### MRI preprocessing options:
+    --user-t1mni        Use user provided transform from MRI to MNI space
+    --user-brainmask    Use user provided brain mask
+    --coregistration-method=MRI_COREG_METHOD	Method to use to register MRI to stereotaxic template
+    --brain-extraction-method=MRI_BRAIN_EXTRACT_METHOD	Method to use to extract brain mask from MRI
+    --segmentation-method=MRI_SEGMENTATION_METHOD	Method to segment mask from MRI
+
+##### If you use the MRI preprocessing module, please cite the following :
+
+###### Brain mask extraction:
+Eskildsen, S.F., Coupé, P., Fonov, V., Manjón, J.V.,Leung, K.K., Guizard, N., Wassef, S.N., Østergaard, L.R., Collins, D.L. “BEaST: Brain extraction based on nonlocal segmentation technique”, NeuroImage, Volume 59, Issue 3, pp. 2362–2373. http://dx.doi.org/10.1016/j.neuroimage.2011.09.012
+
+###### Non-uniformity correction
+J.G. Sled, A.P. Zijdenbos and A.C. Evans, "A non-parametric method for automatic correction of intensity non-uniformity in MRI data",in "IEEE Transactions on Medical Imaging", vol. 17, n. 1, pp. 87-97, 1998 
+
+### Coregistration <a name="coregistration"></a>
+The first processing step in PET processing is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
+
+#### Coregistration Options
+
+    --coreg-method=COREG_METHOD 	Coregistration method: minctracc, ants (default=minctracc)
+    --coregistration-brain-mask 	Target T1 mask for coregistration (Default=True)
+    --second-pass-no-mask    		Do a second pass of coregistration without masks (Default=True)
+    --slice-factor=SLICE_FACTOR		Value (between 0. to 1.) that is multiplied by the 
+    					maximum of the slices of the PET image. Used to
+                        		threshold slices. Lower value means larger mask.
+    --total-factor=TOTAL_FACTOR		Value (between 0. to 1.) that is multiplied by the
+                        		thresholded means of each slice.
+##### Please cite the following paper for the coregistration stage
+Collins, D.L., Neelin, P., Peters, T.M., Evans, A.C. Automatic 3D intersubject registration of MR volumetric data in standardized Talairach space. Journal of Computer Assisted Tomography. 18 (2), 192–205. 1994
 
 ### Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, ki, etc.). Moreover, these masks can be derived from multiple sources: classification produced by CIVET, classification produced by ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
 
- 
+  #### Masking options: PVC
+
+    --pvc-label-space=PVC_LABEL_SPACE
+                        Coordinate space of labeled image to use for TKA.
+                        Options: [pet/t1/stereo]
+    --pvc-label-img=PVC_LABEL_IMG
+                        Options: 1. ICBM MNI 152 atlas:
+                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
+                        template: path/to/labeled/atlas
+                        /path/to/atlas/template 3. Internal classification
+                        method (antsAtropos) 4. String that identifies labels
+                        in anat/ directory to be used as mask
+    --pvc-label=PVC_LABELS
+                        Label values to use for pvc
+    --pvc-label-erosion=PVC_ERODE_TIMES
+                        Number of times to erode label
+    --pvc-labels-brain-only
+                        Mask pvc labels with brain mask
+    --pvc-labels-ones-only
+                        Flag to signal threshold so that label image is only
+                        1s and 0s
+
+  #### Masking options: Quantification
+
+    --tka-label-space=TKA_LABEL_SPACE
+                        Coordinate space of labeled image to use for TKA.
+                        Options: [pet/t1/stereo]
+    --tka-label-img=TKA_LABEL_IMG
+                        Options: 1. ICBM MNI 152 atlas:
+                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
+                        template: path/to/labeled/atlas
+                        /path/to/atlas/template 3. Internal classification
+                        method (antsAtropos) 4. String that identifies labels
+                        in anat/ directory to be used as mask
+    --tka-label=TKA_LABELS
+                        Label values to use for TKA
+    --tka-label-erosion=TKA_ERODE_TIMES
+                        Number of times to erode label
+    --tka-labels-brain-only
+                        Mask tka labels with brain mask
+    --tka-labels-ones-only
+                        Flag to signal threshold so that label image is only
+                        1s and 0s
+
+ #### Masking options: Results
+
+    --no-results-report
+                        Don't calculate descriptive stats for results ROI.
+    --results-label-space=RESULTS_LABEL_SPACE
+                        Coordinate space of labeled image to use for TKA.
+                        Options: [pet/t1/stereo]
+    --results-label-img=RESULTS_LABEL_IMG
+                        Options: 1. ICBM MNI 152 atlas:
+                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
+                        template: path/to/labeled/atlas
+                        /path/to/atlas/template 3. Internal classification
+                        method (antsAtropos) 4. String that identifies labels
+                        in anat/ directory to be used as mask
+    --results-label=RESULTS_LABELS
+                        Label values to use for results
+    --results-label-erosion=RESULTS_ERODE_TIMES
+                        Number of times to erode label
+    --results-labels-brain-only
+                        Mask results labels with brain mask
+    --results-labels-ones-only
+                        Flag to signal threshold so that label image is only 1s and 0s
+
+
 ### Partial-volume correction <a name="pvc"></a>
 Partial-volume correction (PVC) is often necessary to account for the loss of resolution in the image due to the point-spread function of the PET scanner and the fact that multiple tissue types may contribute to a single PET voxel. While performing PVC is generally a good idea, this is especially true if the user is interested in regions that are less than approximately 2.5 times the full-width at half-maximum (FWHM) resolution of the scanner. 
-Tracer kinetic analysis
+
+    --no-pvc            Don't run PVC.
+    --pvc-method=PVC_METHOD
+                        Method for PVC.
+    --pet-scanner=PET_SCANNER
+                        FWHM of PET scanner.
+    --fwhm=SCANNER_FWHM, --pvc-fwhm=SCANNER_FWHM
+                        FWHM of PET scanner (z,y,x).
+    --pvc-max-iterations=MAX_ITERATIONS	Maximum iterations for PVC method (Optional).
+    --pvc-tolerance=TOLERANCE Tolerance for PVC algorithm.
+    --pvc-denoise-fwhm=DENOISE_FWHM	FWHM of smoothing filter (for IdSURF).
+    --pvc-nvoxel-to-average=NVOXEL_TO_AVERAGE Number of voxels to average over (for IdSURF).
+
+##### References
+###### Geometric Transfer Matrix (GTM)
+Rousset, O.G., Ma, Y., Evans, A.C., 1998. Correction for Partial Volume Effects in PET : Principle and Validation. J. Nucl. Med. 39, 904–911.
+
+###### Surface-based iterative deconvolution (idSURF)
+Funck, T., Paquette, C., Evans, A., Thiel, A., 2014. Surface-based partial-volume correction for high-resolution PET. Neuroimage 102, 674–87. doi:10.1016/j.neuroimage.2014.08.037
+
+###### Muller-Gartner (MG)
+Muller-Gartner, H.W., Links, J.M., Prince, J.L., Bryan, R.N., McVeigh, E., Leal, J.P., Davatzikos, C., Frost, J.J. Measurement of radiotracer concentration in brain gray matter using positron emission tomography: MRI-based correction for partial volume effects. Journal of Cerebral Blood Flow and Metabolism 12, 571–583. 1992
+
+###### Labbé (LAB) 
+Labbe C, Koepp M, Ashburner J, Spinks T, Richardson M, Duncan J, et al. Absolute PET quantification with correction for partial volume effects within cerebral structures. In: Carson RE, Daube-Witherspoon ME, Herscovitch P, editors. Quantitative functional brain imaging with positron emission tomography. San Diego, CA: Academic Press; 1998. p. 67–76.
+
+###### Multi-target Correction (MTC) 
+Erlandsson K, Wong A T, van Heertum R, Mann J J and Parsey R V 2006 An improved method for voxel-based partial volume correction in PET and SPECT. Neuroimage 31(2), T84 
+
+###### Region-based voxel-wise correction (RBV)
+Thomas B A, Erlandsson K, Modat M, Thurfjell L, Vandenberghe R, Ourselin S and Hutton B F 2011 The importance of appropriate partial volume correction for PET quantification in Alzheimer’s disease. Eur. J. Nucl. Med. Mol. Imaging. 38(6), 1104–19.
+
+###### Iterative Yang (IY)
+Erlandsson K, Buvat I, Pretorius P H, Thomas B A and Hutton B F. 2012. A review of partial volume correction techniques for emission tomography and their applications in neurology, cardiology and oncology Phys. Med. Biol. 57 R119
+
+###### Van-Cittert (RVC) 
+NA
+
+###### Richardson–Lucy (RL)
+Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J. Opt. Soc. Am. 62, 55. doi:10.1364/JOSA.62.000055
+
+###### PETPVC
+Note: MG, LAB, MTC, IY, RVC, RL are all implemented with PETPVC. You should therefore cite the following paper if you use one of these. 
+
+Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
+
+### Quantification
 Tracer kinetic analysis (TKA) allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate TKA method will depend on the radiotracer. Certain models, e.g., the Logan plot and simplified reference tissue model, are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three TKA methods are implemented: Logan plot, Patlak-Gjedde plot, and the simplified reference tissue model.
+
+#### Quantification options:
+    --tka-method=TKA_METHOD
+                        Method for performing tracer kinetic analysis (TKA):
+                        lp, pp, srtm.
+    --k2=TKA_K2         With reference region input it may be necessary to
+                        specify also the population average for regerence
+                        region k2
+    --thr=TKA_THR       Pixels with AUC less than (threshold/100 x max AUC)
+                        are set to zero. Default is 0%
+    --max=TKA_MAX       Upper limit for Vt or DVR values; by default max is
+                        set pixel-wise to 10 times the AUC ratio.
+    --min=TKA_MIN       Lower limit for Vt or DVR values, 0 by default
+    --t3max=TKA_T3MAX   Upper limit for theta3, 0.01 by default
+    --t3min=TKA_T3MIN   Lower limit for theta3, 0.001 by default
+    --nBF=TKA_NBF       Number of basis functions.
+    --filter            Remove parametric pixel values that over 4x higher
+                        than their closest neighbours.
+    --reg-end=TKA_END   By default line is fit to the end of data. Use this
+                        option to enter the fit end time (in min).
+    --y-int=TKA_V       Y-axis intercepts time -1 are written as an image to
+                        specified file.
+    --num=TKA_N         Numbers of selected plot data points are written as an
+                        image.
+    --Ca=TKA_CA         Concentration of native substrate in arterial plasma
+                        (mM).
+    --LC=TKA_LC         Lumped constant in MR calculation; default is 1.0.
+    --density=TKA_DENSITY
+                        Tissue density in MR calculation; default is 1.0 g/ml.
+    --arterial          Use arterial input input.
+    --start-time=TKA_START_TIME
+                        Start time of either regression in MTGA or averaging
+                        time for SUV.
+    --end-time=TKA_END_TIME
+                        End time for SUV average.
+    --body-weight=BODY_WEIGHT
+                        Either name of subject body weight (kg) in header or
+                        path to .csv file containing subject names and body
+                        weight (separated by comma).
+    --radiotracer-dose=RADIOTRACER_DOSE
+                        Either name of subject's injected radiotracer dose
+                        (MBq) in header or path to .csv file containing
+                        subject names and injected radiotracer dose (MBq).
+    --tka-type=TKA_TYPE
+                        Type of tka analysis: voxel or roi.
+##### References
+###### Logan Plot (lp)
+Logan, J., Fowler, J.S., Volkow, N.D., Wang, G.-J., Ding, Y.-S., Alexoff, D.L., 1996. Distribution Volume Ratios Without Blood Sampling from Graphical Analysis of PET Data. J. Cereb. Blood Flow Metab. 16, 834–840. doi:10.1097/00004647-199609000-00008
+
+###### Patlak-Gjedde Plot (pp)
+Please cite both of the following papers when using the Patlak-Gjedde method
+Patlak, C. S., Blasberg, R. G., and Fenstermacher, J. D. (1983). Graphical evaluation of blood-to-brain transfer constants from multiple-time uptake data. J. Cereb. Blood Flow Metab. 3, 1–7. doi: 10.1038/jcbfm.1983.1
+
+Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain uptake of glucose analogs in vivo: a re-examination. Brain Res. 257, 237–274. doi: 10.1016/0165-0173(82)90018-2
+
+###### Simplified Reference Tissue Model (srtm)
+Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.
 
 ### Reporting of results <a name="results"></a>
 The ROI masks described in section 1.b are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and python) for further statistical analysis. 
+
+####  Results reporting options:
+    --no-group-stats    Don't calculate quantitative group-wise descriptive
+                        statistics.
+
 
 ### Quality control <a name="qc"></a>
 Quality control is a crucial step of any automated pipeline. It is essential that the user be able to easily confirm that the pipeline has performed as expected and identify any problematic subjects or processing steps. 
 Towards the end of facilitating rigorous quality control, we are implementing qualitative and quantitative quality control for every major processing step. The user will be able to peruse all output images in GIF format to verify that the images appear as expected (e.g., that there is no gross error in co-registration). Users will also be able to open the full 3D volumes using the BrainBrowser interface. 
 Quantitative quality control functions by calculating a metric that attempts to measure how accurately the processing step in question was performed. For example, the accuracy of the co-registration is measured using a similarity metric between the PET and MRI image. A single metric is not by itself very informative, because we do not know what value this metric should be. However it is possible to compare the metrics of all subjects at a given processing step and find outliers within these. Thus if most of the subjects have a similarity metric of 0.6 for their co-registered PET and MRI, then a subject with a similarity metric of 0.1 would indicate that this subject had probably failed this processing step and should be further scrutinized using qualitative quality control (visual inspection).  
 
+####  Quality control options:
+    --no-group-qc       Don't perform quantitative group-wise quality control.
+    --test-group-qc     Perform simulations to test quantitative group-wise
+                        quality control.
+
 ## File Formats  <a name="fileformat"></a>
 APPIAN uses the BIDS file format specification for PET:
 
-sub-<participant_label>/
-      [_ses-<session_label>/]
-pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
+### Required
+#### PET (native PET space)
+sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
 
-Specifically, the PET inputs in APPIAN use the ‘_ses-<session_label>’ subdirectory and the following attributes: ‘_ses-<session_label>’, ‘_task-<task_label>’, ‘_acq-<label>’, ‘_rec-<label>’.
-
-Example:
-
-APPIAN also requires derivative images, that is, images that have have been derived from raw, specifically raw T1 images. There is a current BIDS proposal for standardized derivative file names. These are implemented in APPIAN and will be updated as the BIDS standard evolves.
-#### T1w :
+#### T1w (native T1 space) :
 'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
-#### T1w_nuc: 
-'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w_nuc.mnc'
-#### T1 (MNI space): 
-'sub-%s/_ses-%s/final/sub-%s_ses-%s*_T1w_space-mni.mnc
-#### Brain mask (no skull): 
+
+### Optional
+#### Linear Transform from T1 native to stereotaxic: 
 'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
-#### Brain mask (skull): 
-sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_warp.xfm
-#### Linear Transform: 
+
+#### Brain mask (stereotaxic space): 
 sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
-#### Non-linear Transform: 
-'sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_skullmask.mnc
-#### GM-WM classify mask: 
-’sub-%s/_ses-%s/mask/sub-%s_ses-%s*space-mni_variant-cls_dtissue.mnc'
+
 #### T1 Segmentation: 
 sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
-
-        nativeT1=,
-        nativeT1nuc=,
-        T1Tal=',
-        xfmT1Tal=',
-        xfmT1Talnl='',
-        brainmaskTal='',
-        headmaskTal=',
-        clsmask=',
-        segmentation=,
-        pet='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_rec-%s_pet.mnc'
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
@@ -138,173 +364,3 @@ FDG is a non-reversibly bound tracer, meaning that once it binds to its target r
    
 Example:
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
-
-Defining your ROI with an atlas
-To use a stereotaxic atlas to define your ROI (flag: --roi-atlas), you need to define the anatomical template on which this atlas is defined (flag: --roi-template) and the volume containing the atlas labels (flag: --roi-mask). APPIAN includes two standard templates for defining stereotaxic atlases: Colin27 and ICBM152. 
-
-Example: Using the AAL atlas, defined on the Colin27 template
-
---roi-atlas  --roi-template  /opt/APPIAN/Atlas/COLIN27/colin27_t1_tal_lin.mnc  --roi-mask /opt/APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V4.mnc
-
-
-## User Options  <a name="options"></a>
-APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (-s), a target directory where the outputs will be stored (-t), the prefix label of your study (-p), and the directory containing the CIVET outputs for each subject (-c). 
-
-Options:
-  --version             show program's version number and exit
-  -h, --help            show this help message and exit
-
-  File options (mandatory):
-    -s SOURCEDIR, --petdir=SOURCEDIR
-                        Native PET directory
-    -t TARGETDIR, --targetdir=TARGETDIR
-                        Directory where output data will be saved in
-    -p PREFIX, --prefix=PREFIX
-                        Study name
-    -c CIVETDIR, --civetdir=CIVETDIR
-                        Civet directory
-    --condition=CONDILIST
-                        comma-separated list of conditions or scans
-
-  Registration options:
-    --modelDir=MODELDIR
-                        Models directory
-
-  Masking options:
-    Reference region
-
-    --ref-user          User defined ROI for each subject
-    --ref-animal        Use ANIMAL segmentation
-    --ref-civet         Use PVE tissue classification from CIVET
-    --ref-icbm152-atlas
-                        Use an atlas defined on ICBM152 template
-    --ref-atlas         Use atlas based on template, both provided by user
-    --ref-labels=REFATLASLABELS
-                        Label value(s) for segmentation.
-    --ref-template=REFTEMPLATE
-                        Template to segment the reference region.
-    --ref-suffix=REFSUFFIX
-                        ROI suffix
-    --ref-gm            Gray matter of reference region (if -ref-animal is
-                        used)
-    --ref-wm            White matter of reference region (if -ref-animal is
-                        used)
-    --ref-close         Close - erosion(dialtion(X))
-    --ref-erosion       Erode the ROI mask
-    --ref-dir=REF_DIR   ID of the subject REF masks
-    --ref-template-suffix=TEMPLATEREFSUFFIX
-                        Suffix for the Ref template.
-    --ref-mask=REFMASK  Ref mask on the template
-
-  Masking options:
-    Region Of Interest
-
-    --roi-user          User defined ROI for each subject
-    --roi-animal        Use ANIMAL segmentation
-    --roi-civet         Use PVE tissue classification from CIVET
-    --roi-icbm152       Use an atlas defined on ICBM152 template
-    --roi-atlas         Use atlas based on template, both provided by user
-    --roi-labels=ROIATLASLABELS
-                        Label value(s) for segmentation.
-    --roi-template=ROITEMPLATE
-                        Template to segment the ROI.
-    --roi-mask=ROIMASK  ROI mask on the template
-    --roi-template-suffix=TEMPLATEROISUFFIX
-                        Suffix for the ROI template.
-    --roi-suffix=ROISUFFIX
-                        ROI suffix
-    --roi-erosion       Erode the ROI mask
-    --roi-dir=ROI_DIR   ID of the subject ROI masks
-
-  Masking options:
-    ROI for PVC
-
-    --no-pvc            Don't run PVC.
-    --pvc-roi-user      User defined ROI for each subject
-    --pvc-roi-animal    Use ANIMAL segmentation
-    --pvc-roi-civet     Use PVE tissue classification from CIVET
-    --pvc-roi-icbm152   Use an atlas defined on ICBM152 template
-    --pvc-roi-atlas     Use atlas based on template, both provided by user
-    --pvc-roi-labels=PVCATLASLABELS
-                        Label value(s) for segmentation.
-    --pvc-roi-template=PVCTEMPLATE
-                        Template to segment the ROI.
-    --pvc-roi-mask=PVCMASK
-                        ROI mask on the template
-    --pvc-roi-template-suffix=TEMPLATEPVCSUFFIX
-                        Suffix for the ROI template.
-    --pvc-roi-suffix=PVCSUFFIX
-                        PVC suffix
-    --pvc-roi-dir=PVC_ROI_DIR
-                        ID of the subject ROI masks
-    --pvc-method=PVC_METHOD
-                        Method for PVC.
-    --pet-scanner=PET_SCANNER
-                        FWHM of PET scanner.
-    --pvc-fwhm=SCANNER_FWHM
-                        FWHM of PET scanner.
-    --pvc-max-iterations=MAX_ITERATIONS
-                        Maximum iterations for PVC method.
-    --pvc-tolerance=TOLERANCE
-                        Tolerance for PVC algorithm.
-    --pvc-lambda=LAMBDA_VAR
-                        Lambda for PVC algorithm (smoothing parameter for
-                        anisotropic diffusion)
-    --pvc-denoise-fwhm=DENOISE_FWHM
-                        FWHM of smoothing filter.
-    --pvc-nvoxel-to-average=NVOXEL_TO_AVERAGE
-                        Number of voxels to average over.
-
-  Tracer Kinetic analysis options:
-    --tka-method=TKA_METHOD
-                        Method for performing tracer kinetic analysis (TKA):
-                        lp, pp, srtm.
-    --k2=TKA_K2         With reference region input it may be necessary to
-                        specify also the population average for regerence
-                        region k2
-    --thr=TKA_THR       Pixels with AUC less than (threshold/100 x max AUC)
-                        are set to zero. Default is 0%
-    --max=TKA_MAX       Upper limit for Vt or DVR values; by default max is
-                        set pixel-wise to 10 times the AUC ratio.
-    --min=TKA_MIN       Lower limit for Vt or DVR values, 0 by default
-    --t3max=TKA_T3MAX   Upper limit for theta3, 0.01 by default
-    --t3min=TKA_T3MIN   Lower limit for theta3, 0.001 by default
-    --nBF=TKA_NBF       Number of basis functions.
-    --filter            Remove parametric pixel values that over 4x higher
-                        than their closest neighbours.
-    --reg-end=TKA_END   By default line is fit to the end of data. Use this
-                        option to enter the fit end time (in min).
-    --y-int=TKA_V       Y-axis intercepts time -1 are written as an image to
-                        specified file.
-    --num=TKA_N         Numbers of selected plot data points are written as an
-                        image.
-    --Ca=TKA_CA         Concentration of native substrate in arterial plasma
-                        (mM).
-    --LC=TKA_LC         Lumped constant in MR calculation; default is 1.0.
-    --density=TKA_DENSITY
-                        Tissue density in MR calculation; default is 1.0 g/ml.
-    --arterial=ARTERIAL_DIR
-                        Use arterial input input.
-    --start-time=TKA_START_TIME
-                        Start time for regression in MTGA.
-    --tka-type=TKA_TYPE
-                        Type of tka analysis: voxel or roi.
-
-  Tracer Kinetic analysis options:
-    --group-qc          Perform quantitative group-wise quality control.
-    --test-group-qc     Perform simulations to test quantitative group-wise
-                        quality control.
-
-  Command control:
-    -v, --verbose       Write messages indicating progress.
-
-  Pipeline control:
-    --run               Run the pipeline.
-    --fake              do a dry run, (echo cmds only).
-    --print-scan        Print the pipeline parameters for the scan.
-    --print-stages      Print the pipeline stages.
-
-## References
-Collins, et al. 1994.  J. Comput. Assist. Tomogr. 18 (2), 192–205. 
-
-

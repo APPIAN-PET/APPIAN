@@ -768,5 +768,5 @@ def get_workflow(name, infosource, opts):
     workflow.connect(final_pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
     workflow.connect(final_pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
     workflow.connect(final_pet2mri, 'out_file_img', outputnode, 'petmri_img')
-    workflow.connect(pet_brain_mask, 'out_file', outputnode,'pet_brain_mask' )
+    workflow.connect(pet_brain_mask, pet_brain_mask_img, outputnode,'pet_brain_mask' )
     return workflow 

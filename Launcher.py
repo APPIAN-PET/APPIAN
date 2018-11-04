@@ -11,6 +11,8 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from optparse import OptionParser
 from optparse import OptionGroup
 
+import Quality_Control.dashboard as dash
+
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
 

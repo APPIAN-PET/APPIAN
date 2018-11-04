@@ -528,6 +528,7 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
 
 from matplotlib.lines import Line2D
 def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
+    dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
     f = lambda x: float(str(x).split('.')[-1]) 
@@ -536,12 +537,13 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
     nmeasure=len(df.measure.unique())
     nmetric=len(df.measure.unique())
     df.error = df.error.apply(f)
+    print(df)
     ndim = int(ceil(np.sqrt(nmeasure)))
     sub_cond=np.array([ str(a)+'_'+str(b)+'_'+str(c) for a,b,c in  zip(df['sub'], df.task, df.ses) ])
     sub_cond_unique = np.unique(sub_cond)
     nUnique=float(len(sub_cond_unique))
     measures=outlier_measures.keys()
-
+    
     for key, group1 in df.groupby(['errortype','roi']):
         errortype=key[0]
         roi=key[1]
@@ -580,7 +582,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
 def plot_metrics(dfi, out_fn, color=cm.spectral):
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
     
-    dfi["sub"]=dfi["sub"].map(str)+" / "+dfi["task"].map(str)+" / "+dfi["ses"].map(str) 
+    dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     f=lambda x: float( str(x).split('.')[-1] )
     dfi.error = dfi.error.apply(f)
     dfi = dfi.sort_values(by=["errortype", "error"])

@@ -37,7 +37,8 @@ def get_workflow(name, valid_args, opts):
     
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
-    library_dir, template_rsl = mincbeast_library(opts.template)
+    if not opts.user_brainmask : 
+        library_dir, template_rsl = mincbeast_library(opts.template)
     #if not opts.user_brainmask : 
     #    #Template Brain Mask
     #    template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")

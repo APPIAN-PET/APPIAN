@@ -387,6 +387,7 @@ class plot_rocCommand(BaseInterface):
 ### WORKFLOW
 ### FUNCTIONS
 def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.spectral, DPI=500):
+    
     df = dfi.copy()
     figs=[]
     fn_list=[]
@@ -521,7 +522,6 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
                                 row_args = [sub]+list(cond)+[error_type,error,roi,measure_name,metric_name,s]
                                 row=pd.DataFrame([row_args], columns=out_columns  )
                                 df_out = pd.concat([df_out, row],axis=0)
-
     #print(df_out)
     return(df_out)
 
@@ -531,13 +531,13 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
-    f = lambda x: float(str(x).split('.')[-1]) 
+    #f = lambda x: float(str(x).split('.')[-1]) 
 	#FIXME: Will only print last error term
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
+    f=lambda x : float(x) / 100 
     nmeasure=len(df.measure.unique())
     nmetric=len(df.measure.unique())
     df.error = df.error.apply(f)
-    print(df)
     ndim = int(ceil(np.sqrt(nmeasure)))
     sub_cond=np.array([ str(a)+'_'+str(b)+'_'+str(c) for a,b,c in  zip(df['sub'], df.task, df.ses) ])
     sub_cond_unique = np.unique(sub_cond)
@@ -560,6 +560,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
                 group1.value.loc[(group1.measure == measure) & (group1.metric == metric)]= x_norm
         ax=plt.subplot(ndim, ndim, n)
         g = sns.FacetGrid(group1, sharex=False, sharey=False, legend_out=True,  despine=True, margin_titles=True, col="metric", row="errortype", hue="sub")
+        xmax=group1["error"].max()
         sns.set(font_scale=1)
         g = g.map(plt.plot, "error", "value", alpha=0.5)#.add_legend()
         g = g.map(plt.scatter, "error", "value", alpha=0.5).add_legend()
@@ -567,7 +568,8 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
         plt.xlabel('')
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        plt.ylim([-0.05,1.05])
+        plt.ylim([-0.001,1.001])
+        plt.xlim([-0.001,xmax])
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper right", ncol=1, prop={'size': 6})
 
         ax.legend(loc="best", fontsize=7)

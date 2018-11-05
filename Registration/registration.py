@@ -44,7 +44,7 @@ class PETheadMaskingInput(BaseInterfaceInputSpec):
 class PETheadMasking(BaseInterface):
     input_spec = PETheadMaskingInput
     output_spec = PETheadMaskingOutput
-    _suffix = "_headmask"
+    _suffix = "_brain_mask"
 
     # def _parse_inputs(self, skip=None):
     #     if skip is None:
@@ -55,7 +55,9 @@ class PETheadMasking(BaseInterface):
     def _run_interface(self, runtime):
 
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+            base = os.path.basename(self.inputs.in_file)
+            split = os.path.splitext(base)
+            self.inputs.out_file = os.getcwd() + split[0] + self._suffix + split[1]
             #Load PET 3D volume
         infile = volumeFromFile(self.inputs.in_file)
         zmax=infile.sizes[infile.dimnames.index("zspace")]
@@ -204,9 +206,9 @@ class PETtoT1LinRegRunning(BaseInterface):
         conf1 = conf("blur", "-est_translations", 10, 6, "8 8 8", 0.01, 8, lsq1)
         conf2 = conf("blur", "", 6, 6, "4 4 4", 0.004, 6, lsq2)
         conf3 = conf("blur", "", 4, 4, "2 2 2", 0.002, 4, lsq3)
-        conf4 = conf("blur", "", 2, 2, "1 1 1", 0.002, 4, lsq4)
+        #conf4 = conf("blur", "", 2, 2, "1 1 1", 0.002, 4, lsq4)
         
-        conf_list = [ conf1, conf2, conf3, conf4 ]
+        conf_list = [ conf1, conf2, conf3 ]
 
         i=1
         for confi in conf_list:
@@ -654,20 +656,20 @@ def get_workflow(name, infosource, opts):
     workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
     workflow.connect(inputnode, 'header', petMasking, 'in_json')
 
-    node_name="pet2mri_withMask"
-    pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
-    pet2mri_withMask.inputs.clobber = True
-    pet2mri_withMask.inputs.verbose = opts.verbose
-    pet2mri_withMask.inputs.lsq="lsq6"
+    #node_name="pet2mri_withMask"
+    #pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
+    #pet2mri_withMask.inputs.clobber = True
+    #pet2mri_withMask.inputs.verbose = opts.verbose
+    #pet2mri_withMask.inputs.lsq="lsq6"
 
-    if opts.no_mask :
-        node_name="pet2mri"
-        pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
-        pet2mri.inputs.clobber = True
-        pet2mri.inputs.verbose = opts.verbose
-        pet2mri.inputs.lsq="lsq6"
-    else : 
-        pet2mri = pet2mri_withMask
+    #if opts.no_mask :
+    node_name="pet2mri"
+    pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
+    pet2mri.inputs.clobber = True
+    pet2mri.inputs.verbose = opts.verbose
+    pet2mri.inputs.lsq="lsq6"
+    #else : 
+    #    pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
 
     if isdefined(inputnode.inputs.error) : 
@@ -712,16 +714,18 @@ def get_workflow(name, infosource, opts):
         ###Create rotation xfm files based on transform error
         transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
         workflow.connect(inputnode, 'error', transformNode, 'transformation')
+        
+        ### Concatenate pet2mri and misalignment xfm
+        pet2misalign_xfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_xfm")
+        workflow.connect(pet2mri,'out_file_xfm', pet2misalign_xfm, 'in_file')
+        workflow.connect(transformNode,'out_file', pet2misalign_xfm, 'in_file_2')
+
         ###Apply transformation to PET file
         transform_resampleNode=pe.Node(interface=rsl.ResampleCommand(),name="transform_resampleNode")
         transform_resampleNode.inputs.use_input_sampling=True;
         workflow.connect(transformNode, 'out_file', transform_resampleNode, 'transformation')
         workflow.connect(pet2mri, 'out_file_img', transform_resampleNode, 'in_file')
-
-        ### Concatenate pet2mri and misalignment xfm
-        pet2misalign_xfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_xfm")
-        workflow.connect(pet2mri,'out_file_xfm', pet2misalign_xfm, 'in_file')
-        workflow.connect(transformNode,'out_file', pet2misalign_xfm, 'in_file_2')
+        #workflow.connect(pet2misalign_xfm, 'out_file', transform_resampleNode, 'transformation')
 
         ###Rotate brain mask
         transform_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="transform_brainmaskNode" )

@@ -350,12 +350,11 @@ if __name__ == "__main__":
     ### Convert NII to MINC if necessary. # 
     #######################################
     opts.json = nii2mnc_batch(opts.sourceDir)	
-    
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:
         printStages(opts,args)
-    else:
+    else :
         if opts.run_scan_level:
             run_scan_level(opts,args)
             if opts.dashboard:

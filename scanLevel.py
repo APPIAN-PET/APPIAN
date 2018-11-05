@@ -533,7 +533,9 @@ def run_scan_level(opts,args):
     out_img_dim += ['4']
     #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
     # and the number of dimensions of these images       
-    workflow.run(); exit(0)
+    if opts.coregistration_only :
+        workflow.run(); 
+        return(0)
 
     ###########
     # Masking #
@@ -568,6 +570,10 @@ def run_scan_level(opts,args):
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
     if not opts.results_label_img[1] == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
+
+    if opts.masking_only:
+        workflow.run();
+        return(0)
 
     ######################
     # Transform Surfaces #

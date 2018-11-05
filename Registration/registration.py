@@ -128,12 +128,13 @@ class PETtoT1LinRegRunning(BaseInterface):
         s_base = basename(os.path.splitext(source)[0])
         t_base = basename(os.path.splitext(target)[0])
 
+
         if not isdefined(self.inputs.out_file_xfm):
-            self.inputs.out_file_xfm = os.getcwd()+os.sep+s_base+"_TO_"+t_base+"_"+self._suffix+'.xfm'
+            self.inputs.out_file_xfm = os.getcwd()+os.sep+s_base+self._suffix+'.xfm'
         if not isdefined(self.inputs.out_file_xfm_invert):
-            self.inputs.out_file_xfm_invert = os.getcwd()+os.sep+t_base+"_TO_"+s_base+"_"+self._suffix+'.xfm'
+            self.inputs.out_file_xfm_invert = os.getcwd()+os.sep+t_base+self._suffix+'.xfm'
         if not isdefined(self.inputs.out_file_img):
-            self.inputs.out_file_img = os.getcwd()+os.sep+s_base+"_TO_"+t_base+"_"+self._suffix+ '.mnc'
+            self.inputs.out_file_img = os.getcwd()+os.sep+s_base+self._suffix+ '.mnc'
 
         #print("\n\n\n")
         #print( self.inputs.out_file_img )
@@ -210,7 +211,7 @@ class PETtoT1LinRegRunning(BaseInterface):
         #conf3 = conf("blur", "", 4, 4, "2 2 2", 0.002, 4, lsq3)
         
         #conf0 = conf("blur", "-est_translations", 16, 16, "8 8 8", 0.01, 32, lsq0)
-        conf1 = conf("blur", "", 8, 8, "4 4 4", 0.004, 16, lsq1)
+        conf1 = conf("blur", "", 8, 8, "4 4 4", 0.01, 16, lsq1)
         conf2 = conf("blur", "", 4, 4, "4 4 4", 0.004, 8, lsq2)
         conf3 = conf("blur", "", 4, 4, "4 4 4", 0.004, 4, lsq3)
         conf4 = conf("blur", "", 4, 4, "4 4 4", 0.004, 2, lsq4)
@@ -708,7 +709,7 @@ def get_workflow(name, infosource, opts):
     #if opts.no_mask :
         workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
                           (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')]),
-                          (petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
+                          #(petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
                           #(inputnode, pet2mri, [('pet_volume', 'init_file_xfm')])
                           #(pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
                           ]) 

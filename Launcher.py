@@ -176,6 +176,8 @@ if __name__ == "__main__":
     
     file_dir, fn =os.path.split( os.path.abspath(__file__) )
     group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
+    group.add_option("","--masking-only",dest="masking_only",help="Stop scan level processing after masking", action='store_true', default=False)
+    group.add_option("","--coregistration-only",dest="coregistration_only",help="Stop scan level processing after coregistration", action='store_true', default=False)
     parser.add_option_group(group)      
 
     ###################

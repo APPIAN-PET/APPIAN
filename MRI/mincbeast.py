@@ -66,9 +66,6 @@ def mincbeast_library(template, fn=default_lib_address):
                         break
 	return out_dir, template_rsl
 
-
-
-
 class mincbeastOutput(TraitedSpec):
 	out_file = File(argstr="%s",  desc="Brain Mask")
 
@@ -149,3 +146,55 @@ class beast_normalize(CommandLine):
 			self.inputs.out_file_vol, self.inputs.out_file_xfm = self._gen_output(self.inputs.in_file)
 
 		return super(beast_normalize, self)._parse_inputs(skip=skip)
+
+
+class beast_normalize_with_conversion(BaseInterface):
+    input_spec =  beast_normalizeInput
+    output_spec = beast_normalizeOutput
+    
+    def _run_interface(self, runtime):
+        os.mkdir( os.getcwd() + os.sep + 'tmp' )
+        convert = minc.Convert()
+        convert.inputs.input_file = self.inputs.in_file
+        convert.inputs.output_file=os.getcwd()+os.sep+'tmp'+os.sep+ os.path.basename(self.inputs.in_file)
+        print(convert.cmdline)
+        convert.run() 
+        
+        beast = beast_normalize()
+        beast.inputs.out_file_xfm = self.inputs.out_file_xfm
+        beast.inputs.out_file_vol = self.inputs.out_file_vol
+        beast.inputs.in_file = convert.inputs.output_file
+        beast.inputs.modelname = self.inputs.modelname
+        beast.inputs.modeldir = self.inputs.modeldir
+
+        print(beast.cmdline)
+        beast.run()
+
+        shutil.rmtree(os.getcwd()+os.sep+'tmp' )
+        return runtime
+
+    def _gen_output(self, basefile):
+            fname = ntpath.basename(basefile)
+            fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+            dname = os.getcwd() 
+            out_vol=dname+ os.sep+fname_list[0] + "_normalized" + fname_list[1]
+            out_xfm=dname+ os.sep+fname_list[0] + "_normalized" + '.xfm'
+            return [out_vol, out_xfm]
+
+    def _list_outputs(self):
+            if not isdefined(self.inputs.out_file_vol) or not isdefined(self.inputs.out_file_vol):
+                    self.inputs.out_file_vol,self.inputs.out_file_xfm = self._gen_output(self.inputs.in_file)
+            outputs = self.output_spec().get()
+            outputs["out_file_vol"] = self.inputs.out_file_vol
+            outputs["out_file_xfm"] = self.inputs.out_file_xfm
+            return outputs
+
+    def _parse_inputs(self, skip=None):
+            if skip is None:
+                    skip = []
+            if not isdefined(self.inputs.out_file_vol) or not isdefined(self.inputs.out_file_vol):
+                    self.inputs.out_file_vol, self.inputs.out_file_xfm = self._gen_output(self.inputs.in_file)
+
+            return super(beast_normalize, self)._parse_inputs(skip=skip)
+
+

@@ -107,7 +107,7 @@ class PETtoT1LinRegInput(BaseInterfaceInputSpec):
     out_file_xfm_invert = File(position=-2, argstr="%s", desc="inverted transformation matrix")
     out_file_img = File(position=-1, argstr="%s", desc="resampled image")
     lsq =  traits.String(desc="Number of parameters to use for transformation")
-    metric =  traits.String(desc="Metric for coregistration", default="mi")
+    metric =  traits.String(desc="Metric for coregistration", default="mi", use_default=True)
     error =  traits.String(desc="Error level by which to mis-register PET image")
     clobber = traits.Bool(position=-5, argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     run = traits.Bool(position=-4, argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
@@ -183,7 +183,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                     run_calc.run()
 
         class conf:
-            def __init__(self, type_, est, blur_fwhm_target, blur_fwhm_source, steps, tolerance, simplex, lsq):
+            def __init__(self, type_, est, blur_fwhm_target, blur_fwhm_source, steps, tolerance, simplex, lsq, blur_gradient):
                 self.type_=type_
                 self.est=est
                 self.blur_fwhm_target=blur_fwhm_target
@@ -192,6 +192,7 @@ class PETtoT1LinRegRunning(BaseInterface):
                 self.tolerance=tolerance
                 self.simplex=simplex
                 self.lsq=lsq
+		self.blur_gradient=blur_gradient
         
         if isdefined( self.inputs.lsq ) :
             lsq0=self.inputs.lsq    
@@ -210,15 +211,14 @@ class PETtoT1LinRegRunning(BaseInterface):
         #conf2 = conf("blur", "", 6, 6, "4 4 4", 0.004, 6, lsq2)
         #conf3 = conf("blur", "", 4, 4, "2 2 2", 0.002, 4, lsq3)
         
-        #conf0 = conf("blur", "-est_translations", 16, 16, "8 8 8", 0.01, 32, lsq0)
-        conf1 = conf("blur", "", 8, 8, "4 4 4", 0.01, 16, lsq1)
-        conf2 = conf("blur", "", 4, 4, "4 4 4", 0.004, 8, lsq2)
-        conf3 = conf("blur", "", 4, 4, "4 4 4", 0.004, 4, lsq3)
-        conf4 = conf("blur", "", 4, 4, "4 4 4", 0.004, 2, lsq4)
+        conf0 = conf("blur", "-est_translations", 16, 16, "8 8 8", 0.01, 32, lsq0, False)
+        conf1 = conf("blur", "", 8, 8, "4 4 4", 0.004, 16, lsq1, False)
+        conf2 = conf("blur", "", 4, 4, "4 4 4", 0.004, 8, lsq2, False)
+        conf3 = conf("blur", "", 4, 4, "4 4 4", 0.004, 4, lsq3, True)
+        conf4 = conf("blur", "", 2, 2, "2 2 2", 0.004, 2, lsq4, True)
 
-
-        #conf_list = [ conf0, conf1, conf2, conf3, conf4 ]
-        conf_list = [  conf1, conf2, conf3, conf4 ]
+        #conf_list = [ conf0 ] #, conf1, conf2, conf3, conf4 ]
+        conf_list = [  conf0, conf1, conf2, conf3, conf4 ]
 
         i=1
         for confi in conf_list:
@@ -247,7 +247,8 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_smooth.inputs.input_file=target
             run_smooth.inputs.fwhm=confi.blur_fwhm_target
             run_smooth.inputs.output_file_base=tmp_target_blur_base
-            run_smooth.inputs.gradient=True
+            if confi.blur_gradient :
+                run_smooth.inputs.gradient=True
             
             print run_smooth.cmdline
             run_smooth.run()
@@ -256,7 +257,8 @@ class PETtoT1LinRegRunning(BaseInterface):
             run_smooth.inputs.input_file=source
             run_smooth.inputs.fwhm=confi.blur_fwhm_source
             run_smooth.inputs.output_file_base=tmp_source_blur_base
-            run_smooth.inputs.gradient=True
+            if confi.blur_gradient :
+                run_smooth.inputs.gradient=True
             run_smooth.inputs.no_apodize=True
             
             print run_smooth.cmdline
@@ -279,8 +281,7 @@ class PETtoT1LinRegRunning(BaseInterface):
             if self.inputs.in_target_mask:
                 run_tracc.inputs.in_target_mask=self.inputs.in_target_mask
 
-            if self.inputs.verbose:
-                print run_tracc.cmdline
+            print run_tracc.cmdline
             if self.inputs.run:
                 run_tracc.run()
 
@@ -679,6 +680,7 @@ def get_workflow(name, infosource, opts):
     pet2mri.inputs.clobber = True
     pet2mri.inputs.verbose = opts.verbose
     pet2mri.inputs.lsq="lsq6"
+    pet2mri.inputs.metric="mi"
     #else : 
     #pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
@@ -708,7 +710,7 @@ def get_workflow(name, infosource, opts):
 
     #if opts.no_mask :
         workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
-                          (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')]),
+                          (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')])#,
                           #(petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
                           #(inputnode, pet2mri, [('pet_volume', 'init_file_xfm')])
                           #(pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
@@ -719,9 +721,9 @@ def get_workflow(name, infosource, opts):
                       #(inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
                       #]) 
     
-    if opts.coregistration_brain_mask :
+    #if opts.coregistration_brain_mask :
         #workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
-        workflow.connect(inputnode, 't1_brain_mask',  pet2mri, 'in_target_mask')
+        #workflow.connect(inputnode, 't1_brain_mask',  pet2mri, 'in_target_mask')
     
     if opts.test_group_qc :
         ###Create rotation xfm files based on transform error

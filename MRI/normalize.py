@@ -7,7 +7,7 @@ import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import os
-from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize
+from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
@@ -104,7 +104,7 @@ def get_workflow(name, valid_args, opts):
         else :
             #mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
             #mri2template = pe.Node(interface=beast_normalize(), name="minctracc_registration")
-            mri2template = pe.Node(interface=beast_normalize(), name="mri_normalize")
+            mri2template = pe.Node(interface=beast_normalize_with_conversion(), name="mri_normalize")
             #mri2template.inputs.clobber = True
             #mri2template.inputs.verbose = opts.verbose
             template_name = os.path.splitext(os.path.basename(template_rsl))[0]

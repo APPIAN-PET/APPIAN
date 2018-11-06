@@ -533,6 +533,50 @@ class nii2mnc_shCommand(CommandLine):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(nii2mnc_shCommand, self)._parse_inputs(skip=skip)
 
+class nii2mnc2Command(BaseInterface):
+    input_spec =  nii2mnc_shInput
+    output_spec = nii2mnc_shOutput
+
+    def _run_interface(self, runtime):
+        temp_fn="/tmp/temp_"+str( np.random.randint(0,1000000) )+".mnc"
+        convert = nii2mnc_shCommand()
+        convert.inputs.in_file=self.inputs.in_file
+        convert.inputs.out_file=temp_fn
+        print(convert.cmdline)
+        convert.run()
+
+        minc2 = mincconvertCommand()
+        minc2.inputs.in_file=temp_fn
+        minc2.inputs.out_file=self.inputs.out_file
+        minc2.inputs.two=True 
+        print(minc2.cmdline)
+        minc2.run()
+
+        self.inputs.out_file = minc2.inputs.out_file
+        os.remove(temp_fn)
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+    def _gen_output(self, basefile):
+        if self.inputs.truncate_path :
+            fname = ntpath.basename(basefile)
+        else :
+            fname = basefile
+
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + ".mnc"
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        return super(nii2mnc2Command, self)._parse_inputs(skip=skip)
 
 
 ##################

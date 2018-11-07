@@ -9,7 +9,8 @@ from nipype.interfaces.ants.base import ANTSCommandInputSpec
 from nipype.interfaces.ants.segmentation import Atropos
 from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand
 import scipy.io
-
+import os
+from nipype.interfaces.minc import Math
 
 
 class mincAtroposInputSpec(ANTSCommandInputSpec):
@@ -54,57 +55,61 @@ class mincAtroposOutputSpec(TraitedSpec):
     posteriors = OutputMultiPath(File(exist=True))
 
 class mincAtroposCommand(BaseInterface):
-	input_spec =  mincAtroposInputSpec
-	output_spec = mincAtroposOutputSpec
+    input_spec =  mincAtroposInputSpec
+    output_spec = mincAtroposOutputSpec
+        
+    def _run_interface(self, runtime):
+        inputnode = niu.IdentityInterface(fields=['intensity_image', 'mask_image'])
+        inputnode.iterables = ('intensity_image', self.inputs.intensity_images)
 
-	def _run_interface(self, runtime):
-		inputnode = niu.IdentityInterface(fields=['intensity_image', 'mask_image'])
-		inputnode.iterables = ('intensity_image', self.inputs.intensity_images)
-	
-		intensity_nii_list = []
-		for f in self.inputs.intensity_images :
-			intensity_mnc2nii_sh = mnc2nii_shCommand() 
-			intensity_mnc2nii_sh.inputs.in_file = f
-			intensity_mnc2nii_sh.run()
-			intensity_nii_list += [intensity_mnc2nii_sh.inputs.out_file ]
+        intensity_nii_list = []
+        for f in self.inputs.intensity_images :
+            mult = Math()
+            mult.inputs.input_files=[f, self.inputs.mask_image]
+            mult.inputs.output_file=os.getcwd() + os.sep+ os.path.basename(os.path.splitext(f)[0])+"_brain.mnc"
+            mult.inputs.calc_mul=True
+            mult.run()
 
+            intensity_mnc2nii_sh = mnc2nii_shCommand() 
+            intensity_mnc2nii_sh.inputs.in_file = mult.inputs.output_file
+            intensity_mnc2nii_sh.run()
+            intensity_nii_list += [intensity_mnc2nii_sh.inputs.out_file ]
 
-		mask_mnc2nii_sh = mnc2nii_shCommand() 
-		mask_mnc2nii_sh.inputs.truncate_path = True
-		mask_mnc2nii_sh.inputs.in_file = self.inputs.mask_image
-		mask_mnc2nii_sh.run()
+		#mask_mnc2nii_sh = mnc2nii_shCommand() 
+		#mask_mnc2nii_sh.inputs.truncate_path = True
+		#mask_mnc2nii_sh.inputs.in_file = self.inputs.mask_image
+		#mask_mnc2nii_sh.run()
+        seg = Atropos()  
+        seg.inputs.dimension = self.inputs.dimension 
+        seg.inputs.intensity_images =  intensity_nii_list
+        seg.inputs.mask_image = self.inputs.mask_image #mask_mnc2nii_sh.inputs.out_file 
+        seg.inputs.initialization = self.inputs.initialization 
+        seg.inputs.prior_probability_images = self.inputs.prior_probability_images 
+        seg.inputs.number_of_tissue_classes = self.inputs.number_of_tissue_classes
+        seg.inputs.prior_weighting = self.inputs.prior_weighting 
+        seg.inputs.prior_probability_threshold = self.inputs.prior_probability_threshold
+        seg.inputs.likelihood_model = self.inputs.likelihood_model 
+        seg.inputs.mrf_smoothing_factor = self.inputs.mrf_smoothing_factor
+        seg.inputs.mrf_radius = self.inputs.mrf_radius 
+        seg.inputs.icm_use_synchronous_update = self.inputs.icm_use_synchronous_update 
+        seg.inputs.maximum_number_of_icm_terations = self.inputs.maximum_number_of_icm_terations 
+        seg.inputs.convergence_threshold = self.inputs.convergence_threshold 
+        seg.inputs.posterior_formulation = self.inputs.posterior_formulation 
+        seg.inputs.use_random_seed = self.inputs.use_random_seed 
+        seg.inputs.use_mixture_model_proportions = self.inputs.use_mixture_model_proportions
+        seg.inputs.out_classified_image_name = self.inputs.out_classified_image_name 
+        seg.inputs.save_posteriors = self.inputs.save_posteriors 
+        seg.inputs.output_posteriors_name_template = self.inputs.output_posteriors_name_template 
+        seg.run()
 
-		seg = Atropos()  
-		seg.inputs.dimension = self.inputs.dimension 
-		seg.inputs.intensity_images =  intensity_nii_list
-		seg.inputs.mask_image = mask_mnc2nii_sh.inputs.out_file 
-		seg.inputs.initialization = self.inputs.initialization 
-		seg.inputs.prior_probability_images = self.inputs.prior_probability_images 
-		seg.inputs.number_of_tissue_classes = self.inputs.number_of_tissue_classes
-		seg.inputs.prior_weighting = self.inputs.prior_weighting 
-		seg.inputs.prior_probability_threshold = self.inputs.prior_probability_threshold
-		seg.inputs.likelihood_model = self.inputs.likelihood_model 
-		seg.inputs.mrf_smoothing_factor = self.inputs.mrf_smoothing_factor
-		seg.inputs.mrf_radius = self.inputs.mrf_radius 
-		seg.inputs.icm_use_synchronous_update = self.inputs.icm_use_synchronous_update 
-		seg.inputs.maximum_number_of_icm_terations = self.inputs.maximum_number_of_icm_terations 
-		seg.inputs.convergence_threshold = self.inputs.convergence_threshold 
-		seg.inputs.posterior_formulation = self.inputs.posterior_formulation 
-		seg.inputs.use_random_seed = self.inputs.use_random_seed 
-		seg.inputs.use_mixture_model_proportions = self.inputs.use_mixture_model_proportions
-		seg.inputs.out_classified_image_name = self.inputs.out_classified_image_name 
-		seg.inputs.save_posteriors = self.inputs.save_posteriors 
-		seg.inputs.output_posteriors_name_template = self.inputs.output_posteriors_name_template 
-		seg.run()
-		
-		seg.outputs=seg._list_outputs() #seg._outputs()
-		classified_nii2mnc_sh = nii2mnc_shCommand() 
-		classified_nii2mnc_sh.inputs.in_file = seg.outputs["classified_image"]
-		classified_nii2mnc_sh.inputs.truncate_path=True
-		classified_nii2mnc_sh.run()
+        seg.outputs=seg._list_outputs() #seg._outputs()
+        classified_nii2mnc_sh = nii2mnc_shCommand() 
+        classified_nii2mnc_sh.inputs.in_file = seg.outputs["classified_image"]
+        classified_nii2mnc_sh.inputs.truncate_path=True
+        classified_nii2mnc_sh.run()
 
-		self.inputs.classified_image = classified_nii2mnc_sh.inputs.out_file 
-		return(runtime)
+        self.inputs.classified_image = classified_nii2mnc_sh.inputs.out_file 
+        return(runtime)
 
 
 	def _list_outputs(self):

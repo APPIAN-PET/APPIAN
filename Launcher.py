@@ -310,13 +310,13 @@ if __name__ == "__main__":
 
     #Check inputs for PVC masking 
     opts.pvc_label_img = split_label_img(opts.pvc_label_img)
-    opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img)
+    opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_space)
     #Check inputs for TKA masking
     opts.tka_label_img = split_label_img(opts.tka_label_img)
-    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img)
+    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_space)
     #Check inputs for results masking
     opts.results_label_img = split_label_img(opts.results_label_img)
-    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img)
+    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_space)
 
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }

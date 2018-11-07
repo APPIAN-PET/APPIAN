@@ -89,7 +89,7 @@ roi_label["pvc"]={
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 internal_cls_methods=["antsAtropos"]
-def check_masking_options(opts, label_img):
+def check_masking_options(opts, label_img, label_space):
     '''
     Inputs:
         opts            user defined inputs to program using configparser
@@ -108,14 +108,15 @@ def check_masking_options(opts, label_img):
     elif label_img[0] in internal_cls_methods :
     # 2) Internal classification metion
         label_type = 'internal_cls'
+        label_space="stereo"
     elif type(label_img[0]) == str:
     # 3) String that defines user classification
         label_type='user_cls'
     else : 
-        print "Label error: ", label_img, label_space
+        print "Label error: ", label_img
         exit(1)
 
-    return label_type
+    return label_type, label_space
 
 def split_label_img(label_img_str):
     label_img_list = label_img_str.split(',')
@@ -309,13 +310,13 @@ if __name__ == "__main__":
 
     #Check inputs for PVC masking 
     opts.pvc_label_img = split_label_img(opts.pvc_label_img)
-    opts.pvc_label_type= check_masking_options(opts, opts.pvc_label_img)
+    opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img)
     #Check inputs for TKA masking
     opts.tka_label_img = split_label_img(opts.tka_label_img)
-    opts.tka_label_type = check_masking_options(opts, opts.tka_label_img)
+    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img)
     #Check inputs for results masking
     opts.results_label_img = split_label_img(opts.results_label_img)
-    opts.results_label_type = check_masking_options(opts, opts.results_label_img)
+    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img)
 
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }

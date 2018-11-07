@@ -162,9 +162,11 @@ def get_workflow(name, valid_args, opts):
             seg.inputs.dimension=3
             seg.inputs.number_of_tissue_classes=4 #... opts.
             seg.inputs.initialization = 'Otsu'
-            workflow.connect(inputnode, 't1',  seg, 'intensity_images' )
+
+            workflow.connect(t1_mni_node, t1_mni_file,  seg, 'intensity_images' )
             workflow.connect(transform_brain_mask, 'output_file',  seg, 'mask_image' )
             workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
+
     workflow.connect(brain_mask_node, brain_mask_file, outputnode, 'brain_mask_mni')
     workflow.connect(tfm_node, tfm_file, outputnode, 'xfmT1MNI' )
     workflow.connect(transform_brain_mask, 'output_file', outputnode, 'brain_mask_t1')

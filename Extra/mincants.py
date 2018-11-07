@@ -7,7 +7,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.ants.base import ANTSCommandInputSpec
 from nipype.interfaces.ants.segmentation import Atropos
-from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand
+from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand, mnc2niiCommand
 import scipy.io
 import os
 from nipype.interfaces.minc import Math
@@ -75,14 +75,15 @@ class mincAtroposCommand(BaseInterface):
             intensity_mnc2nii_sh.run()
             intensity_nii_list += [intensity_mnc2nii_sh.inputs.out_file ]
 
-		#mask_mnc2nii_sh = mnc2nii_shCommand() 
-		#mask_mnc2nii_sh.inputs.truncate_path = True
-		#mask_mnc2nii_sh.inputs.in_file = self.inputs.mask_image
-		#mask_mnc2nii_sh.run()
+	    mask_mnc2nii_sh = mnc2nii_shCommand() 
+	    mask_mnc2nii_sh.inputs.truncate_path = True
+	    mask_mnc2nii_sh.inputs.in_file = self.inputs.mask_image
+	    mask_mnc2nii_sh.run()
+
         seg = Atropos()  
         seg.inputs.dimension = self.inputs.dimension 
         seg.inputs.intensity_images =  intensity_nii_list
-        seg.inputs.mask_image = self.inputs.mask_image #mask_mnc2nii_sh.inputs.out_file 
+        seg.inputs.mask_image = mask_mnc2nii_sh.inputs.out_file 
         seg.inputs.initialization = self.inputs.initialization 
         seg.inputs.prior_probability_images = self.inputs.prior_probability_images 
         seg.inputs.number_of_tissue_classes = self.inputs.number_of_tissue_classes
@@ -100,6 +101,7 @@ class mincAtroposCommand(BaseInterface):
         seg.inputs.out_classified_image_name = self.inputs.out_classified_image_name 
         seg.inputs.save_posteriors = self.inputs.save_posteriors 
         seg.inputs.output_posteriors_name_template = self.inputs.output_posteriors_name_template 
+        print(seg.cmdline)
         seg.run()
 
         seg.outputs=seg._list_outputs() #seg._outputs()
@@ -112,12 +114,12 @@ class mincAtroposCommand(BaseInterface):
         return(runtime)
 
 
-	def _list_outputs(self):
-		if not isdefined(self.inputs.classified_image):
-			self.inputs.classified_image = reg.inputs.classified_image
-		outputs = self.output_spec().get()
-		outputs["classified_image"] = self.inputs.classified_image
-		return outputs
+    def _list_outputs(self):
+            if not isdefined(self.inputs.classified_image):
+                    self.inputs.classified_image = reg.inputs.classified_image
+            outputs = self.output_spec().get()
+            outputs["classified_image"] = self.inputs.classified_image
+            return outputs
 
 
 
@@ -127,10 +129,6 @@ def _parse_inputs(self, skip=None):
 		if not isdefined(self.inputs.out_file):
 			self.inputs.out_file = self._gen_output(self.inputs.in_file)
 		return super(mincconvertCommand, self)._parse_inputs(skip=skip)
-
-
-
-
 
 class mincANTSOutput(TraitedSpec):
 	forward_transforms = traits.List(

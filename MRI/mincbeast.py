@@ -13,7 +13,7 @@ import re
 import glob
 from numpy.random import choice
 import nipype.interfaces.minc as minc
-
+from Extra.modifHeader import FixCosinesCommand
 global default_lib_address
 default_lib_address="http://packages.bic.mni.mcgill.ca/tgz/beast-library-1.0.tar.gz"
 
@@ -106,6 +106,61 @@ class mincbeastCommand(CommandLine):
 
 		return super(mincbeastCommand, self)._parse_inputs(skip=skip)
 
+class mincbeast(BaseInterface):
+	input_spec =  mincbeastInput
+	output_spec = mincbeastOutput
+
+	out_file = File(argstr="%s",  desc="Brain Mask", position=-1)
+	in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
+	library_dir = File( argstr="%s", position=-3, desc="image to operate on")
+	voxel_size = traits.Int( argstr="-voxel_size %s", position=-4, default=3, use_default=True  )
+	same_resolution = traits.Bool(argstr="-same_resolution", position=-5, default=True, use_default=True )
+	median = traits.Bool(argstr="-median", position=-6, default=True, use_default=True )
+	fill = traits.Bool(argstr="-fill", position=-7, default=True, use_default=True )
+	configuration = File(argstr="-configuration %s", position=-8  )
+
+        def _run_interface(self, runtime) :
+	    if not isdefined(self.inputs.out_file):
+                self.inputs.out_file = self._gen_output(self.inputs.in_file)
+            
+            beast = mincbeastCommand()
+            beast.inputs.out_file = "/tmp/"+os.path.basename(self.inputs.out_file)
+            beast.inputs.in_file = self.inputs.in_file
+            beast.inputs.library_dir = self.inputs.library_dir
+            beast.inputs.voxel_size = self.inputs.voxel_size
+            beast.inputs.same_resolution = self.inputs.same_resolution
+            beast.inputs.median = self.inputs.median
+            beast.inputs.fill = self.inputs.fill
+            beast.inputs.configuration = self.inputs.configuration
+            beast.run()
+
+            resample = FixCosinesCommand()
+            resample.inputs.input_file =  beast.inputs.out_file
+            resample.inputs.output_file = self.inputs.out_file
+            print(resample.cmdline)
+            resample.run()
+            return runtime
+
+	def _gen_output(self, basefile):
+		fname = ntpath.basename(basefile)
+		fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+		dname = os.getcwd() 
+		return dname+ os.sep+fname_list[0] + "_brain_mask" + fname_list[1]
+
+	def _list_outputs(self):
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.in_file)
+		outputs = self.output_spec().get()
+		outputs["out_file"] = self.inputs.out_file
+		return outputs
+
+	def _parse_inputs(self, skip=None):
+		if skip is None:
+			skip = []
+		if not isdefined(self.inputs.out_file):
+			self.inputs.out_file = self._gen_output(self.inputs.in_file)
+
+		return super(mincbeastCommand, self)._parse_inputs(skip=skip)
 
 class beast_normalizeOutput(TraitedSpec):
 	out_file_vol = File(argstr="%s",  desc="Normalized image")
@@ -170,7 +225,7 @@ class beast_normalize_with_conversion(BaseInterface):
         print(beast.cmdline)
         beast.run()
 
-        shutil.rmtree(os.getcwd()+os.sep+'tmp' )
+        #shutil.rmtree(os.getcwd()+os.sep+'tmp' )
         return runtime
 
     def _gen_output(self, basefile):

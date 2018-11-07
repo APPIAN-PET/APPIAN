@@ -430,14 +430,7 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
-    ###################
-    # PET prelimaries #
-    ###################
-    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
-    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
-    if opts.json :
-        workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
-    
+
     #####################
     # MRI Preprocessing # 
     #####################
@@ -468,6 +461,14 @@ def run_scan_level(opts,args):
         #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
     workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
+    
+    ###################
+    # PET prelimaries #
+    ###################
+    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
+    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+    if opts.json :
+        workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
     
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
@@ -590,7 +591,7 @@ def run_scan_level(opts,args):
     #############################
     # Partial-volume correction #
     #############################
-    if not opts.nopvc :
+    if opts.pvc_method != None :
         pvc_wf = pvc.get_pvc_workflow("pvc", infosource, opts) 
         workflow.connect(pet_input_node, pet_input_file, pvc_wf, "inputnode.in_file") #CHANGE
         workflow.connect(wf_masking, "pvcLabels.out_file", pvc_wf, "inputnode.mask_file") #CHANGE
@@ -684,7 +685,7 @@ def run_scan_level(opts,args):
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')
 
-        if not opts.nopvc:
+        if  opts.pvc_method != None :
             #Automated QC: PVC 
             pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
             pvc_qc_metricsNode.inputs.fwhm = list(opts.scanner_fwhm)

@@ -128,8 +128,8 @@ if __name__ == "__main__":
     usage = "usage: "
     parser = OptionParser(usage=usage,version=version)
     group= OptionGroup(parser,"File options (mandatory)")
-    group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Input file directory")
-    group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Directory where output data will be saved in")
+    group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory")
+    group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Absolute path for directory where output data will be saved in")
 
     group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     ###############
     group= OptionGroup(parser,"PVC Options")
     group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
-    group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default="GTM")
+    group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default=None)
     group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
     group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', nargs=3, default=None)
     group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
@@ -330,20 +330,21 @@ if __name__ == "__main__":
     if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
     
     ###Check PVC options and set defaults if necessary
-    if opts.pvc_method != None and opts.scanner_fwhm == None and opts.pet_scanner == None:
-        print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
-        print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
-        print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
-        exit(1)
-    
-    if not opts.pet_scanner == None:
-        if opts.pet_scanner in pet_scanners.keys():
-            opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
-        else:
-            print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
-            print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
-            print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <float>\" option."
+    if opts.pvc_method != None : 
+        if  opts.scanner_fwhm == None and opts.pet_scanner == None :
+            print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
+            print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
+            print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
             exit(1)
+       
+            if not opts.pet_scanner == None:
+                if opts.pet_scanner in pet_scanners.keys():
+                    opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
+                else:
+                    print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
+                    print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
+                    print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
+                    exit(1)
 
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)

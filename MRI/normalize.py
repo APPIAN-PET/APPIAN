@@ -7,7 +7,7 @@ import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import os
-from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion
+from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion, mincbeast
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
@@ -21,7 +21,7 @@ def get_workflow(name, valid_args, opts):
     if opts.user_t1mni :
         in_fields += ['xfmT1MNI']
 
-    print(in_fields)
+    print("In Fields:", in_fields)
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
     label_imgs= [opts.tka_label_img[0], opts.results_label_img[0], opts.pvc_label_img[0] ]
@@ -51,7 +51,6 @@ def get_workflow(name, valid_args, opts):
     #else :
     #    template_brain_mask = inputnode
     #    brain_mask_file = "brain_mask_mni"
-
     if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
             mri2template = pe.Node(interface=mincANTSCommand(args='--float',
@@ -132,9 +131,10 @@ def get_workflow(name, valid_args, opts):
         tfm_node = inputnode
         tfm_file = 'xfmT1MNI'
 
+
     if not opts.user_brainmask :
         #Brain Mask MNI-Space
-        t1MNI_brain_mask = pe.Node(interface=mincbeastCommand(), name="t1_mni_brain_mask")
+        t1MNI_brain_mask = pe.Node(interface=mincbeast(), name="t1_mni_brain_mask")
         t1MNI_brain_mask.inputs.library_dir  = library_dir
         t1MNI_brain_mask.inputs.configuration = t1MNI_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
         t1MNI_brain_mask.inputs.same_resolution = True
@@ -142,6 +142,7 @@ def get_workflow(name, valid_args, opts):
         t1MNI_brain_mask.inputs.fill = True
 
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )
+
         brain_mask_node = t1MNI_brain_mask
         brain_mask_file = 'out_file'
     else :			
@@ -155,23 +156,26 @@ def get_workflow(name, valid_args, opts):
     workflow.connect(inputnode, 't1', transform_brain_mask, 'like')
     workflow.connect(tfm_node, tfm_file, transform_brain_mask, 'transformation')
 
+    seg=None
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
-        if 'antsAtropos' == img :
-            seg = pe.Node(interface=mincAtroposCommand(), name=stage+"_segmentation_ants")
+        if 'antsAtropos' == img and seg == None :
+            seg = pe.Node(interface=mincAtroposCommand(), name="segmentation_ants")
             seg.inputs.dimension=3
-            seg.inputs.number_of_tissue_classes=4 #... opts.
+            seg.inputs.number_of_tissue_classes=3 #... opts.
             seg.inputs.initialization = 'Otsu'
-
+            
             workflow.connect(t1_mni_node, t1_mni_file,  seg, 'intensity_images' )
             #workflow.connect(inputnode,'t1' ,  seg, 'intensity_images' )
             #workflow.connect(transform_brain_mask, 'output_file',  seg, 'mask_image' )
             workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
-            workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
-
+           
+        if 'antsAtropos' == img :
+           workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
+            
     workflow.connect(brain_mask_node, brain_mask_file, outputnode, 'brain_mask_mni')
     workflow.connect(tfm_node, tfm_file, outputnode, 'xfmT1MNI' )
     workflow.connect(transform_brain_mask, 'output_file', outputnode, 'brain_mask_t1')
-    workflow.connect(t1_mni_node, t1_mni_file, outputnode, 't2_mni')
+    workflow.connect(t1_mni_node, t1_mni_file, outputnode, 't1_mni')
     return(workflow)
 
 

@@ -34,6 +34,28 @@ class ModifyHeaderCommand(CommandLine):
         outputs["out_file"] = self.inputs.in_file
         return outputs
 
+class FixCosinesOutput(TraitedSpec):
+    output_file = File(desc="Image with fixed cosines")
+
+#class FixHeaderInput(ModifyHeaderInput):
+class FixCosinesInput(CommandLineInputSpec):
+    output_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
+    input_file = File(argstr="%s", position=-2, desc="Image")
+    dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1", use_default=True, default=True)
+#class FixHeaderCommand(ModifyHeaderCommand):
+class FixCosinesCommand(CommandLine):
+    input_spec = FixCosinesInput
+    output_spec = FixCosinesOutput
+    _cmd = "mincresample"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.output_file) :
+            self.inputs.output_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
+        outputs["output_file"] = self.inputs.output_file
+        return outputs
+
+
 
 class FixHeaderOutput(TraitedSpec):
     output_file = File(desc="Image after centering")

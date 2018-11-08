@@ -1,18 +1,57 @@
 # APPIAN User Guide
 
 # Table of Contents
-1. [Overview](#overview) \
-	1.1 [Base Options](#options) \
-	1.2 [MRI Preprocessing](#mri) \
-	1.3 [Coregistration](#coregistration) \
-	1.4 [Masking](#masking) \
-	1.5 [Partial-Volume Correction](#pvc) \
-	1.6 [Reporting of Results](#results) \
-	1.7 [Quality Control](#qc)
-2. [File Formats](#fileformat)
-3. [Useage](#useage)
-4. [Examples](#example)
+1. [Quick Start](#quickstart)\
+2. [Overview](#overview) \
+	2.1 [Base Options](#options) \
+	2.2 [MRI Preprocessing](#mri) \
+	2.3 [Coregistration](#coregistration) \
+	2.4 [Masking](#masking) \
+	2.5 [Partial-Volume Correction](#pvc) \
+	2.6 [Reporting of Results](#results) \
+	2.7 [Quality Control](#qc)
+3. [File Formats](#fileformat)
+4. [Useage](#useage)
+5. [Examples](#example)
 
+
+## Quick Start
+
+### Download Cimbi Open Data  <a name="quickstart"></a>
+Download the data from the following source: https://openneuro.org/datasets/ds001421/versions/00002.
+
+
+### Format data
+The data may need to be reformatted slightly to have the following structure. Note that the data are saved a directory called "cimbi".
+
+	cimbi/
+		sub-01/
+			_ses-01/
+				anat/
+					sub-01_ses-01_T1w.json  
+					sub-01_ses-01_T1w.nii
+				pet/
+					sub-01_ses-01_pet.json  
+					sub-01_ses-01_pet.nii.gz
+			_ses-02/
+				anat/
+					sub-01_ses-02_T1w.json  
+					sub-01_ses-02_T1w.nii
+				pet/
+					sub-01_ses-02_pet.json 
+					sub-01_ses-02_pet.nii.gz
+
+### Run Examples
+You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. 
+
+#### Minimal Inputs
+	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  --sessions 01  01";
+
+#### PVC
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi --sessions 01  01";
+
+#### PVC + Quantification
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  --sessions 01  01";
 
 ## Pipeline Overview  <a name="overview"></a>
 

@@ -454,8 +454,9 @@ class PETexcludeFrRunning(BaseInterface):
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
-        try: 
-            nFrames = infile.sizes[infile.dimnames.index("time")]
+        nFrames = infile.sizes[infile.dimnames.index("time")]
+
+        if nFrames > 5 :
             first=int(ceil(float(nFrames*rank)/100))
             last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
             count=last-first
@@ -467,7 +468,7 @@ class PETexcludeFrRunning(BaseInterface):
                 print run_mincreshape.cmdline
             if self.inputs.run:
                 run_mincreshape.run()
-        except ValueError : 
+        else : 
             self.inputs.out_file = self.inputs.in_file 
 
         return runtime

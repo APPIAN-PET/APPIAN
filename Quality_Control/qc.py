@@ -355,6 +355,7 @@ def fse(masked_pet_data, masked_mri_data):
 def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
     #return joint probability for pair of pet and mri value
     n=len(masked_pet_data)
+    print(pet_nbins, mri_nbins)
     h=np.histogram2d(masked_pet_data, masked_mri_data, [pet_nbins, mri_nbins])
     #print h
     nbins = h[0].shape[0] * h[0].shape[1]
@@ -376,10 +377,13 @@ def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
     return [p, pet_bin, mri_bin]
 
 def find_nbins(array):
-    r=float(max(array)) - min(array)
-    
-    n=ceil(-np.log2(16/r))
-    return n
+    #r=float(max(array)) - min(array)
+    #n=ceil(-np.log2(16/r))
+    #n=len(array)
+    #iqr=np.diff(np.percentile(array, (25,75)))[0]
+    #x = ceil(2 * iqr / (n**(1/3)))
+    #x=3.5*np.std(array)/ (n**(1/3))
+    return 100
 
 ####################
 # Outlier Measures #

@@ -1,7 +1,7 @@
 # APPIAN User Guide
 
 # Table of Contents
-1. [Quick Start](#quickstart) \
+1. [Quick Start](#quickstart)
 2. [Overview](#overview) \
 	2.1 [Base Options](#options) \
 	2.2 [MRI Preprocessing](#mri) \

@@ -5,7 +5,8 @@ import sys
 import argparse
 import pyminc.volumes.factory as pyminc
 import numpy as np
-
+from glob import glob
+from re import sub
 from Extra.nii2mnc_batch import nii2mnc_batch
 
 from optparse import OptionParser
@@ -153,6 +154,7 @@ if __name__ == "__main__":
     group.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
     group.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
     group.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
+    group.add_option("--beast-library-dir", dest="beast_library_dir",type='string',help="Directory to Beast library",default="/opt/beast-library-1.0")
     parser.add_option_group(group)      
 
     ###################
@@ -180,6 +182,7 @@ if __name__ == "__main__":
     group.add_option("","--masking-only",dest="masking_only",help="Stop scan level processing after masking", action='store_true', default=False)
     group.add_option("","--coregistration-only",dest="coregistration_only",help="Stop scan level processing after coregistration", action='store_true', default=False)
     parser.add_option_group(group)      
+
 
     ###################
     # Masking options #
@@ -290,8 +293,19 @@ if __name__ == "__main__":
     parser.add_option_group(group)
 
     (opts, args) = parser.parse_args()
-
+    
+    if args == [] :
+        args = [ sub('sub-', '',os.path.basename(f)) for f in glob(opts.sourceDir+os.sep+"sub-*") ]
+        print("Warning : No subject arguments passed. Will run all subjects found in source directory "+ opts.sourceDir)
+        print("Subjects:", ' '.join( args))
+    
+    if opts.sessionList == None :
+        opts.sessionList = [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ]
+        print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
+        print("Sessions:", ' '.join( opts.sessionList))
+    
     opts.extension='mnc'
+
 
 ##########################################################
 # Check inputs to make sure there are no inconsistencies #

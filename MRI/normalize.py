@@ -7,7 +7,7 @@ import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import os
-from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion, mincbeast
+from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion, mincbeast, create_alt_template
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
@@ -38,7 +38,13 @@ def get_workflow(name, valid_args, opts):
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
     if not opts.user_brainmask : 
-        library_dir, template_rsl = mincbeast_library(opts.template)
+        if opts.beast_library_dir == None :
+            library_dir = mincbeast_library(opts.template)
+        else :
+            library_dir = opts.beast_library_dir
+        
+        template_rsl = create_alt_template(opts.template, library_dir)
+
     #if not opts.user_brainmask : 
     #    #Template Brain Mask
     #    template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")

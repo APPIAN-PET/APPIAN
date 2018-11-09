@@ -27,8 +27,7 @@ def utar(fn) :
 		tar.extractall()
 		tar.close()
 
-def mincbeast_library(template, fn=default_lib_address):
-        print(default_lib_address)
+def mincbeast_library(fn=default_lib_address):
 	base_fn=os.path.basename(fn)
 	file_dir=os.path.dirname(__file__)
 	base_dir = re.sub('.tar', '', base_fn)
@@ -36,35 +35,38 @@ def mincbeast_library(template, fn=default_lib_address):
 	base_dir = base_dir
 	out_dir = file_dir+os.sep+base_dir
         
-        template_rsl=os.path.splitext(template)[0] + '_rsl.mnc'
-        
-        mask=os.path.splitext(template)[0] + '_mask.mnc'
-        mask_rsl_fn=os.path.splitext(template)[0] + '_rsl_mask.mnc'
-
 	if not os.path.exists(out_dir) : 
 		wget.download(fn)
 		utar(base_fn)
 		shutil.move(base_dir, out_dir)
 		os.remove(base_fn)
-                for f in glob.glob(out_dir + os.sep + "*mnc" ) : 
-			rsl = minc.Resample()	
-	    		rsl.inputs.input_file=template
-			rsl.inputs.output_file=template_rsl
-			rsl.inputs.like=f
-			print rsl.cmdline
-			rsl.run()
+	return out_dir
+
+def create_alt_template(template, beast_dir, clobber=False) :
+    template_rsl=os.path.splitext(template)[0] + '_rsl.mnc'
+    mask=os.path.splitext(template)[0] + '_mask.mnc'
+    mask_rsl_fn=os.path.splitext(template)[0] + '_rsl_mask.mnc'
+    
+    for f in glob.glob(beast_dir + os.sep + "*mnc" ) : 
+        if not os.path.exists(template_rsl) or clobber :
+            rsl = minc.Resample()	
+            rsl.inputs.input_file=template
+            rsl.inputs.output_file=template_rsl
+            rsl.inputs.like=f
+            print rsl.cmdline
+            rsl.run()
 			
-                        mask_rsl = minc.Resample()	
-	    		mask_rsl.inputs.input_file=mask
-			mask_rsl.inputs.output_file=mask_rsl_fn
-			mask_rsl.inputs.like=f
-                        mask_rsl.run()
-                        print(mask_rsl.cmdline)
-                        #print tmp_fn, rsl.inputs.output_file
-			#shutil.copy( tmp_fn, f)
-			#shutil.move( tmp_fn, rsl.inputs.output_file)
-                        break
-	return out_dir, template_rsl
+        if not os.path.exists(mask_rsl_fn) or clobber :
+            mask_rsl = minc.Resample()	
+            mask_rsl.inputs.input_file=mask
+            mask_rsl.inputs.output_file=mask_rsl_fn
+            mask_rsl.inputs.like=f
+            mask_rsl.run()
+            print(mask_rsl.cmdline)
+            break
+    return template_rsl
+
+
 
 class mincbeastOutput(TraitedSpec):
 	out_file = File(argstr="%s",  desc="Brain Mask")

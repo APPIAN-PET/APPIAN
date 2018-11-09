@@ -606,7 +606,7 @@ def run_scan_level(opts,args):
     # Tracer kinetic analysis #
     ###########################
     if not opts.tka_method == None:
-        if not opts.nopvc: 
+        if opts.pvc_method != None : 
             tka_target_wf = pvc_wf
             tka_target_img='outputnode.out_file'
         else : 

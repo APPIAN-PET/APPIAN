@@ -45,6 +45,7 @@ The data may need to be reformatted slightly to have the following structure. No
 You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. 
 
 #### Minimal Inputs
+##### Default: Coregistration + MRI Preprocessing + Results Report
 	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi ";
 
 #### PVC

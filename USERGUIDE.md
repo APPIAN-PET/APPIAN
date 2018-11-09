@@ -45,13 +45,13 @@ The data may need to be reformatted slightly to have the following structure. No
 You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. 
 
 #### Minimal Inputs
-	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  --sessions 01  01";
+	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi ";
 
 #### PVC
 	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi --sessions 01  01";
 
 #### PVC + Quantification
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  --sessions 01  01";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  ";
 
 ## Pipeline Overview  <a name="overview"></a>
 
@@ -63,12 +63,13 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
                         Input file directory
     -t TARGETDIR, --target=TARGETDIR, --targetdir=TARGETDIR
                         Directory where output data will be saved in
+
+
+#### File options (Optional):
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
     --sessions=SESSIONLIST comma-separated list of sessions
-
-#### File options (Optional):
     --tasks=TASKLIST    comma-separated list of conditions or scans
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
@@ -350,7 +351,7 @@ APPIAN is a Python program (Python 2.7 to be specific) that is launched using a 
 
 python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
 
-When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
+The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all of the subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
 
 python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
 Running APPIAN with Docker

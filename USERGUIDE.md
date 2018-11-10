@@ -18,11 +18,35 @@
 ## Quick Start
 
 ### Download Cimbi Open Data  <a name="quickstart"></a>
-Download the data from the following source: https://openneuro.org/datasets/ds001421/versions/00002.
+Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or using the AWS CLI:
 
+apt install awscli
+aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
 
 ### Format data
 The data may need to be reformatted slightly to have the following structure. Note that the data are saved a directory called "cimbi".
+As of version 00002 of the Cimbi data set, you can fix it using the following commands: 
+find cimbi-test/ -name "*{nii,json}*" -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2' \;
+The .json header need to be corrected by removing the "," at the end of the following lines
+
+Line 10: 
+
+	"Name": ["[C-11]SB"], -->  "Name": ["[C-11]SB"]
+
+Line 26: 
+	
+	"EffectiveResolutionAxial": [1.218750e-01], --> "EffectiveResolutionAxial": [1.218750e-01]
+
+Line 33: 
+	
+	"Values": [16, 10], --> "Values": [16, 10]
+
+
+A comma needs to be added to line 27,
+
+	Line 27: }, --> }
+
+
 
 	cimbi/
 		sub-01/

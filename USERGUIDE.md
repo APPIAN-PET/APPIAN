@@ -24,10 +24,12 @@ apt install awscli
 aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
 
 ### Format data
-The data may need to be reformatted slightly to have the following structure. Note that the data are saved a directory called "cimbi".
+The data may need to be reformatted slightly to have the following structure. 
 As of version 00002 of the Cimbi data set, you can fix it using the following commands: 
-find cimbi-test/ -name "*{nii,json}*" -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2' \;
-The .json header need to be corrected by removing the "," at the end of the following lines
+
+	find cimbi-test/ -name "*{nii,json}*" -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2' \;
+
+The .json headers also need to be corrected by removing the "," at the end of the following lines
 
 Line 10: 
 

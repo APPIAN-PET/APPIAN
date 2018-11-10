@@ -47,7 +47,7 @@ A comma needs to be added to line 27,
 	Line 27: }, --> }
 
 
-
+Here is the file structure that you should end up with:
 	cimbi/
 		sub-01/
 			_ses-01/

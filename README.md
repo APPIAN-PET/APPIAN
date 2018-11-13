@@ -9,11 +9,7 @@ Table of Contents
 
 [Publications](#publications)
 
-[Getting Help](#help)
-
-Please post any questions, concerns, comments, suggestions, etc. on our google groups.
-
-https://groups.google.com/forum/#!forum/appian-pet
+[Getting Help](#gettinghelp)
 
 [About us](#about-us)
 
@@ -51,6 +47,12 @@ Users seeking more information can check the [user guide][link_user_guide].
 1. Funck, T., Larcher K., Toussaint, P.J., Evans, A.C., Thiel, A. (2018). APPIAN: Automated Pipeline for PET Image Analysis. Frontiers in Neuroinformatics. 12, 64.  https://doi.org/10.3389/fninf.2018.00064 
 
 2. APPIAN automated QC paper (coming soon)
+
+## Getting help
+
+If you get stuck or don't know how to get started please post on our google groups. We would be delighted to help in whatever way we can.
+
+https://groups.google.com/forum/#!forum/appian-pet
 
 ## About us
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\

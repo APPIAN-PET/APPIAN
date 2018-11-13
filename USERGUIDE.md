@@ -2,17 +2,19 @@
 
 # Table of Contents
 1. [Quick Start](#quickstart)
-2. [Overview](#overview) \
-	2.1 [Base Options](#options) \
-	2.2 [MRI Preprocessing](#mri) \
-	2.3 [Coregistration](#coregistration) \
-	2.4 [Masking](#masking) \
-	2.5 [Partial-Volume Correction](#pvc) \
-	2.6 [Reporting of Results](#results) \
-	2.7 [Quality Control](#qc)
-3. [File Formats](#fileformat)
+2. [File Formats](#fileformat)
 4. [Useage](#useage)
 5. [Examples](#example)
+3. [Overview](#overview) \
+	5.1 [Base Options](#options) \
+	5.2 [MRI Preprocessing](#mri) \
+	5.3 [Coregistration](#coregistration) \
+	5.4 [Masking](#masking) \
+	5.5 [Partial-Volume Correction](#pvc) \
+	5.6 [Reporting of Results](#results) \
+	5.7 [Quality Control](#qc)
+
+
 
 
 ## Quick Start
@@ -73,6 +75,119 @@ You can run the following examples to see some of the basic functionality of APP
 #### Minimal Inputs
 ##### Default: Coregistration + MRI Preprocessing + Results Report
 	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi ";
+
+
+
+## File Formats  <a name="fileformat"></a>
+APPIAN uses the BIDS file format specification for PET:
+
+### Example of file organization for PET and T1 
+    sub-01/
+       _ses-01/
+          pet/
+             sub-01_ses-01_task-01_pet.nii
+	     	sub-01_ses-01_task-01_pet.json
+             sub-01_ses-01_task-02_pet.nii
+	     	sub-01_ses-01_task-02_pet.json
+             ...
+          anat/ 
+              sub-01_ses-01_pet.nii
+      _ses-02/
+               ...
+
+    sub-02/
+       _ses-01/
+          pet/
+             sub-02_ses-01_task-01_pet.nii
+	     	sub-02_ses-01_task-01_pet.json
+             sub-02_ses-01_task-02_pet.nii
+	     	sub-02_ses-01_task-02_pet.json
+             ...
+          anat/ 
+             sub-02_ses-01_pet.nii
+        _ses-02/
+             ...
+
+
+### Required
+#### PET (native PET space)
+sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
+
+#### T1w (native T1 space) :
+'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
+
+### Optional
+#### Linear Transform from T1 native to stereotaxic: 
+'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
+
+#### Brain mask (stereotaxic space): 
+sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
+
+#### T1 Segmentation: 
+sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
+
+Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
+
+## Usage <a name="useage"></a>
+
+### Launching APPIAN
+APPIAN is a Python program (Python 2.7 to be specific) that is launched using a command of the form:
+
+python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
+
+The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all of the subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
+
+python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
+Running APPIAN with Docker
+APPIAN is run in a Docker container. To launch a container based on an image is to run:
+
+Docker run -it <name of image>:<image tag>
+
+or in our case:
+
+docker run -it tffunck/appian:latest
+
+Here the “-it” flag means that the container is launched in interactive mode. That is, you will be dropped into a bash shell within the filesystem and will be able to do most of the typical bash/unix stuff you normally do. You can also run the container non-interactively by dropping the “-it” flag and adding a bash command at the end of the line, as follows:
+
+docker run <name of image>:<image tag> <your bash command>
+
+or in our case:
+
+docker run tffunck/appian:latest ls /opt
+bin
+doc
+etc
+...
+
+APPIAN is intended to be flexible and applicable in a wide variety of situations, however this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
+
+python2.7 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
+
+
+By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say you data is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
+
+docker run -it -v /path/to/your/data:/path/to/your/data  tffunck/appian:latest
+
+As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “docker run” command. Assuming that you put your “run.sh” script into the same directory as your data, “/path/to/your/data”, then you would run something like the following commands:
+
+docker run -it -v /path/to/your/data:/path/to/your/data tffunck/appian:latest
+\#You are now in the docker container
+cd /path/to/your/data 
+./run.sh
+
+Alternatively, you can also run the pipeline through a non-interatctive docker container, like so:
+
+docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/your/data/run.sh
+
+Either method will give you the same results, it’s up to you and what you find more convenient. 
+
+## Example use cases  <a name="example"></a>
+
+### FDG
+FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (--tka-method "pp") is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: --LC) and concentration of native substrate in arterial plasma (flag: --Ca). The Turku Pet Centre has a useful description here with standard values for LC. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
+   
+Example:
+--tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
 
 #### PVC
 	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi --sessions 01  01";
@@ -348,86 +463,3 @@ Quantitative quality control functions by calculating a metric that attempts to 
     --no-group-qc       Don't perform quantitative group-wise quality control.
     --test-group-qc     Perform simulations to test quantitative group-wise
                         quality control.
-
-## File Formats  <a name="fileformat"></a>
-APPIAN uses the BIDS file format specification for PET:
-
-### Required
-#### PET (native PET space)
-sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
-
-#### T1w (native T1 space) :
-'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
-
-### Optional
-#### Linear Transform from T1 native to stereotaxic: 
-'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
-
-#### Brain mask (stereotaxic space): 
-sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
-
-#### T1 Segmentation: 
-sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
-
-Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
-
-## Usage <a name="useage"></a>
-
-### Launching APPIAN
-APPIAN is a Python program (Python 2.7 to be specific) that is launched using a command of the form:
-
-python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
-
-The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all of the subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
-
-python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
-Running APPIAN with Docker
-APPIAN is run in a Docker container. To launch a container based on an image is to run:
-
-Docker run -it <name of image>:<image tag>
-
-or in our case:
-
-docker run -it tffunck/appian:latest
-
-Here the “-it” flag means that the container is launched in interactive mode. That is, you will be dropped into a bash shell within the filesystem and will be able to do most of the typical bash/unix stuff you normally do. You can also run the container non-interactively by dropping the “-it” flag and adding a bash command at the end of the line, as follows:
-
-docker run <name of image>:<image tag> <your bash command>
-
-or in our case:
-
-docker run tffunck/appian:latest ls /opt
-bin
-doc
-etc
-...
-
-APPIAN is intended to be flexible and applicable in a wide variety of situations, however this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
-
-python2.7 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
-
-
-By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say you data is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
-
-docker run -it -v /path/to/your/data:/path/to/your/data  tffunck/appian:latest
-
-As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “docker run” command. Assuming that you put your “run.sh” script into the same directory as your data, “/path/to/your/data”, then you would run something like the following commands:
-
-docker run -it -v /path/to/your/data:/path/to/your/data tffunck/appian:latest
-\#You are now in the docker container
-cd /path/to/your/data 
-./run.sh
-
-Alternatively, you can also run the pipeline through a non-interatctive docker container, like so:
-
-docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/your/data/run.sh
-
-Either method will give you the same results, it’s up to you and what you find more convenient. 
-
-## Example use cases  <a name="example"></a>
-
-### FDG
-FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (--tka-method "pp") is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: --LC) and concentration of native substrate in arterial plasma (flag: --Ca). The Turku Pet Centre has a useful description here with standard values for LC. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
-   
-Example:
---tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1

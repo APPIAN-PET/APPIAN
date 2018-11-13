@@ -9,6 +9,12 @@ Table of Contents
 
 [Publications](#publications)
 
+[Getting Help](#help)
+
+Please post any questions, concerns, comments, suggestions, etc. on our google groups.
+
+https://groups.google.com/forum/#!forum/appian-pet
+
 [About us](#about-us)
 
 [Terms and Conditions](#terms-and-conditions)

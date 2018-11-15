@@ -50,8 +50,8 @@ def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
     if task_list != ['']: 
         pet_str = pet_str + '_task-%s'
         t1_str = t1_str + '_task-%s'
-        pet_list += task_list
-        t1_list += task_list
+        pet_list += ['task'] #task_list
+        t1_list += ['task'] # task_list
     if acq != '' :
         pet_str = pet_str + '_acq-%s'
         pet_list += ['acq']  

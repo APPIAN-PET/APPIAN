@@ -8,7 +8,7 @@ import numpy as np
 from glob import glob
 from re import sub
 from Extra.nii2mnc_batch import nii2mnc_batch
-
+import re
 from optparse import OptionParser
 from optparse import OptionGroup
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
     group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
-    group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list,default='')
+    group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
     parser.add_option_group(group)      
 
     ###############
@@ -303,7 +303,23 @@ if __name__ == "__main__":
         opts.sessionList = [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ]
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
-    
+   
+    if opts.taskList == None :
+        #func = lambda x : 
+        for f in glob(opts.sourceDir+os.sep+"**/**/pet/*task-*") :
+            g=os.path.splitext(os.path.basename(f))[0]
+            task_list = [ i  for i in   g.split('_') if 'task-' in i ]
+            if task_list == [] : continue
+
+            if opts.taskList == None : opts.taskList = []
+            task = re.sub('task-', '', task_list[0])
+            opts.taskList.append(task)
+        if opts.taskList != None : 
+            opts.taskList = np.unique(opts.taskList)
+        print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
+        print("Task:", ' '.join( opts.taskList))
+    print(opts.taskList)
+    #exit(0) 
     opts.extension='mnc'
 
 

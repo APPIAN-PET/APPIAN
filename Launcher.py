@@ -293,19 +293,26 @@ if __name__ == "__main__":
     parser.add_option_group(group)
 
     (opts, args) = parser.parse_args()
-    
+   
+   
+    ############################
+    #Automatically set sessions#
+    ############################ 
     if args == [] :
         args = [ sub('sub-', '',os.path.basename(f)) for f in glob(opts.sourceDir+os.sep+"sub-*") ]
         print("Warning : No subject arguments passed. Will run all subjects found in source directory "+ opts.sourceDir)
         print("Subjects:", ' '.join( args))
     
     if opts.sessionList == None :
-        opts.sessionList = [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ]
+        opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
+        
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
-   
+    
+    #########################
+    #Automatically set tasks#
+    #########################
     if opts.taskList == None :
-        #func = lambda x : 
         for f in glob(opts.sourceDir+os.sep+"**/**/pet/*task-*") :
             g=os.path.splitext(os.path.basename(f))[0]
             task_list = [ i  for i in   g.split('_') if 'task-' in i ]
@@ -314,12 +321,15 @@ if __name__ == "__main__":
             if opts.taskList == None : opts.taskList = []
             task = re.sub('task-', '', task_list[0])
             opts.taskList.append(task)
+
         if opts.taskList != None : 
             opts.taskList = np.unique(opts.taskList)
+        else : 
+            opts.taskList =['']
+        
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
-    print(opts.taskList)
-    #exit(0) 
+
     opts.extension='mnc'
 
 

@@ -555,7 +555,6 @@ class nii2mnc2Command(BaseInterface):
         self.inputs.out_file = minc2.inputs.out_file
         os.remove(temp_fn)
         return runtime
-
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file

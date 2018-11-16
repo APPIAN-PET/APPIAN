@@ -154,14 +154,29 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     return d
     
 
-def unique_file(files, attributes):
+def unique_file(files, attributes, verbose=False):
     
     if len(files) == 1: 
         return(files[0])
-   
-    out_files = [ f for a in attributes for f in files if a in f ]
+
+    out_files=[] 
+    for f in files :
+        skip=False
+        for a in attributes :
+            if not a in f : 
+                skip=True
+                break
+        if verbose : print(f,'skip file=', skip)
+        if not skip : 
+           out_files.append(f)
 
     if attributes == [] or len(out_files) == 0 : return []
+     
+    if len(out_files) > 1 :
+        print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
+        print("You can used --acq and --rec to specify the acquisition and receptor")
+        print(out_files)
+        exit(1)
 
     return( out_files[0] ) 
 

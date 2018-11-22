@@ -117,6 +117,9 @@ APPIAN uses the BIDS file format specification for PET:
 #### PET (native PET space)
 sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
 
+#### PET Header
+sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.json
+
 #### T1w (native T1 space) :
 'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
 
@@ -132,6 +135,29 @@ sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<s
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
+### Example of minimal JSON header :
+
+```python
+  {
+    	"Info": {
+    		"Tomograph": ["HRRT"],
+    		"Tracer": {
+      			"Isotope": ["C-11"]
+      		}
+     	}
+	#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
+	#Otherwise you can specify it using "acquisition":"radionuclide_halflife" (units=seconds)
+  	"acquisition" : {
+       		"radionuclide_halflife" : 100
+  	 },
+    	"Time" : {
+        	"FrameTimes": {
+            		"Units": ["m", "m"],
+            		"Values":[[14,64]]
+      		}
+    	}
+    }
+```
 ## Usage <a name="useage"></a>
 
 ### Launching APPIAN

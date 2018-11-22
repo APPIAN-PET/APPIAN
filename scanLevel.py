@@ -42,44 +42,50 @@ from MRI import normalize
 """
 
 
-def set_base(datasource,  task_list, acq, rec, sourceDir, img_ext ):
+def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceDir, img_ext ):
     pet_str = sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
     pet_list = ['sid', 'ses', 'sid', 'ses']
     t1_list =  [ 'sid', 'ses', 'sid', 'ses']
     t1_str=sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s'
-    if task_list != ['']: 
-        pet_str = pet_str + '_task-%s'
-        t1_str = t1_str + '_task-%s'
-        pet_list += ['task'] #task_list
-        t1_list += ['task'] # task_list
+    if len(task_list) != 0: 
+        pet_str = pet_str + '*task-%s'
+        pet_list += ['task'] 
     if acq != '' :
-        pet_str = pet_str + '_acq-%s'
+        pet_str = pet_str + '*acq-%s'
         pet_list += ['acq']  
-        #infields_list += [ 'acq' ] 
     if rec != '':
-        pet_str = pet_str + '_rec-%s'
+        pet_str = pet_str + '*rec-%s'
         pet_list += ['rec']
-        #infields_list += ['rec']
+    if len(run_list) != 0: 
+        pet_str = pet_str + '*run-%s'
+        pet_list += ['run'] 
     pet_str = pet_str + '*_pet.'+img_ext
-    t1_str = t1_str + '_*T1w.'+img_ext
+    t1_str = t1_str + '*_T1w.'+img_ext
     #Dictionary for basic structural inputs to DataGrabber
-    field_template = dict(
+    field_template_t1 = dict(
         nativeT1 = t1_str,
+    )
+    template_args_t1 = dict(
+        nativeT1=[t1_list],
+    ) 
+    
+    field_template_pet = dict(
         pet=pet_str
     )
-
-    template_args = dict(
-        nativeT1=[t1_list],
+    template_args_pet = dict(
         pet=[pet_list]
     )
 
-    datasource.inputs.field_template.update(field_template)
-    datasource.inputs.template_args.update(template_args)
-    return datasource
+    datasourcePET.inputs.field_template.update(field_template_pet)
+    datasourcePET.inputs.template_args.update(template_args_pet)
+
+    datasourceT1.inputs.field_template.update(field_template_t1)
+    datasourceT1.inputs.template_args.update(template_args_t1)
+    return datasourcePET, datasourceT1
 
 
 
-def set_label(datasource, img, template, task_list, label_img, template_img, sourceDir, img_ext):
+def set_label(datasource, img, template, task_list, run_list, label_img, template_img, sourceDir, img_ext):
     '''
     set_labels(datasource, opts.pvc_label_img[0],  opts.pvc_label_img[1], [],  )
     '''
@@ -90,9 +96,15 @@ def set_label(datasource, img, template, task_list, label_img, template_img, sou
         label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
 
         template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-        if task_list != [''] :
+        if len(task_list) != 0 :
             label_img_template += '_task-%s'
             template_args[label_img][0] +=  task_list  
+        
+        if len(run_list) != 0: 
+            label_img_template = pet_str + '_run-%s'
+            template_args[label_img][0] += ['run']
+
+        
         #label_img_template +='_*'+img+'T1w.'+img_ext
         label_img_template +='*_variant-'+img+'_dtissue.'+img_ext
 
@@ -112,20 +124,18 @@ def set_label(datasource, img, template, task_list, label_img, template_img, sou
     datasource.inputs.template_args.update( template_args )
     return datasource
 
-
-
-def set_json_header(datasource, task_list, sourceDir):
+def set_json_header(datasource, task_list, run_list, sourceDir):
     field_template={}
     template_args={}
     json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
     if task_list != ['']: 
         json_header_str = json_header_str + '_task-%s'
-        json_header_list[0] += task_list
+        json_header_list[0] += ["task"] #task_list
 
-    #if task_list != [''] :
-    #    json_header_template = label_template + "_task-%s"
-    #    json_header_list[0] += task_list
+    if len(run_list) != 0 :
+        json_header_str = json_header_str + "_run-%s"
+        json_header_list[0] += ["run"]
     json_header_str = json_header_str + '*.json'
     
     field_template["json_header"] = json_header_str
@@ -135,14 +145,15 @@ def set_json_header(datasource, task_list, sourceDir):
     datasource.inputs.template_args.update(template_args)
     return datasource
 
-def set_transform(datasource, task_list, sourceDir):
+def set_transform(datasource, task_list, set_list, sourceDir):
     field_template={}
     template_args={}
     label_template = sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
     template_args["xfmT1MNI"] = [['sid', 'ses', 'sid', 'ses' ]]
     if task_list != [''] :
         label_template = label_template + "_task-%s"
-        template_args["xfmT1MNI"][0] += task_list
+        template_args["xfmT1MNI"][0] += "task" #task_list
+
     label_template = label_template + '*target-MNI_affine.xfm'
     
     field_template["xfmT1MNI"] = label_template
@@ -151,7 +162,7 @@ def set_transform(datasource, task_list, sourceDir):
     datasource.inputs.template_args.update(template_args)
     return datasource
 
-def set_brain_mask(datasource, task_list, coregistration_brain_mask, sourceDir, img_ext) :
+def set_brain_mask(datasource, task_list, run_list, coregistration_brain_mask, sourceDir, img_ext) :
     field_template={}
     template_args={}
 
@@ -176,29 +187,8 @@ def set_brain_mask(datasource, task_list, coregistration_brain_mask, sourceDir, 
     return datasource
 
 
-def assign_datasource_values(label_img, field_template_dict, template_args_dict, base_label, infields_list, label_template_string, label_template_variables, str1, str2 ):
-    """
-    This function sets up the strings and dictionaries that are then used to create the appropriate Nipype DataGrabber. 
 
-    :param label_img: label_img
-    :param field_template_dict: Dictionary of strings for template 
-    :param template_args_dict: Dictionary of variable arguments for templates
-    :param base_label: base_label 
-    :param infields_list: infields_list
-    :param label_template_string: label_template_string
-    :param label_template_variables: label_template_variables
-    :param str1: str1
-    :param str2: str2
-    """
-    template_string = label_img[1]
-    field_template_dict= dict(field_template_dict.items() + [[str1, label_template_string]] )
-    template_args_dict = dict( template_args_dict.items() + [[str1, label_template_variables]] )
-    base_label.append(str1)
-    infields_list.append(str2)
-    return template_string, field_template_dict, template_args_dict, base_label, infields_list 
-
-
-def printOptions(opts,subject_ids,session_ids,task_list):
+def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
     """
     Print basic options input by user
 
@@ -218,27 +208,9 @@ def printOptions(opts,subject_ids,session_ids,task_list):
     #   print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
     print "* Sessions : ", session_ids, "\n"
     print "* Tasks : " , task_list , "\n"
-
-def set_label_parameters(level, var , ext ):
-    """
-    Set the label_string and label_variables for the datasource
-    
-    :param level: <level> equals "atlas" if a filepath is given, otherwise uses BIDS label-string
-    :param var: String variable name for image type
-    :param ext: File Extension
-    :type level: String
-    :type var: String
-    :type ext: String
-
-    :returns [label_string, label_variables]: List with two elements: string used to identify image, a list of variables that are used to "fill-in" label_string
-    """
-    if level  == "atlas": 
-        label_string = "%s"
-        label_variables = [[ var ]]
-    else: 
-        label_string = 'sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s*%s*' + ext
-        label_variables = [['sid', 'ses', 'sid', 'ses', 'task', var] ]
-    return [ label_string, label_variables ]
+    print "* Runs : " , run_list , "\n"
+    print "* Acquisition : " , acq , "\n"
+    print "* Reconstruction : " , rec , "\n"
 
 
 def run_scan_level(opts,args): 
@@ -315,12 +287,30 @@ def run_scan_level(opts,args):
     task_list=opts.taskList
 
     ###Define args with exiting subject and condition combinations
-    valid_args=init.gen_args(opts, session_ids, task_list, opts.acq, opts.rec, args)
+    valid_args=init.gen_args(opts, session_ids, task_list, opts.runList, opts.acq, opts.rec, args)
+  
+    ### Create workflow
+    workflow = pe.Workflow(name=opts.preproc_dir)
+    workflow.base_dir = opts.targetDir
+
+
+    ##########################
+    ### Session infosource ###
+    ##########################
+    subinfosource = pe.Node(interface=util.IdentityInterface(fields=['sid']), name="sidinfosource")
+    subinfosource.iterables = ( 'sid', subjects_ids )
+
+    ##########################
+    ### Session infosource ###
+    ##########################
+    sesinfosource = pe.Node(interface=util.IdentityInterface(fields=['ses','sid']), name="sesinfosource")
+    sesinfosource.iterables = ( 'ses', opts.sessionList )
+    workflow.connect(subinfosource, 'sid', sesinfosource, 'sid')
     
     #####################
     ### Preinfosource ###
     #####################
-    preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args','results_labels','tka_labels','pvc_labels', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times']), name="preinfosource")
+    preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args','ses','results_labels','tka_labels','pvc_labels', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times']), name="preinfosource")
     preinfosource.iterables = ( 'args', valid_args )
     preinfosource.inputs.results_labels = opts.results_labels
     preinfosource.inputs.tka_labels = opts.tka_labels
@@ -328,13 +318,13 @@ def run_scan_level(opts,args):
     preinfosource.inputs.results_erode_times = opts.results_erode_times
     preinfosource.inputs.tka_erode_times = opts.tka_erode_times
     preinfosource.inputs.pvc_erode_times = opts.pvc_erode_times
+    workflow.connect(sesinfosource, 'ses', preinfosource, 'ses')
+    workflow.connect(sesinfosource, 'sid', preinfosource, 'sid')
 
     ##################
     ### Infosource ###
     ##################
     infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
-    workflow = pe.Workflow(name=opts.preproc_dir)
-    workflow.base_dir = opts.targetDir
 
     #################
     ###Datasources###
@@ -347,43 +337,64 @@ def run_scan_level(opts,args):
         datasourceArterial.inputs.acq=opts.acq
         datasourceArterial.inputs.field_template = dict(arterial_file='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_*.dft')
         datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','ses', 'sid', 'ses', 'task', 'acq']])
-        workflow.connect([  (infosource, datasourceArterial, [('sid', 'sid')]), 
+        workflow.connect([  (sesinfosource, datasourceArterial, [('sid', 'sid')]), 
                             (infosource, datasourceArterial, [('task', 'task')]),
-                            (infosource, datasourceArterial, [('ses', 'ses')])
+                            (sesinfosource, datasourceArterial, [('ses', 'ses')])
                             ])
     
     ### Use DataGrabber to get key input files
     infields_list = []
-    base_outputs  = ['nativeT1',  'pet','xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img", "json_header" ]
+    base_t1_outputs  = ['nativeT1', 'xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img" ]
+    base_pet_outputs  = [ 'pet', "json_header" ]
 
-    datasource = pe.Node( interface=nio.DataGrabber(infields=infields_list, outfields=base_outputs, raise_on_empty=True, sort_filelist=False), name="datasource")
-    datasource.inputs.template = '*'
-    datasource.inputs.base_directory = '/' # opts.sourceDir
-    datasource.inputs.acq=opts.acq
-    datasource.inputs.rec=opts.rec   
 
+    datasourcePET = pe.Node( interface=nio.DataGrabber(infields=[], outfields=base_pet_outputs, raise_on_empty=True, sort_filelist=False), name="datasourcePET")
+    datasourcePET.inputs.template = '*'
+    datasourcePET.inputs.base_directory = '/' # opts.sourceDir
+    datasourcePET.inputs.acq=opts.acq
+    datasourcePET.inputs.rec=opts.rec  
+    
+    datasourceT1 = pe.Node( interface=nio.DataGrabber(infields=[], outfields=base_t1_outputs, raise_on_empty=True, sort_filelist=False), name="datasourceT1")
+    datasourceT1.inputs.template = '*'
+    datasourceT1.inputs.base_directory = '/' # opts.sourceDir
+
+    datasource = pe.Node(util.IdentityInterface(fields=base_t1_outputs+base_pet_outputs), name="datasource") 
+    
     # Set label datasource
-    datasource.inputs.field_template = {}
-    datasource.inputs.template_args = {}
-    
-    datasource = set_base(datasource,  opts.taskList, opts.acq, opts.rec, opts.sourceDir, opts.img_ext )
+    datasourcePET.inputs.field_template = {}
+    datasourcePET.inputs.template_args = {}
+
+    datasourceT1.inputs.field_template = {}
+    datasourceT1.inputs.template_args = {}
+
+    datasourcePET, datasourceT1 = set_base(datasourcePET,datasourceT1,opts.taskList,opts.runList,opts.acq, opts.rec, opts.sourceDir, opts.img_ext)
+
     if opts.pvc_label_type != "internal_cls" :
-        datasource = set_label(datasource, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
-    
+        datasourceT1 = set_label(datasourceT1, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, opts.setList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
+        workflow.connect(datasourceT1, 'pvc_label_img', datasource, 'pvc_label_img' )
+        workflow.connect(datasourceT1, 'pvc_template_img', datasource, 'pvc_template_img')
+
     if opts.tka_label_type != "internal_cls" :
-        datasource = set_label(datasource, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
+        datasourceT1 = set_label(datasourceT1, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, opts.setList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
+        workflow.connect(datasourceT1, 'tka_label_img', datasource, 'tka_label_img' )
+        workflow.connect(datasourceT1, 'tka_template_img', datasource,  'tka_template_img')
 
     if opts.results_label_type != "internal_cls" :
-        datasource = set_label(datasource, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
+        datasourceT1 = set_label(datasourceT1, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, opts.setList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
+        workflow.connect(datasourceT1, 'results_template_img', datasource, 'results_template_img' )
+        workflow.connect(datasourceT1, 'results_label_img', datasource, 'results_label_img' )
 
     if opts.user_t1mni :
-        datasource = set_transform(datasource, task_list, opts.sourceDir)
+        datasourceT1 = set_transform(datasourceT1, task_list, opts.runList, opts.sourceDir)
+        workflow.connect(datasourceT1, 'xfmT1MNI', datasource, 'xfmT1MNI' )
 
     if opts.user_brainmask :
-        datasource = set_brain_mask(datasource, task_list, opts.coregistration_brain_mask, opts.sourceDir, opts.img_ext)
-    
-    if opts.json :
-        datasource = set_json_header(datasource, task_list, opts.sourceDir)   
+        datasourceT1 = set_brain_mask(datasourceT1, task_list, opts.runList, opts.coregistration_brain_mask, opts.sourceDir, opts.img_ext)
+        workflow.connect(datasourceT1, 'brain_mask_mni', datasource, 'brain_mask_mni' )
+
+    #if opts.json :
+    datasourcePET = set_json_header(datasourcePET, task_list, opts.runList, opts.sourceDir)   
+
     
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
@@ -401,10 +412,11 @@ def run_scan_level(opts,args):
             mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
         )
         workflow.connect([
-                (infosource, datasourceSurf, [('sid', 'sid')]),
+                (sesinfosource, datasourceSurf, [('sid', 'sid')]),
                 (infosource, datasourceSurf, [('cid', 'cid')]),
                 (infosource, datasourceSurf, [('task', 'task')]),
-                (infosource, datasourceSurf, [('ses', 'ses')]),
+                (sesinfosource, datasourceSurf, [('ses', 'ses')]),
+                (infosource, datasource, [('run', 'run')]),
                  ])
 
     #############################################
@@ -412,12 +424,21 @@ def run_scan_level(opts,args):
     #############################################
     workflow.connect(preinfosource, 'args', infosource, "args")
     workflow.connect([
-                    (infosource, datasource, [('sid', 'sid')]),
-                    (infosource, datasource, [('cid', 'cid')]),
-                    (infosource, datasource, [('task', 'task')]),
-                    (infosource, datasource, [('ses', 'ses')]),
+                    (sesinfosource, datasourcePET, [('sid', 'sid')]),
+                    (sesinfosource, datasourcePET, [('ses', 'ses')]),
+                    (infosource, datasourcePET, [('cid', 'cid')]),
+                    (infosource, datasourcePET, [('task', 'task')]),
+                    (infosource, datasourcePET, [('run', 'run')]),
+                     ])
+    workflow.connect([
+                    (sesinfosource, datasourceT1, [('sid', 'sid')]),
+                    (sesinfosource, datasourceT1, [('ses', 'ses')]),
                      ])
     
+    workflow.connect(datasourcePET, 'json_header', datasource, 'json_header' )
+    workflow.connect(datasourceT1, 'nativeT1', datasource, 'nativeT1' )
+    workflow.connect(datasourcePET, 'pet', datasource, 'pet' )
+
     ##############
     ###Datasink###
     ##############
@@ -430,7 +451,6 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
-
     #####################
     # MRI Preprocessing # 
     #####################
@@ -440,7 +460,7 @@ def run_scan_level(opts,args):
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
     #stereotaxic space in wf_mri_preprocess
     if opts.user_brainmask : 
-        brain_mask_mni_node = datasource
+        brain_mask_mni_node = datasourceT1
         brain_mask_mni_file = 'brain_mask_mni'
         workflow.connect(datasource, 'brain_mask_mni', wf_mri_preprocess, 'inputnode.brain_mask_mni')    
     else : 
@@ -454,22 +474,25 @@ def run_scan_level(opts,args):
     if opts.user_t1mni : 
         t1mni_node = datasource
         t1mni_file = 'xfmT1MNI'
-        workflow.connect(datasource, 'xfmT1MNI', wf_mri_preprocess, 'inputnode.xfmT1MNI')    
+        workflow.connect(datasourceT1, 'xfmT1MNI', wf_mri_preprocess, 'inputnode.xfmT1MNI')    
     else : 
         t1mni_node = wf_mri_preprocess
         t1mni_file='outputnode.xfmT1MNI'       
         #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
     
-    workflow.connect(datasource, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
+    workflow.connect(datasourceT1, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
     
     ###################
     # PET prelimaries #
     ###################
     wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
     workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
-    if opts.json :
-        workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
+    #if opts.json :
+    workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
     
+    if opts.initialize_only :
+        workflow.run(); 
+        return(0)
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
     # and for the source for the labels                                 #
@@ -699,7 +722,7 @@ def run_scan_level(opts,args):
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 
-    printOptions(opts,subjects_ids,session_ids,task_list)
+    printOptions(opts,subjects_ids,session_ids,task_list,opts.runList, opts.acq, opts.rec)
     #run the work flow
     if opts.num_threads > 1 :
         plugin_args = {'n_procs' : opts.num_threads,

@@ -126,7 +126,7 @@ class mincbeast(BaseInterface):
                 self.inputs.out_file = self._gen_output(self.inputs.in_file)
             
             beast = mincbeastCommand()
-            beast.inputs.out_file = "/tmp/"+os.path.basename(self.inputs.out_file)
+            beast.inputs.out_file = "/tmp/"+str(np.random.randint(0,9999999))+"_"+os.path.basename(self.inputs.out_file)
             beast.inputs.in_file = self.inputs.in_file
             beast.inputs.library_dir = self.inputs.library_dir
             beast.inputs.voxel_size = self.inputs.voxel_size
@@ -223,11 +223,10 @@ class beast_normalize_with_conversion(BaseInterface):
         beast.inputs.in_file = convert.inputs.output_file
         beast.inputs.modelname = self.inputs.modelname
         beast.inputs.modeldir = self.inputs.modeldir
-
         print(beast.cmdline)
         beast.run()
 
-        #shutil.rmtree(os.getcwd()+os.sep+'tmp' )
+        shutil.rmtree(os.getcwd()+os.sep+'tmp' )
         return runtime
 
     def _gen_output(self, basefile):

@@ -117,13 +117,16 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
         FrameLengths=temp_d
 
         values_dict_path = recursive_dict_search(d, target="frames-time")
+        
         Values=None
+        
         if not None in values_dict_path :
             temp_d = d
             if verbose : print( values_dict_path )
             for i in values_dict_path :
                 temp_d = temp_d[i]
-
+                print(temp_d)
+        
         temp_d = [ float(i) for i in temp_d ]
         FrameLengths=list(np.diff(temp_d))
         FrameLengths.append(FrameLengths[-1])
@@ -138,15 +141,30 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     else : #NIFTI Input
         print("Check header for NIFTI input")
         frame_times=[]
-
+        print( d["Time"]["FrameTimes"] ) 
         try :
             frame_times = d["Time"]["FrameTimes"]["Values"]
         except KeyError :
             print("\nError Could not find Time:FrameTimes:Values in header\n")
             exit(1)
         FrameLengths=[]
+
+        c0=c1=1 #Time unit conversion variables. Time should be in seconds
+        try :
+            if d["Time"]["FrameTimes"]["Units"][0] == 'm' :
+                c0=60
+            elif d["Time"]["FrameTimes"]["Units"][0] == 'h' :
+                c0=60*60
+            if d["Time"]["FrameTimes"]["Units"][1] == 'm' :
+                c1=60
+            elif d["Time"]["FrameTimes"]["Units"][1] == 'h' :
+                c1=60*60
+        except KeyError :
+            print("\nError Could not find Time:FrameTimes:Units in header\n")
+            exit(1)
+        
         for s, e in frame_times :
-            FrameLengths.append(e-s)
+            FrameLengths.append(c1*e - c0*s)
 
         d["Time"]["FrameTimes"]["Duration"] = FrameLengths
         #if there is no path to target, try backup
@@ -181,40 +199,42 @@ def unique_file(files, attributes, verbose=False):
     return( out_files[0] ) 
 
 
-def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
+def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
     args=[]
     for sub in subjects:
         for ses in session_ids:
             for task in task_ids:
-                sub_arg='sub-'+sub
-                ses_arg='ses-'+ses
-                task_arg=rec_arg=acq_arg=""
+                for run in run_ids:
+                    sub_arg='sub-'+sub
+                    ses_arg='ses-'+ses
+                    task_arg=rec_arg=acq_arg=""
 
-                pet_fn=mri_fn=""
-                if  acq == '': acq_arg='acq-'+acq
-                if  rec == '': rec_arg='rec-'+rec
-                pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
-                pet_list=glob(pet_string)
-                arg_list = ['sub-'+sub, 'ses-'+ses]
-                if not task == '': arg_list += ['task-'+task]
-                if not acq == '': arg_list += ['acq-'+acq]
-                if not rec == '': arg_list += ['rec-'+rec]
-                if pet_list != []:
-                    pet_fn = unique_file(pet_list, arg_list )
+                    pet_fn=mri_fn=""
+                    if  acq == '': acq_arg='acq-'+acq
+                    if  rec == '': rec_arg='rec-'+rec
+                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
+                    pet_list=glob(pet_string)
+                    arg_list = ['sub-'+sub, 'ses-'+ses]
+                    if not task == '': arg_list += ['task-'+task]
+                    if not acq == '': arg_list += ['acq-'+acq]
+                    if not rec == '': arg_list += ['rec-'+rec]
+                    if not run == '': arg_list += ['run-'+run]
+                    if pet_list != []:
+                        pet_fn = unique_file(pet_list, arg_list )
 
-                mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
-                if mri_list != []:
-                    mri_fn = unique_file(mri_list, arg_list )
-
-                if os.path.exists(pet_fn) and os.path.exists(mri_fn):
-                    d={'task':task, 'ses':ses, 'sid':sub}
-                    args.append(d)
-                else:
-                    if not os.path.exists(pet_fn) :
-                        print "Could not find PET for ", sub, ses, task, pet_fn
-                    if not os.path.exists(mri_fn) :
-                        print "Could not find T1 for ", sub, ses, task, mri_fn
-    print(args)
+                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
+                    if mri_list != []:
+                        mri_fn = unique_file(mri_list, arg_list )
+                    
+                    if pet_fn == [] or mri_fn == [] : continue 
+                    if os.path.exists(pet_fn) and os.path.exists(mri_fn):
+                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
+                        args.append(d)
+                    else:
+                        if not os.path.exists(pet_fn) :
+                            print "Could not find PET for ", sub, ses, task, pet_fn
+                        if not os.path.exists(mri_fn) :
+                            print "Could not find T1 for ", sub, ses, task, mri_fn
     return args
 
 
@@ -223,6 +243,7 @@ class SplitArgsOutput(TraitedSpec):
     sid = traits.Str(mandatory=True, desc="Subject ID") 
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
+    run = traits.Str(desc="Run ID")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
@@ -230,6 +251,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
     ses = traits.Str(desc="Session ID")
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
+    run = traits.Str(desc="Run ID")
     #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
     args = traits.Dict(mandatory=True, desc="Overwrite output file")
@@ -239,10 +261,15 @@ class SplitArgsRunning(BaseInterface):
     output_spec = SplitArgsOutput
 
     def _run_interface(self, runtime):
-        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
+        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
         self.inputs.task=self.inputs.args['task']
-        self.inputs.ses=self.inputs.args['ses']
-        self.inputs.sid=self.inputs.args['sid']
+        self.inputs.run=self.inputs.args['run']
+        print("HELLO",self.inputs.run)
+        exit(0)
+        if not isdefined(self.inputs.ses) :
+            self.inputs.ses=self.inputs.args['ses']
+        if not isdefined(self.inputs.sid) :
+            self.inputs.sid=self.inputs.args['sid']
         if isdefined(self.inputs.RoiSuffix):
             self.inputs.RoiSuffix=self.inputs.RoiSuffix
         return runtime
@@ -253,6 +280,7 @@ class SplitArgsRunning(BaseInterface):
         outputs["sid"] = self.inputs.sid
         outputs["ses"] = self.inputs.ses
         outputs["task"] = self.inputs.task
+        outputs["run"] = self.inputs.run
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
@@ -331,22 +359,23 @@ class MincHdrInfoRunning(BaseInterface):
                 self._params[key][subkey]=data_in 
                 update_minchd_json(temp_out_file, data_in, var, attr)
 
-        fp=open(temp_out_file, "r")
-        header = json.load(fp)
-        fp.close
+        header = json.load(open(temp_out_file, "r") )
+        #fp.close()
 
-        fp=open(self.inputs.out_file, "w+")
-
-        if isdefined(self.inputs.json_header) :
-            json_header = json.load(open(self.inputs.json_header, "r+"))
-            header.update(json_header)
-       
         minc_input=True
-        if isdefined(self.inputs.json_header) : 
-            minc_input=False
+        if not isdefined(self.inputs.json_header) : 
+            print("Error: could not find json file", self.inputs.json_header)
+            exit(1)
+        
         print("\n\nMINC INPUT =", minc_input, self.inputs.json_header)
+        json_header = json.load(open(self.inputs.json_header, "r+"))
+        header.update(json_header)
+        minc_input=False
+        
         header = set_frame_duration(header, minc_input)
         header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
+        
+        fp=open(self.inputs.out_file, "w+")
         fp.seek(0)
         json.dump(header, fp, sort_keys=True, indent=4)
         fp.close()
@@ -469,7 +498,10 @@ class PETexcludeFrRunning(BaseInterface):
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
-        nFrames = infile.sizes[infile.dimnames.index("time")]
+        try :
+            nFrames = infile.sizes[infile.dimnames.index("time")]
+        except ValueError :
+            nFrames = 1
 
         if nFrames > 5 :
             first=int(ceil(float(nFrames*rank)/100))
@@ -556,8 +588,8 @@ def get_workflow(name, infosource, opts):
     #workflow.connect(header_init, 'out_file', petCenter, 'header')
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
-    if opts.json :
-        workflow.connect(inputnode, 'json_header', petSettings, 'json_header')
+    #if opts.json :
+    workflow.connect(inputnode, 'json_header', petSettings, 'json_header')
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
     #workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
     #workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),

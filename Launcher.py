@@ -54,7 +54,6 @@ def get_opt_list(option,opt,value,parser):
     print(value)
     setattr(parser.values,option.dest,value.split(','))
 
-
 # def printStages(opts,args):
 
 ############################################
@@ -134,8 +133,9 @@ if __name__ == "__main__":
 
     group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
     group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
-    group.add_option("","--sessions",dest="sessionList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
-    group.add_option("","--tasks",dest="taskList",help="comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
+    group.add_option("","--sessions",dest="sessionList",help="Comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
+    group.add_option("","--tasks",dest="taskList",help="Comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
+    group.add_option("","--runs",dest="runList",help="Comma-separated list of runs",type='string',action='callback',callback=get_opt_list)
     parser.add_option_group(group)      
 
     ###############
@@ -181,6 +181,7 @@ if __name__ == "__main__":
     group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
     group.add_option("","--masking-only",dest="masking_only",help="Stop scan level processing after masking", action='store_true', default=False)
     group.add_option("","--coregistration-only",dest="coregistration_only",help="Stop scan level processing after coregistration", action='store_true', default=False)
+    group.add_option("","--initialize-only",dest="initialize_only",help="Stop scan level processing after PET initialization", action='store_true', default=False)
     parser.add_option_group(group)      
 
 
@@ -197,6 +198,7 @@ if __name__ == "__main__":
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
     group.add_option("","--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    group.add_option("","--pvc-labels-per-pet",dest="pvc_labels_per_pet",help="Mask pvc labels with brain mask",action='store_true',default=False)
     parser.add_option_group(group)
 
     # Quantification
@@ -308,6 +310,7 @@ if __name__ == "__main__":
         
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
+
     
     #########################
     #Automatically set tasks#
@@ -329,6 +332,27 @@ if __name__ == "__main__":
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
+
+    ########################
+    #Automatically set runs#
+    ########################
+    if opts.runList == None :
+        for f in glob(opts.sourceDir+os.sep+"**/**/pet/*run-*") :
+            g=os.path.splitext(os.path.basename(f))[0]
+            task_list = [ i  for i in   g.split('_') if 'run-' in i ]
+            if task_list == [] : continue
+
+            if opts.runList == None : opts.runList = []
+            run = re.sub('run-', '', task_list[0])
+            opts.runList.append(run)
+
+        if opts.runList != None : 
+            opts.runList = np.unique(opts.runList)
+        else : 
+            opts.runList =['']
+        
+        print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
+        print("Runs:", ' '.join( opts.runList))
 
     opts.extension='mnc'
 

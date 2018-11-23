@@ -11,6 +11,24 @@ import pickle
 
 
 
+class mincinfoOutput(TraitedSpec):
+    output = traits.Str(desc='Mincinfo ouput')
+
+class mincinfoInput(CommandLineInputSpec):
+    in_file = File(position=-1, argstr="%s", exists=True, mandatory=True, desc="image to operate on")
+    output = traits.Str(desc="Mincinfo output")
+
+    error = traits.Str(argstr="-error %s", position=1, desc="math operations to perform")
+    opt_string = traits.Str(argstr="%s", position=2, mandatory=True, desc="Option defining the infos to print out")
+      
+class mincinfoCommand(CommandLine):
+    _cmd="mincinfo"
+    input_spec = mincinfoInput
+    output_spec = mincinfoOutput
+
+ 
+
+
 
 class InfoOutput(TraitedSpec):
     out_file = traits.Any(desc='Infos ouput')
@@ -48,7 +66,6 @@ class InfoCommand(CommandLine):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
-
 
 
     def aggregate_outputs(self, runtime=None, needed_outputs=None):
@@ -96,10 +113,6 @@ class InfoCommand(CommandLine):
         
         outputs.out_file = out_info
         return outputs
-
-
-
-
 
 
 class StatsOutput(TraitedSpec):

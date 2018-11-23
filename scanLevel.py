@@ -47,7 +47,7 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     pet_list = ['sid', 'ses', 'sid', 'ses']
     t1_list =  [ 'sid', 'ses', 'sid', 'ses']
     t1_str=sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s'
-    if len(task_list) != 0: 
+    if task_list != ['']: 
         pet_str = pet_str + '*task-%s'
         pet_list += ['task'] 
     if acq != '' :
@@ -56,7 +56,7 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     if rec != '':
         pet_str = pet_str + '*rec-%s'
         pet_list += ['rec']
-    if len(run_list) != 0: 
+    if run_list != ['']: 
         pet_str = pet_str + '*run-%s'
         pet_list += ['run'] 
     pet_str = pet_str + '*_pet.'+img_ext
@@ -96,13 +96,13 @@ def set_label(datasource, img, template, task_list, run_list, label_img, templat
         label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
 
         template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-        if len(task_list) != 0 :
-            label_img_template += '_task-%s'
-            template_args[label_img][0] +=  task_list  
+        #if task_list != [''] :
+        #    label_img_template += '_task-%s'
+        #    template_args[label_img][0] +=  task_list  
         
-        if len(run_list) != 0: 
-            label_img_template = pet_str + '_run-%s'
-            template_args[label_img][0] += ['run']
+        #if len(run_list) != 0: 
+        #    label_img_template = label_img_template + '_run-%s'
+        #    template_args[label_img][0] += ['run']
 
         
         #label_img_template +='_*'+img+'T1w.'+img_ext
@@ -124,18 +124,28 @@ def set_label(datasource, img, template, task_list, run_list, label_img, templat
     datasource.inputs.template_args.update( template_args )
     return datasource
 
-def set_json_header(datasource, task_list, run_list, sourceDir):
+def set_json_header(datasource, task_list, run_list, acq, rec, sourceDir):
     field_template={}
     template_args={}
     json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
-    if len(task_list) != 0 : #!= ['']: 
+    if task_list != ['']: 
         json_header_str = json_header_str + '_task-%s'
         json_header_list[0] += ["task"] #task_list
 
-    if len(run_list) != 0 :
+    if run_list != [''] :
         json_header_str = json_header_str + "_run-%s"
         json_header_list[0] += ["run"]
+    
+    if acq != '' :
+        json_header_str = json_header_str + '*acq-%s'
+        json_header_list[0] += ['acq']  
+    if rec != '':
+        json_header_str = json_header_str + '*rec-%s'
+        json_header_list[0] += ['rec']
+
+    
+    
     json_header_str = json_header_str + '*.json'
     
     field_template["json_header"] = json_header_str
@@ -150,9 +160,9 @@ def set_transform(datasource, task_list, set_list, sourceDir):
     template_args={}
     label_template = sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
     template_args["xfmT1MNI"] = [['sid', 'ses', 'sid', 'ses' ]]
-    if task_list != [''] :
-        label_template = label_template + "_task-%s"
-        template_args["xfmT1MNI"][0] += "task" #task_list
+    #if len(task_list) != 0 :
+    #    label_template = label_template + "_task-%s"
+    #    template_args["xfmT1MNI"][0] += ["task"] #task_list
 
     label_template = label_template + '*target-MNI_affine.xfm'
     
@@ -169,9 +179,9 @@ def set_brain_mask(datasource, task_list, run_list, coregistration_brain_mask, s
     brain_mask_template = sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*'
     template_args["brain_mask_mni"]=[['sid' ,'ses','sid', 'ses']]
 
-    if task_list != [''] :
-        brain_mask_template = brain_mask_template + "_task-%s"
-        template_args["brain_mask_mni"][0] += task_list
+    #if task_list != [''] :
+    #    brain_mask_template = brain_mask_template + "_task-%s"
+    #    template_args["brain_mask_mni"][0] += task_list
 
     brain_mask_template = brain_mask_template + "_T1w_space-mni"
 
@@ -368,21 +378,23 @@ def run_scan_level(opts,args):
     datasourceT1.inputs.template_args = {}
 
     datasourcePET, datasourceT1 = set_base(datasourcePET,datasourceT1,opts.taskList,opts.runList,opts.acq, opts.rec, opts.sourceDir, opts.img_ext)
-
     if opts.pvc_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, opts.setList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
+        datasourceT1 = set_label(datasourceT1, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, opts.runList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
         workflow.connect(datasourceT1, 'pvc_label_img', datasource, 'pvc_label_img' )
-        workflow.connect(datasourceT1, 'pvc_template_img', datasource, 'pvc_template_img')
+        if opts.pvc_label_img[1] != None :
+            workflow.connect(datasourceT1, 'pvc_template_img', datasource, 'pvc_template_img')
 
     if opts.tka_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, opts.setList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
+        datasourceT1 = set_label(datasourceT1, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, opts.runList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
         workflow.connect(datasourceT1, 'tka_label_img', datasource, 'tka_label_img' )
-        workflow.connect(datasourceT1, 'tka_template_img', datasource,  'tka_template_img')
+        if opts.tka_label_img[1] != None :
+            workflow.connect(datasourceT1, 'tka_template_img', datasource,  'tka_template_img')
 
     if opts.results_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, opts.setList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
-        workflow.connect(datasourceT1, 'results_template_img', datasource, 'results_template_img' )
+        datasourceT1 = set_label(datasourceT1, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, opts.runList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
         workflow.connect(datasourceT1, 'results_label_img', datasource, 'results_label_img' )
+        if opts.results_label_img[1] != None :
+            workflow.connect(datasourceT1, 'results_template_img', datasource, 'results_template_img' )
 
     if opts.user_t1mni :
         datasourceT1 = set_transform(datasourceT1, task_list, opts.runList, opts.sourceDir)
@@ -393,7 +405,7 @@ def run_scan_level(opts,args):
         workflow.connect(datasourceT1, 'brain_mask_mni', datasource, 'brain_mask_mni' )
 
     #if opts.json :
-    datasourcePET = set_json_header(datasourcePET, task_list, opts.runList, opts.sourceDir)   
+    datasourcePET = set_json_header(datasourcePET, task_list, opts.runList, opts.acq, opts.rec, opts.sourceDir)   
     
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:

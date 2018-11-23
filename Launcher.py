@@ -8,10 +8,10 @@ import numpy as np
 from glob import glob
 from re import sub
 from Extra.nii2mnc_batch import nii2mnc_batch
+from Extra.minc_json_header_batch import create_minc_headers
 import re
 from optparse import OptionParser
 from optparse import OptionGroup
-
 import Quality_Control.dashboard as dash
 
 from scanLevel import run_scan_level
@@ -284,7 +284,6 @@ if __name__ == "__main__":
     qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)
 
-
     #
     group= OptionGroup(parser,"Command control")
     group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
@@ -307,11 +306,9 @@ if __name__ == "__main__":
     
     if opts.sessionList == None :
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
-        
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
 
-    
     #########################
     #Automatically set tasks#
     #########################
@@ -328,7 +325,7 @@ if __name__ == "__main__":
         if opts.taskList != None : 
             opts.taskList = np.unique(opts.taskList)
         else : 
-            opts.taskList =['']
+            opts.taskList =[""]
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
@@ -349,11 +346,10 @@ if __name__ == "__main__":
         if opts.runList != None : 
             opts.runList = np.unique(opts.runList)
         else : 
-            opts.runList =['']
+            opts.runList =[""]
         
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
-
     opts.extension='mnc'
 
 
@@ -388,7 +384,7 @@ if __name__ == "__main__":
     roi_label = set_labels(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask
     if(opts.pvc_labels ==None): opts.pvc_labels = roi_label["pvc"]
-      #If no label given by user, set default label for TKA mask
+    #If no label given by user, set default label for TKA mask
     if(opts.tka_labels ==None): opts.tka_labels = roi_label["tka"]
     #Set default label for results mask
     if(opts.results_labels ==None): opts.results_labels = roi_label["results"]
@@ -414,10 +410,20 @@ if __name__ == "__main__":
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
 
+    ############################################
+    # Create BIDS-style header for MINC inputs #
+    ############################################
+    create_minc_headers( opts.sourceDir )
+    
     #######################################
     ### Convert NII to MINC if necessary. # 
     #######################################
     opts.json = nii2mnc_batch(opts.sourceDir)	
+        
+    #################
+    # Launch APPIAN #
+    #################
+    
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:

@@ -214,7 +214,6 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if  rec == '': rec_arg='rec-'+rec
                     pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
                     pet_list=glob(pet_string)
-                    
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
                     if not acq == '': arg_list += ['acq-'+acq]
@@ -225,8 +224,8 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, arg_list )
-                    
                     if pet_fn == [] or mri_fn == [] : continue 
+
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
                         args.append(d)

@@ -19,11 +19,13 @@
 
 ## Quick Start
 
-### Download Cimbi Open Data  <a name="quickstart"></a>
-Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or using the AWS CLI:
+### Download CIMBI Open Data  <a name="quickstart"></a>
+Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or using the Amazon web service command line interface (AWS CLI):
 
+```
 apt install awscli
 aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
+```
 
 ### Format data
 The data may need to be reformatted slightly to have the following structure. 
@@ -52,6 +54,7 @@ A comma needs to be added to line 27,
 
 
 Here is the file structure that you should end up with:
+
 	cimbi/
 		sub-01/
 			_ses-01/
@@ -70,20 +73,22 @@ Here is the file structure that you should end up with:
 					sub-01_ses-02_pet.nii.gz
 
 ### Run Examples
-You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. 
+
+You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. Likewise, mount your "out_cimbi" directory by changing </path/to/cimbi/dir/out_cimbi> to the actual path to your directory.  
+
 
 #### Minimal Inputs
 ##### Default: Coregistration + MRI Preprocessing + Results Report
-	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi ";
+	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi" ";
 
 #### PVC
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi --sessions 01  01";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t "/path/to/cimbi/dir/out_cimbi" --sessions 01  01";
 
 #### PVC + Quantification
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  ";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
 
 ## File Formats  <a name="fileformat"></a>
-APPIAN uses the BIDS file format specification for PET:
+APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 
 ### Example of file organization for PET and T1 
     sub-01/
@@ -115,23 +120,23 @@ APPIAN uses the BIDS file format specification for PET:
 
 ### Required
 #### PET (native PET space)
-sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]
+`sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]`
 
 #### PET Header
-sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.json
+`sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.json`
 
 #### T1w (native T1 space) :
-'sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc'
+`sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc`
 
 ### Optional
 #### Linear Transform from T1 native to stereotaxic: 
-'sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm
+`sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm`
 
 #### Brain mask (stereotaxic space): 
-sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc
+`sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc`
 
 #### T1 Segmentation: 
-sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc'
+`sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc`
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
@@ -163,23 +168,34 @@ Although BIDS is based on the Nifti file format, APPIAN will accept both MINC an
 ### Launching APPIAN
 APPIAN is a Python program (Python 2.7 to be specific) that is launched using a command of the form:
 
+```
 python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
+```
 
-The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all of the subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
+The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
 
+```
 python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
-Running APPIAN with Docker
-APPIAN is run in a Docker container. To launch a container based on an image is to run:
+```
 
+Running APPIAN with Docker
+APPIAN is run in a Docker container. To launch a container based on a specific image, run:
+
+```
 Docker run -it <name of image>:<image tag>
+```
 
 or in our case:
 
+```
 docker run -it tffunck/appian:latest
+```
 
 Here the “-it” flag means that the container is launched in interactive mode. That is, you will be dropped into a bash shell within the filesystem and will be able to do most of the typical bash/unix stuff you normally do. You can also run the container non-interactively by dropping the “-it” flag and adding a bash command at the end of the line, as follows:
 
+```
 docker run <name of image>:<image tag> <your bash command>
+```
 
 or in our case:
 
@@ -189,40 +205,47 @@ doc
 etc
 ...
 
-APPIAN is intended to be flexible and applicable in a wide variety of situations, however this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
+APPIAN is intended to be flexible and applicable in a wide variety of situations. However, this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
 
+```
 python2.7 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
+```
 
+By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say your database is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
 
-By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say you data is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
-
+```
 docker run -it -v /path/to/your/data:/path/to/your/data  tffunck/appian:latest
+```
 
-As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “docker run” command. Assuming that you put your “run.sh” script into the same directory as your data, “/path/to/your/data”, then you would run something like the following commands:
+As mentioned above,  there are two ways in which to run APPIAN, either interactively or by passing a command to the “`docker run`” command. Assuming that you put your “run.sh” script into the same directory as your data, “/path/to/your/data”, then you would run something like the following commands:
 
+```
 docker run -it -v /path/to/your/data:/path/to/your/data tffunck/appian:latest
-\#You are now in the docker container
+#You are now in the docker container
 cd /path/to/your/data 
 ./run.sh
+```
 
-Alternatively, you can also run the pipeline through a non-interatctive docker container, like so:
-
+Alternatively, you can also run the pipeline through a non-interactive docker container, like so:
+```
 docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/your/data/run.sh
-
+```
 Either method will give you the same results, it’s up to you and what you find more convenient. 
 
 ## Example use cases  <a name="example"></a>
 
 ### FDG
-FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (--tka-method "pp") is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: --LC) and concentration of native substrate in arterial plasma (flag: --Ca). The Turku Pet Centre has a useful description here with standard values for LC. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
+FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (`--tka-method "pp"`) is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: `--LC`) and concentration of native substrate in arterial plasma (flag: `--Ca`). The Turku Pet Centre has a useful [description for LC here][link_turkuLC] with standard values from the literature. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
    
 Example:
+```
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
+```
 
 ## Pipeline Overview  <a name="overview"></a>
 
 ## Base User Options  <a name="options"></a>
-APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (-s), a target directory where the outputs will be stored (-t), the list of sessions during which the scans were acquired (-sessions). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
+APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`), the list of sessions during which the scans were acquired (`-sessions`). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
 
 ####  File options (mandatory):
     -s SOURCEDIR, --source=SOURCEDIR, --sourcedir=SOURCEDIR
@@ -292,7 +315,7 @@ The first processing step in PET processing is the coregistration of the T1 imag
 Collins, D.L., Neelin, P., Peters, T.M., Evans, A.C. Automatic 3D intersubject registration of MR volumetric data in standardized Talairach space. Journal of Computer Assisted Tomography. 18 (2), 192–205. 1994
 
 ### Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for TKA, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
 
   #### Masking options: PVC
 
@@ -384,7 +407,7 @@ Rousset, O.G., Ma, Y., Evans, A.C., 1998. Correction for Partial Volume Effects 
 ###### Surface-based iterative deconvolution (idSURF)
 Funck, T., Paquette, C., Evans, A., Thiel, A., 2014. Surface-based partial-volume correction for high-resolution PET. Neuroimage 102, 674–87. doi:10.1016/j.neuroimage.2014.08.037
 
-###### Muller-Gartner (MG)
+###### Müller-Gartner (MG)
 Muller-Gartner, H.W., Links, J.M., Prince, J.L., Bryan, R.N., McVeigh, E., Leal, J.P., Davatzikos, C., Frost, J.J. Measurement of radiotracer concentration in brain gray matter using positron emission tomography: MRI-based correction for partial volume effects. Journal of Cerebral Blood Flow and Metabolism 12, 571–583. 1992
 
 ###### Labbé (LAB) 
@@ -406,12 +429,12 @@ NA
 Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J. Opt. Soc. Am. 62, 55. doi:10.1364/JOSA.62.000055
 
 ###### PETPVC
-Note: MG, LAB, MTC, IY, RVC, RL are all implemented with PETPVC. You should therefore cite the following paper if you use one of these. 
+*Note: MG, LAB, MTC, IY, RVC, RL are all implemented with PETPVC. You should therefore cite the following paper if you use one of these.* 
 
 Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
 
 ### Quantification
-Tracer kinetic analysis (TKA) allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate TKA method will depend on the radiotracer. Certain models, e.g., the Logan plot and simplified reference tissue model, are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three TKA methods are implemented: Logan plot, Patlak-Gjedde plot, and the simplified reference tissue model.
+Tracer kinetic analysis (TKA) allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate TKA method will depend on the radiotracer. Certain models, e.g., the Logan Plot and Simplified Reference Tissue Model (SRTM), are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three TKA methods are implemented: Logan plot, Patlak-Gjedde plot, and the SRTM.
 
 #### Quantification options:
     --tka-method=TKA_METHOD
@@ -462,7 +485,8 @@ Tracer kinetic analysis (TKA) allows for the quantification of physiological or 
 Logan, J., Fowler, J.S., Volkow, N.D., Wang, G.-J., Ding, Y.-S., Alexoff, D.L., 1996. Distribution Volume Ratios Without Blood Sampling from Graphical Analysis of PET Data. J. Cereb. Blood Flow Metab. 16, 834–840. doi:10.1097/00004647-199609000-00008
 
 ###### Patlak-Gjedde Plot (pp)
-Please cite both of the following papers when using the Patlak-Gjedde method
+*Please cite both of the following papers when using the Patlak-Gjedde method*
+
 Patlak, C. S., Blasberg, R. G., and Fenstermacher, J. D. (1983). Graphical evaluation of blood-to-brain transfer constants from multiple-time uptake data. J. Cereb. Blood Flow Metab. 3, 1–7. doi: 10.1038/jcbfm.1983.1
 
 Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain uptake of glucose analogs in vivo: a re-examination. Brain Res. 257, 237–274. doi: 10.1016/0165-0173(82)90018-2
@@ -471,7 +495,7 @@ Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain up
 Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.
 
 ### Reporting of results <a name="results"></a>
-The ROI masks described in section 1.b are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and python) for further statistical analysis. 
+The ROI masks described in *section 5.4* are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 
 
 ####  Results reporting options:
     --no-group-stats    Don't calculate quantitative group-wise descriptive
@@ -480,10 +504,13 @@ The ROI masks described in section 1.b are applied on all images output from the
 
 ### Quality control <a name="qc"></a>
 Quality control is a crucial step of any automated pipeline. It is essential that the user be able to easily confirm that the pipeline has performed as expected and identify any problematic subjects or processing steps. 
-Towards the end of facilitating rigorous quality control, we are implementing qualitative and quantitative quality control for every major processing step. The user will be able to peruse all output images in GIF format to verify that the images appear as expected (e.g., that there is no gross error in co-registration). Users will also be able to open the full 3D volumes using the BrainBrowser interface. 
+In order to facilitate rigorous quality control, we are implementing qualitative and quantitative quality control for every major processing step. The user will be able to peruse all output images in GIF format to verify that the images appear as expected (e.g., that there is no gross error in co-registration). Users will also be able to open the full 3D volumes using the BrainBrowser web interface. 
 Quantitative quality control functions by calculating a metric that attempts to measure how accurately the processing step in question was performed. For example, the accuracy of the co-registration is measured using a similarity metric between the PET and MRI image. A single metric is not by itself very informative, because we do not know what value this metric should be. However it is possible to compare the metrics of all subjects at a given processing step and find outliers within these. Thus if most of the subjects have a similarity metric of 0.6 for their co-registered PET and MRI, then a subject with a similarity metric of 0.1 would indicate that this subject had probably failed this processing step and should be further scrutinized using qualitative quality control (visual inspection).  
 
 ####  Quality control options:
     --no-group-qc       Don't perform quantitative group-wise quality control.
     --test-group-qc     Perform simulations to test quantitative group-wise
                         quality control.
+
+[link_bidsio]: http://bids.neuroimaging.io/
+[link_turkuLC]: http://www.turkupetcentre.net/petanalysis/lumped_constant.html

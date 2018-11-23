@@ -12,59 +12,77 @@ import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 
+import json
 from Extra.concat import concat_df
 from Quality_Control.qc import metric_columns
 
 results_columns = metric_columns + ['frame']
-
+"""
+.. module:: Results_Report.results
+    :platform: Unix
+    :synopsis: Module to get results from output image
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 ######################################
 # Group level descriptive statistics #
 ######################################
 def group_level_descriptive_statistics(opts, args):
-    #Setup workflow
-    workflow = pe.Workflow(name=opts.preproc_dir)
-    workflow.base_dir = opts.targetDir
-    
-    #Datasink
-    datasink=pe.Node(interface=nio.DataSink(), name="output")
-    datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"
-    datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
+    vol_surf_list = ['']
 
-    #Datagrabber
-    if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_*'+os.sep+'*_3d.csv')
-    else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_*'+os.sep+'*_3d.csv')
+    if opts.use_surfaces : 
+        vol_surf_list += ['surf']
 
-    datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
-    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
-    datasource.inputs.template = '*'
-    datasource.inputs.field_template = scan_stats_dict
+    for surf in vol_surf_list:
+        print(surf, "\n")
+        #Setup workflow
+        workflow = pe.Workflow(name=opts.preproc_dir)
+        workflow.base_dir = opts.targetDir
+        
+        #Datasink
+        datasink=pe.Node(interface=nio.DataSink(), name="output")
+        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"+os.sep+surf
+        datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
-    #Concatenate descriptive statistics
-    concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
-    concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
-    workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-    workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
-   
-    #Calculate descriptive statistics
-    descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
-    workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
-    workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
-    workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
-    workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
-    workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
-    workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
-    workflow.run()
+        #Datagrabber
+        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
+        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
+
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+        datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+        datasource.inputs.template = '*'
+        datasource.inputs.field_template = scan_stats_dict
+
+        #Concatenate descriptive statistics
+        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
+        concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
+        workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
+        workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
+       
+        #Calculate descriptive statistics
+        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
+        workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
+        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
+        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
+        workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
+        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
+        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
+        workflow.run()
 
 class resultsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
-    header = traits.Dict(desc="PET Header")
+    surf_mesh = traits.File(desc="Surface mesh (.obj) ")
+    surf_mask = traits.File(desc="Surface mask (.txt) ")
+    header = traits.File(desc="PET Header")
     out_file_3d = traits.File(desc="3d Output file ")
     out_file_4d = traits.File(desc="4d Output file ")
     dim = traits.Str("Number of dimensions")
     sub = traits.Str("Subject ID")
     task = traits.Str("Task")
     ses = traits.Str("Ses")
+    run = traits.Str("Run")
+    acq = traits.Str("Acquisition")
+    rec = traits.Str("Reconstruction")
     node  = traits.Str(mandatory=True, desc="Node name")
 
 class resultsOutput(TraitedSpec):
@@ -90,6 +108,8 @@ class resultsCommand( BaseInterface):
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
         resultsReport.inputs.vol_roi = self.inputs.mask
+        if  isdefined(self.inputs.surf_mesh) and isdefined(self.inputs.surf_mask) :
+            resultsReport.inputs.surf_roi = self.inputs.surf_mesh + ' ' + self.inputs.surf_mask
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
         print resultsReport.cmdline
         resultsReport.run()
@@ -98,11 +118,16 @@ class resultsCommand( BaseInterface):
         add_csvInfoNode.inputs.sub = self.inputs.sub
         add_csvInfoNode.inputs.ses = self.inputs.ses
         add_csvInfoNode.inputs.task =self.inputs.task
+        if isdefined(self.inputs.run):
+            add_csvInfoNode.inputs.run =self.inputs.run
+        if isdefined(self.inputs.rec):
+            add_csvInfoNode.inputs.rec =self.inputs.rec
+        if isdefined(self.inputs.acq):
+            add_csvInfoNode.inputs.acq =self.inputs.acq
         add_csvInfoNode.inputs.node =self.inputs.node
         if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
         else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
         add_csvInfoNode.run()
-
         
         if self.inputs.dim == '4':
             integrate_resultsReport = integrate_TACCommand()
@@ -112,11 +137,6 @@ class resultsCommand( BaseInterface):
             integrate_resultsReport.run()   
         
         return runtime
-
-    #def _parse_inputs(self):
-    #    if not isdefined(self.inputs.out_file):
-    #        [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
-    #    return super(integrate_TACCommand, self)._parse_inputs(skip=skip)
 
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
@@ -131,7 +151,7 @@ class resultsCommand( BaseInterface):
 class groupstatsInput(MINCCommandInputSpec):   
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
-    surf_roi = traits.File(argstr="-s %s %s", desc="obj and txt files containing surface ROI")
+    surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
     label = traits.Str(desc="Label for output file")
 
@@ -150,9 +170,8 @@ class groupstatsCommand(MINCCommand, Info):
 
         if not isdefined(self.inputs.out_file):
             if label == None: label_str=''
-            else: label_str=label + '_'
+            else : label_str=label + '_'
             self.inputs.out_file = os.getcwd() + os.sep + label_str +  "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
-
 
         return super(groupstatsCommand, self)._parse_inputs(skip=skip)
 
@@ -168,9 +187,12 @@ class groupstatsCommand(MINCCommand, Info):
 
 class add_csvInfoInput(MINCCommandInputSpec):   
     in_file = File(mandatory=True, desc="Input file")
-    ses  = traits.Str(mandatory=True, desc="Session")
-    task = traits.Str(mandatory=True, desc="Task")
+    ses  = traits.Str(mandatory=True, desc="Session",usedefault=True,default_value="NA")
+    task = traits.Str(mandatory=True, desc="Task",usedefault=True,default_value="NA")
     sub  = traits.Str(mandatory=True, desc="Subject")
+    run  = traits.Str(mandatory=False, desc="Run",usedefault=True,default_value="NA")
+    acq  = traits.Str(mandatory=False, desc="Radiotracer",usedefault=True,default_value="NA")
+    rec  = traits.Str(mandatory=False, desc="Reconstruction",usedefault=True,default_value="NA")
     node  = traits.Str(mandatory=True, desc="Node name")
     out_file = File(desc="Output file")
 
@@ -182,10 +204,14 @@ class add_csvInfoCommand(BaseInterface):
     output_spec = add_csvInfoOutput
     
     def _run_interface(self, runtime):
+        #print(self.inputs); exit(1)
         sub = self.inputs.sub
         task= self.inputs.task
         ses= self.inputs.ses
         node = self.inputs.node
+        run = self.inputs.run
+        acq = self.inputs.acq
+        rec = self.inputs.rec
         
         print "\nadd_csvInfo: ", self.inputs.in_file, "\n"
 
@@ -196,6 +222,9 @@ class add_csvInfoCommand(BaseInterface):
         dfo["sub"] = [sub] * df.shape[0]
         dfo["ses"] = [ses] * df.shape[0]
         dfo["task"] = [task] * df.shape[0]
+        dfo["run"] = [run] * df.shape[0]
+        dfo["acq"] = [acq] * df.shape[0]
+        dfo["rec"] = [rec] * df.shape[0]
         dfo["roi"] =  df['roi']
         dfo['metric'] = ['mean'] * df.shape[0]
         dfo['value'] = df['mean']
@@ -203,7 +232,8 @@ class add_csvInfoCommand(BaseInterface):
             dfo['frame'] = df['frame']
         else: dfo['frame'] = [0] * df.shape[0]
         dfo = dfo[ results_columns ]
-
+        print(dfo["run"])
+        print(dfo)
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         dfo.to_csv(self.inputs.out_file, index=False)
@@ -221,9 +251,6 @@ class add_csvInfoCommand(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
 
         return outputs
-
-
-
 
 class descriptive_statisticsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
@@ -291,7 +318,7 @@ class descriptive_statisticsCommand( BaseInterface):
 ### TKA metrics
 class integrate_TACInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
-    header = traits.Dict(desc="Input file ")
+    header = traits.File(desc="PET Header file ")
     out_file = traits.File(desc="Output file ")
 
 class integrate_TACOutput(TraitedSpec):
@@ -307,7 +334,8 @@ class integrate_TACCommand( BaseInterface):
         return out_file 
 
     def _run_interface(self, runtime):
-        header = self.inputs.header
+        
+        header = json.load(open( self.inputs.header ,"rb"))
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1
@@ -319,10 +347,10 @@ class integrate_TACCommand( BaseInterface):
        
         if time_frames == [] :
             try :
-                header['ecat_acquisition']['frame_lengths']
-                time_frames = [ float(h) for h in  header['ecat_acquisition']["frame_lengths"] ]
-                for i in range(1, len(time_frames)) :
-                    time_frames[i] = time_frames[i] + time_frames[i-1]
+                header['Time']['FrameTimes']['Values']
+                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+                #for i in range(1, len(time_frames)) :
+                #    time_frames[i] = time_frames[i] + time_frames[i-1]
                     
             except ValueError : 
                 time_frames = []
@@ -330,7 +358,7 @@ class integrate_TACCommand( BaseInterface):
         if time_frames == [] : time_frames = [1.]
 
         out_df = pd.DataFrame( columns=metric_columns)
-        for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):
+        for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]):
             print temp_df
             print time_frames
             if len(time_frames) > 1 :

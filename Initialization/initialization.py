@@ -14,7 +14,7 @@ from pyminc.volumes.factory import *
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+        BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
@@ -23,54 +23,227 @@ from Extra.info import  InfoCommand
 from Extra.modifHeader import ModifyHeaderCommand
 from Extra.reshape import  ReshapeCommand
 from glob import glob
+from Extra.modifHeader import FixHeaderCommand
 
-def unique_file(files, attributes):
-	
-	if len(files) == 1: 
-		return(files[0])
-	
-	files = [ f for f in files if attributes[0] in f ]
+global isotope_dict
+isotope_dict={
+        "C-11" : 20.334*60 ,
+        "F-18" : 109.7*60,
+        "O-15" : 122.24
+        }
 
-	if attributes == [] or len(files) == 0: return []
-	else: unique_file(files, attributes[1:])
-	return( files[0] ) 
+def string_test(s):
+    t = type(s)
+    if  t == str : return True
+    elif t == unicode : return True
+    elif t == ascii : return True
+    return False
 
 
-def gen_args(opts, session_ids, task_ids, acq, rec, subjects):
+def recursive_dict_search(d, target, level=0):
+    if level == 0 : print("Target:", target)
+    level+=1
+    for k,v  in zip(d.keys(), d.values()) :
+        #print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
+        
+        #End condition
+        if string_test(k) :
+            if target.lower() in k.lower().split("_") :
+                print("\t"*level,"Return:",k)
+                return [k]
+        
+        #Search dictionary
+        if type(v) == dict :
+            test = [k] + recursive_dict_search(v, target, level)
+            if not None in test :
+                return test
+        
+    return [None]
+
+def fix_df(d, target):
+    dict_path = recursive_dict_search(d,target)
+    temp_d = d
+    value=None
+    if not None in dict_path :
+        for i in dict_path :
+            temp_d = temp_d[i]
+        value = temp_d[0]
+    return value
+
+def set_isotope_halflife(d, user_halflife=None, target="halflife"):
+    #find path in dictionary to target 
+    dict_path = recursive_dict_search(d, target=target)
+    #if there is no path to target, try backup
+    if None in dict_path :
+        isotope  = fix_df(d, "isotope")
+        try :
+            halflife = isotope_dict[ isotope ]
+        except KeyError :
+            if user_halflife != None :
+                halflife = user_halflife
+            else :
+                print("Could not find either halflife or isotope")
+                exit(1)
+    else :
+        temp_d = d
+        for i in dict_path :
+            temp_d = temp_d[i]
+        halflife = temp_d
+    
+    if type(halflife) == list :
+        halflife=halflife[0]
+
+    try :
+        d["acquisition"]
+    except :
+        d["acquisition"]={"radionuclide_halflife": halflife }
+    else :  
+        d["acquisition"]["radionuclide_halflife"] = halflife
+
+    return d
+
+
+
+def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes","Values"], verbose=True):
+    #find path in dictionary to target 
+    #dict_path = recursive_dict_search(d, target="FrameLengths")
+  
+    if minc_input : # MINC Input
+        print("Check header for MINC input")
+        dict_path = recursive_dict_search(d, target="frames-length")
+        temp_d = d
+        for i in dict_path :
+            temp_d = temp_d[i]
+        FrameLengths=temp_d
+
+        values_dict_path = recursive_dict_search(d, target="frames-time")
+        
+        Values=None
+        
+        if not None in values_dict_path :
+            temp_d = d
+            if verbose : print( values_dict_path )
+            for i in values_dict_path :
+                temp_d = temp_d[i]
+                print(temp_d)
+        
+        temp_d = [ float(i) for i in temp_d ]
+        FrameLengths=list(np.diff(temp_d))
+        FrameLengths.append(FrameLengths[-1])
+        print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
+        x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
+        Values=zip( temp_d, x.astype(str)  )
+
+        d["Time"]={}
+        d["Time"]["FrameTimes"]={}
+        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
+        d["Time"]["FrameTimes"]["Values"] =Values
+    else : #NIFTI Input
+        print("Check header for NIFTI input")
+        frame_times=[]
+        print( d["Time"]["FrameTimes"] ) 
+        try :
+            frame_times = d["Time"]["FrameTimes"]["Values"]
+        except KeyError :
+            print("\nError Could not find Time:FrameTimes:Values in header\n")
+            exit(1)
+        FrameLengths=[]
+
+        c0=c1=1 #Time unit conversion variables. Time should be in seconds
+        try :
+            if d["Time"]["FrameTimes"]["Units"][0] == 'm' :
+                c0=60
+            elif d["Time"]["FrameTimes"]["Units"][0] == 'h' :
+                c0=60*60
+            if d["Time"]["FrameTimes"]["Units"][1] == 'm' :
+                c1=60
+            elif d["Time"]["FrameTimes"]["Units"][1] == 'h' :
+                c1=60*60
+        except KeyError :
+            print("\nError Could not find Time:FrameTimes:Units in header\n")
+            exit(1)
+        
+        for s, e in frame_times :
+            FrameLengths.append(c1*e - c0*s)
+
+        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
+        #if there is no path to target, try backup
+
+    return d
+    
+
+def unique_file(files, attributes, verbose=False):
+    
+    if len(files) == 1: 
+        return(files[0])
+
+    out_files=[] 
+    for f in files :
+        skip=False
+        for a in attributes :
+            if not a in f : 
+                skip=True
+                break
+        if verbose : print(f,'skip file=', skip)
+        if not skip : 
+           out_files.append(f)
+
+    if attributes == [] or len(out_files) == 0 : return []
+     
+    if len(out_files) > 1 :
+        print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
+        print("You can used --acq and --rec to specify the acquisition and receptor")
+        print(out_files)
+        exit(1)
+
+    return( out_files[0] ) 
+
+
+def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
     args=[]
     for sub in subjects:
-        print sub
         for ses in session_ids:
             for task in task_ids:
-				sub_arg='sub-'+sub
-				ses_arg='ses-'+ses
-				task_arg=rec_arg=acq_arg=""
-				
-				pet_fn=civet_fn=""
-				if not acq == None: acq_arg='acq-'+acq
-				if not rec == None: rec_arg='rec-'+rec
-				pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '_'+ ses_arg + os.sep+ 'pet/*'+ 'ses-'+ses+'*'+'task-'+ task  +'*_pet.mnc' 
-				pet_list=glob(pet_string)
-				if pet_list != []:
-					pet_fn = unique_file(pet_list,[sub, ses, task, acq, rec] )
-				civet_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
-				if civet_list != []:
-					civet_fn = unique_file(civet_list,[sub, ses, task, acq, rec] )
-				if os.path.exists(pet_fn) and os.path.exists(civet_fn):
-					d={'task':task, 'ses':ses, 'sid':sub}
-					args.append(d)
-				else:
-					if not os.path.exists(pet_fn) :
-						print "Could not find PET for ", sub, ses, task, pet_fn
-					if not os.path.exists(civet_fn) :
-						print "Could not find CIVET for ", sub, ses, task, civet_fn
+                for run in run_ids:
+                    sub_arg='sub-'+sub
+                    ses_arg='ses-'+ses
+                    task_arg=rec_arg=acq_arg=""
+
+                    pet_fn=mri_fn=""
+                    if  acq == '': acq_arg='acq-'+acq
+                    if  rec == '': rec_arg='rec-'+rec
+                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
+                    pet_list=glob(pet_string)
+                    
+                    arg_list = ['sub-'+sub, 'ses-'+ses]
+                    if not task == '': arg_list += ['task-'+task]
+                    if not acq == '': arg_list += ['acq-'+acq]
+                    if not rec == '': arg_list += ['rec-'+rec]
+                    if not run == '': arg_list += ['run-'+run]
+                    if pet_list != []:
+                        pet_fn = unique_file(pet_list, arg_list )
+                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
+                    if mri_list != []:
+                        mri_fn = unique_file(mri_list, arg_list )
+                    
+                    if pet_fn == [] or mri_fn == [] : continue 
+                    if os.path.exists(pet_fn) and os.path.exists(mri_fn):
+                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
+                        args.append(d)
+                    else:
+                        if not os.path.exists(pet_fn) :
+                            print "Could not find PET for ", sub, ses, task, pet_fn
+                        if not os.path.exists(mri_fn) :
+                            print "Could not find T1 for ", sub, ses, task, mri_fn
     return args
+
 
 class SplitArgsOutput(TraitedSpec):
     cid = traits.Str(mandatory=True, desc="Condition ID")
     sid = traits.Str(mandatory=True, desc="Subject ID") 
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
+    run = traits.Str(desc="Run ID")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
@@ -78,6 +251,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
     ses = traits.Str(desc="Session ID")
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
+    run = traits.Str(desc="Run ID")
     #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
     args = traits.Dict(mandatory=True, desc="Overwrite output file")
@@ -87,27 +261,27 @@ class SplitArgsRunning(BaseInterface):
     output_spec = SplitArgsOutput
 
     def _run_interface(self, runtime):
-       self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']
-       self.inputs.task=self.inputs.args['task']
-       self.inputs.ses=self.inputs.args['ses']
-       self.inputs.sid=self.inputs.args['sid']
-       if isdefined(self.inputs.RoiSuffix):
-           self.inputs.RoiSuffix=self.inputs.RoiSuffix
-       return runtime
-
+        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
+        self.inputs.task=self.inputs.args['task']
+        self.inputs.run=self.inputs.args['run']
+        if not isdefined(self.inputs.ses) :
+            self.inputs.ses=self.inputs.args['ses']
+        if not isdefined(self.inputs.sid) :
+            self.inputs.sid=self.inputs.args['sid']
+        if isdefined(self.inputs.RoiSuffix):
+            self.inputs.RoiSuffix=self.inputs.RoiSuffix
+        return runtime
+    
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["cid"] = self.inputs.cid
         outputs["sid"] = self.inputs.sid
         outputs["ses"] = self.inputs.ses
         outputs["task"] = self.inputs.task
+        outputs["run"] = self.inputs.run
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs
-
-
-
-
 
 class MincHdrInfoOutput(TraitedSpec):
     out_file = File(desc="Output file")
@@ -116,6 +290,8 @@ class MincHdrInfoOutput(TraitedSpec):
 
 class MincHdrInfoInput(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc="Native dynamic PET image")
+    halflife = traits.Float(desc="Radioisotope halflife (in seconds)")
+    json_header = File(desc="PET header")
     out_file = File(desc="Output file")
 
     clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
@@ -133,10 +309,15 @@ class MincHdrInfoRunning(BaseInterface):
             fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
             dname = os.getcwd() #os.path.dirname(self.inputs.nativeT1)
             self.inputs.out_file = dname+ os.sep+fname + self._suffix
-        try:
+        try :
             os.remove(self.inputs.out_file)
         except OSError:
             pass
+
+        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+        #pettot1_4d_header_fixed.inputs.time_only=True
+        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
+        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
 
         class InfoOptions:
             def __init__(self, command, variable, attribute, type_):
@@ -146,21 +327,20 @@ class MincHdrInfoRunning(BaseInterface):
                 self.type_ = type_
 
         options = [ InfoOptions('-dimnames','time','dimnames','string'),
-                    InfoOptions('-varvalue time','time','frames-time','integer'),
-                    InfoOptions('-varvalue time-width','time','frames-length','integer') ]
-
+                InfoOptions('-varvalue time','time','frames-time','integer'),
+                InfoOptions('-varvalue time-width','time','frames-length','integer') ]
+        temp_out_file=os.getcwd()+os.sep+"temp.json"
         for opt in options:
             run_mincinfo=InfoCommand()
             run_mincinfo.inputs.in_file = self.inputs.in_file
-            run_mincinfo.inputs.out_file = self.inputs.out_file
+            run_mincinfo.inputs.out_file = temp_out_file
             run_mincinfo.inputs.opt_string = opt.command
             run_mincinfo.inputs.json_var = opt.variable
             run_mincinfo.inputs.json_attr = opt.attribute
             run_mincinfo.inputs.json_type = opt.type_
             run_mincinfo.inputs.error = 'unknown'
 
-            if self.inputs.verbose:
-                print run_mincinfo.cmdline
+            print run_mincinfo.cmdline
             if self.inputs.run:
                 run_mincinfo.run()
 
@@ -175,11 +355,27 @@ class MincHdrInfoRunning(BaseInterface):
                 attr = str(subkey)
                 #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
                 self._params[key][subkey]=data_in 
-                update_minchd_json(self.inputs.out_file, data_in, var, attr)
+                update_minchd_json(temp_out_file, data_in, var, attr)
+
+        header = json.load(open(temp_out_file, "r") )
+        #fp.close()
+
+        minc_input=True
+        if not isdefined(self.inputs.json_header) : 
+            print("Error: could not find json file", self.inputs.json_header)
+            exit(1)
         
+        print("\n\nMINC INPUT =", minc_input, self.inputs.json_header)
+        json_header = json.load(open(self.inputs.json_header, "r+"))
+        header.update(json_header)
+        minc_input=False
         
-        fp=open(self.inputs.out_file)
-        header = json.load(fp)
+        header = set_frame_duration(header, minc_input)
+        header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
+        
+        fp=open(self.inputs.out_file, "w+")
+        fp.seek(0)
+        json.dump(header, fp, sort_keys=True, indent=4)
         fp.close()
 
         self._params=header
@@ -200,46 +396,53 @@ class VolCenteringOutput(TraitedSpec):
 
 class VolCenteringInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
+    header = File(desc="Header")
     out_file = File(argstr="%s", desc="Image after centering")
 
     run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class VolCenteringRunning(BaseInterface):
-	input_spec = VolCenteringInput
-	output_spec = VolCenteringOutput
-	_suffix = "_center"
+    input_spec = VolCenteringInput
+    output_spec = VolCenteringOutput
+    _suffix = "_center"
 
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
+            dname = dname = os.getcwd()
+            self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
 
-	def _run_interface(self, runtime):
-		if not isdefined(self.inputs.out_file):
-			fname = os.path.splitext(os.path.basename(self.inputs.in_file))[0]
-			dname = dname = os.getcwd()
-			self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
+        shutil.copy(self.inputs.in_file, self.inputs.out_file)
+        infile = volumeFromFile(self.inputs.in_file)
+        for view in ['xspace','yspace','zspace']:
+            start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
 
+            run_modifHrd=ModifyHeaderCommand()
+            run_modifHrd.inputs.in_file = self.inputs.out_file;
+            run_modifHrd.inputs.dinsert = True;
+            run_modifHrd.inputs.opt_string = view+":start="+str(start);
+            run_modifHrd.run()
+            
+        node_name="fixIrregularDimension"
+        fixIrregular = ModifyHeaderCommand()
+        fixIrregular.inputs.sinsert = True;
+        fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\"  "
+        fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
+        fixIrregular.run()
 
-		shutil.copy(self.inputs.in_file, self.inputs.out_file)
-		infile = volumeFromFile(self.inputs.in_file)
-		for view in ['xspace','yspace','zspace']:
-			start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
+        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
+        #pettot1_4d_header_fixed.inputs.time_only=True
+        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
+        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
 
+        return runtime
 
-		run_modifHrd=ModifyHeaderCommand()
-		run_modifHrd.inputs.in_file = self.inputs.out_file;
-		run_modifHrd.inputs.dinsert = True;
-		run_modifHrd.inputs.opt_string = view+":start="+str(start);
-		
-		if self.inputs.run:
-			run_modifHrd.run()
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
 
-		return runtime
-
-
-	def _list_outputs(self):
-		outputs = self.output_spec().get()
-		outputs["out_file"] = self.inputs.out_file
-
-		return outputs
+        return outputs
 
 class get_stepOutput(TraitedSpec):
     step =traits.Str(desc="Step size (X, Y, Z)")
@@ -254,7 +457,7 @@ class get_stepCommand(BaseInterface):
     output_spec = get_stepOutput
 
     def _run_interface(self, runtime):
-    	img = volumeFromFile(self.inputs.in_file)
+        img = volumeFromFile(self.inputs.in_file)
         zi=img.dimnames.index('zspace')
         yi=img.dimnames.index('yspace')
         xi=img.dimnames.index('xspace')
@@ -268,8 +471,6 @@ class get_stepCommand(BaseInterface):
         outputs = self.output_spec().get()
         outputs["step"] = self.inputs.step
         return outputs
-
-
 
 class PETexcludeFrOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
@@ -291,12 +492,16 @@ class PETexcludeFrRunning(BaseInterface):
         #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
-    
+
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
-        try: 
+        try :
             nFrames = infile.sizes[infile.dimnames.index("time")]
+        except ValueError :
+            nFrames = 1
+
+        if nFrames > 5 :
             first=int(ceil(float(nFrames*rank)/100))
             last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
             count=last-first
@@ -308,7 +513,7 @@ class PETexcludeFrRunning(BaseInterface):
                 print run_mincreshape.cmdline
             if self.inputs.run:
                 run_mincreshape.run()
-        except ValueError : 
+        else : 
             self.inputs.out_file = self.inputs.in_file 
 
         return runtime
@@ -319,117 +524,87 @@ class PETexcludeFrRunning(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
+"""
+.. module:: initialization 
+    :platform: Unix
+    :synopsis: Workflow to initialize PET images
+.. moduleauthor:: Thomas Funck <tffunck@gmail.com>
+"""
 
+def get_workflow(name, infosource, opts):
+    '''
+    Nipype workflow that initializes the PET images by 
+        1. Centering the PET image: petCenter
+        2. Exlcude start and end frames: petExcludeFr
+        3. Average 4D PET image into 3D image: petVolume
+        4. Extract information from header
 
-def get_workflow(name, infosource, datasink, opts):
+    :param name: Name of workflow
+    :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
+    :param datasink: Node in which output data is sent
+    :param opts: User options
 
+    :returns: workflow
+    '''
     workflow = pe.Workflow(name=name)
 
     #Define input node that will receive input from outside of workflow
-    default_field=["pet"] # ["pet", "t1"]
+    default_field=["pet","json_header"] # ["pet", "t1"]
     inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
 
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
 
-    #get_steps = pe.Node(interface=get_stepCommand(), name="get_steps")
-    #workflow.connect(inputnode, 't1', get_steps, 'in_file')
+    #header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
+    #workflow.connect(inputnode, 'pet',  header_init, 'in_file')
     
-    #node_name="petResample"
-    #petResample= pe.Node(interface=ResampleCommand(), name=node_name)
-    #petResample.inputs.interpolation = 'trilinear'
-	#petResample.inputs.tfm_input_sampling = True
-    #workflow.connect(inputnode, 'pet', petResample, 'in_file')
-    #workflow.connect(get_steps, 'step', petResample, 'step')
-	
-
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
-    petCenter.inputs.run = opts.prun    
-    rPetCenter=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petExcludeFr"
     petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
     petExFr.inputs.verbose = opts.verbose   
-    petExFr.inputs.run = opts.prun
-    rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
+    #petExFr.inputs.run = opts.prun
+    #rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     node_name="petVolume"
     petVolume = pe.Node(interface=minc.Average(), name=node_name)
-    #MIC: petVolume = pe.Node(interface=minc.AverageCommand(), name=node_name)
     petVolume.inputs.avgdim = 'time'
-    petVolume.inputs.width_weighted = True
+    petVolume.inputs.width_weighted = False
     petVolume.inputs.clobber = True
-    petVolume.inputs.verbose = opts.verbose 
-    rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
-    node_name="petBlur"
-    #MIC: petBlur = pe.Node(interface=minc.SmoothCommand(), name=node_name)
-    petBlur = pe.Node(interface=minc.Blur(), name=node_name)
-    petBlur.inputs.fwhm = 3
-    petBlur.inputs.clobber = True
-    #MIC: petBlur.inputs.verbose = opts.verbose 
+    #rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"),name="r"+node_name)
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
-    petSettings.inputs.verbose = opts.verbose
+    petSettings.inputs.halflife = opts.halflife
     petSettings.inputs.clobber = True
-    petSettings.inputs.run = opts.prun
-    rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
+    #petSettings.inputs.run = opts.prun
+    #rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
-    # node_name="petCenterSettings"
-    # petCenterSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
-    # petCenterSettings.inputs.verbose = opts.verbose
-    # petCenterSettings.inputs.clobber = True
-    # petCenterSettings.inputs.run = opts.prun
-    # rPetSettings=pe.Node(interface=Rename(format_string="%(study_prefix)s_%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
-
-    # workflow.connect([(inputnode, petSettings, [('pet', 'in_file')])])
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
+    #workflow.connect(header_init, 'out_file', petCenter, 'header')
 
-    workflow.connect([(petCenter, rPetCenter, [('out_file', 'in_file')])])
-    workflow.connect([#(infosource, rPetCenter, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetCenter, [('sid', 'sid')]),
-                      (infosource, rPetCenter, [('cid', 'cid')])
-                    ])
-    #workflow.connect(rPetCenter, 'out_file', datasink, 'coregistered')
-
-    # workflow.connect([(petCenter, petCenterSettings, [('out_file', 'in_file')])])
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
-
+    #if opts.json :
+    workflow.connect(inputnode, 'json_header', petSettings, 'json_header')
     workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
-    workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
-    workflow.connect([#(infosource, rPetExFr, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetExFr, [('sid', 'sid')]),
-                      (infosource, rPetExFr, [('cid', 'cid')])
-                    ])
-    #workflow.connect(rPetExFr, 'out_file', datasink, petExFr.name)
+    #workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
+    #workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),
+    #    (infosource, rPetExFr, [('cid', 'cid')])
+    #    ])
 
+    workflow.connect([(petExFr, petVolume, [('out_file', 'input_files')])])
 
-    #MIC: workflow.connect([(rPetExFr, petVolume, [('out_file', 'in_file')])])
-    workflow.connect([(rPetExFr, petVolume, [('out_file', 'input_files')])])
-
-    #MIC: workflow.connect([(petVolume, petBlur, [('out_file', 'in_file')])])
-    workflow.connect([(petVolume, petBlur, [('output_file', 'input_file')])])
-    #MIC: workflow.connect([(petBlur, rPetVolume, [('out_file', 'in_file')])])
-    workflow.connect([(petBlur, rPetVolume, [('output_file', 'in_file')])])
-   
-   
-    workflow.connect([#(infosource, rPetVolume, [('study_prefix', 'study_prefix')]),
-                      (infosource, rPetVolume, [('sid', 'sid')]),
-                      (infosource, rPetVolume, [('cid', 'cid')])
-                    ])
-    #workflow.connect(petBlur, 'out_file', datasink, petVolume.name)
-
+    #workflow.connect([(petVolume, rPetVolume, [('output_file', 'in_file')])])
+    #workflow.connect([(infosource, rPetVolume, [('sid', 'sid')]),
+    #    (infosource, rPetVolume, [('cid', 'cid')])
+    #    ])
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
     workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')
-    workflow.connect(rPetCenter, 'out_file', outputnode, 'pet_center')
-    workflow.connect(rPetVolume, 'out_file', outputnode, 'pet_volume')
+    workflow.connect(petCenter, 'out_file', outputnode, 'pet_center')
+    workflow.connect(petVolume, 'output_file', outputnode, 'pet_volume')
 
-    
+
     return(workflow)

@@ -3,7 +3,6 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import pyminc.volumes.factory as pyminc
-from Tracer_Kinetic.tka import loganROI
 import matplotlib as mpl
 from scipy.integrate import simps
 mpl.use('Agg')
@@ -388,6 +387,7 @@ class plot_rocCommand(BaseInterface):
 ### WORKFLOW
 ### FUNCTIONS
 def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.spectral, DPI=500):
+    
     df = dfi.copy()
     figs=[]
     fn_list=[]
@@ -510,7 +510,6 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
                                 #Get column number of the current outlier measure
                                 #Reindex the test_df from 0 to the number of rows it has
                                 #Get the series with the calculate the distance measure for the current measure
-                                print(metric_df)
                                 metric_df.index = range(metric_df.shape[0])
                                 metricvalues=metric_df.value.values
                                 if len(metricvalues.shape) == 1 : metricvalues = metricvalues.reshape(-1,1)
@@ -523,18 +522,19 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
                                 row_args = [sub]+list(cond)+[error_type,error,roi,measure_name,metric_name,s]
                                 row=pd.DataFrame([row_args], columns=out_columns  )
                                 df_out = pd.concat([df_out, row],axis=0)
-
     #print(df_out)
     return(df_out)
 
 
 from matplotlib.lines import Line2D
 def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
+    dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
-    f = lambda x: float(str(x).split('.')[-1]) 
+    #f = lambda x: float(str(x).split('.')[-1]) 
 	#FIXME: Will only print last error term
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
+    f=lambda x : float(x) / 100 
     nmeasure=len(df.measure.unique())
     nmetric=len(df.measure.unique())
     df.error = df.error.apply(f)
@@ -543,7 +543,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
     sub_cond_unique = np.unique(sub_cond)
     nUnique=float(len(sub_cond_unique))
     measures=outlier_measures.keys()
-
+    
     for key, group1 in df.groupby(['errortype','roi']):
         errortype=key[0]
         roi=key[1]
@@ -560,6 +560,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
                 group1.value.loc[(group1.measure == measure) & (group1.metric == metric)]= x_norm
         ax=plt.subplot(ndim, ndim, n)
         g = sns.FacetGrid(group1, sharex=False, sharey=False, legend_out=True,  despine=True, margin_titles=True, col="metric", row="errortype", hue="sub")
+        xmax=group1["error"].max()
         sns.set(font_scale=1)
         g = g.map(plt.plot, "error", "value", alpha=0.5)#.add_legend()
         g = g.map(plt.scatter, "error", "value", alpha=0.5).add_legend()
@@ -567,7 +568,8 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
         plt.xlabel('')
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        plt.ylim([-0.05,1.05])
+        plt.ylim([-0.001,1.001])
+        plt.xlim([-0.001,xmax])
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper right", ncol=1, prop={'size': 6})
 
         ax.legend(loc="best", fontsize=7)
@@ -581,9 +583,12 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
 
 def plot_metrics(dfi, out_fn, color=cm.spectral):
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
+    
+    dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     f=lambda x: float( str(x).split('.')[-1] )
     dfi.error = dfi.error.apply(f)
     dfi = dfi.sort_values(by=["errortype", "error"])
+    
     for roi, df0 in dfi.groupby(["roi"]):
         plt.clf()
         plt.figure()

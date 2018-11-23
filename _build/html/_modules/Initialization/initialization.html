@@ -1,0 +1,490 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Initialization.initialization &#8212; APPIAN 0.1.1-alpha documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Initialization.initialization</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">as</span> <span class="nn">minc</span>
+
+<span class="kn">import</span> <span class="nn">minc</span> <span class="k">as</span> <span class="nn">pyezminc</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="k">import</span> <span class="n">basename</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="kn">from</span> <span class="nn">pyminc.volumes.factory</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="kn">import</span> <span class="nn">nipype.pipeline.engine</span> <span class="k">as</span> <span class="nn">pe</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">niu</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="p">(</span><span class="n">TraitedSpec</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">traits</span><span class="p">,</span> <span class="n">InputMultiPath</span><span class="p">,</span> 
+                                    <span class="n">BaseInterface</span><span class="p">,</span> <span class="n">OutputMultiPath</span><span class="p">,</span> <span class="n">BaseInterfaceInputSpec</span><span class="p">,</span> <span class="n">isdefined</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">nipype.utils.filemanip</span> <span class="k">import</span> <span class="p">(</span><span class="n">load_json</span><span class="p">,</span> <span class="n">save_json</span><span class="p">,</span> <span class="n">split_filename</span><span class="p">,</span> <span class="n">fname_presuffix</span><span class="p">,</span> <span class="n">copyfile</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">Extra.minc_filemanip</span> <span class="k">import</span> <span class="n">update_minchd_json</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">import</span> <span class="n">Rename</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">import</span> <span class="n">Resample</span> <span class="k">as</span> <span class="n">ResampleCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.info</span> <span class="k">import</span>  <span class="n">InfoCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.modifHeader</span> <span class="k">import</span> <span class="n">ModifyHeaderCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.reshape</span> <span class="k">import</span>  <span class="n">ReshapeCommand</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+
+<span class="k">def</span> <span class="nf">unique_file</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">attributes</span><span class="p">):</span>
+	
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> 
+		<span class="k">return</span><span class="p">(</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+	
+	<span class="n">files</span> <span class="o">=</span> <span class="p">[</span> <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span> <span class="k">if</span> <span class="n">attributes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">f</span> <span class="p">]</span>
+
+	<span class="k">if</span> <span class="n">attributes</span> <span class="o">==</span> <span class="p">[]</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">return</span> <span class="p">[]</span>
+	<span class="k">else</span><span class="p">:</span> <span class="n">unique_file</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">attributes</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+	<span class="k">return</span><span class="p">(</span> <span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">)</span> 
+
+
+<span class="k">def</span> <span class="nf">gen_args</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span> <span class="n">session_ids</span><span class="p">,</span> <span class="n">task_ids</span><span class="p">,</span> <span class="n">acq</span><span class="p">,</span> <span class="n">rec</span><span class="p">,</span> <span class="n">subjects</span><span class="p">):</span>
+    <span class="n">args</span><span class="o">=</span><span class="p">[]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">subjects</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">session_ids</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">subjects</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ses</span> <span class="ow">in</span> <span class="n">session_ids</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">task_ids</span><span class="p">:</span>
+				<span class="n">sub_arg</span><span class="o">=</span><span class="s1">&#39;sub-&#39;</span><span class="o">+</span><span class="n">sub</span>
+				<span class="n">ses_arg</span><span class="o">=</span><span class="s1">&#39;ses-&#39;</span><span class="o">+</span><span class="n">ses</span>
+				<span class="n">task_arg</span><span class="o">=</span><span class="n">rec_arg</span><span class="o">=</span><span class="n">acq_arg</span><span class="o">=</span><span class="s2">&quot;&quot;</span>
+				
+				<span class="n">pet_fn</span><span class="o">=</span><span class="n">civet_fn</span><span class="o">=</span><span class="s2">&quot;&quot;</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">acq</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">acq_arg</span><span class="o">=</span><span class="s1">&#39;acq-&#39;</span><span class="o">+</span><span class="n">acq</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">rec</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">rec_arg</span><span class="o">=</span><span class="s1">&#39;rec-&#39;</span><span class="o">+</span><span class="n">rec</span>
+				<span class="n">pet_string</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span> <span class="n">sub_arg</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span> <span class="s1">&#39;_&#39;</span><span class="o">+</span> <span class="n">ses_arg</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span> <span class="s1">&#39;pet/*&#39;</span><span class="o">+</span> <span class="s1">&#39;ses-&#39;</span><span class="o">+</span><span class="n">ses</span><span class="o">+</span><span class="s1">&#39;*&#39;</span><span class="o">+</span><span class="s1">&#39;task-&#39;</span><span class="o">+</span> <span class="n">task</span>  <span class="o">+</span><span class="s1">&#39;*_pet.mnc&#39;</span> 
+				<span class="n">pet_list</span><span class="o">=</span><span class="n">glob</span><span class="p">(</span><span class="n">pet_string</span><span class="p">)</span>
+				<span class="k">if</span> <span class="n">pet_list</span> <span class="o">!=</span> <span class="p">[]:</span>
+					<span class="n">pet_fn</span> <span class="o">=</span> <span class="n">unique_file</span><span class="p">(</span><span class="n">pet_list</span><span class="p">,[</span><span class="n">sub</span><span class="p">,</span> <span class="n">ses</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">acq</span><span class="p">,</span> <span class="n">rec</span><span class="p">]</span> <span class="p">)</span>
+				<span class="n">civet_list</span><span class="o">=</span><span class="n">glob</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">sourceDir</span><span class="o">+</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span> <span class="n">sub_arg</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;*/anat/*_T1w.mnc&#39;</span> <span class="p">)</span>
+				<span class="k">if</span> <span class="n">civet_list</span> <span class="o">!=</span> <span class="p">[]:</span>
+					<span class="n">civet_fn</span> <span class="o">=</span> <span class="n">unique_file</span><span class="p">(</span><span class="n">civet_list</span><span class="p">,[</span><span class="n">sub</span><span class="p">,</span> <span class="n">ses</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">acq</span><span class="p">,</span> <span class="n">rec</span><span class="p">]</span> <span class="p">)</span>
+				<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pet_fn</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">civet_fn</span><span class="p">):</span>
+					<span class="n">d</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;task&#39;</span><span class="p">:</span><span class="n">task</span><span class="p">,</span> <span class="s1">&#39;ses&#39;</span><span class="p">:</span><span class="n">ses</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">:</span><span class="n">sub</span><span class="p">}</span>
+					<span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pet_fn</span><span class="p">)</span> <span class="p">:</span>
+						<span class="nb">print</span> <span class="s2">&quot;Could not find PET for &quot;</span><span class="p">,</span> <span class="n">sub</span><span class="p">,</span> <span class="n">ses</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">pet_fn</span>
+					<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">civet_fn</span><span class="p">)</span> <span class="p">:</span>
+						<span class="nb">print</span> <span class="s2">&quot;Could not find CIVET for &quot;</span><span class="p">,</span> <span class="n">sub</span><span class="p">,</span> <span class="n">ses</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">civet_fn</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">args</span>
+
+<div class="viewcode-block" id="SplitArgsOutput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.SplitArgsOutput">[docs]</a><span class="k">class</span> <span class="nc">SplitArgsOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">cid</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Condition ID&quot;</span><span class="p">)</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Subject ID&quot;</span><span class="p">)</span> 
+    <span class="n">task</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Task ID&quot;</span><span class="p">)</span>
+    <span class="n">ses</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Session ID&quot;</span><span class="p">)</span>
+    <span class="n">RoiSuffix</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Suffix for subject ROI&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SplitArgsInput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.SplitArgsInput">[docs]</a><span class="k">class</span> <span class="nc">SplitArgsInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Task ID&quot;</span><span class="p">)</span>
+    <span class="n">ses</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Session ID&quot;</span><span class="p">)</span>
+    <span class="n">sid</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Subject ID&quot;</span><span class="p">)</span>
+    <span class="n">cid</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Condition ID&quot;</span><span class="p">)</span>
+    <span class="c1">#study_prefix = traits.Str(mandatory=True, desc=&quot;Study Prefix&quot;)</span>
+    <span class="n">RoiSuffix</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Suffix for subject ROI&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Dict</span><span class="p">(</span><span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Overwrite output file&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SplitArgsRunning"><a class="viewcode-back" href="../../code.html#Initialization.initialization.SplitArgsRunning">[docs]</a><span class="k">class</span> <span class="nc">SplitArgsRunning</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">SplitArgsInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">SplitArgsOutput</span>
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">cid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;ses&#39;</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;task&#39;</span><span class="p">]</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">task</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;task&#39;</span><span class="p">]</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ses</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;ses&#39;</span><span class="p">]</span>
+       <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">sid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;sid&#39;</span><span class="p">]</span>
+       <span class="k">if</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">RoiSuffix</span><span class="p">):</span>
+           <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">RoiSuffix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">RoiSuffix</span>
+       <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;cid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">cid</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">sid</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;ses&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ses</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">task</span>
+        <span class="k">if</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">RoiSuffix</span><span class="p">):</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;RoiSuffix&quot;</span><span class="p">]</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">RoiSuffix</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+
+
+
+<div class="viewcode-block" id="MincHdrInfoOutput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.MincHdrInfoOutput">[docs]</a><span class="k">class</span> <span class="nc">MincHdrInfoOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Dict</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Dictionary&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MincHdrInfoInput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.MincHdrInfoInput">[docs]</a><span class="k">class</span> <span class="nc">MincHdrInfoInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Native dynamic PET image&quot;</span><span class="p">)</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Output file&quot;</span><span class="p">)</span>
+
+    <span class="n">clobber</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Overwrite output file&quot;</span><span class="p">)</span>
+    <span class="n">run</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Run the commands&quot;</span><span class="p">)</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Write messages indicating progress&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MincHdrInfoRunning"><a class="viewcode-back" href="../../code.html#Initialization.initialization.MincHdrInfoRunning">[docs]</a><span class="k">class</span> <span class="nc">MincHdrInfoRunning</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">MincHdrInfoInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">MincHdrInfoOutput</span>
+    <span class="n">_suffix</span> <span class="o">=</span> <span class="s2">&quot;.info&quot;</span>
+    <span class="n">_params</span><span class="o">=</span><span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> <span class="c1">#os.path.dirname(self.inputs.nativeT1)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">class</span> <span class="nc">InfoOptions</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="n">command</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="n">variable</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">attribute</span> <span class="o">=</span> <span class="n">attribute</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">type_</span> <span class="o">=</span> <span class="n">type_</span>
+
+        <span class="n">options</span> <span class="o">=</span> <span class="p">[</span> <span class="n">InfoOptions</span><span class="p">(</span><span class="s1">&#39;-dimnames&#39;</span><span class="p">,</span><span class="s1">&#39;time&#39;</span><span class="p">,</span><span class="s1">&#39;dimnames&#39;</span><span class="p">,</span><span class="s1">&#39;string&#39;</span><span class="p">),</span>
+                    <span class="n">InfoOptions</span><span class="p">(</span><span class="s1">&#39;-varvalue time&#39;</span><span class="p">,</span><span class="s1">&#39;time&#39;</span><span class="p">,</span><span class="s1">&#39;frames-time&#39;</span><span class="p">,</span><span class="s1">&#39;integer&#39;</span><span class="p">),</span>
+                    <span class="n">InfoOptions</span><span class="p">(</span><span class="s1">&#39;-varvalue time-width&#39;</span><span class="p">,</span><span class="s1">&#39;time&#39;</span><span class="p">,</span><span class="s1">&#39;frames-length&#39;</span><span class="p">,</span><span class="s1">&#39;integer&#39;</span><span class="p">)</span> <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+            <span class="n">run_mincinfo</span><span class="o">=</span><span class="n">InfoCommand</span><span class="p">()</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">opt_string</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">command</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">json_var</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">variable</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">json_attr</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">attribute</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">json_type</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">type_</span>
+            <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">cmdline</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+                <span class="n">run_mincinfo</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+        <span class="n">img</span> <span class="o">=</span> <span class="n">pyezminc</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">,</span> <span class="n">metadata_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">hd</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">get_MINC_header</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">hd</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">for</span> <span class="n">subkey</span> <span class="ow">in</span> <span class="n">hd</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">subkey</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+                <span class="n">data_in</span> <span class="o">=</span> <span class="n">hd</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">subkey</span><span class="p">]</span>
+                <span class="n">var</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="n">attr</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">subkey</span><span class="p">)</span>
+                <span class="c1">#Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">subkey</span><span class="p">]</span><span class="o">=</span><span class="n">data_in</span> 
+                <span class="n">update_minchd_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">,</span> <span class="n">data_in</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+        
+        
+        <span class="n">fp</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+        <span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_params</span><span class="o">=</span><span class="n">header</span>
+
+        <span class="k">return</span> <span class="n">runtime</span>
+
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_params</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+
+<div class="viewcode-block" id="VolCenteringOutput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.VolCenteringOutput">[docs]</a><span class="k">class</span> <span class="nc">VolCenteringOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image after centering&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VolCenteringInput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.VolCenteringInput">[docs]</a><span class="k">class</span> <span class="nc">VolCenteringInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image&quot;</span><span class="p">)</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image after centering&quot;</span><span class="p">)</span>
+
+    <span class="n">run</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-run&quot;</span><span class="p">,</span> <span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Run the commands&quot;</span><span class="p">)</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-verbose&quot;</span><span class="p">,</span> <span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Write messages indicating progress&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VolCenteringRunning"><a class="viewcode-back" href="../../code.html#Initialization.initialization.VolCenteringRunning">[docs]</a><span class="k">class</span> <span class="nc">VolCenteringRunning</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+	<span class="n">input_spec</span> <span class="o">=</span> <span class="n">VolCenteringInput</span>
+	<span class="n">output_spec</span> <span class="o">=</span> <span class="n">VolCenteringOutput</span>
+	<span class="n">_suffix</span> <span class="o">=</span> <span class="s2">&quot;_center&quot;</span>
+
+
+	<span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+			<span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="n">dname</span> <span class="o">=</span> <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">dname</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">fname</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span> <span class="o">+</span> <span class="s1">&#39;.mnc&#39;</span>
+
+
+		<span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+		<span class="n">infile</span> <span class="o">=</span> <span class="n">volumeFromFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">view</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;xspace&#39;</span><span class="p">,</span><span class="s1">&#39;yspace&#39;</span><span class="p">,</span><span class="s1">&#39;zspace&#39;</span><span class="p">]:</span>
+			<span class="n">start</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="n">infile</span><span class="o">.</span><span class="n">separations</span><span class="p">[</span><span class="n">infile</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">view</span><span class="p">)]</span><span class="o">*</span><span class="n">infile</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">infile</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">view</span><span class="p">)]</span><span class="o">/</span><span class="mi">2</span>
+
+
+		<span class="n">run_modifHrd</span><span class="o">=</span><span class="n">ModifyHeaderCommand</span><span class="p">()</span>
+		<span class="n">run_modifHrd</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">;</span>
+		<span class="n">run_modifHrd</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">dinsert</span> <span class="o">=</span> <span class="kc">True</span><span class="p">;</span>
+		<span class="n">run_modifHrd</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">opt_string</span> <span class="o">=</span> <span class="n">view</span><span class="o">+</span><span class="s2">&quot;:start=&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">);</span>
+		
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+			<span class="n">run_modifHrd</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+		<span class="k">return</span> <span class="n">runtime</span>
+
+
+	<span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+		<span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+
+		<span class="k">return</span> <span class="n">outputs</span></div>
+
+<div class="viewcode-block" id="get_stepOutput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.get_stepOutput">[docs]</a><span class="k">class</span> <span class="nc">get_stepOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">step</span> <span class="o">=</span><span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Step size (X, Y, Z)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="get_stepInput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.get_stepInput">[docs]</a><span class="k">class</span> <span class="nc">get_stepInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Step size (X, Y, Z)&quot;</span><span class="p">)</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image after centering&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_stepCommand"><a class="viewcode-back" href="../../code.html#Initialization.initialization.get_stepCommand">[docs]</a><span class="k">class</span> <span class="nc">get_stepCommand</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">get_stepInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">get_stepOutput</span>
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+    	<span class="n">img</span> <span class="o">=</span> <span class="n">volumeFromFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span>
+        <span class="n">zi</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;zspace&#39;</span><span class="p">)</span>
+        <span class="n">yi</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;yspace&#39;</span><span class="p">)</span>
+        <span class="n">xi</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;xspace&#39;</span><span class="p">)</span>
+        <span class="n">zstep</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">separations</span><span class="p">[</span><span class="n">zi</span><span class="p">]</span>
+        <span class="n">ystep</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">separations</span><span class="p">[</span><span class="n">yi</span><span class="p">]</span>
+        <span class="n">xstep</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">separations</span><span class="p">[</span><span class="n">xi</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">xstep</span><span class="p">)</span> <span class="o">+</span><span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ystep</span><span class="p">)</span> <span class="o">+</span><span class="s1">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">zstep</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;step&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">step</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+
+<div class="viewcode-block" id="PETexcludeFrOutput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.PETexcludeFrOutput">[docs]</a><span class="k">class</span> <span class="nc">PETexcludeFrOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image after centering&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PETexcludeFrInput"><a class="viewcode-back" href="../../code.html#Initialization.initialization.PETexcludeFrInput">[docs]</a><span class="k">class</span> <span class="nc">PETexcludeFrInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image&quot;</span><span class="p">)</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Image after centering&quot;</span><span class="p">)</span>
+
+    <span class="n">run</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-run&quot;</span><span class="p">,</span> <span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Run the commands&quot;</span><span class="p">)</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">argstr</span><span class="o">=</span><span class="s2">&quot;-verbose&quot;</span><span class="p">,</span> <span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Write messages indicating progress&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PETexcludeFrRunning"><a class="viewcode-back" href="../../code.html#Initialization.initialization.PETexcludeFrRunning">[docs]</a><span class="k">class</span> <span class="nc">PETexcludeFrRunning</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">PETexcludeFrInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">PETexcludeFrOutput</span>
+    <span class="n">_suffix</span> <span class="o">=</span> <span class="s2">&quot;_reshaped&quot;</span>
+
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+        <span class="c1">#tmpDir = tempfile.mkdtemp()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">fname_presuffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+    
+        <span class="n">infile</span> <span class="o">=</span> <span class="n">volumeFromFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span>      
+        <span class="n">rank</span><span class="o">=</span><span class="mi">10</span>
+        <span class="c1">#If there is no &quot;time&quot; dimension (i.e., in 3D file), then set nFrames to 1</span>
+        <span class="k">try</span><span class="p">:</span> 
+            <span class="n">nFrames</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">infile</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;time&quot;</span><span class="p">)]</span>
+            <span class="n">first</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">nFrames</span><span class="o">*</span><span class="n">rank</span><span class="p">)</span><span class="o">/</span><span class="mi">100</span><span class="p">))</span>
+            <span class="n">last</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">nFrames</span><span class="p">)</span><span class="o">-</span><span class="nb">int</span><span class="p">(</span><span class="n">ceil</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">nFrames</span><span class="o">*</span><span class="mi">4</span><span class="o">*</span><span class="n">rank</span><span class="p">)</span><span class="o">/</span><span class="mi">100</span><span class="p">))</span>
+            <span class="n">count</span><span class="o">=</span><span class="n">last</span><span class="o">-</span><span class="n">first</span>
+            <span class="n">run_mincreshape</span><span class="o">=</span><span class="n">ReshapeCommand</span><span class="p">()</span>
+            <span class="n">run_mincreshape</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">dimrange</span> <span class="o">=</span> <span class="s1">&#39;time=&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">first</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;,&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+            <span class="n">run_mincreshape</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span>
+            <span class="n">run_mincreshape</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> 
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="n">run_mincreshape</span><span class="o">.</span><span class="n">cmdline</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+                <span class="n">run_mincreshape</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="p">:</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> 
+
+        <span class="k">return</span> <span class="n">runtime</span>
+
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: initialization </span>
+<span class="sd">    :platform: Unix</span>
+<span class="sd">    :synopsis: Workflow to initialize PET images</span>
+<span class="sd">.. moduleauthor:: Thomas Funck &lt;tffunck@gmail.com&gt;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="get_workflow"><a class="viewcode-back" href="../../code.html#Initialization.initialization.get_workflow">[docs]</a><span class="k">def</span> <span class="nf">get_workflow</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="n">opts</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Nipype workflow that initializes the PET images by </span>
+<span class="sd">        1. Centering the PET image: petCenter</span>
+<span class="sd">        2. Exlcude start and end frames: petExcludeFr</span>
+<span class="sd">        3. Average 4D PET image into 3D image: petVolume</span>
+<span class="sd">        4. Extract information from header</span>
+
+<span class="sd">    :param name: Name of workflow</span>
+<span class="sd">    :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)</span>
+<span class="sd">    :param datasink: Node in which output data is sent</span>
+<span class="sd">    :param opts: User options</span>
+
+<span class="sd">    :returns: workflow</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Workflow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1">#Define input node that will receive input from outside of workflow</span>
+    <span class="n">default_field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pet&quot;</span><span class="p">]</span> <span class="c1"># [&quot;pet&quot;, &quot;t1&quot;]</span>
+    <span class="n">inputnode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">default_field</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;inputnode&#39;</span><span class="p">)</span>
+
+    <span class="c1">#Define empty node for output</span>
+    <span class="n">outputnode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pet_header_dict&quot;</span><span class="p">,</span><span class="s2">&quot;pet_header_json&quot;</span><span class="p">,</span><span class="s2">&quot;pet_center&quot;</span><span class="p">,</span><span class="s2">&quot;pet_volume&quot;</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;outputnode&#39;</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;petCenter&quot;</span>
+    <span class="n">petCenter</span><span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">VolCenteringRunning</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">petCenter</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">verbose</span>
+    <span class="n">petCenter</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">prun</span>    
+    <span class="n">rPetCenter</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Rename</span><span class="p">(</span><span class="n">format_string</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(sid)s</span><span class="s2">_</span><span class="si">%(cid)s</span><span class="s2">_&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="o">+</span><span class="s2">&quot;.mnc&quot;</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;petExcludeFr&quot;</span>
+    <span class="n">petExFr</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">PETexcludeFrRunning</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">petExFr</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">verbose</span>   
+    <span class="n">petExFr</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">prun</span>
+    <span class="n">rPetExFr</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Rename</span><span class="p">(</span><span class="n">format_string</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(sid)s</span><span class="s2">_</span><span class="si">%(cid)s</span><span class="s2">_&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="o">+</span><span class="s2">&quot;.mnc&quot;</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;petVolume&quot;</span>
+    <span class="n">petVolume</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">minc</span><span class="o">.</span><span class="n">Average</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">petVolume</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">avgdim</span> <span class="o">=</span> <span class="s1">&#39;time&#39;</span>
+    <span class="n">petVolume</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">width_weighted</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">petVolume</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">petVolume</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">verbose</span> 
+    <span class="n">rPetVolume</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Rename</span><span class="p">(</span><span class="n">format_string</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(sid)s</span><span class="s2">_</span><span class="si">%(cid)s</span><span class="s2">_&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="o">+</span><span class="s2">&quot;.mnc&quot;</span><span class="p">),</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;petSettings&quot;</span>
+    <span class="n">petSettings</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">MincHdrInfoRunning</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">petSettings</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">verbose</span>
+    <span class="n">petSettings</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">petSettings</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">prun</span>
+    <span class="n">rPetSettings</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Rename</span><span class="p">(</span><span class="n">format_string</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(sid)s</span><span class="s2">_</span><span class="si">%(cid)s</span><span class="s2">_&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="o">+</span><span class="s2">&quot;.mnc&quot;</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="o">+</span><span class="n">node_name</span><span class="p">)</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">inputnode</span><span class="p">,</span> <span class="n">petCenter</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;pet&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">petCenter</span><span class="p">,</span> <span class="n">rPetCenter</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetCenter</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)]),</span>
+                      <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetCenter</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;cid&#39;</span><span class="p">,</span> <span class="s1">&#39;cid&#39;</span><span class="p">)])</span>
+                    <span class="p">])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">petCenter</span><span class="p">,</span> <span class="n">petSettings</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">petCenter</span><span class="p">,</span> <span class="n">petExFr</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">petExFr</span><span class="p">,</span> <span class="n">rPetExFr</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetExFr</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)]),</span>
+                      <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetExFr</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;cid&#39;</span><span class="p">,</span> <span class="s1">&#39;cid&#39;</span><span class="p">)])</span>
+                    <span class="p">])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">rPetExFr</span><span class="p">,</span> <span class="n">petVolume</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="s1">&#39;input_files&#39;</span><span class="p">)])])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">petVolume</span><span class="p">,</span> <span class="n">rPetVolume</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)])])</span>
+   
+   
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">([(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetVolume</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;sid&#39;</span><span class="p">,</span> <span class="s1">&#39;sid&#39;</span><span class="p">)]),</span>
+                      <span class="p">(</span><span class="n">infosource</span><span class="p">,</span> <span class="n">rPetVolume</span><span class="p">,</span> <span class="p">[(</span><span class="s1">&#39;cid&#39;</span><span class="p">,</span> <span class="s1">&#39;cid&#39;</span><span class="p">)])</span>
+                    <span class="p">])</span>
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">petSettings</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">outputnode</span><span class="p">,</span> <span class="s1">&#39;pet_header_dict&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">petSettings</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">outputnode</span><span class="p">,</span> <span class="s1">&#39;pet_header_json&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">rPetCenter</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">outputnode</span><span class="p">,</span> <span class="s1">&#39;pet_center&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">rPetVolume</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">outputnode</span><span class="p">,</span> <span class="s1">&#39;pet_volume&#39;</span><span class="p">)</span>
+
+    
+    <span class="k">return</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Thomas Funck, Kevin Larcher.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

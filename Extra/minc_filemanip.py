@@ -28,10 +28,10 @@ def update_minchd_json(filename, data_in, var, attr):
 
     if data.get(var,'None') == 'None':
     	data[var]={attr:data_in}
-    else:
+    else :
     	if data.get(var).get(attr,'None') == 'None':
 	    data[var][attr]=data_in
-    	else:
+    	else :
 	    data[var][attr]=[data[var][attr],data_in]
     
     fp = file(filename, 'w')

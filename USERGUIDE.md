@@ -70,17 +70,17 @@ Here is the file structure that you should end up with:
 					sub-01_ses-02_pet.nii.gz
 
 ### Run Examples
-You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. 
+You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. Likewise, mount your "out_cimbi" directory by changing </path/to/cimbi/dir/out_cimbi> to the actual path to your directory.  
 
 #### Minimal Inputs
 ##### Default: Coregistration + MRI Preprocessing + Results Report
-	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi ";
+	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi" ";
 
 #### PVC
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi --sessions 01  01";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t "/path/to/cimbi/dir/out_cimbi" --sessions 01  01";
 
 #### PVC + Quantification
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t /path/to/cimbi/dir/out_cimbi  ";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
 
 ## File Formats  <a name="fileformat"></a>
 APPIAN uses the BIDS file format specification for PET:

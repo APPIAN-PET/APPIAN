@@ -1,11 +1,9 @@
-from nipype.interfaces.base import TraitedSpec, File, traits
 from Extra.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.base import TraitedSpec, File, traits
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined, CommandLineInputSpec, CommandLine)
 import ntpath
 import os
-class quantificationCommand(MINCCommand):
+class quantificationCommand(CommandLine):
 
     def _list_outputs(self):
         print("_list_outputs")

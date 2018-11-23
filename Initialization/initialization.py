@@ -214,6 +214,7 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if  rec == '': rec_arg='rec-'+rec
                     pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
                     pet_list=glob(pet_string)
+                    
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
                     if not acq == '': arg_list += ['acq-'+acq]
@@ -221,7 +222,6 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if not run == '': arg_list += ['run-'+run]
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list )
-
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, arg_list )
@@ -264,8 +264,6 @@ class SplitArgsRunning(BaseInterface):
         self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
         self.inputs.task=self.inputs.args['task']
         self.inputs.run=self.inputs.args['run']
-        print("HELLO",self.inputs.run)
-        exit(0)
         if not isdefined(self.inputs.ses) :
             self.inputs.ses=self.inputs.args['ses']
         if not isdefined(self.inputs.sid) :

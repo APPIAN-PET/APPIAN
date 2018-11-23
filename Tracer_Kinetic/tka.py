@@ -6,7 +6,7 @@ import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined, CommandLineInputSpec)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.base import MINCCommand, MINCCommandInputSpec
 from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow)

@@ -401,14 +401,14 @@ if __name__ == "__main__":
             print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
             exit(1)
        
-            if not opts.pet_scanner == None:
-                if opts.pet_scanner in pet_scanners.keys():
-                    opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
-                else:
-                    print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
-                    print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
-                    print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
-                    exit(1)
+        if not opts.pet_scanner == None:
+            if opts.pet_scanner in pet_scanners.keys():
+                opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
+            else:
+                print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
+                print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
+                print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
+                exit(1)
 
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)

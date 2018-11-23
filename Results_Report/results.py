@@ -80,6 +80,9 @@ class resultsInput(MINCCommandInputSpec):
     sub = traits.Str("Subject ID")
     task = traits.Str("Task")
     ses = traits.Str("Ses")
+    run = traits.Str("Run")
+    acq = traits.Str("Acquisition")
+    rec = traits.Str("Reconstruction")
     node  = traits.Str(mandatory=True, desc="Node name")
 
 class resultsOutput(TraitedSpec):
@@ -115,11 +118,16 @@ class resultsCommand( BaseInterface):
         add_csvInfoNode.inputs.sub = self.inputs.sub
         add_csvInfoNode.inputs.ses = self.inputs.ses
         add_csvInfoNode.inputs.task =self.inputs.task
+        if isdefined(self.inputs.run):
+            add_csvInfoNode.inputs.run =self.inputs.run
+        if isdefined(self.inputs.rec):
+            add_csvInfoNode.inputs.rec =self.inputs.rec
+        if isdefined(self.inputs.acq):
+            add_csvInfoNode.inputs.acq =self.inputs.acq
         add_csvInfoNode.inputs.node =self.inputs.node
         if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
         else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
         add_csvInfoNode.run()
-
         
         if self.inputs.dim == '4':
             integrate_resultsReport = integrate_TACCommand()
@@ -179,9 +187,12 @@ class groupstatsCommand(MINCCommand, Info):
 
 class add_csvInfoInput(MINCCommandInputSpec):   
     in_file = File(mandatory=True, desc="Input file")
-    ses  = traits.Str(mandatory=True, desc="Session")
-    task = traits.Str(mandatory=True, desc="Task")
+    ses  = traits.Str(mandatory=True, desc="Session",usedefault=True,default_value="NA")
+    task = traits.Str(mandatory=True, desc="Task",usedefault=True,default_value="NA")
     sub  = traits.Str(mandatory=True, desc="Subject")
+    run  = traits.Str(mandatory=False, desc="Run",usedefault=True,default_value="NA")
+    acq  = traits.Str(mandatory=False, desc="Radiotracer",usedefault=True,default_value="NA")
+    rec  = traits.Str(mandatory=False, desc="Reconstruction",usedefault=True,default_value="NA")
     node  = traits.Str(mandatory=True, desc="Node name")
     out_file = File(desc="Output file")
 
@@ -193,10 +204,14 @@ class add_csvInfoCommand(BaseInterface):
     output_spec = add_csvInfoOutput
     
     def _run_interface(self, runtime):
+        #print(self.inputs); exit(1)
         sub = self.inputs.sub
         task= self.inputs.task
         ses= self.inputs.ses
         node = self.inputs.node
+        run = self.inputs.run
+        acq = self.inputs.acq
+        rec = self.inputs.rec
         
         print "\nadd_csvInfo: ", self.inputs.in_file, "\n"
 
@@ -207,6 +222,9 @@ class add_csvInfoCommand(BaseInterface):
         dfo["sub"] = [sub] * df.shape[0]
         dfo["ses"] = [ses] * df.shape[0]
         dfo["task"] = [task] * df.shape[0]
+        dfo["run"] = [run] * df.shape[0]
+        dfo["acq"] = [acq] * df.shape[0]
+        dfo["rec"] = [rec] * df.shape[0]
         dfo["roi"] =  df['roi']
         dfo['metric'] = ['mean'] * df.shape[0]
         dfo['value'] = df['mean']
@@ -214,7 +232,8 @@ class add_csvInfoCommand(BaseInterface):
             dfo['frame'] = df['frame']
         else: dfo['frame'] = [0] * df.shape[0]
         dfo = dfo[ results_columns ]
-
+        print(dfo["run"])
+        print(dfo)
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         dfo.to_csv(self.inputs.out_file, index=False)
@@ -232,9 +251,6 @@ class add_csvInfoCommand(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
 
         return outputs
-
-
-
 
 class descriptive_statisticsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
@@ -342,7 +358,7 @@ class integrate_TACCommand( BaseInterface):
         if time_frames == [] : time_frames = [1.]
 
         out_df = pd.DataFrame( columns=metric_columns)
-        for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task", "roi"]):
+        for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]):
             print temp_df
             print time_frames
             if len(time_frames) > 1 :

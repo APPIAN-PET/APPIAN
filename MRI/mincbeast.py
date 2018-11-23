@@ -14,6 +14,7 @@ import glob
 from numpy.random import choice
 import nipype.interfaces.minc as minc
 from Extra.modifHeader import FixCosinesCommand
+import numpy as np
 global default_lib_address
 default_lib_address="http://packages.bic.mni.mcgill.ca/tgz/beast-library-1.0.tar.gz"
 

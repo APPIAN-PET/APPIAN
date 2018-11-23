@@ -1,36 +1,44 @@
-from Extra.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.base import TraitedSpec, File, traits
+from quantification_template import *
+from pyminc.volumes.factory import volumeLikeFile, volumeFromFile
+import numpy as np
 
+### Required for a quantification node:
 in_file_format="MINC"
+### Required for a quantification node:
 out_file_format="MINC"
+### Required for a quantification node:
 reference=True
+### Required for a quantification node:
 voxelwise=True
 
 
-class quantOutput(TraitedSpec):
-    out_file = File(argstr="%s", position=-1, desc="Output SUV image.")
+### <check_options> is required for a quantification node
+def check_options(tkaNode, opts) :
+    return tkaNode
 
-class quantInput(MINCCommandInputSpec):
-    
-    pet_file = File(exists=True,mandatory=True, desc="PET file")
+class quantOutput(TraitedSpec):
+    output_file = File(argstr="%s", position=-1, desc="Output SUV image.")
+
+class quantInput(TraitedSpec):
+    in_file = File(exists=True,mandatory=True, desc="PET file")
     reference = File(exists=True,mandatory=True,desc="Mask file")
     header = traits.Dict(desc="Input file ")
 
-    out_file = File(desc="Output SUV image")
+    output_file = File(desc="Output SUV image")
 
-class quantCommand(quantificationCommand):
+class quantCommand(BaseInterface):
     input_spec =  quantInput
     output_spec = quantOutput
 
     _suffix = "_suvr" 
     def _run_interface(self, runtime):
-        if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.pet_file, self._suffix)
-        print self.inputs.pet_file
+        if not isdefined(self.inputs.output_file) : self.inputs.output_file = self._gen_output(self.inputs.in_file, self._suffix)
+        print self.inputs.in_file
         print self.inputs.reference
         header = self.inputs.header
-        pet = volumeFromFile(self.inputs.pet_file)
+        pet = volumeFromFile(self.inputs.in_file)
         reference = volumeFromFile(self.inputs.reference)
-        out = volumeLikeFile(self.inputs.reference, self.inputs.out_file )
+        out = volumeLikeFile(self.inputs.reference, self.inputs.output_file )
         ndim = len(pet.data.shape)
         
         vol = pet.data
@@ -56,12 +64,12 @@ class quantCommand(quantificationCommand):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
+        outputs["output_file"] = self.inputs.output_file
         return outputs
 
     def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
+        if name == "output_file":
+            return self._list_outputs()["output_file"]
         return None
 
     def _gen_output(self, basefile, _suffix):
@@ -73,6 +81,6 @@ class quantCommand(quantificationCommand):
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        if not isdefined(self.inputs.output_file):
+            self.inputs.output_file = self._gen_output(self.inputs.in_file, self._suffix)
         return super(suvCommand, self)._parse_inputs(skip=skip)

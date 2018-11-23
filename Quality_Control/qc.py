@@ -422,7 +422,7 @@ pvc_metrics={'MSE':pvc_mse }
 #outlier_measures={"KDE":kde, "LOF":lof, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 
-metric_columns  = ['analysis', 'sub','ses','task','roi','metric','value']
+metric_columns  = ['analysis', 'sub','ses','task','run','acq','rec','roi','metric','value']
 outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
 
 
@@ -442,37 +442,47 @@ class pvc_qc_metricsInput(BaseInterfaceInputSpec):
     sub = traits.Str("Subject ID")
     task = traits.Str("Task")
     ses = traits.Str("Ses")
+    run = traits.Str("Run")
+    rec = traits.Str("Reconstruction")
+    acq = traits.Str("Acquisition")
     out_file = traits.File(desc="Output file")
 
 class pvc_qc_metrics(BaseInterface):
     input_spec = pvc_qc_metricsInput 
     output_spec = pvc_qc_metricsOutput
 
-    def _gen_output(self, sid, ses, task, fname ="pvc_qc_metric.csv"):
+    def _gen_output(self, sid, ses, task,run,acq,rec, fname ="pvc_qc_metric.csv"):
         dname = os.getcwd() 
-        return dname + os.sep + sid + '_' + ses + '_'+ task + "_" + fname
+        fn = dname+os.sep+'sub-'+sid+'_ses-'+ses+'_task-'+task
+        if isdefined(run) :
+            fn += '_run-'+str(run)
+        fn += "_acq-"+str(acq)+"_rec-"+str(rec)+fname
+        return fn
 
     def _run_interface(self, runtime):
         sub = self.inputs.sub
         ses = self.inputs.ses
         task = self.inputs.task
         fwhm = self.inputs.fwhm
+        run = self.inputs.run
+        rec = self.inputs.rec
+        acq = self.inputs.acq
         df = pd.DataFrame([], columns=metric_columns)
         
         for metric_name, metric_function in pvc_metrics.items():
             mse = pvc_mse(self.inputs.pvc, self.inputs.pve, fwhm)
-            temp = pd.DataFrame([['pvc', sub,ses,task,02,metric_name,mse]], columns=metric_columns)
+            temp = pd.DataFrame([['pvc', sub,ses,task,run,acq,rec,02,metric_name,mse]], columns=metric_columns)
             df = pd.concat([df, temp])
         df.fillna(0, inplace=True)
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task)
+            self.inputs.out_file = self._gen_output(self.inputs.sub, self.inputs.ses, self.inputs.task, self.inputs.run, self.inputs.acq, self.inputs.rec)
         df.to_csv(self.inputs.out_file, index=False)
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self.inputs._gen_output(self.inputs.sid, self.inputs.cid)
+            self.inputs.out_file = self.inputs._gen_output(self.inputs.sid,self.inputs.ses, self.inputs.task, self.inputs.run, self.inputs.acq, self.inputs.rec)
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
@@ -488,6 +498,9 @@ class coreg_qc_metricsInput(BaseInterfaceInputSpec):
     sid = traits.Str(desc="Subject")
     ses = traits.Str(desc="Session")
     task = traits.Str(desc="Task")
+    run = traits.Str(desc="Run")
+    rec = traits.Str(desc="Reconstruction")
+    acq = traits.Str(desc="Acquisition")
     study_prefix = traits.Str(desc="Study Prefix")
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
@@ -496,9 +509,13 @@ class coreg_qc_metricsCommand(BaseInterface):
     input_spec = coreg_qc_metricsInput 
     output_spec = coreg_qc_metricsOutput
   
-    def _gen_output(self, sid, ses, task, fname ="distance_metric.csv"):
+    def _gen_output(self, sid, ses, task, run, rec, acq, fname ="distance_metric.csv"):
         dname = os.getcwd() 
-        return dname + os.sep +'sub-'+ sid + '_ses-' + ses + '_task-' + task + '_' + fname
+        fn = dname+os.sep+'sub-'+sid+'_ses-'+ses+'_task-'+task
+        if isdefined(run) :
+            fn += '_run-'+str(run)
+        fn += "_acq-"+str(acq)+"_rec-"+str(rec)+fname
+        return fn 
 
     def _run_interface(self, runtime):
         sub_df=pd.DataFrame(columns=metric_columns )
@@ -507,6 +524,10 @@ class coreg_qc_metricsCommand(BaseInterface):
         sid = self.inputs.sid
         ses = self.inputs.ses
         task = self.inputs.task
+        run = self.inputs.run
+        rec = self.inputs.rec
+        acq = self.inputs.acq
+
         t1_brain_mask = self.inputs.t1_brain_mask
         pet_brain_mask = self.inputs.pet_brain_mask
 
@@ -521,11 +542,11 @@ class coreg_qc_metricsCommand(BaseInterface):
 
         df=pd.DataFrame(columns=metric_columns )
         for m,metric_name,metric_func in zip(mis_metric, distance_metric_names, distance_metric_methods):
-            temp=pd.DataFrame([['coreg',sid,ses,task,'01',metric_name,m]],columns=df.columns  ) 
+            temp=pd.DataFrame([['coreg',sid,ses,task,run,acq,rec,'01',metric_name,m]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
         
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.ses, self.inputs.task)
+            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.ses, self.inputs.task,self.inputs.run,self.inputs.rec,self.inputs.acq)
         
         sub_df.to_csv(self.inputs.out_file,  index=False)
         return runtime
@@ -533,8 +554,7 @@ class coreg_qc_metricsCommand(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid)
-
+            self.inputs.out_file = self._gen_output(self.inputs.sid, self.inputs.ses, self.inputs.task,self.inputs.run,self.inputs.rec,self.inputs.acq)
         outputs["out_file"] = self.inputs.out_file
         return outputs
 

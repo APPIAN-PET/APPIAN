@@ -1,4 +1,4 @@
-#--user-brainmask --user-brainmask  vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
+#--user-brainmask --user-brainmask  vim: set tabstop=4 expandtab shgftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
 # vim: filetype plugin indent on
 
 import os
@@ -129,7 +129,7 @@ def set_json_header(datasource, task_list, run_list, sourceDir):
     template_args={}
     json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
-    if task_list != ['']: 
+    if len(task_list) != 0 : #!= ['']: 
         json_header_str = json_header_str + '_task-%s'
         json_header_list[0] += ["task"] #task_list
 
@@ -394,7 +394,6 @@ def run_scan_level(opts,args):
 
     #if opts.json :
     datasourcePET = set_json_header(datasourcePET, task_list, opts.runList, opts.sourceDir)   
-
     
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
@@ -670,6 +669,8 @@ def run_scan_level(opts,args):
             resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             resultsReport.inputs.dim = dim
             resultsReport.inputs.node = node.name
+            resultsReport.inputs.acq = opts.acq
+            resultsReport.inputs.rec = opts.rec
             workflow.connect(infosource, 'sid', resultsReport, "sub")
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")

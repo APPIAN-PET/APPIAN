@@ -10,11 +10,13 @@ The pipeline is implemented in Python using the [Nipype][link_nipypertd] library
 
 ## Installation 
 
-``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide to installing Docker on Ubuntu, Debian, Mac, Windows, or other, [visit this link][link_dockerinstall].  
+``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide on how to install Docker on Ubuntu, Debian, Mac, Windows, or other operating system, please [visit this link][link_dockerinstall].  
 
 Once Docker is installed, simply run the following command line on your terminal:
 
+```
 docker pull tffunck/appian:latest
+```
 
 That’s it, ``APPIAN`` is installed on your computer. 
 
@@ -27,7 +29,7 @@ For more information please read our [user guide][link_userguide].
 For those interested in extending or contributing to APPIAN please check out our [contributors guidelines][link_contributors].
 
 ## Publications
-
+Funck T, Larcher K, Toussaint PJ, Evans AC, Thiel A (2018) APPIAN: Automated Pipeline for PET Image Analysis. *Front Neuroinform*. PMCID: [PMC6178989][link_pmcid], DOI: [10.3389/fninf.2018.00064][link_doi]
 
 [link_dockerinstall]: https://docs.docker.com/install/
 [link_civet]: https://mcin-cnim.ca/technology/civet/
@@ -36,3 +38,5 @@ For those interested in extending or contributing to APPIAN please check out our
 [link_dockerhome]: https://docs.docker.com/
 [link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md
 [link_contributors]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md
+[link_pmcid]: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6178989/
+[link_doi]: https://doi.org/10.3389/fninf.2018.00064

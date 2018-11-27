@@ -47,7 +47,7 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     pet_list = ['sid', 'ses', 'sid', 'ses']
     t1_list =  [ 'sid', 'ses', 'sid', 'ses']
     t1_str=sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s'
-    if task_list != ['']: 
+    if len(task_list) != 0: 
         pet_str = pet_str + '*task-%s'
         pet_list += ['task'] 
     if acq != '' :
@@ -56,7 +56,7 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     if rec != '':
         pet_str = pet_str + '*rec-%s'
         pet_list += ['rec']
-    if run_list != ['']: 
+    if len(run_list) != 0: 
         pet_str = pet_str + '*run-%s'
         pet_list += ['run'] 
     pet_str = pet_str + '*_pet.'+img_ext
@@ -96,16 +96,6 @@ def set_label(datasource, img, template, task_list, run_list, label_img, templat
         label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
 
         template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-        #if task_list != [''] :
-        #    label_img_template += '_task-%s'
-        #    template_args[label_img][0] +=  task_list  
-        
-        #if len(run_list) != 0: 
-        #    label_img_template = label_img_template + '_run-%s'
-        #    template_args[label_img][0] += ['run']
-
-        
-        #label_img_template +='_*'+img+'T1w.'+img_ext
         label_img_template +='*_variant-'+img+'_dtissue.'+img_ext
 
         field_template[label_img] = label_img_template
@@ -129,11 +119,11 @@ def set_json_header(datasource, task_list, run_list, acq, rec, sourceDir):
     template_args={}
     json_header_list =  [[ 'sid', 'ses', 'sid', 'ses']]
     json_header_str=sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
-    if task_list != ['']: 
+    if len(task_list) != 0: 
         json_header_str = json_header_str + '_task-%s'
         json_header_list[0] += ["task"] #task_list
 
-    if run_list != [''] :
+    if len(run_list) != 0 :
         json_header_str = json_header_str + "_run-%s"
         json_header_list[0] += ["run"]
     
@@ -178,10 +168,6 @@ def set_brain_mask(datasource, task_list, run_list, coregistration_brain_mask, s
 
     brain_mask_template = sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*'
     template_args["brain_mask_mni"]=[['sid' ,'ses','sid', 'ses']]
-
-    #if task_list != [''] :
-    #    brain_mask_template = brain_mask_template + "_task-%s"
-    #    template_args["brain_mask_mni"][0] += task_list
 
     brain_mask_template = brain_mask_template + "_T1w_space-mni"
 
@@ -298,7 +284,6 @@ def run_scan_level(opts,args):
 
     ###Define args with exiting subject and condition combinations
     valid_args=init.gen_args(opts, session_ids, task_list, opts.runList, opts.acq, opts.rec, args)
-  
     ### Create workflow
     workflow = pe.Workflow(name=opts.preproc_dir)
     workflow.base_dir = opts.targetDir

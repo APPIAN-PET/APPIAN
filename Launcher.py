@@ -325,7 +325,7 @@ if __name__ == "__main__":
         if opts.taskList != None : 
             opts.taskList = np.unique(opts.taskList)
         else : 
-            opts.taskList =[""]
+            opts.taskList =[]
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
@@ -346,7 +346,7 @@ if __name__ == "__main__":
         if opts.runList != None : 
             opts.runList = np.unique(opts.runList)
         else : 
-            opts.runList =[""]
+            opts.runList =[]
         
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
@@ -409,7 +409,7 @@ if __name__ == "__main__":
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
-
+    
     ############################################
     # Create BIDS-style header for MINC inputs #
     ############################################
@@ -423,7 +423,6 @@ if __name__ == "__main__":
     #################
     # Launch APPIAN #
     #################
-    
     if opts.pscan:
         printScan(opts,args)
     elif opts.pstages:

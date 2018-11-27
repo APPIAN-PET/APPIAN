@@ -201,9 +201,18 @@ def unique_file(files, attributes, verbose=False):
 
 def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
     args=[]
+    test_arg_list=[]
+
+    if session_ids ==[] : session_ids=['']
+    if task_ids ==[] : task_ids=['']
+    if run_ids ==[] : run_ids=['']
+
     for sub in subjects:
+        if opts.verbose: print("Sub:", sub)
         for ses in session_ids:
+            if opts.verbose: print("Ses:",ses)
             for task in task_ids:
+                if opts.verbose: print("Task:",task)
                 for run in run_ids:
                     sub_arg='sub-'+sub
                     ses_arg='ses-'+ses
@@ -213,6 +222,8 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
                     pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
+                    if opts.verbose:
+                        print(pet_string)
                     pet_list=glob(pet_string)
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
@@ -234,6 +245,8 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                             print "Could not find PET for ", sub, ses, task, pet_fn
                         if not os.path.exists(mri_fn) :
                             print "Could not find T1 for ", sub, ses, task, mri_fn
+    if opts.verbose :
+        print("Args:\n", args)
     return args
 
 

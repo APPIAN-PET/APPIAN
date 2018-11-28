@@ -17,7 +17,12 @@ def stdout_to_list( stdout ):
             temp_str =float(temp_str)
             time_list += [temp_str]
             temp_str = '' 
-    time_list += [float(temp_str)]
+    try :
+        time_value = float(temp_str)
+    except ValueError :
+        time_value = temp_str
+        
+    time_list += [time_value]
     return time_list
 
 class CreateHeaderOutput(TraitedSpec):
@@ -35,32 +40,38 @@ class CreateHeaderRunning(BaseInterface):
     def _run_interface(self, runtime):
         pet=self.inputs.input_file
         self.inputs.output_file = self._gen_output(self.inputs.input_file)
-
+        exit_flag=False
         if not os.path.exists(pet) :
             print("Error: Could not find file $pet")
             exit(1)
         
         options=[
-                ('radionuclide', '-attvalue acquisition:radionuclide'),
-                ('halflife', '-attvalue acquisition:radionuclide_halflife'),
-                ('unit', '-attvalue time:units'),
-                ('time', '-varvalue time'),
-                ('time-width', '-varvalue time-width')]
+                ('acquisition','radionuclide', '-attvalue acquisition:radionuclide'),
+                ('acquisition','radionuclide_halflife', '-attvalue acquisition:radionuclide_halflife'),
+                ('time','units', '-attvalue time:units'),
+                ('','time', '-varvalue time'),
+                ('','time-width', '-varvalue time-width')]
         var_dict={}
-        for var, opt in options:
+        for key, var, opt in options:
             run_mincinfo=mincinfoCommand()
             run_mincinfo.inputs.in_file = self.inputs.input_file
             run_mincinfo.inputs.opt_string = opt
             run_mincinfo.inputs.error = 'unknown'
             run_mincinfo.terminal_output = 'file_split'
             r=run_mincinfo.run()
+            if 'unknown' in r.runtime.stdout :
+                key_string=key+':'+var
+                if key == '' : key_string = var
+
+                print("Error: could not find variable <"+key_string+'> in '+ self.inputs.input_file )
+                exit_flag=True
             var_dict[var]=r.runtime.stdout
 
         out_dict={}
-        out_dict["Info"]={"Isotope":var_dict['radionuclide'],"Halflife":var_dict['halflife']}
+        out_dict["Info"]={"Isotope":var_dict['radionuclide'],"Halflife":var_dict['radionuclide_halflife']}
         out_dict["Time"]={"FrameTimes":{}}
 
-        unit=sub('\n', '', var_dict["unit"])
+        unit=sub('\n', '', var_dict["units"])
         out_dict["Time"]["FrameTimes"]["Units"]=[unit, unit]
         time_start  = stdout_to_list(var_dict['time'])
         time_width = stdout_to_list(var_dict['time-width'])
@@ -77,7 +88,9 @@ class CreateHeaderRunning(BaseInterface):
         out_dict["Time"]["FrameTimes"]["Values"]=time_list
         with open(self.inputs.output_file, 'w') as fp:
             json.dump(out_dict, fp)
-
+        if exit_flag : 
+            print("Error: Could not find requisite variables from MINC file "+self.inputs.input_file)
+            exit(1)
         return runtime
    
     def _gen_output(self, input_file):

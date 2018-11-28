@@ -108,66 +108,63 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     #find path in dictionary to target 
     #dict_path = recursive_dict_search(d, target="FrameLengths")
   
-    if minc_input : # MINC Input
-        print("Check header for MINC input")
-        dict_path = recursive_dict_search(d, target="frames-length")
-        temp_d = d
-        for i in dict_path :
-            temp_d = temp_d[i]
-        FrameLengths=temp_d
+    #if minc_input : # MINC Input
+    #    print("Check header for MINC input")
+    #    dict_path = recursive_dict_search(d, target="frames-length")
+    #    temp_d = d
+    #    for i in dict_path :
+    #        temp_d = temp_d[i]
+    #    FrameLengths=temp_d
 
-        values_dict_path = recursive_dict_search(d, target="frames-time")
-        
-        Values=None
-        
-        if not None in values_dict_path :
-            temp_d = d
-            if verbose : print( values_dict_path )
-            for i in values_dict_path :
-                temp_d = temp_d[i]
-                print(temp_d)
-        
-        temp_d = [ float(i) for i in temp_d ]
-        FrameLengths=list(np.diff(temp_d))
-        FrameLengths.append(FrameLengths[-1])
-        print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
-        x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
-        Values=zip( temp_d, x.astype(str)  )
+    #    values_dict_path = recursive_dict_search(d, target="frames-time")
+    #    
+    #    Values=None
+    #    
+    #    if not None in values_dict_path :
+    #        temp_d = d
+    #        if verbose : print( values_dict_path )
+    #        for i in values_dict_path :
+    #            temp_d = temp_d[i]
+    #            print(temp_d)
+    #    
+    #    temp_d = [ float(i) for i in temp_d ]
+    #    FrameLengths=list(np.diff(temp_d))
+    #    FrameLengths.append(FrameLengths[-1])
+    #    print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
+    #    x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
+    #    Values=zip( temp_d, x.astype(str)  )
 
-        d["Time"]={}
-        d["Time"]["FrameTimes"]={}
-        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
-        d["Time"]["FrameTimes"]["Values"] =Values
-    else : #NIFTI Input
-        print("Check header for NIFTI input")
-        frame_times=[]
-        print( d["Time"]["FrameTimes"] ) 
-        try :
-            frame_times = d["Time"]["FrameTimes"]["Values"]
-        except KeyError :
-            print("\nError Could not find Time:FrameTimes:Values in header\n")
-            exit(1)
-        FrameLengths=[]
+    #    d["Time"]={}
+    #    d["Time"]["FrameTimes"]={}
+    #    d["Time"]["FrameTimes"]["Duration"] = FrameLengths
+    #    d["Time"]["FrameTimes"]["Values"] =Values
+    #else : #NIFTI Input
+    frame_times=[]
+    try :
+        frame_times = d["Time"]["FrameTimes"]["Values"]
+    except KeyError :
+        print("\nError Could not find Time:FrameTimes:Values in header\n")
+        exit(1)
+    FrameLengths=[]
 
-        c0=c1=1 #Time unit conversion variables. Time should be in seconds
-        try :
-            if d["Time"]["FrameTimes"]["Units"][0] == 'm' :
-                c0=60
-            elif d["Time"]["FrameTimes"]["Units"][0] == 'h' :
-                c0=60*60
-            if d["Time"]["FrameTimes"]["Units"][1] == 'm' :
-                c1=60
-            elif d["Time"]["FrameTimes"]["Units"][1] == 'h' :
-                c1=60*60
-        except KeyError :
-            print("\nError Could not find Time:FrameTimes:Units in header\n")
-            exit(1)
-        
-        for s, e in frame_times :
-            FrameLengths.append(c1*e - c0*s)
+    c0=c1=1 #Time unit conversion variables. Time should be in seconds
+    try :
+        if d["Time"]["FrameTimes"]["Units"][0] == 'm' :
+            c0=60
+        elif d["Time"]["FrameTimes"]["Units"][0] == 'h' :
+            c0=60*60
+        if d["Time"]["FrameTimes"]["Units"][1] == 'm' :
+            c1=60
+        elif d["Time"]["FrameTimes"]["Units"][1] == 'h' :
+            c1=60*60
+    except KeyError :
+        print("\nError Could not find Time:FrameTimes:Units in header\n")
+        exit(1)
+    
+    for s, e in frame_times :
+        FrameLengths.append(c1*e - c0*s)
 
-        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
-        #if there is no path to target, try backup
+    d["Time"]["FrameTimes"]["Duration"] = FrameLengths
 
     return d
     

@@ -1,4 +1,5 @@
 import os
+import re
 import nipype
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                      BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
@@ -68,7 +69,7 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
         workflow.run()
 
-class resultsInput(MINCCommandInputSpec):   
+class resultsInput(TraitedSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
     surf_mesh = traits.File(desc="Surface mesh (.obj) ")
@@ -78,11 +79,11 @@ class resultsInput(MINCCommandInputSpec):
     out_file_4d = traits.File(desc="4d Output file ")
     dim = traits.Str("Number of dimensions")
     sub = traits.Str("Subject ID")
-    task = traits.Str("Task")
-    ses = traits.Str("Ses")
-    run = traits.Str("Run")
-    acq = traits.Str("Acquisition")
-    rec = traits.Str("Reconstruction")
+    task = traits.Str(default_value='NA',usedefault=True)
+    ses = traits.Str(desc="Ses",usedefault=True,default_value="NA")
+    run = traits.Str(desc="Run",usedefault=True,default_value="NA")
+    acq = traits.Str(desc="Acquisition",usedefault=True,default_value="NA")
+    rec = traits.Str(desc="Reconstruction",usedefault=True,default_value="NA")
     node  = traits.Str(mandatory=True, desc="Node name")
 
 class resultsOutput(TraitedSpec):
@@ -112,18 +113,30 @@ class resultsCommand( BaseInterface):
             resultsReport.inputs.surf_roi = self.inputs.surf_mesh + ' ' + self.inputs.surf_mask
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
         print resultsReport.cmdline
+       
+        acq_list = [ re.sub('acq-','',f)  for f in self.inputs.in_file.split('_') if 'acq' in f ]
+        rec_list = [ re.sub('rec-','',f)  for f in self.inputs.in_file.split('_') if 'rec' in f ]
+        
         resultsReport.run()
         add_csvInfoNode = add_csvInfoCommand()
         add_csvInfoNode.inputs.in_file = resultsReport.inputs.out_file
         add_csvInfoNode.inputs.sub = self.inputs.sub
         add_csvInfoNode.inputs.ses = self.inputs.ses
         add_csvInfoNode.inputs.task =self.inputs.task
+        
         if isdefined(self.inputs.run):
             add_csvInfoNode.inputs.run =self.inputs.run
+        
         if isdefined(self.inputs.rec):
             add_csvInfoNode.inputs.rec =self.inputs.rec
+        elif len(rec_list) > 0 :
+            add_csvInfoNode.inputs.rec = rec_list[0]
+
         if isdefined(self.inputs.acq):
             add_csvInfoNode.inputs.acq =self.inputs.acq
+        elif len(acq_list) > 0 :
+            add_csvInfoNode.inputs.acq = acq_list[0]
+
         add_csvInfoNode.inputs.node =self.inputs.node
         if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
         else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
@@ -340,10 +353,6 @@ class integrate_TACCommand( BaseInterface):
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1
         time_frames = []
-        try : 
-            float(header['time']['frames-time'][0]) 
-            time_frames = [ float(h) for h in  header['time']["frames-time"] ]
-        except ValueError : time_frames = []
        
         if time_frames == [] :
             try :

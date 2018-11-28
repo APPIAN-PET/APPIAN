@@ -31,6 +31,9 @@ class CreateHeaderOutput(TraitedSpec):
 class CreateHeaderInput(BaseInterfaceInputSpec):
     output_file = traits.Str(desc="Ouput .json file")
     input_file = traits.Str(desc="Input MINC file")
+    #time_var = traits.List(default_value=['','time'],usedefault=True, desc="List of 2 variabels that define time variable in MINC header")
+    #time_width_var = traits.List(default_value=['','time'],usedefault=True,desc="List of 2 variabels that define time-width variable in MINC header")
+    #time_unit_var = traits.List(default_value=['time','units'],usedefault=True,desc="List of 2 variabels that define time units variable in MINC header")
 
 class CreateHeaderRunning(BaseInterface):
     input_spec = CreateHeaderInput
@@ -46,23 +49,23 @@ class CreateHeaderRunning(BaseInterface):
             exit(1)
         
         options=[
-                ('acquisition','radionuclide', '-attvalue acquisition:radionuclide'),
-                ('acquisition','radionuclide_halflife', '-attvalue acquisition:radionuclide_halflife'),
-                ('time','units', '-attvalue time:units'),
-                ('','time', '-varvalue time'),
-                ('','time-width', '-varvalue time-width')]
+                ('acquisition','radionuclide', '-attvalue'),
+                ('acquisition','radionuclide_halflife', '-attvalue '),
+                ('time','units', '-attvalue '),
+                ('','time', '-varvalue '),
+                ('','time-width', '-varvalue ')]
         var_dict={}
         for key, var, opt in options:
+            key_string=key+':'+var
+            if key == '' : key_string = var
             run_mincinfo=mincinfoCommand()
             run_mincinfo.inputs.in_file = self.inputs.input_file
-            run_mincinfo.inputs.opt_string = opt
+            run_mincinfo.inputs.opt_string = opt+key_string
             run_mincinfo.inputs.error = 'unknown'
             run_mincinfo.terminal_output = 'file_split'
             r=run_mincinfo.run()
             if 'unknown' in r.runtime.stdout :
-                key_string=key+':'+var
-                if key == '' : key_string = var
-
+            
                 print("Error: could not find variable <"+key_string+'> in '+ self.inputs.input_file )
                 exit_flag=True
             var_dict[var]=r.runtime.stdout

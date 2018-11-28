@@ -44,8 +44,7 @@ class quantCommand(BaseInterface):
         vol = pet.data
         if ndim > 3 :
             try : 
-                float(header['time']['frames-time'][0]) 
-                time_frames = [ float(h) for h in  header['time']["frames-time"] ]
+                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
             except ValueError :
                 time_frames = [1.]
             

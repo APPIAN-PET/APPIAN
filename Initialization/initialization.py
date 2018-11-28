@@ -199,7 +199,6 @@ def unique_file(files, attributes, verbose=False):
 def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
     args=[]
     test_arg_list=[]
-
     if session_ids ==[] : session_ids=['']
     if task_ids ==[] : task_ids=['']
     if run_ids ==[] : run_ids=['']
@@ -238,9 +237,9 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
                         args.append(d)
                     else:
-                        if not os.path.exists(pet_fn) :
+                        if not os.path.exists(pet_fn) and opts.verbose :
                             print "Could not find PET for ", sub, ses, task, pet_fn
-                        if not os.path.exists(mri_fn) :
+                        if not os.path.exists(mri_fn) and opts.verbose :
                             print "Could not find T1 for ", sub, ses, task, mri_fn
     if opts.verbose :
         print("Args:\n", args)
@@ -335,23 +334,23 @@ class MincHdrInfoRunning(BaseInterface):
                 self.attribute = attribute
                 self.type_ = type_
 
-        options = [ InfoOptions('-dimnames','time','dimnames','string'),
-                InfoOptions('-varvalue time','time','frames-time','integer'),
-                InfoOptions('-varvalue time-width','time','frames-length','integer') ]
+        #options = [ InfoOptions('-dimnames','time','dimnames','string'),
+        #        InfoOptions('-varvalue time','time','frames-time','integer'),
+        #        InfoOptions('-varvalue time-width','time','frames-length','integer') ]
         temp_out_file=os.getcwd()+os.sep+"temp.json"
-        for opt in options:
-            run_mincinfo=InfoCommand()
-            run_mincinfo.inputs.in_file = self.inputs.in_file
-            run_mincinfo.inputs.out_file = temp_out_file
-            run_mincinfo.inputs.opt_string = opt.command
-            run_mincinfo.inputs.json_var = opt.variable
-            run_mincinfo.inputs.json_attr = opt.attribute
-            run_mincinfo.inputs.json_type = opt.type_
-            run_mincinfo.inputs.error = 'unknown'
+        #for opt in options:
+        #    run_mincinfo=InfoCommand()
+        #    run_mincinfo.inputs.in_file = self.inputs.in_file
+        #    run_mincinfo.inputs.out_file = temp_out_file
+        #    run_mincinfo.inputs.opt_string = opt.command
+        #    run_mincinfo.inputs.json_var = opt.variable
+        #    run_mincinfo.inputs.json_attr = opt.attribute
+        #    run_mincinfo.inputs.json_type = opt.type_
+        #    run_mincinfo.inputs.error = 'unknown'
 
-            print run_mincinfo.cmdline
-            if self.inputs.run:
-                run_mincinfo.run()
+        #    print run_mincinfo.cmdline
+        #    if self.inputs.run:
+        #        run_mincinfo.run()
 
         img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
         hd = img.get_MINC_header()

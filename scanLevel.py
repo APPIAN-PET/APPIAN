@@ -530,7 +530,6 @@ def run_scan_level(opts,args):
         results_label_node = wf_mri_preprocess
         results_label_file = 'outputnode.results_label_img'
 
-   
     #############################
     # PET-to-MRI Coregistration #
     #############################
@@ -671,6 +670,7 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'sid', resultsReport, "sub")
             workflow.connect(infosource, 'ses', resultsReport, "ses")
             workflow.connect(infosource, 'task', resultsReport, "task")
+            workflow.connect(infosource, 'run', resultsReport, "run")
             workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReport, "header")
             #workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')

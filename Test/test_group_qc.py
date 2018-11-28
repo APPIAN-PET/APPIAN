@@ -660,9 +660,9 @@ def tkametric(ref_tac, ref_int, roi_tac, roi_int, times):
 
 def write_dft(header, tac, name, fn):
     try : 
-        float(header['time']['frames-time'][0]) 
-        end_times = [ float(h) for h in  header['time']["frames-time"] ]
-    except valueerror :
+        #end_times = [ float(h) for h in  header['time']["frames-time"] ]
+        end_times = [ float(e) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+    except ValueError :
         end_times = [1.]
     start_times = [0] + end_times 
     start_times.remove(start_times[-1])

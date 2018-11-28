@@ -329,7 +329,7 @@ if __name__ == "__main__":
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
-
+    
     ########################
     #Automatically set runs#
     ########################
@@ -351,7 +351,6 @@ if __name__ == "__main__":
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
     opts.extension='mnc'
-
 
 ##########################################################
 # Check inputs to make sure there are no inconsistencies #

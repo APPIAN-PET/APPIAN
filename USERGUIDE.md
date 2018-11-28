@@ -2,7 +2,9 @@
 
 # Table of Contents
 1. [Quick Start](#quickstart)
-2. [File Formats](#fileformat)
+2. [File Formats](#fileformat) \
+	2.1 [Nifti](#nifti) \
+	2.2 [MINC](#minc)
 4. [Useage](#useage)
 5. [Examples](#example)
 3. [Overview](#overview) \
@@ -88,9 +90,11 @@ You can run the following examples to see some of the basic functionality of APP
 	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
 
 ## File Formats  <a name="fileformat"></a>
+
+### Nifti
 APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 
-### Example of file organization for PET and T1 
+#### Example of file organization for PET and T1 
     sub-01/
        _ses-01/
           pet/
@@ -118,43 +122,43 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
              ...
 
 
-### Required
-#### PET (native PET space)
+#### Required
+##### PET (native PET space)
 `sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.nii[.gz]`
 
-#### PET Header
+##### PET Header
 `sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.json`
 
-#### T1w (native T1 space) :
+##### T1w (native T1 space) :
 `sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc`
 
-### Optional
-#### Linear Transform from T1 native to stereotaxic: 
+#### Optional
+##### Linear Transform from T1 native to stereotaxic: 
 `sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm`
 
-#### Brain mask (stereotaxic space): 
+##### Brain mask (stereotaxic space): 
 `sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc`
 
-#### T1 Segmentation: 
+##### T1 Segmentation: 
 `sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc`
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
-### Example of minimal JSON header :
+### MINC
+Users can opt to use MINC2 files instead of Nifti files. If the user provides MINC files, these must either contain the certain variables in the headers of the PET images or contain a BIDS-style header that has the format described below to accompany the PET files.
+
+Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acquisition:radionuclide>, <acquisition:radionuclide_halflife> ```.
 
 ```python
   {
     	"Info": {
-    		"Tomograph": ["HRRT"],
     		"Tracer": {
       			"Isotope": ["C-11"]
+			#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
+			#Otherwise you can specify it using "Info":"Halflife" (units=seconds)
+			""Halflife" : 100
       		}
      	}
-	#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
-	#Otherwise you can specify it using "acquisition":"radionuclide_halflife" (units=seconds)
-  	"acquisition" : {
-       		"radionuclide_halflife" : 100
-  	 },
     	"Time" : {
         	"FrameTimes": {
             		"Units": ["m", "m"],

@@ -156,7 +156,7 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
       			"Isotope": ["C-11"]
 			#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
 			#Otherwise you can specify it using "Info":"Halflife" (units=seconds)
-			""Halflife" : 100
+			"Halflife" : 100
       		}
      	}
     	"Time" : {

@@ -11,7 +11,7 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from optparse import OptionParser
 from optparse import OptionGroup
 
-import Quality_Control.dashboard as dash
+# import Quality_Control.dashboard as dash
 
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
@@ -266,6 +266,7 @@ if __name__ == "__main__":
 
     #Quality Control 
     qc_opts = OptionGroup(parser,"Quality control options")
+    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
     qc_opts.add_option("","--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
     qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)
@@ -273,7 +274,6 @@ if __name__ == "__main__":
     #Results reporting
     qc_opts = OptionGroup(parser,"Results reporting options")
     qc_opts.add_option("","--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
-    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)
 
 
@@ -358,10 +358,10 @@ if __name__ == "__main__":
     else:
         if opts.run_scan_level:
             run_scan_level(opts,args)
-            if opts.dashboard:
-                dash.generate_dashboard(opts,args)
+            # if opts.dashboard:
+            #     dash.generate_dashboard(opts,args)
         if opts.run_group_level:
             run_group_level(opts,args)
-            if opts.dashboard:
-                dash.link_stats(opts,args)
+            # if opts.dashboard:
+            #     dash.link_stats(opts,args)
 

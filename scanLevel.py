@@ -31,6 +31,7 @@ import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
 from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
+import Quality_Control.dashboard as dash
 import Test.test_group_qc as tqc
 from Masking import surf_masking
 from MRI import normalize
@@ -688,6 +689,15 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'sid', pvc_qc_metricsNode, "sub")
             workflow.connect(infosource, 'ses', pvc_qc_metricsNode, "ses")
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
+
+
+    # if opts.dashboard:
+    #     dashboard=pe.Node(interface=dash.deployDashCommand(),name="dash_scanLevel")
+    #     workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  dashboard, 'petmri')
+    #     if not opts.nopvc :
+    #         workflow.connect(pvc_wf, 'outputnode.out_file',  dashboard, 'pvc')
+    #     if not opts.tka_method == None:
+    #         workflow.connect(tka_wf, 'outputnode.out_file',  dashboard, 'tka')
 
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')

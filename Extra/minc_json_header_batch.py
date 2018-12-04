@@ -60,7 +60,7 @@ class CreateHeaderRunning(BaseInterface):
             if key == '' : key_string = var
             run_mincinfo=mincinfoCommand()
             run_mincinfo.inputs.in_file = self.inputs.input_file
-            run_mincinfo.inputs.opt_string = opt+key_string
+            run_mincinfo.inputs.opt_string = opt+' '+key_string
             run_mincinfo.inputs.error = 'unknown'
             run_mincinfo.terminal_output = 'file_split'
             r=run_mincinfo.run()

@@ -153,7 +153,7 @@ class resultsCommand( BaseInterface):
 
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
-            [ self.inputs.out_file_3d, self.inputs.out_file_4d ]  =self._gen_output(self.inputs.in_file)
+            [ self.inputs.out_file_3d, self.inputs.out_file_4d ] = self._gen_output(self.inputs.in_file)
         outputs = self.output_spec().get()
         outputs["out_file_3d"] = self.inputs.out_file_3d
         outputs["out_file_4d"] = self.inputs.out_file_4d

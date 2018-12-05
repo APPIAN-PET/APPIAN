@@ -20,7 +20,9 @@ def find(src, match):
     return(matches)
 
 def nii2mnc_batch(sourceDir, clobber=False):
-    nii_files = find(sourceDir, "*nii*") 
+    t1_files = find(sourceDir, "*_T1w.nii*") 
+    pet_files= find(sourceDir, "*_pet.nii*")
+    nii_files = t1_files + pet_files
     ret = False
 
     for f in nii_files :

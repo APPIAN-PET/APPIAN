@@ -171,21 +171,22 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
 
 def unique_file(files, attributes, verbose=False):
     
-    if len(files) == 1: 
-        return(files[0])
+    #if len(files) == 1: 
+    #    return(files[0])
 
     out_files=[] 
     for f in files :
         skip=False
         for a in attributes :
+            #if verbose : print(a, a in f, f)
             if not a in f : 
                 skip=True
                 break
         if verbose : print(f,'skip file=', skip)
         if not skip : 
-           out_files.append(f)
+            out_files.append(f)
 
-    if attributes == [] or len(out_files) == 0 : return []
+    if attributes == [] or len(out_files) == 0 : return ''
      
     if len(out_files) > 1 :
         print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
@@ -197,7 +198,9 @@ def unique_file(files, attributes, verbose=False):
 
 
 def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
-    args=[]
+    task_args=[]
+    sub_ses_args=[]
+    sub_ses_dict={}
     test_arg_list=[]
     if session_ids ==[] : session_ids=['']
     if task_ids ==[] : task_ids=['']
@@ -218,32 +221,41 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
                     pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
-                    if opts.verbose:
-                        print(pet_string)
                     pet_list=glob(pet_string)
                     arg_list = ['sub-'+sub, 'ses-'+ses]
+                    mri_arg_list = ['sub-'+sub, 'ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
                     if not acq == '': arg_list += ['acq-'+acq]
                     if not rec == '': arg_list += ['rec-'+rec]
                     if not run == '': arg_list += ['run-'+run]
+                    if opts.verbose : print( arg_list );
                     if pet_list != []:
-                        pet_fn = unique_file(pet_list, arg_list )
+                        pet_fn = unique_file(pet_list, arg_list, opts.verbose )
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' )
                     if mri_list != []:
-                        mri_fn = unique_file(mri_list, arg_list )
-                    if pet_fn == [] or mri_fn == [] : continue 
+                        mri_fn = unique_file(mri_list, mri_arg_list )
+                    #if pet_fn == [] or mri_fn == [] : continue 
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
-                        args.append(d)
+                        sub_ses_dict[sub]=ses
+                        if opts.verbose : 
+                            print(pet_fn, os.path.exists(pet_fn))
+                            print(mri_fn, os.path.exists(mri_fn))
+                            print('Adding to dict of valid args',d)
+                        task_args.append(d)
                     else:
                         if not os.path.exists(pet_fn) and opts.verbose :
                             print "Could not find PET for ", sub, ses, task, pet_fn
                         if not os.path.exists(mri_fn) and opts.verbose :
                             print "Could not find T1 for ", sub, ses, task, mri_fn
+
+    for key, val in sub_ses_dict.items() :
+        sub_ses_args.append({"sid":key,"ses":ses})
+
     if opts.verbose :
-        print("Args:\n", args)
-    return args
+        print("Args:\n", task_args)
+    return sub_ses_args, task_args
 
 
 class SplitArgsOutput(TraitedSpec):
@@ -260,6 +272,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
     run = traits.Str(desc="Run ID")
+    ses_sub_only = traits.Bool(default_value=False, usedefault=True)
     #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
     args = traits.Dict(mandatory=True, desc="Overwrite output file")
@@ -269,24 +282,48 @@ class SplitArgsRunning(BaseInterface):
     output_spec = SplitArgsOutput
 
     def _run_interface(self, runtime):
-        self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
-        self.inputs.task=self.inputs.args['task']
-        self.inputs.run=self.inputs.args['run']
+        
         if not isdefined(self.inputs.ses) :
             self.inputs.ses=self.inputs.args['ses']
         if not isdefined(self.inputs.sid) :
             self.inputs.sid=self.inputs.args['sid']
+        if self.inputs.ses_sub_only : return runtime
+        
+        try :
+            self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
+        except KeyError :
+            pass
+
+        try :
+            self.inputs.task=self.inputs.args['task']
+        except  KeyError:
+            pass
+            
+        try:
+            self.inputs.run=self.inputs.args['run']
+        except  KeyError:
+            pass
+
         if isdefined(self.inputs.RoiSuffix):
             self.inputs.RoiSuffix=self.inputs.RoiSuffix
         return runtime
     
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["cid"] = self.inputs.cid
-        outputs["sid"] = self.inputs.sid
-        outputs["ses"] = self.inputs.ses
-        outputs["task"] = self.inputs.task
-        outputs["run"] = self.inputs.run
+        if isdefined(self.inputs.cid):
+            outputs["cid"] = self.inputs.cid
+        if isdefined(self.inputs.sid):
+            outputs["sid"] = self.inputs.sid
+        
+        if isdefined(self.inputs.ses):
+            outputs["ses"] = self.inputs.ses
+
+        if isdefined(self.inputs.task):
+            outputs["task"] = self.inputs.task
+
+        if isdefined(self.inputs.run):
+            outputs["run"] = self.inputs.run
+
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
         return outputs

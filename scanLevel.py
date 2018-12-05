@@ -134,8 +134,6 @@ def set_json_header(datasource, task_list, run_list, acq, rec, sourceDir):
         json_header_str = json_header_str + '*rec-%s'
         json_header_list[0] += ['rec']
 
-    
-    
     json_header_str = json_header_str + '*.json'
     
     field_template["json_header"] = json_header_str
@@ -283,38 +281,22 @@ def run_scan_level(opts,args):
     task_list=opts.taskList
 
     ###Define args with exiting subject and condition combinations
-    valid_args=init.gen_args(opts, session_ids, task_list, opts.runList, opts.acq, opts.rec, args)
+    sub_valid_args, task_valid_args=init.gen_args(opts, session_ids, task_list, opts.runList, opts.acq, opts.rec, args)
     ### Create workflow
     workflow = pe.Workflow(name=opts.preproc_dir)
     workflow.base_dir = opts.targetDir
 
-
-    ##########################
-    ### Session infosource ###
-    ##########################
-    subinfosource = pe.Node(interface=util.IdentityInterface(fields=['sid']), name="sidinfosource")
-    subinfosource.iterables = ( 'sid', subjects_ids )
-
-    ##########################
-    ### Session infosource ###
-    ##########################
-    sesinfosource = pe.Node(interface=util.IdentityInterface(fields=['ses','sid']), name="sesinfosource")
-    sesinfosource.iterables = ( 'ses', opts.sessionList )
-    workflow.connect(subinfosource, 'sid', sesinfosource, 'sid')
-    
     #####################
     ### Preinfosource ###
     #####################
     preinfosource = pe.Node(interface=util.IdentityInterface(fields=['args','ses','results_labels','tka_labels','pvc_labels', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times']), name="preinfosource")
-    preinfosource.iterables = ( 'args', valid_args )
+    preinfosource.iterables = ( 'args', task_valid_args )
     preinfosource.inputs.results_labels = opts.results_labels
     preinfosource.inputs.tka_labels = opts.tka_labels
     preinfosource.inputs.pvc_labels = opts.pvc_labels 
     preinfosource.inputs.results_erode_times = opts.results_erode_times
     preinfosource.inputs.tka_erode_times = opts.tka_erode_times
     preinfosource.inputs.pvc_erode_times = opts.pvc_erode_times
-    workflow.connect(sesinfosource, 'ses', preinfosource, 'ses')
-    workflow.connect(sesinfosource, 'sid', preinfosource, 'sid')
 
     ##################
     ### Infosource ###
@@ -332,9 +314,9 @@ def run_scan_level(opts,args):
         datasourceArterial.inputs.acq=opts.acq
         datasourceArterial.inputs.field_template = dict(arterial_file='sub-%s/_ses-%s/pet/sub-%s_ses-%s_task-%s_acq-%s_*.dft')
         datasourceArterial.inputs.template_args = dict(arterial_file=[['sid','ses', 'sid', 'ses', 'task', 'acq']])
-        workflow.connect([  (sesinfosource, datasourceArterial, [('sid', 'sid')]), 
+        workflow.connect([  (infosource, datasourceArterial, [('sid', 'sid')]), 
                             (infosource, datasourceArterial, [('task', 'task')]),
-                            (sesinfosource, datasourceArterial, [('ses', 'ses')])
+                            (infosource, datasourceArterial, [('ses', 'ses')])
                             ])
     
     ### Use DataGrabber to get key input files
@@ -408,10 +390,10 @@ def run_scan_level(opts,args):
             mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
         )
         workflow.connect([
-                (sesinfosource, datasourceSurf, [('sid', 'sid')]),
+                (infosource, datasourceSurf, [('sid', 'sid')]),
                 (infosource, datasourceSurf, [('cid', 'cid')]),
                 (infosource, datasourceSurf, [('task', 'task')]),
-                (sesinfosource, datasourceSurf, [('ses', 'ses')]),
+                (infosource, datasourceSurf, [('ses', 'ses')]),
                 (infosource, datasource, [('run', 'run')]),
                  ])
 
@@ -420,15 +402,15 @@ def run_scan_level(opts,args):
     #############################################
     workflow.connect(preinfosource, 'args', infosource, "args")
     workflow.connect([
-                    (sesinfosource, datasourcePET, [('sid', 'sid')]),
-                    (sesinfosource, datasourcePET, [('ses', 'ses')]),
+                    (infosource, datasourcePET, [('sid', 'sid')]),
+                    (infosource, datasourcePET, [('ses', 'ses')]),
                     (infosource, datasourcePET, [('cid', 'cid')]),
                     (infosource, datasourcePET, [('task', 'task')]),
                     (infosource, datasourcePET, [('run', 'run')]),
                      ])
     workflow.connect([
-                    (sesinfosource, datasourceT1, [('sid', 'sid')]),
-                    (sesinfosource, datasourceT1, [('ses', 'ses')]),
+                    (infosource, datasourceT1, [('sid', 'sid')]),
+                    (infosource, datasourceT1, [('ses', 'ses')]),
                      ])
     
     workflow.connect(datasourcePET, 'json_header', datasource, 'json_header' )
@@ -450,7 +432,7 @@ def run_scan_level(opts,args):
     #####################
     # MRI Preprocessing # 
     #####################
-    wf_mri_preprocess = normalize.get_workflow("mri_normalize", valid_args, opts)
+    wf_mri_preprocess = normalize.get_workflow("mri_normalize", sub_valid_args, opts)
      
     #If user wants to input their own brain mask with the option --user-brainmask,
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
@@ -462,7 +444,7 @@ def run_scan_level(opts,args):
     else : 
         brain_mask_mni_node = wf_mri_preprocess
         brain_mask_mni_file='outputnode.brain_mask_mni'
-        #workflow.connect(brain_mask_mni_node, brain_mask_mni_file, datasink, 'wf_mri_preprocess/brain_mask')
+        workflow.connect(brain_mask_mni_node, brain_mask_mni_file, datasink, 't1/brain_mask')
 
     #If user wants to input their own t1 space to mni space transform with the option --user-t1mni,
     #then the source node for the brain mask is datasource. Otherwise it is derived in 
@@ -474,7 +456,7 @@ def run_scan_level(opts,args):
     else : 
         t1mni_node = wf_mri_preprocess
         t1mni_file='outputnode.xfmT1MNI'       
-        #workflow.connect(t1mni_node, t1mni_file, datasink, 'wf_mri_preprocess/t1_mni')
+        workflow.connect(t1mni_node, t1mni_file, datasink, 't1/stereotaxic')
     
     workflow.connect(datasourceT1, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
     
@@ -547,6 +529,7 @@ def run_scan_level(opts,args):
         misregistration.iterables = ('error',tqc.errors)
         workflow.connect(misregistration, 'error', wf_pet2mri, "inputnode.error")
 
+    workflow.connect(wf_pet2mri, 'outputnode.petmri_img_4d', datasink,'pet_coregistration' )
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
     out_img_dim += ['4']
@@ -620,6 +603,8 @@ def run_scan_level(opts,args):
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['4']
     
+        workflow.connect(pvc_wf, 'outputnode.out_file', datasink,'pvc' )
+
     ###########################
     # Tracer kinetic analysis #
     ###########################
@@ -651,6 +636,8 @@ def run_scan_level(opts,args):
         out_node_list += [tka_wf]
         out_img_list += ['outputnode.out_file']
         out_img_dim += ['3']
+
+        workflow.connect(tka_wf, 'outputnode.out_file', datasink,'quantification' )
     
     #######################################
     # Connect nodes for reporting results #
@@ -658,6 +645,7 @@ def run_scan_level(opts,args):
     # For each of the nodes in the outputnode list pass the output image to mincgroupstats.
     # This will print out descriptive statistics for the labelled regions in the mask image
     # for the output image. 
+    #print( opts.no_results_report ) ; 
     if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
             print "outputnode", node.name, "image name", img
@@ -672,10 +660,12 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', resultsReport, "task")
             workflow.connect(infosource, 'run', resultsReport, "run")
             workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReport, "header")
-            #workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
-            #workflow.connect(node, img, datasink, node.name)
+            if int(dim) == 3 :
+                workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
+            elif int(dim) == 4:
+                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name )
             
             if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
@@ -689,7 +679,7 @@ def run_scan_level(opts,args):
                 workflow.connect(node, img, resultsReportSurf, 'in_file')
                 workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
                 workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
-    
+        
     ############################
     # Subject-level QC Metrics #
     ############################

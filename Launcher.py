@@ -418,7 +418,7 @@ if __name__ == "__main__":
     ### Convert NII to MINC if necessary. # 
     #######################################
     opts.json = nii2mnc_batch(opts.sourceDir)	
-        
+    
     #################
     # Launch APPIAN #
     #################

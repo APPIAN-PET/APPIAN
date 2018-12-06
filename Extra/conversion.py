@@ -24,6 +24,7 @@ from re import sub
 from pyminc.volumes.factory import *
 
 from turku import imgunitCommand, e7emhdrInterface, eframeCommand, sifCommand
+from time import gmtime, strftime
 
 
 class convertOutput(TraitedSpec):
@@ -163,7 +164,7 @@ class ecattominc2Command(BaseInterface):
 
         node1 = ecattomincCommand()
         node1.inputs.in_file = self.inputs.in_file
-        node1.inputs.out_file = "/tmp/tmp_mnc_"+str(np.random.randint(9999999999))+".mnc"
+        node1.inputs.out_file = "/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node1.run()
 
         node2 = mincconvertCommand()

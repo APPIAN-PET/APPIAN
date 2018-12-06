@@ -9,6 +9,7 @@ import nipype.interfaces.io as nio
 import os
 from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
+from Extra.conversion import mincconvertCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
 
@@ -102,19 +103,12 @@ def get_workflow(name, valid_args, opts):
             tfm_node= mri2template
             tfm_file='composite_transform'
         else :
-            #mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
-            #mri2template = pe.Node(interface=beast_normalize(), name="minctracc_registration")
             mri2template = pe.Node(interface=beast_normalize(), name="mri_normalize")
-            #mri2template.inputs.clobber = True
-            #mri2template.inputs.verbose = opts.verbose
             template_name = os.path.splitext(os.path.basename(template_rsl))[0]
             template_dir = os.path.dirname(opts.template)
-            #mri2template.inputs.in_target_file = opts.template
             mri2template.inputs.modelname = template_name
             mri2template.inputs.modeldir = template_dir
-            #workflow.connect(inputnode, 't1', mri2template, 'in_source_file')
             workflow.connect(inputnode, 't1', mri2template, 'in_file')
-            #workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
 
             t1_mni_file = 'out_file_vol'
             t1_mni_node=mri2template
@@ -127,8 +121,11 @@ def get_workflow(name, valid_args, opts):
         workflow.connect(inputnode, 'xfmT1MNI', transform_t1, 'transformation')
         transform_t1.inputs.like = opts.template
 
-        t1_mni_node = transform_t1
-        t1_mni_file = 'output_file'
+        convert_t1 = pe.Node(mincconvertCommand(), name="convert_t1")
+        workflow.connect(transform_t1, "output_file", convert_t1, 'in_file')
+
+        t1_mni_node = convert_t1
+        t1_mni_file = 'out_file'
         tfm_node = inputnode
         tfm_file = 'xfmT1MNI'
 
@@ -141,9 +138,12 @@ def get_workflow(name, valid_args, opts):
         t1MNI_brain_mask.inputs.voxel_size = 2
         t1MNI_brain_mask.inputs.median = True
         t1MNI_brain_mask.inputs.fill = True
-
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )
-        brain_mask_node = t1MNI_brain_mask
+        
+        convert_brain_mask = pe.Node(mincconvertCommand(), name="convert_brain_mask")
+        workflow.connect(t1MNI_brain_mask, "out_file", convert_brain_mask, 'in_file')
+
+        brain_mask_node = convert_brain_mask
         brain_mask_file = 'out_file'
     else :			
         brain_mask_node = inputnode

@@ -36,7 +36,7 @@ from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from Masking import surf_masking
-
+global path
 path = os.path.dirname(os.path.abspath(__file__))
 path_split = path.split(os.sep)
 pvc_path = '/'.join(path_split[0:-1])+os.sep+"Partial_Volume_Correction"+os.sep+"methods"
@@ -50,6 +50,7 @@ def cmd(command):
     return subprocess.check_output(command.split(), universal_newlines=True).strip()
 
 def adjust_hdr(mincfile):
+    print("mincfile: ", mincfile)
     f = h5py.File(mincfile,'r')
     n_dims = len(f['minc-2.0/dimensions'])
     # list_dims = ['xspace', 'yspace', 'zspace', 'time']
@@ -171,7 +172,7 @@ def generate_xml_nodes(opts, arg):
 def generate_dashboard(opts, arg):
     if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
         os.makedirs(opts.targetDir+"/preproc/dashboard/");
-    distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+    distutils.dir_util.copy_tree(path+'/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
     generate_xml_nodes(opts, arg);
     os.chdir(opts.targetDir+'/preproc/dashboard/public/')
     if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
@@ -222,7 +223,7 @@ class deployDashCommand(BaseInterface):
 
         if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
             os.makedirs(opts.targetDir+"/preproc/dashboard/");
-        distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+        distutils.dir_util.copy_tree(path+'/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
 
         os.chdir(opts.targetDir+'/preproc/dashboard/public/')
         if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):

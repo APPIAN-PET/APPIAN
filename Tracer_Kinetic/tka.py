@@ -9,7 +9,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined, CommandLineInputSpec)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from Extra.base import MINCCommand, MINCCommandInputSpec
-from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow)
+from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow, mincconvertCommand, ecattominc2Command)
 from Extra.modifHeader import FixHeaderLinkCommand
 from Turku.dft import img2dftCommand
 from Extra.extra import subject_parameterCommand
@@ -227,7 +227,7 @@ def get_tka_workflow(name, opts):
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
         #convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
-        convertParametric_to_minc=pe.Node(ecattomincCommand(), name="convertParametric_to_minc")
+        convertParametric_to_minc=pe.Node(ecattominc2Command(), name="convertParametric_to_minc")
         convertParametric = pe.Node(interface=FixHeaderLinkCommand(), name="convertParametric")
         
         #Connect quantification node to output node

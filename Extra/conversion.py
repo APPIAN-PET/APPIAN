@@ -145,6 +145,49 @@ class ecat2mincCommand(BaseInterface):
         return outputs
 
 
+class ecattominc2Output(TraitedSpec):
+    out_file = File(desc="PET image with correct time frames.")
+
+class ecattominc2Input(CommandLineInputSpec):
+    in_file = File(exists=True, mandatory=True, desc="PET file")
+    out_file= File(argstr="%s", desc="MINC PET file")
+#tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
+
+class ecattominc2Command(BaseInterface):
+    input_spec = ecattominc2Input
+    output_spec = ecattominc2Output
+
+    def _run_interface(self, runtime): 
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+
+        node1 = ecattomincCommand()
+        node1.inputs.in_file = self.inputs.in_file
+        node1.inputs.out_file = "/tmp/tmp_mnc_"+str(np.random.randint(9999999999))+".mnc"
+        node1.run()
+
+        node2 = mincconvertCommand()
+        node2.inputs.in_file = node1.inputs.out_file
+        node2.inputs.out_file = self.inputs.out_file
+        node2.run()
+
+        return runtime
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd() 
+        return dname+ os.sep+fname_list[0] + ".mnc"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+
+
 def ecattomincWorkflow(name):
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow

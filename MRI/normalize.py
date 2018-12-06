@@ -128,6 +128,7 @@ def get_workflow(name, valid_args, opts):
 
     else :
         transform_t1 = pe.Node(interface=minc.Resample(), name="transform_t1"  )
+        transform_t1.inputs.two=True
         workflow.connect(inputnode, 't1', transform_t1, 'input_file')
         workflow.connect(inputnode, 'xfmT1MNI', transform_t1, 'transformation')
         transform_t1.inputs.like = opts.template

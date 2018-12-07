@@ -5,6 +5,8 @@ import subprocess
 import sys
 import importlib
 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.utils.filemanip import loadcrash
@@ -190,3 +192,59 @@ def link_stats(opts, arg):
     if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/stats')):
         os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
     os.symlink('../../stats', os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
+
+
+
+
+class deployDashOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class deployDashInput(BaseInterfaceInputSpec):
+    petmri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
+    pvc = traits.File(exists=True, mandatory=True, desc="Output PVC image")
+    tka = traits.File(exists=True, mandatory=True, desc="Output TKA image")
+    out_file = traits.File(desc="Output file")
+    clobber = traits.Bool(desc="Overwrite output file", default=False)
+
+class deployDashCommand(BaseInterface):
+    input_spec = deployDashInput
+    output_spec = deployDashInput
+  
+    def _gen_output():
+        fname = "nodes.xml"
+        dname = opts.targetDir+"/preproc/dashboard/public" 
+        return dname+os.sep+fname
+
+    def _run_interface(self, runtime):
+        petmri = self.inputs.petmri
+        pvc = self.inputs.pvc
+        tka = self.inputs.tka
+
+        if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
+            os.makedirs(opts.targetDir+"/preproc/dashboard/");
+        distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+
+        os.chdir(opts.targetDir+'/preproc/dashboard/public/')
+        if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
+            os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+        os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+        for sub in glob.glob(os.path.join(opts.sourceDir,'sub*')):
+            if os.path.isdir(sub):
+                dest = os.path.join(opts.targetDir,'preproc/dashboard/public/',os.path.basename(sub))
+                if os.path.exists(dest):
+                    os.remove(dest)
+                os.symlink(sub, dest)        
+
+        generate_xml_nodes(opts, arg);
+        
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid)
+        outputs["out_file"] = self.inputs.out_file
+        return outputs

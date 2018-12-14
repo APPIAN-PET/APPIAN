@@ -30,19 +30,24 @@ def set_labels(opts, roi_label, masks):
     for name, item in masks.items():
         mask_type  = item[0]
         mask_value = item[1]
+        
         if labels[name] != None:
             out[name]=labels[name]
         else: # mask_type == 'other' or mask_type == 'roi-user':
-            label_values = get_mask_list(opts.sourceDir, mask_value )
-            out[name] = label_values
+            #label_values = get_mask_list(opts.sourceDir, mask_value )
+            out[name] = None #label_values
     return out
 
 def get_mask_list(sourceDir, ROIMask ):
     gen = os.walk(sourceDir)
+    print(ROIMask)
+    exit(0)
     for dirName, subdirList, fileList in gen: 
         for f in fileList: 
             if ROIMask[0] in f : 
                 #Load in volume and get unique values
+                print(f)
+                exit(0)
                 mask= pyminc.volumeFromFile(dirName+os.sep+f)
                 mask_flat=mask.data.flatten()
                 label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
@@ -89,7 +94,7 @@ roi_label["pvc"]={
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
 internal_cls_methods=["antsAtropos"]
-def check_masking_options(opts, label_img, label_space):
+def check_masking_options(opts, label_img, label_template, label_space):
     '''
     Inputs:
         opts            user defined inputs to program using configparser
@@ -100,16 +105,19 @@ def check_masking_options(opts, label_img, label_space):
                         possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
     '''
     
-    if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
+    #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
+    if os.path.exists(label_img):
     # 1) Atlas 
         label_type ="atlas"
-        if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
-            label_type="atlas-template"
-    elif label_img[0] in internal_cls_methods :
+        #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
+        if label_template != None :
+            if os.path.exists(label_template) : 
+                label_type="atlas-template"
+    elif label_img in internal_cls_methods :
     # 2) Internal classification metion
         label_type = 'internal_cls'
         label_space="stereo"
-    elif type(label_img[0]) == str:
+    elif type(label_img) == str:
     # 3) String that defines user classification
         label_type='user_cls'
     else : 
@@ -192,8 +200,9 @@ if __name__ == "__main__":
     label_img_help="Options: 1. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 2. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template 3. Internal classification method (" + ', '.join(internal_cls_methods) + ') 4. String that identifies labels in anat/ directory to be used as mask' 
     #PVC
     group= OptionGroup(parser,"Masking options","PVC")
-    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='t1', choices=spaces)
-    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, nargs=1, type='string', default='antsAtropos')
+    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='stereo', choices=spaces)
+    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, type='string', default='antsAtropos')
+    group.add_option("","--pvc-label-template",dest="pvc_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
     group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
@@ -203,8 +212,9 @@ if __name__ == "__main__":
 
     # Quantification
     group= OptionGroup(parser,"Masking options","Quantification")
-    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='t1', choices=spaces)
-    group.add_option("","--tka-label-img",dest="tka_label_img",help=label_img_help, type='string',nargs=1,default='antsAtropos')
+    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
+    group.add_option("","--tka-label-img",dest="tka_label_img", help=label_img_help, type='string',default='antsAtropos')
+    group.add_option("","--tka-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
     group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
     group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
@@ -215,7 +225,8 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"Masking options","Results")
     group.add_option("","--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
     group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
-    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',nargs=1,default='antsAtropos')
+    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',default='antsAtropos')
+    group.add_option("","--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
     group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=None )
     group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
     group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
@@ -362,21 +373,20 @@ if __name__ == "__main__":
 
     #If necessary, correct MNI space names
     #Change label space to icbm152 if it was specified as some variant of MNI and 152
-    mni_space_names =  ["MNI", "mni", "MNI152", "mni152"]
-    if opts.pvc_label_space in mni_space_names: opts.pvc_label_space = "icbm152"
-    if opts.tka_label_space in mni_space_names: opts.tka_label_space = "icbm152"
-    if opts.results_label_space in mni_space_names: opts.results_label_space = "icbm152"
+    #mni_space_names =  ["MNI", "mni", "MNI152", "mni152"]
+    #if opts.pvc_label_space in mni_space_names: opts.pvc_label_space = "icbm152"
+    #if opts.tka_label_space in mni_space_names: opts.tka_label_space = "icbm152"
+    #if opts.results_label_space in mni_space_names: opts.results_label_space = "icbm152"
 
     #Check inputs for PVC masking 
-    opts.pvc_label_img = split_label_img(opts.pvc_label_img)
-    opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_space)
+    #opts.pvc_label_img = split_label_img(opts.pvc_label_img)
+    opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_template, opts.pvc_label_space)
     #Check inputs for TKA masking
-    opts.tka_label_img = split_label_img(opts.tka_label_img)
-    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_space)
+    #opts.tka_label_img = split_label_img(opts.tka_label_img)
+    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_template, opts.tka_label_space)
     #Check inputs for results masking
-    opts.results_label_img = split_label_img(opts.results_label_img)
-    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_space)
-
+    #opts.results_label_img = split_label_img(opts.results_label_img)
+    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.tka_label_template, opts.results_label_space)
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
 
@@ -429,10 +439,10 @@ if __name__ == "__main__":
     else :
         if opts.run_scan_level:
             run_scan_level(opts,args)
-            if opts.dashboard:
-                dash.generate_dashboard(opts,args)
+            #if opts.dashboard:
+            #    dash.generate_dashboard(opts,args)
         if opts.run_group_level:
             run_group_level(opts,args)
-            if opts.dashboard:
-                dash.link_stats(opts,args)
+            #if opts.dashboard:
+            #    dash.link_stats(opts,args)
 

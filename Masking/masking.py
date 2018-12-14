@@ -20,6 +20,7 @@ from nipype.interfaces.minc import Resample as ResampleCommand
 from Extra.xfmOp import InvertCommand
 from Extra.morphomat import MorphCommand
 from Extra.info import StatsCommand
+from Extra.resample import param2xfmCommand
 import Registration.registration as reg
 
 class LabelsInput(BaseInterfaceInputSpec):
@@ -67,6 +68,11 @@ class Labels(BaseInterface):
 
         out_file_1 =temp_mask = tmpDir+"/mask.mnc"
         temp_mask_clean = tmpDir+"/mask_clean.mnc"
+        if self.inputs.labels == None : 
+            mask= pyminc.volumeFromFile(self.inputs.label_img)
+            mask_flat=mask.data.flatten()
+            labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
+            if '0' in labels :  labels.remove('0')
 
         # 1) Select Labels
         run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
@@ -101,10 +107,11 @@ class Labels(BaseInterface):
                 mni2target.inputs.input_file_1 = sourceToModel_xfm
                 mni2target.inputs.input_file_2 = self.inputs.mni2target 
                 mni2target.run()
-
+                xfm = mni2target.inputs.out_file
                 self.inputs.nLinAtlasMNIXfm=mni2target.inputs.output_file
             else :
-                sourceToModel_xfm=self.inputs.nLinAtlasMNIXfm
+                #sourceToModel_xfm=self.inputs.nLinAtlasMNIXfm
+                xfm=self.inputs.nLinAtlasMNIXfm
         else :
             xfm = self.inputs.LinXfm
         
@@ -136,7 +143,8 @@ class Labels(BaseInterface):
         #Copy to output
         shutil.copy(label, self.inputs.out_file)
         #self.inputs.out_file = run_resample.inputs.output_file
-
+        
+        print(self.inputs.brainmask)
         # 6) Mask brain for T1 and MNI labels
         if self.inputs.brain_only :
             temp_mask = tmpDir+"/mask.mnc"
@@ -184,46 +192,51 @@ class Labels(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_transforms_for_stage(MNIT1, MNIPET, inputnode, label_space, analysis_space):
+def get_transforms_for_stage(MNIT1, MNIPET, inputnode, label_space, analysis_space, identity):
     if label_space == "stereo" :  
         if analysis_space == "t1":
             tfm_node=MNIT1
             transform_file="output_file"
-            transform_to="LinMNIT1Xfm"
             target_file="nativeT1"
         elif analysis_space == "pet":
             tfm_node=MNIPET
             transform_file="output_file"
-            transform_to="LinMNIPETXfm"
             target_file="pet_volume"
+        else :
+            tfm_node=identity
+            transform_file="out_file"
+            target_file="mniT1"
     elif label_space == "t1": 
         if analysis_space == "stereo":
             tfm_node=inputnode
             transform_file="LinT1MNIXfm"
-            transform_to="LinT1MNIXfm"
             target_file="mniT1"
         elif analysis_space == "pet":
             tfm_node=inputnode
             transform_file="LinT1PETXfm"
-            transform_to="LinT1PETXfm"
             target_file="pet_volume"
+        else :
+            tfm_node=identity
+            transform_file="out_file"
+            target_file="t1"
     elif label_space == "pet":
         if analysis_space == "stereo":
             tfm_node=inputnode
             transform_file="LinPETMNIXfm"
-            transform_to="LinTPETMNIXfm"
             target_file="mniT1"
         elif analysis_space == "t1":
             tfm_node=inputnode
             transform_file="LinPETT1Xfm"
-            transform_to="LinETT1Xfm"
             target_file="nativeT1"
+        else :
+            tfm_node=identity
+            transform_file="out_file"
+            target_file="pet"
 
-
-    print label_space, "to", analysis_space
-    print "1", tfm_node, transform_file, transform_to
-    print "2", tfm_node, transform_file, transform_to
-    return([tfm_node, transform_file, transform_to, target_file])
+    #print label_space, "to", analysis_space
+    #print "1", tfm_node, transform_file, transform_to
+    #print "2", tfm_node, transform_file, transform_to
+    return([tfm_node, transform_file, target_file])
 
 
 
@@ -259,25 +272,33 @@ def get_workflow(name, infosource, opts):
     outputnode = pe.Node(niu.IdentityInterface(fields=out_list), name='outputnode')
     #Define empty node for output
 
+    #Create Identity Transform
+    identity_transform = pe.Node(param2xfmCommand(), name="identity_transform")
+    identity_transform.inputs.translation="0 0 0"
+    identity_transform.inputs.rotation="0 0 0"
+    identity_transform.inputs.scales="1 1 1"
+
+
+
     MNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
     workflow.connect(inputnode, 'LinT1MNIXfm',MNIT1 , 'input_file')
     MNIPET = pe.Node(interface=minc.XfmInvert(), name="MNIPET")
     workflow.connect(inputnode, 'LinPETMNIXfm',MNIPET , 'input_file')
 
     if not opts.nopvc and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file, pvc_tfm_to, pvc_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.pvc_label_space, opts.analysis_space)
+        pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
         
     if not opts.tka_method == None:
-       tka_tfm_node, tka_tfm_file, tka_tfm_to, tka_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.tka_label_space, opts.analysis_space)
+       tka_tfm_node, tka_tfm_file, tka_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
     
-    results_tfm_node, results_tfm_file, results_tfm_to, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space)
+    results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
     
-    brain_mask_tfm_node, brain_mask_tfm_file, brain_mask_tfm_to, brain_mask_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, 'stereo', 'pet')
+    brain_mask_tfm_node, brain_mask_tfm_file, brain_mask_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, 'stereo', opts.analysis_space, identity_transform)
     ###################
     # Brain Mask Node #
     ###################
     if opts.analysis_space != "stereo"  :
-        brain_mask_node = pe.Node(minc.Resample(), "brain_mask_node")
+        brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
         #brain_mask_node.inputs.output_file="brain_mask_space-"+opts.analysis_space+".mnc" 
 
@@ -297,8 +318,6 @@ def get_workflow(name, infosource, opts):
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
         workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")
         like_file="mniT1"
-
-
 
     resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
     resultsLabels.inputs.analysis_space = opts.analysis_space

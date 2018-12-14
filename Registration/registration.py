@@ -760,14 +760,12 @@ def get_workflow(name, infosource, opts):
     
     #Resample 4d PET image to T1 space
     pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
-    pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
-    
+    #pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
     workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
     workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
     workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
 	
     #Resample 4d PET image to MNI space
-
     PETMNIXfm_node = pe.Node( interface=ConcatCommand(), name="PETMNIXfm_node")
     workflow.connect(pet2mri, "out_file_xfm", PETMNIXfm_node, "in_file")
     workflow.connect(inputnode, "xfmT1MNI", PETMNIXfm_node, "in_file_2")
@@ -775,15 +773,15 @@ def get_workflow(name, infosource, opts):
     MNIPETXfm_node = pe.Node(interface=minc.XfmInvert(), name="MNIPETXfm_node")
     workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
 
-    t1tomni_4d = pe.Node(interface=minc.Resample(), name='t1tomni_4d')
-    workflow.connect(pettot1_4d, 'output_file', t1tomni_4d, 'input_file')
-    workflow.connect(inputnode, "xfmT1MNI", t1tomni_4d, 'transformation')
-    workflow.connect(inputnode, 'T1Tal', t1tomni_4d, 'like')
-   
+    pettomni_4d = pe.Node(interface=minc.Resample(), name='pettomni_4d')
+    workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_file')
+    workflow.connect(PETMNIXfm_node, "out_file", pettomni_4d, 'transformation')
+    workflow.connect(inputnode, 'T1Tal',pettomni_4d, 'like')
+
     workflow.connect(PETMNIXfm_node, 'out_file', outputnode, 'petmni_xfm' )
     workflow.connect(MNIPETXfm_node, 'output_file', outputnode, 'mnipet_xfm' )
     workflow.connect(pettot1_4d,'output_file', outputnode, 'petmri_img_4d')
-    workflow.connect(t1tomni_4d,'output_file', outputnode, 'petmni_img_4d')
+    workflow.connect(pettomni_4d,'output_file', outputnode, 'petmni_img_4d')
     workflow.connect(final_pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
     workflow.connect(final_pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
     workflow.connect(final_pet2mri, 'out_file_img', outputnode, 'petmri_img')

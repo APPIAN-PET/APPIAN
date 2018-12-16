@@ -34,6 +34,7 @@ class convertInput(CommandLineInputSpec):
     out_file = File( argstr="%s", position=-1, desc="image to operate on")
     in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
     two= traits.Bool(argstr="-2", usedefault=True, default_value=True, desc="Convert from minc 1 to minc 2")
+    clobber= traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite existing file")
 
 class mincconvertCommand(CommandLine):
     input_spec =  convertInput
@@ -171,6 +172,8 @@ class ecattominc2Command(BaseInterface):
         node2.inputs.in_file = node1.inputs.out_file
         node2.inputs.out_file = self.inputs.out_file
         node2.run()
+
+        os.remove(node1.inputs.out_file)
 
         return runtime
 
@@ -582,7 +585,7 @@ class nii2mnc2Command(BaseInterface):
     output_spec = nii2mnc_shOutput
 
     def _run_interface(self, runtime):
-        temp_fn="/tmp/temp_"+str( np.random.randint(0,1000000) )+".mnc"
+        temp_fn = "/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         convert = nii2mnc_shCommand()
         convert.inputs.in_file=self.inputs.in_file
         convert.inputs.out_file=temp_fn

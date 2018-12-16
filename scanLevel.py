@@ -59,8 +59,8 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     if len(run_list) != 0: 
         pet_str = pet_str + '*run-%s'
         pet_list += ['run'] 
-    pet_str = pet_str + '*_pet.'+img_ext
-    t1_str = t1_str + '*_T1w.'+img_ext
+    pet_str = pet_str + '*_pet.'+img_ext+'*'
+    t1_str = t1_str + '*_T1w.'+img_ext+'*'
     #Dictionary for basic structural inputs to DataGrabber
     field_template_t1 = dict(
         nativeT1 = t1_str,

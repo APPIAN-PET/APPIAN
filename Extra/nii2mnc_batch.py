@@ -46,8 +46,8 @@ def nii2mnc_batch(sourceDir, clobber=False):
                 #        shutil.copyfileobj(f_in, f_out)
                 #if os.path.exists(nii2mnc.inputs.out_file+'.gz') :
                 #    shutil.remove(nii2mnc.inputs.out_file)
-            else :
-                print("Error : could not find ", nii2mnc.inputs.out_file, "to gzip it.")
+            #else :
+            #    print("Error : could not find ", nii2mnc.inputs.out_file, "to gzip it.")
 
         ret = True
     return ret 	

@@ -68,7 +68,7 @@ class Labels(BaseInterface):
 
         out_file_1 =temp_mask = tmpDir+"/mask.mnc"
         temp_mask_clean = tmpDir+"/mask_clean.mnc"
-        if self.inputs.labels == None : 
+        if self.inputs.labels == [] : 
             mask= pyminc.volumeFromFile(self.inputs.label_img)
             mask_flat=mask.data.flatten()
             labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]

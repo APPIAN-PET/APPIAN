@@ -12,7 +12,6 @@ class ModifyHeaderOutput(TraitedSpec):
 class ModifyHeaderInput(CommandLineInputSpec):
     in_file = File(position=-1, argstr="%s", mandatory=True, desc="Image")
     out_file = File(desc="Image after centering")
-
     sinsert = traits.Bool(argstr="-sinsert", position=-3, default_value=False, desc="Insert a string attribute")
     dinsert = traits.Bool(argstr="-dinsert", position=-3, default_value=False, desc="Insert a double precision attribute")
     sappend = traits.Bool(argstr="-sappend", position=-3, default_value=False, desc="Append a string attribute")

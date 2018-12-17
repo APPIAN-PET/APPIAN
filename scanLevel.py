@@ -58,9 +58,10 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
         pet_list += ['rec']
     if len(run_list) != 0: 
         pet_str = pet_str + '*run-%s'
-        pet_list += ['run'] 
-    pet_str = pet_str + '*_pet.'+img_ext+'*'
-    t1_str = t1_str + '*_T1w.'+img_ext+'*'
+        pet_list += ['run']
+    pet_str = pet_str + '*_pet.mnc%s'
+    pet_list += ['compression']
+    t1_str = t1_str + '*_T1w.mnc'
     #Dictionary for basic structural inputs to DataGrabber
     field_template_t1 = dict(
         nativeT1 = t1_str,
@@ -294,7 +295,8 @@ def run_scan_level(opts,args):
     ### Infosource ###
     ##################
     infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
-
+    workflow.connect(preinfosource, 'args', infosource, "args")
+    
     #################
     ###Datasources###
     #################
@@ -392,13 +394,13 @@ def run_scan_level(opts,args):
     #############################################
     ### Define Workflow and basic connections ###
     #############################################
-    workflow.connect(preinfosource, 'args', infosource, "args")
     workflow.connect([
                     (infosource, datasourcePET, [('sid', 'sid')]),
                     (infosource, datasourcePET, [('ses', 'ses')]),
                     (infosource, datasourcePET, [('cid', 'cid')]),
                     (infosource, datasourcePET, [('task', 'task')]),
                     (infosource, datasourcePET, [('run', 'run')]),
+                    (infosource, datasourcePET, [('compression', 'compression')]),
                      ])
     workflow.connect([
                     (infosource, datasourceT1, [('sid', 'sid')]),
@@ -421,6 +423,20 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
+
+    ###################
+    # PET prelimaries #
+    ###################
+    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
+    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+    #if opts.json :
+    workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
+    
+    if opts.initialize_only :
+        workflow.run(); 
+        return(0)
+
+
     #####################
     # MRI Preprocessing # 
     #####################
@@ -452,17 +468,6 @@ def run_scan_level(opts,args):
     
     workflow.connect(datasourceT1, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
     
-    ###################
-    # PET prelimaries #
-    ###################
-    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
-    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
-    #if opts.json :
-    workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
-    
-    if opts.initialize_only :
-        workflow.run(); 
-        return(0)
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
     # and for the source for the labels                                 #

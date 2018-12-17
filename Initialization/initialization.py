@@ -7,23 +7,29 @@ import nipype.interfaces.minc as minc
 
 import minc as pyezminc
 from os.path import basename
+import shutil
 from math import *
+from time import gmtime, strftime
+from glob import glob
+import re
 
 from pyminc.volumes.factory import *
 
+from nipype.algorithms.misc import Gunzip
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-from Extra.minc_filemanip import update_minchd_json
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.minc import Resample as ResampleCommand
+from Extra.minc_filemanip import update_minchd_json
 from Extra.info import  InfoCommand
 from Extra.modifHeader import ModifyHeaderCommand
 from Extra.reshape import  ReshapeCommand
-from glob import glob
 from Extra.modifHeader import FixHeaderCommand
+from Extra.compression import gunzipCommand, gzipCommand
+
 
 global isotope_dict
 isotope_dict={
@@ -245,7 +251,10 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     #if pet_fn == [] or mri_fn == [] : continue 
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
-                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run}
+                        compression=''
+                        if '.gz' in pet_fn : compression='.gz'
+
+                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run,'compression':compression}
                         sub_ses_dict[sub]=ses
                         if opts.verbose : 
                             print(pet_fn, os.path.exists(pet_fn))
@@ -272,6 +281,7 @@ class SplitArgsOutput(TraitedSpec):
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
     run = traits.Str(desc="Run ID")
+    compression = traits.Str(desc="Compression")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
@@ -280,6 +290,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
     run = traits.Str(desc="Run ID")
+    compression = traits.Str(desc="Compression")
     ses_sub_only = traits.Bool(default_value=False, usedefault=True)
     #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
@@ -288,9 +299,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
 class SplitArgsRunning(BaseInterface):
     input_spec = SplitArgsInput
     output_spec = SplitArgsOutput
-
     def _run_interface(self, runtime):
-        
         if not isdefined(self.inputs.ses) :
             self.inputs.ses=self.inputs.args['ses']
         if not isdefined(self.inputs.sid) :
@@ -309,6 +318,10 @@ class SplitArgsRunning(BaseInterface):
             
         try:
             self.inputs.run=self.inputs.args['run']
+        except  KeyError:
+            pass
+        try:
+            self.inputs.compression=self.inputs.args['compression']
         except  KeyError:
             pass
 
@@ -331,6 +344,9 @@ class SplitArgsRunning(BaseInterface):
 
         if isdefined(self.inputs.run):
             outputs["run"] = self.inputs.run
+
+        if isdefined(self.inputs.compression):
+            outputs["compression"] = self.inputs.compression
 
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
@@ -396,21 +412,24 @@ class MincHdrInfoRunning(BaseInterface):
         #    print run_mincinfo.cmdline
         #    if self.inputs.run:
         #        run_mincinfo.run()
-
-        img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
-        hd = img.get_MINC_header()
-        for key in hd.keys():
-            self._params[key]={}
-            for subkey in hd[key].keys():
-                self._params[key][subkey]={}
-                data_in = hd[key][subkey]
-                var = str(key)
-                attr = str(subkey)
-                #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
-                self._params[key][subkey]=data_in 
-                update_minchd_json(temp_out_file, data_in, var, attr)
-
-        header = json.load(open(temp_out_file, "r") )
+        try :
+            img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
+            hd = img.get_MINC_header()
+            for key in hd.keys():
+                self._params[key]={}
+                for subkey in hd[key].keys():
+                    self._params[key][subkey]={}
+                    data_in = hd[key][subkey]
+                    var = str(key)
+                    attr = str(subkey)
+                    #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
+                    self._params[key][subkey]=data_in 
+                    update_minchd_json(temp_out_file, data_in, var, attr)
+        except RuntimeError :
+            print("Warning: Could not read header file from", self.inputs.in_file)
+        
+        
+        header = json.load(open(temp_out_file, "r+") )
         #fp.close()
 
         minc_input=True
@@ -442,8 +461,6 @@ class MincHdrInfoRunning(BaseInterface):
         outputs["header"] = self._params
         return outputs
 
-
-
 class VolCenteringOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
 
@@ -470,24 +487,43 @@ class VolCenteringRunning(BaseInterface):
         infile = volumeFromFile(self.inputs.in_file)
         for view in ['xspace','yspace','zspace']:
             start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
+            if '.gz' in os.path.splitext(self.inputs.in_file)[1] :
+                #IN: /path/file.mnc.gz
+                #OUT: /tmp/file.mnc
+                temp_fn="/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc.gz" 
+                
+                shutil.copy(self.inputs.in_file, temp_fn)
+                gunzip = gunzipCommand(in_file=temp_fn)
+                gunzip.run() 
+                
+                print(gunzip.inputs)
+                run_modifHrd=ModifyHeaderCommand()
+                run_modifHrd.inputs.in_file =  gunzip.inputs.out_file
+                run_modifHrd.inputs.dinsert = True;
+                run_modifHrd.inputs.opt_string = view+":start="+str(start);
+                run_modifHrd.run()
 
-            run_modifHrd=ModifyHeaderCommand()
-            run_modifHrd.inputs.in_file = self.inputs.out_file;
-            run_modifHrd.inputs.dinsert = True;
-            run_modifHrd.inputs.opt_string = view+":start="+str(start);
-            run_modifHrd.run()
-            
+                print(run_modifHrd.inputs)
+                out_file_unzip = re.sub('.mnc.gz', '.mnc', self.inputs.out_file)
+                shutil.copy(run_modifHrd.inputs.out_file, out_file_unzip)
+
+                gzip = gzipCommand()
+                gzip.inputs.in_file = out_file_unzip
+                gzip.run() 
+
+            else :
+                run_modifHrd=ModifyHeaderCommand()
+                run_modifHrd.inputs.in_file = self.inputs.out_file;
+                run_modifHrd.inputs.dinsert = True;
+                run_modifHrd.inputs.opt_string = view+":start="+str(start);
+                run_modifHrd.run()
+                
         node_name="fixIrregularDimension"
         fixIrregular = ModifyHeaderCommand()
         fixIrregular.inputs.sinsert = True;
         fixIrregular.inputs.opt_string = "time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\"  "
         fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
         fixIrregular.run()
-
-        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
-        #pettot1_4d_header_fixed.inputs.time_only=True
-        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
-        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
 
         return runtime
 
@@ -545,7 +581,6 @@ class PETexcludeFrRunning(BaseInterface):
         #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
-
         infile = volumeFromFile(self.inputs.in_file)      
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1

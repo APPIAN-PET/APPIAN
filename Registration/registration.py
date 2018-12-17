@@ -24,7 +24,7 @@ from Extra.tracc import TraccCommand
 import nipype.interfaces.minc as minc 
 from Extra.xfmOp import ConcatCommand
 from Extra.inormalize import InormalizeCommand
-
+from Extra.compression import gzipResampleCommand
 from Extra.modifHeader import FixHeaderCommand, FixHeaderLinkCommand
 
 class PETheadMaskingOutput(TraitedSpec):
@@ -681,8 +681,6 @@ def get_workflow(name, infosource, opts):
     pet2mri.inputs.verbose = opts.verbose
     pet2mri.inputs.lsq="lsq6"
     pet2mri.inputs.metric="mi"
-    #else : 
-    #pet2mri = pet2mri_withMask
     final_pet2mri = pet2mri
 
     if isdefined(inputnode.inputs.error) : 
@@ -708,23 +706,10 @@ def get_workflow(name, infosource, opts):
                             (pet2mri, t1_pet_space, [('out_file_xfm_invert', 'transformation')])
                         ]) 
 
-    #if opts.no_mask :
         workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
                           (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')])#,
-                          #(petMasking, pet2mri, [('out_file', 'in_source_mask')]), 
-                          #(inputnode, pet2mri, [('pet_volume', 'init_file_xfm')])
-                          #(pet2mri_withMask, pet2mri, [('out_file_xfm', 'init_file_xfm')])
                           ]) 
 
-    #workflow.connect([(inputnode, pet2mri_withMask, [('pet_volume', 'in_source_file')]),
-                      #(petMasking, pet2mri_withMask, [('out_file', 'in_source_mask')]), 
-                      #(inputnode, pet2mri_withMask, [('nativeT1nuc', 'in_target_file')])
-                      #]) 
-    
-    #if opts.coregistration_brain_mask :
-        #workflow.connect(inputnode, 't1_brain_mask',  pet2mri_withMask, 'in_target_mask')
-        #workflow.connect(inputnode, 't1_brain_mask',  pet2mri, 'in_target_mask')
-    
     if opts.test_group_qc :
         ###Create rotation xfm files based on transform error
         transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
@@ -740,7 +725,6 @@ def get_workflow(name, infosource, opts):
         transform_resampleNode.inputs.use_input_sampling=True;
         workflow.connect(transformNode, 'out_file', transform_resampleNode, 'transformation')
         workflow.connect(pet2mri, 'out_file_img', transform_resampleNode, 'in_file')
-        #workflow.connect(pet2misalign_xfm, 'out_file', transform_resampleNode, 'transformation')
 
         ###Rotate brain mask
         transform_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="transform_brainmaskNode" )
@@ -759,6 +743,8 @@ def get_workflow(name, infosource, opts):
         pet_brain_mask_img = 'out_file'
     
     #Resample 4d PET image to T1 space
+
+    #pettot1_4d = pe.Node(interface=gzipResampleCommand(), name='pettot1_4d')
     pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
     #pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
     workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
@@ -773,6 +759,7 @@ def get_workflow(name, infosource, opts):
     MNIPETXfm_node = pe.Node(interface=minc.XfmInvert(), name="MNIPETXfm_node")
     workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
 
+    #pettomni_4d = pe.Node(interface=gzipResampleCommand(), name='pettomni_4d')
     pettomni_4d = pe.Node(interface=minc.Resample(), name='pettomni_4d')
     workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_file')
     workflow.connect(PETMNIXfm_node, "out_file", pettomni_4d, 'transformation')

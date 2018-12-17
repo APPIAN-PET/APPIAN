@@ -59,8 +59,9 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
     if len(run_list) != 0: 
         pet_str = pet_str + '*run-%s'
         pet_list += ['run']
-    pet_str = pet_str + '*_pet.mnc%s'
-    pet_list += ['compression']
+    pet_str = pet_str + '*_pet.mnc'
+    #pet_str = pet_str + '*_pet.mnc%s'
+    #pet_list += ['compression']
     t1_str = t1_str + '*_T1w.mnc'
     #Dictionary for basic structural inputs to DataGrabber
     field_template_t1 = dict(
@@ -400,7 +401,7 @@ def run_scan_level(opts,args):
                     (infosource, datasourcePET, [('cid', 'cid')]),
                     (infosource, datasourcePET, [('task', 'task')]),
                     (infosource, datasourcePET, [('run', 'run')]),
-                    (infosource, datasourcePET, [('compression', 'compression')]),
+                    #(infosource, datasourcePET, [('compression', 'compression')]),
                      ])
     workflow.connect([
                     (infosource, datasourceT1, [('sid', 'sid')]),

@@ -22,6 +22,7 @@ from Extra.morphomat import MorphCommand
 from Extra.info import StatsCommand
 from Extra.resample import param2xfmCommand
 import Registration.registration as reg
+import pyminc.volumes.factory as pyminc
 
 class LabelsInput(BaseInterfaceInputSpec):
     mniT1 = File(exists=True, desc="T1 image normalized into MNI space")
@@ -33,8 +34,8 @@ class LabelsInput(BaseInterfaceInputSpec):
     #_spaces = ['native', 'stereo', 'other']
     #space = traits.Enum(*_spaces, mandatory=True, desc="Coordinate space of the label")
     space = traits.Str(desc="Coordinate space of the label")
-    analysis_space = traits.Str(desc="Analysis space")
-    label_img  = File( desc="Mask on the template")
+    analysis_space = traits.Str(mandatory=True, desc="Analysis space")
+    label_img  = File(mandatory=True, desc="Mask on the template")
     erode_times = traits.Int(desc="Number of times to erode image", usedefault=True, default=0)
     mni2target = File(desc="Transformation from stereotaxic to analysis space")
     like_file = File(desc="Target img") 
@@ -60,7 +61,7 @@ class Labels(BaseInterface):
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
-        
+        print(self.inputs) 
         self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space) 
 
         tmpDir = os.getcwd() + os.sep + 'tmp_label'  #tempfile.mkdtemp()
@@ -73,12 +74,12 @@ class Labels(BaseInterface):
             mask_flat=mask.data.flatten()
             labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
             if '0' in labels :  labels.remove('0')
-
+        print("Labels: ", labels)
         # 1) Select Labels
         run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
         run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas
         run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-        run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in self.inputs.labels ]) + ' ? A[0] : 0'  
+        run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in  labels ]) + ' ? A[0] : 0'  
         run_calc.run()
         print("Select Labels:\n", run_calc.cmdline)
 
@@ -277,8 +278,6 @@ def get_workflow(name, infosource, opts):
     identity_transform.inputs.translation="0 0 0"
     identity_transform.inputs.rotation="0 0 0"
     identity_transform.inputs.scales="1 1 1"
-
-
 
     MNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
     workflow.connect(inputnode, 'LinT1MNIXfm',MNIT1 , 'input_file')

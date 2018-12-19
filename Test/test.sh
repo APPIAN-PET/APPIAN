@@ -9,9 +9,20 @@ docker_path="/APPIAN/Launcher.py"
 docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi ";
 
 ### PVC
-#docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi  --sessions 01  01";
+## GTM
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi";
 
 ### Quantification
-#docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi  --sessions 01  01";
+## Logan Plot
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 1 --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi ";
+
+## Patlak-Gjedde Plot
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --tka-method pp --tka-label 3 --results-label-erosion 1 --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi ";
+
+## SUVR
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --tka-method pp --tka-label 3 --results-label-erosion 1 --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi ";
+
+## SUV
+docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "python2.7 /APPIAN/Launcher.py --tka-method suv -- 3 --results-label-erosion 1 --no-results-report -s /APPIAN/Test/cimbi -t /APPIAN/Test/out_cimbi ";
 
 

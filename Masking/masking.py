@@ -74,7 +74,9 @@ class Labels(BaseInterface):
             mask_flat=mask.data.flatten()
             labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
             if '0' in labels :  labels.remove('0')
-        print("Labels: ", labels)
+            print("Labels: ", labels)
+        else : 
+            labels = self.inputs.labels
         # 1) Select Labels
         run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
         run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas

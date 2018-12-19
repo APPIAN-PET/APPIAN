@@ -29,7 +29,6 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from Masking import surf_masking
@@ -614,18 +613,12 @@ def run_scan_level(opts,args):
             tka_target_wf = pet_input_node # #CHANGE
             tka_target_img= pet_input_file # ##CHANGE
         tka_wf=tka.get_tka_workflow("tka", opts)
-        header_type='outputnode.pet_header_json'
-        if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header_dict'
-        workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
-        if opts.tka_method in ecat_methods : 
-           workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, 'inputnode.like_file')
-        workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
-        #if opts.tka_method in reference_methods:
+        workflow.connect(wf_init_pet, 'outputnode.pet_header_json', tka_wf, "inputnode.header")
         workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, "inputnode.mask") 
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
         if opts.arterial :
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
-        elif opts.tka_method in reference_methods + ['suvr']: #FIXME should not just add suvr like this 
+        else :     
             workflow.connect(wf_masking, 'tkaLabels.out_file', tka_wf, "inputnode.reference")
         
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 

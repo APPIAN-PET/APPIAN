@@ -33,7 +33,6 @@ class createImgFromROI(BaseInterface) :
     input_spec = createImgFromROIInput
     output_spec = createImgFromROIOutput
 
-
     def _run_interface(self, runtime) :
         if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.in_file)
         ref = volumeFromFile(self.inputs.like_file)
@@ -65,62 +64,8 @@ class createImgFromROI(BaseInterface) :
         dname = os.getcwd() 
         return dname+ os.sep+fname_list[0] + '.mnc'
 
-'''
-class suvOutput(TraitedSpec):
-    out_file = File(argstr="%s", position=-1, desc="Output SUV image.")
-
-class suvInput(MINCCommandInputSpec):
-    
-    in_file= File(exists=True, position=-6, argstr="%s", desc="PET file")
-    start_time=traits.String(argstr="%s", position=-5, desc="Start time (minutes).")
-    end_time=traits.String(argstr="%s", position=-4, desc="End time (minutes).")
-    radiotracer_dose=traits.String(argstr="%s", position=-3, desc="Injected radiotracer dose (MBq).")
-    body_weight=traits.String(argstr="%s", position=-2, desc="Patient weight (kg).")
-    out_file = File(argstr="%s", position=-1, desc="Output SUV image")
-
-class suvCommand(MINCCommand):
-    input_spec =  suvInput
-    output_spec = suvOutput
-
-    _cmd = "imgsuv" #input_spec.pvc_method 
-    _suffix = "_suv" 
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
-    def _gen_output(self, basefile, _suffix):
-        fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
-        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
-
-    def _parse_inputs(self, skip=None):
-        if skip is None:
-            skip = []
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
-        return super(suvCommand, self)._parse_inputs(skip=skip)
-'''
-
 
 standard_fields=["in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
-ecat_methods=["lp", "pp", "lp-roi", "pp-roi", "srtm", "suv"]
-tka_param={}
-tka_param["lp"]=standard_fields
-tka_param["pp"]=standard_fields
-tka_param["pp-roi"]=standard_fields
-tka_param["lp-roi"]=standard_fields
-tka_param["srtm"]=standard_fields
-tka_param["suv"]=["in_file", "header"]
-tka_param["suvr"]=["in_file", "header", "mask", "reference"]
-reference_methods=["pp-roi","pp", "lp-roi", "lp", "srtm", "suvr"]
 
 """
 .. module:: tka
@@ -172,7 +117,8 @@ def get_tka_workflow(name, opts):
     '''
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
+    #inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=standard_fields), name='inputnode')
 
     out_files = ["out_file"]
     #Define empty node for output
@@ -226,16 +172,15 @@ def get_tka_workflow(name, opts):
     ### Setup output from quantification function
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
-        #convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
-        convertParametric_to_minc=pe.Node(ecattominc2Command(), name="convertParametric_to_minc")
-        convertParametric = pe.Node(interface=FixHeaderLinkCommand(), name="convertParametric")
+        convertParametric=pe.Node(ecattominc2Command(), name="convertParametric")
+        #convertParametric = pe.Node(interface=FixHeaderLinkCommand(), name="convertParametric")
         
         #Connect quantification node to output node
-        workflow.connect(tkaNode, 'out_file', convertParametric_to_minc, 'in_file')
+        workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
         #workflow.connect(inputnode, 'like_file', convertParametric, 'like_file')
         #workflow.connect(inputnode, 'header', convertParametric, 'header')
-        workflow.connect(convertParametric_to_minc, 'out_file', convertParametric, 'in_file')
-        workflow.connect(inputnode, 'header', convertParametric, 'header')
+        #workflow.connect(convertParametric, 'out_file', convertParametric, 'in_file')
+        #workflow.connect(inputnode, 'header', convertParametric, 'header')
 
         tka_source = convertParametric
     elif quant_module.out_file_format == "MINC"  :
@@ -269,7 +214,7 @@ def get_tka_workflow(name, opts):
         workflow.connect(extractROI, 'out_file', tkaNode, 'in_file')
 
 
-    workflow.connect(tka_source, 'output_file', outputnode, 'out_file')
+    workflow.connect(tka_source, 'out_file', outputnode, 'out_file')
     
     ### Reference Region / TAC
     if  quant_module.reference :

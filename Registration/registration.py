@@ -53,7 +53,6 @@ class PETheadMasking(BaseInterface):
     #         self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
     #     return super(PETheadMasking, self)._parse_inputs(skip=skip)
     def _run_interface(self, runtime):
-
         if not isdefined(self.inputs.out_file):
             base = os.path.basename(self.inputs.in_file)
             split = os.path.splitext(base)

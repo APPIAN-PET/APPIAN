@@ -23,11 +23,37 @@ class quantInput( CommandLineInputSpec):
     v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
     n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
     
-class quantCommand(quantificationCommand):
+class quantCommand(BaseInterface):
     input_spec = quantInput
     output_spec = quantOutput
-    _cmd = "imgdv"
-    _suffix = "_lp"
+    _suffix = "_suv" 
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        header = self.inputs.header
+        pet = volumeFromFile(self.inputs.in_file)
+        reference = volumeFromFile(self.inputs.reference)
+        out = volumeLikeFile(self.inputs.reference, self.inputs.out_file )
+        ndim = len(pet.data.shape)
+        
+        vol = pet.data
+        if ndim > 3 :
+
+            dims = pet.getDimensionNames()
+            idx = dims.index('time')
+            try : 
+                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+            except ValueError :
+                time_frames = [1.]
+            vol = simps( pet.data, time_frames, axis=idx)
+        
+        idx = reference.data > 0
+        ref = np.mean(vol[idx])
+        print "SUVR Reference = ", ref
+        vol = vol / ref
+        out.data=vol
+        out.writeFile()
+        out.closeVolume()
+
 
 
 def check_options(tkaNode, opts):

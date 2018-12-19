@@ -278,8 +278,6 @@ if __name__ == "__main__":
     group.add_option("","--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
     group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=0)
     group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=0)
-    group.add_option("","--body-weight",dest="body_weight",help="Either name of subject body weight (kg) in header or path to .csv file containing subject names and body weight (separated by comma).",type='string', default="Patient_Weight")
-    group.add_option("","--radiotracer-dose",dest="radiotracer_dose",help="Either name of subject's injected radiotracer dose (MBq) in header or path to .csv file containing subject names and injected radiotracer dose (MBq).",type='string', default="injection_dose")
     group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
     parser.add_option_group(group)
 

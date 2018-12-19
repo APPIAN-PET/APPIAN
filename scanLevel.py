@@ -709,13 +709,17 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
 
 
-    # if opts.dashboard:
-    #     dashboard=pe.Node(interface=dash.deployDashCommand(),name="dash_scanLevel")
-    #     workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  dashboard, 'petmri')
-    #     if not opts.nopvc :
-    #         workflow.connect(pvc_wf, 'outputnode.out_file',  dashboard, 'pvc')
-    #     if not opts.tka_method == None:
-    #         workflow.connect(tka_wf, 'outputnode.out_file',  dashboard, 'tka')
+    if opts.dashboard:
+        dashboard=pe.Node(interface=dash.deployDashCommand(),name="dash_scanLevel")
+        dashboard.inputs.targetDir = opts.targetDir;
+        dashboard.inputs.sourceDir = opts.sourceDir;
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  dashboard, 'petmri')
+        if opts.pvc_method != None :
+            dashboard.inputs.pvc_method = opts.pvc_method;
+            workflow.connect(pvc_wf, 'outputnode.out_file',  dashboard, 'pvc')
+        if opts.tka_method != None:
+            dashboard.inputs.tka_method = opts.tka_method;
+            workflow.connect(tka_wf, 'outputnode.out_file',  dashboard, 'tka')
 
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')

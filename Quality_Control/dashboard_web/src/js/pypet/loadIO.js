@@ -117,24 +117,22 @@ function menuQC(xmlNodes){
 
     tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
-        acq=tabScans[s].attributes[0].value;
+        sid=tabScans[s].attributes[0].value;
         cid=tabScans[s].attributes[1].value;
-        rec=tabScans[s].attributes[2].value;
-        sid=tabScans[s].attributes[3].value;
-        task=tabScans[s].attributes[4].value;
+
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
         subScan.appendChild(subScanC);
         $("#coreg").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
         subScan.appendChild(subScanC);
         $("#pvc").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+sid+"_"+cid+"_"+acq+"_"+rec+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
         subScan.appendChild(subScanC);
         $("#tka").append(subScan);
     }
@@ -237,7 +235,6 @@ function pvcPage(tabScans,s){
     $divBody.append($("<div>", {'id':bb}));
     $divBox.append($divBody);
     while(i<scan.childNodes.length){
-        // if ((node.nodeType == 1) && (node.attributes[0].textContent == "gtm")) {
         if ((node.nodeType == 1) && (node.attributes[0].value == "pvc")) {
             details=node.firstChild;
             j=0;
@@ -361,7 +358,7 @@ function tkaPage(tabScans,s){
                     
                     while(k<details.childNodes.length){
                         if ((image.nodeType == 1) && 
-                            (image.nodeName == "out_file") || (image.nodeName == "in_target_file")) {
+                            (image.nodeName == "output_file") || (image.nodeName == "in_target_file")) {
                             overlayFiles.push(image.textContent);
                         }
                         image=image.nextSibling;

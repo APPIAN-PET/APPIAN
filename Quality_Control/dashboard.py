@@ -83,24 +83,25 @@ def prettify(elem):
     return reparsed.toprettyxml(indent="  ", encoding='UTF-8')
 
 
-def generate_xml_nodes(opts, arg):
+def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
 
     listOfNodes = [
             {"name" : "pet2mri", 
              "mnc_inputs" : {"node" : "pet2mri", "file" : 'in_target_file'},
              "mnc_outputs" : {"node" : "pet2mri", "file" : 'out_file_img'}
-            },
-            {"name" : "pvc",
-             "mnc_inputs" : {"node" : opts.pvc_method, "file" : 'in_file'},
-             "mnc_outputs" : {"node" : opts.pvc_method, "file" : 'out_file'}
-            },
-            {"name" : "tka",
-             "mnc_inputs" : {"node" : "convertParametric", "file" : 'output_file'},
-             "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
-            }
-            ]
+            }];
+    if pvc_method != None :
+        listOfNodes.append({"name" : "pvc",
+                 "mnc_inputs" : {"node" : pvc_method, "file" : 'in_file'},
+                 "mnc_outputs" : {"node" : pvc_method, "file" : 'out_file'}
+                });
+    if tka_method != None :
+        listOfNodes.append({"name" : "tka",
+                 "mnc_inputs" : {"node" : "convertParametric", "file" : 'output_file'},
+                 "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+                });
 
-    filename=opts.targetDir+"/preproc/graph1.json";
+    filename=targetDir+"/preproc/graph1.json";
     fp = file(filename, 'r')
     data=json.load(fp)
     fp.close()
@@ -111,25 +112,16 @@ def generate_xml_nodes(opts, arg):
     for subjIdx in range(0,len(data["groups"])):
         for nodeID in range(data["groups"][subjIdx]["procs"][0],data["groups"][subjIdx]["procs"][-1]):
             nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
-            if nodeName == "datasource":
-                nodeReport = loadcrash(opts.targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
+            if nodeName == "datasourcePET":
+                nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
                 for key, value in nodeReport.inputs.items():
-                    if key == "acq":
-                        acq = str(value)
                     if key == "cid":
                         cid = str(value)
                     if key == "sid":
                         sid = str(value)
-                    if key == "task":
-                        task = str(value)
-                    if key == "rec":
-                        rec = str(value)
                 xmlscan = SubElement(xmlQC, 'scan')
-                xmlscan.set('acq', acq)
                 xmlscan.set('sid', sid)
                 xmlscan.set('cid', cid)
-                xmlscan.set('task', task)
-                xmlscan.set('rec', rec)
 
         for x in listOfNodes :
             xmlnode = SubElement(xmlscan, 'node')
@@ -137,27 +129,27 @@ def generate_xml_nodes(opts, arg):
             for nodeID in range(data["groups"][subjIdx]["procs"][0],data["groups"][subjIdx]["procs"][-1]):
                 nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
                 if nodeName == x["mnc_inputs"]["node"]:
-                    nodeReport = loadcrash(opts.targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
+                    nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
                     xmlmnc = SubElement(xmlnode, 'inMnc')
                     for key, value in nodeReport.inputs.items():
                         if key in x['mnc_inputs']["file"]:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmlmnc, str(key))
-                            xmlkey.text = str(value).replace(opts.sourceDir+"/",'').replace(opts.targetDir+"/",'')
+                            xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
                             listVolumes.append(str(value))
 
                 if nodeName == x["mnc_outputs"]["node"]:
-                    nodeReport = loadcrash(opts.targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
+                    nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
                     xmlmnc = SubElement(xmlnode, 'outMnc')
                     for key, value in nodeReport.inputs.items():
                         if key in x['mnc_outputs']["file"]:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmlmnc, str(key))
-                            xmlkey.text = str(value).replace(opts.sourceDir+"/",'').replace(opts.targetDir+"/",'')
+                            xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
                             listVolumes.append(str(value))                        
 
 
-    with open(opts.targetDir+"/preproc/dashboard/public/nodes.xml","w") as f:
+    with open(targetDir+"/preproc/dashboard/public/nodes.xml","w") as f:
         f.write(prettify(xmlQC))
 
     for mincfile in listVolumes:
@@ -168,30 +160,13 @@ def generate_xml_nodes(opts, arg):
             mnc2vol(mincfile)
 
 
-def generate_dashboard(opts, arg):
-    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
-        os.makedirs(opts.targetDir+"/preproc/dashboard/");
-    distutils.dir_util.copy_tree(path+'/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
-    generate_xml_nodes(opts, arg);
-    os.chdir(opts.targetDir+'/preproc/dashboard/public/')
-    if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
-        os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
-    os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
-    for sub in glob.glob(os.path.join(opts.sourceDir,'sub*')):
-        if os.path.isdir(sub):
-            dest = os.path.join(opts.targetDir,'preproc/dashboard/public/',os.path.basename(sub))
-            if os.path.exists(dest):
-                os.remove(dest)
-            os.symlink(sub, dest)
-
-
 def link_stats(opts, arg):
-    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
-        os.makedirs(opts.targetDir+"/preproc/dashboard/");
-    # distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
-    if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/stats')):
-        os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
-    os.symlink('../../stats', os.path.join(opts.targetDir,'preproc/dashboard/public/stats'))
+    if not os.path.exists(targetDir+"/preproc/dashboard/") :
+        os.makedirs(targetDir+"/preproc/dashboard/");
+    # distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', targetDir+'/preproc/dashboard', update=1, verbose=0)
+    if os.path.exists(os.path.join(targetDir,'preproc/dashboard/public/stats')):
+        os.remove(os.path.join(targetDir,'preproc/dashboard/public/stats'))
+    os.symlink('../../stats', os.path.join(targetDir,'preproc/dashboard/public/stats'))
 
 
 
@@ -200,42 +175,51 @@ class deployDashOutput(TraitedSpec):
     out_file = traits.File(desc="Output file")
 
 class deployDashInput(BaseInterfaceInputSpec):
+    targetDir = traits.File(mandatory=True, desc="Target directory")
+    sourceDir = traits.File(mandatory=True, desc="Source directory")
+    pvc_method = traits.Str(desc="PVC method")
+    tka_method = traits.Str(desc="TKA method")
     petmri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
-    pvc = traits.File(exists=True, mandatory=True, desc="Output PVC image")
-    tka = traits.File(exists=True, mandatory=True, desc="Output TKA image")
+    pvc = traits.File(desc="Output PVC image")
+    tka = traits.File(desc="Output TKA image")
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
 
 class deployDashCommand(BaseInterface):
     input_spec = deployDashInput
-    output_spec = deployDashInput
+    output_spec = deployDashOutput
   
-    def _gen_output():
+    def _gen_output(self):
         fname = "nodes.xml"
-        dname = opts.targetDir+"/preproc/dashboard/public" 
+        dname = self.inputs.targetDir+"/preproc/dashboard/public" 
         return dname+os.sep+fname
 
     def _run_interface(self, runtime):
-        petmri = self.inputs.petmri
-        pvc = self.inputs.pvc
-        tka = self.inputs.tka
+        # petmri = self.inputs.petmri
+        # pvc = self.inputs.pvc
+        # tka = self.inputs.tka
+        targetDir = self.inputs.targetDir;
+        sourceDir = self.inputs.sourceDir;
+        pvc_method = self.inputs.pvc_method;
+        tka_method = self.inputs.tka_method;
 
-        if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
-            os.makedirs(opts.targetDir+"/preproc/dashboard/");
-        distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+        if not os.path.exists(targetDir+"/preproc/dashboard/") :
+            os.makedirs(targetDir+"/preproc/dashboard/");
 
-        os.chdir(opts.targetDir+'/preproc/dashboard/public/')
-        if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
-            os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
-        os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
-        for sub in glob.glob(os.path.join(opts.sourceDir,'sub*')):
+        distutils.dir_util.copy_tree(os.path.split(os.path.abspath(__file__))[0]+'/dashboard_web', targetDir+'/preproc/dashboard', update=1, verbose=0)
+
+        os.chdir(targetDir+'/preproc/dashboard/public/')
+        if os.path.exists(os.path.join(targetDir,'preproc/dashboard/public/preproc')):
+            os.remove(os.path.join(targetDir,'preproc/dashboard/public/preproc'))
+        os.symlink('../../../preproc', os.path.join(targetDir,'preproc/dashboard/public/preproc'))
+        for sub in glob.glob(os.path.join(sourceDir,'sub*')):
             if os.path.isdir(sub):
-                dest = os.path.join(opts.targetDir,'preproc/dashboard/public/',os.path.basename(sub))
+                dest = os.path.join(targetDir,'preproc/dashboard/public/',os.path.basename(sub))
                 if os.path.exists(dest):
                     os.remove(dest)
                 os.symlink(sub, dest)        
 
-        generate_xml_nodes(opts, arg);
+        generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method);
         
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
@@ -245,6 +229,6 @@ class deployDashCommand(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined( self.inputs.out_file) :
-            self.inputs.out_file = self._gen_output( self.inputs.sid, self.inputs.cid)
+            self.inputs.out_file = self._gen_output()
         outputs["out_file"] = self.inputs.out_file
         return outputs

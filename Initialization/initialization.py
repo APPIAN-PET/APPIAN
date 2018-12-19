@@ -300,26 +300,28 @@ class SplitArgsRunning(BaseInterface):
     input_spec = SplitArgsInput
     output_spec = SplitArgsOutput
     def _run_interface(self, runtime):
+        cid=''
         if not isdefined(self.inputs.ses) :
             self.inputs.ses=self.inputs.args['ses']
+            cid = cid + '_' +self.inputs.args['ses']
         if not isdefined(self.inputs.sid) :
             self.inputs.sid=self.inputs.args['sid']
         if self.inputs.ses_sub_only : return runtime
         
-        try :
-            self.inputs.cid=self.inputs.args['ses']+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
-        except KeyError :
-            pass
+            #self.inputs.cid=+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
 
         try :
             self.inputs.task=self.inputs.args['task']
+            cid = cid + '_' +self.inputs.args['task']
         except  KeyError:
             pass
             
         try:
             self.inputs.run=self.inputs.args['run']
+            cid = cid + '_' +self.inputs.args['run']
         except  KeyError:
             pass
+        self.inputs.cid=cid
         #try:
         #    self.inputs.compression=self.inputs.args['compression']
         #except  KeyError:

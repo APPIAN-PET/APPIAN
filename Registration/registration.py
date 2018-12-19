@@ -24,7 +24,7 @@ from Extra.tracc import TraccCommand
 import nipype.interfaces.minc as minc 
 from Extra.xfmOp import ConcatCommand
 from Extra.inormalize import InormalizeCommand
-from Extra.compression import gzipResampleCommand
+#from Extra.compression import gzipResampleCommand
 from Extra.modifHeader import FixHeaderCommand, FixHeaderLinkCommand
 
 class PETheadMaskingOutput(TraitedSpec):

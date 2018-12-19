@@ -28,7 +28,7 @@ from Extra.info import  InfoCommand
 from Extra.modifHeader import ModifyHeaderCommand
 from Extra.reshape import  ReshapeCommand
 from Extra.modifHeader import FixHeaderCommand
-from Extra.compression import gunzipCommand, gzipCommand
+#from Extra.compression import gunzipCommand, gzipCommand
 
 
 global isotope_dict
@@ -251,10 +251,10 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     #if pet_fn == [] or mri_fn == [] : continue 
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
-                        compression=''
-                        if '.gz' in pet_fn : compression='.gz'
+                        #compression=''
+                        #if '.gz' in pet_fn : compression='.gz'
 
-                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run,'compression':compression}
+                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run} #,'compression':compression}
                         sub_ses_dict[sub]=ses
                         if opts.verbose : 
                             print(pet_fn, os.path.exists(pet_fn))
@@ -281,7 +281,7 @@ class SplitArgsOutput(TraitedSpec):
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
     run = traits.Str(desc="Run ID")
-    compression = traits.Str(desc="Compression")
+    #compression = traits.Str(desc="Compression")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
 
 class SplitArgsInput(BaseInterfaceInputSpec):
@@ -290,7 +290,7 @@ class SplitArgsInput(BaseInterfaceInputSpec):
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
     run = traits.Str(desc="Run ID")
-    compression = traits.Str(desc="Compression")
+    #compression = traits.Str(desc="Compression")
     ses_sub_only = traits.Bool(default_value=False, usedefault=True)
     #study_prefix = traits.Str(mandatory=True, desc="Study Prefix")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
@@ -320,10 +320,10 @@ class SplitArgsRunning(BaseInterface):
             self.inputs.run=self.inputs.args['run']
         except  KeyError:
             pass
-        try:
-            self.inputs.compression=self.inputs.args['compression']
-        except  KeyError:
-            pass
+        #try:
+        #    self.inputs.compression=self.inputs.args['compression']
+        #except  KeyError:
+        #    pass
 
         if isdefined(self.inputs.RoiSuffix):
             self.inputs.RoiSuffix=self.inputs.RoiSuffix
@@ -345,8 +345,8 @@ class SplitArgsRunning(BaseInterface):
         if isdefined(self.inputs.run):
             outputs["run"] = self.inputs.run
 
-        if isdefined(self.inputs.compression):
-            outputs["compression"] = self.inputs.compression
+        #if isdefined(self.inputs.compression):
+        #    outputs["compression"] = self.inputs.compression
 
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix

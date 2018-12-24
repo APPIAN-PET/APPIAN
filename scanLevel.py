@@ -370,25 +370,31 @@ def run_scan_level(opts,args):
     
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
-        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
+        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec', 'label'], outfields=['surf_left','mask_left', 'surf_right', 'mask_right'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
         datasourceSurf.inputs.base_directory = opts.sourceDir
         datasourceSurf.inputs.template = '*'
         datasourceSurf.inputs.acq=opts.acq
         datasourceSurf.inputs.rec=opts.rec
+        datasourceSurf.inputs.label=opts.surface_label
         datasourceSurf.inputs.field_template =dict(
-            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext,
+            surf_left="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-L_space-stereo_midthickness.surf.obj",
+            surf_right="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-R_space-stereo_midthickness.surf.obj",
             #FIXME Not sure what BIDS spec is for a surface mask
-            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.txt" 
+            mask_left="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-L_space-stereo_%s.txt",
+            mask_right="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-R_space-stereo_%s.txt",
         )
         datasourceSurf.inputs.template_args = dict(
-            mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
+            surf_left = [['sid', 'ses', 'sid', 'ses']],
+            surf_right = [['sid', 'ses', 'sid', 'ses']],
+            mask_left = [['sid', 'ses', 'sid', 'ses', 'label']],
+            mask_right = [['sid', 'ses', 'sid', 'ses','label']]
         )
         workflow.connect([
                 (infosource, datasourceSurf, [('sid', 'sid')]),
                 (infosource, datasourceSurf, [('cid', 'cid')]),
                 (infosource, datasourceSurf, [('task', 'task')]),
                 (infosource, datasourceSurf, [('ses', 'ses')]),
-                (infosource, datasource, [('run', 'run')]),
+                (infosource, datasourceSurf, [('run', 'run')]),
                  ])
 
     #############################################
@@ -570,21 +576,18 @@ def run_scan_level(opts,args):
     if not opts.results_label_template == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
 
-    if opts.masking_only:
-        workflow.run();
-        return(0)
-
     ######################
     # Transform Surfaces #
     ######################
     if opts.use_surfaces:
-        surf_wf = surf_masking.get_surf_workflow('surface_transform', infosource, datasink, opts)
-        workflow.connect(t1mni_node, t1mni_file, surf_wf, 'inputnode.T1MNI')
-        workflow.connect(wf_masking, 'invert_MNI2T1.output_file',  surf_wf, 'inputnode.MNIT1')
-        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm",  surf_wf, 'inputnode.PETT1')
-        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm_invert", surf_wf, 'inputnode.T1PET')
-        workflow.connect(datasourceSurf, 'mid_surf', surf_wf, 'inputnode.obj_file')
-        workflow.connect(wf_masking, 'resultsLabels.out_file', surf_wf, 'inputnode.vol_file')
+        workflow.connect(datasourceSurf, 'surf_left', wf_masking, 'inputnode.surf_left')
+        workflow.connect(datasourceSurf, 'surf_right', wf_masking, 'inputnode.surf_right')
+
+    if opts.masking_only:
+        workflow.run();
+        return(0)
+
+
 
     #############################
     # Partial-volume correction #
@@ -639,6 +642,7 @@ def run_scan_level(opts,args):
     if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
             print "outputnode", node.name, "image name", img
+            
             node_name="results_" + node.name 
             resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             resultsReport.inputs.dim = dim
@@ -652,24 +656,32 @@ def run_scan_level(opts,args):
             workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReport, "header")
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
+           
             if int(dim) == 3 :
                 workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
             elif int(dim) == 4:
-                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name )
+                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name )   
             
             if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
                 resultsReportSurf = pe.Node(interface=results.resultsCommand(), name=node_name)
                 resultsReportSurf.inputs.dim = dim
                 resultsReportSurf.inputs.node = node.name
+                resultsReportSurf.inputs.acq = opts.acq
+                resultsReportSurf.inputs.rec = opts.rec
                 workflow.connect(infosource, 'sid', resultsReportSurf, "sub")
                 workflow.connect(infosource, 'ses', resultsReportSurf, "ses")
                 workflow.connect(infosource, 'task', resultsReportSurf, "task")
-                workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReportSurf, "header")
+                workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReportSurf, "header")
                 workflow.connect(node, img, resultsReportSurf, 'in_file')
-                workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
-                workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
-        
+                workflow.connect(wf_masking, 'surface_left_node.out_file', resultsReportSurf, "surf_left")
+                workflow.connect(datasourceSurf, 'mask_left', resultsReportSurf, 'mask_left')
+                workflow.connect(wf_masking, 'surface_right_node.out_file', resultsReportSurf, "surf_right")
+                workflow.connect(datasourceSurf, 'mask_right', resultsReportSurf, 'mask_right')   
+                if int(dim) == 4 :
+                    workflow.connect( resultsReportSurf, 'out_file_3d', datasink, "results"+os.sep+node_name )
+                elif int(dim) == 4:
+                    workflow.connect( resultsReportSurf, 'out_file_4d', datasink, "results"+os.sep+node_name )    
     ############################
     # Subject-level QC Metrics #
     ############################

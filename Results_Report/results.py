@@ -31,7 +31,7 @@ def group_level_descriptive_statistics(opts, args):
     vol_surf_list = ['']
 
     if opts.use_surfaces : 
-        vol_surf_list += ['surf']
+        vol_surf_list += ['_surf']
 
     for surf in vol_surf_list:
         print(surf, "\n")
@@ -45,22 +45,23 @@ def group_level_descriptive_statistics(opts, args):
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
         #Datagrabber
-        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
-        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results_'+surf+'*'+os.sep+'*_3d.csv')
+        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_3d.csv')
+        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results'+surf+'*'+os.sep+'*_3d.csv')
 
-        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource")
+        
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
         datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
         datasource.inputs.template = '*'
         datasource.inputs.field_template = scan_stats_dict
 
         #Concatenate descriptive statistics
-        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics")
-        concat_statisticsNode.inputs.out_file="descriptive_statistics.csv"
+        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics"+surf)
+        concat_statisticsNode.inputs.out_file="descriptive_statistics"+surf+".csv"
         workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
         workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
        
         #Calculate descriptive statistics
-        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(), name="descriptive_statistics")
+        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
         workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
         workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
         workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
@@ -72,8 +73,11 @@ def group_level_descriptive_statistics(opts, args):
 class resultsInput(TraitedSpec):   
     in_file = traits.File(desc="Input file ")
     mask = traits.File(desc="ROI PET mask ")
-    surf_mesh = traits.File(desc="Surface mesh (.obj) ")
-    surf_mask = traits.File(desc="Surface mask (.txt) ")
+    surf_left = traits.File(desc="Left Surface mesh (.obj) ")
+    mask_left = traits.File(desc="Left Surface mask (.txt) ")
+    surf_right = traits.File(desc="Right Surface mesh (.obj) ")
+    mask_right = traits.File(desc="Right Surface mask (.txt) ")
+
     header = traits.File(desc="PET Header")
     out_file_3d = traits.File(desc="3d Output file ")
     out_file_4d = traits.File(desc="4d Output file ")
@@ -109,8 +113,10 @@ class resultsCommand( BaseInterface):
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
         resultsReport.inputs.vol_roi = self.inputs.mask
-        if  isdefined(self.inputs.surf_mesh) and isdefined(self.inputs.surf_mask) :
-            resultsReport.inputs.surf_roi = self.inputs.surf_mesh + ' ' + self.inputs.surf_mask
+        if  isdefined(self.inputs.surf_left) and isdefined(self.inputs.mask_left) :
+            resultsReport.inputs.surf_left_roi = self.inputs.surf_left + ' ' + self.inputs.mask_left
+        if  isdefined(self.inputs.surf_right) and isdefined(self.inputs.mask_right) :
+            resultsReport.inputs.surf_right_roi = self.inputs.surf_right + ' ' + self.inputs.mask_right
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
         print resultsReport.cmdline
        
@@ -164,10 +170,11 @@ class resultsCommand( BaseInterface):
 class groupstatsInput(MINCCommandInputSpec):   
     image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
     vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
-    surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
+    #surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
     out_file = traits.File(argstr="-o %s", desc="Output csv file")
     label = traits.Str(desc="Label for output file")
-
+    surf_left_roi = traits.Str(argstr="-s -g Left %s",desc="string argument for left hemisphere obj and mesh")
+    surf_right_roi = traits.Str(argstr="-s -g Right %s",desc="string argument for left hemisphere obj and mesh")
 class groupstatsOutput(TraitedSpec):
     out_file = File(desc="Extract values from PET images based on ROI")
 
@@ -226,10 +233,12 @@ class add_csvInfoCommand(BaseInterface):
         acq = self.inputs.acq
         rec = self.inputs.rec
         
-        print "\nadd_csvInfo: ", self.inputs.in_file, "\n"
-
         df = pd.read_csv( self.inputs.in_file, header=None    ) 
-        df.columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
+        groupstat_columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
+        if len(df.columns) > len( groupstat_columns) :
+            groupstat_columns=['hemisphere'] + groupstat_columns
+        df.columns=groupstat_columns
+      
         dfo =pd.DataFrame( columns=results_columns)
         dfo["analysis"] = [node] * df.shape[0]
         dfo["sub"] = [sub] * df.shape[0]
@@ -241,11 +250,19 @@ class add_csvInfoCommand(BaseInterface):
         dfo["roi"] =  df['roi']
         dfo['metric'] = ['mean'] * df.shape[0]
         dfo['value'] = df['mean']
+        
+        if 'hemisphere' in groupstat_columns:
+            dfo['hemisphere']=df['hemisphere']
+        
         if 'frame' in df.columns:
             dfo['frame'] = df['frame']
         else: dfo['frame'] = [0] * df.shape[0]
-        dfo = dfo[ results_columns ]
-        print(dfo["run"])
+        
+        if 'hemisphere' in df.columns:
+            dfo = dfo[ ['hemisphere']+results_columns ]
+        else :
+            dfo = dfo[ results_columns ]
+        
         print(dfo)
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
@@ -367,6 +384,7 @@ class integrate_TACCommand( BaseInterface):
         if time_frames == [] : time_frames = [1.]
 
         out_df = pd.DataFrame( columns=metric_columns)
+        
         for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]):
             print temp_df
             print time_frames

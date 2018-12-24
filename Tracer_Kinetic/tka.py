@@ -173,12 +173,12 @@ def get_tka_workflow(name, opts):
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
         convertParametric=pe.Node(ecattominc2Command(), name="convertParametric")
-        #convertParametric = pe.Node(interface=FixHeaderLinkCommand(), name="convertParametric")
+        #convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
         
         #Connect quantification node to output node
         workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
-        #workflow.connect(inputnode, 'like_file', convertParametric, 'like_file')
-        #workflow.connect(inputnode, 'header', convertParametric, 'header')
+        #workflow.connect(inputnode, 'mask', convertParametric, 'like_file')
+        workflow.connect(inputnode, 'header', convertParametric, 'header')
         #workflow.connect(convertParametric, 'out_file', convertParametric, 'in_file')
         #workflow.connect(inputnode, 'header', convertParametric, 'header')
 

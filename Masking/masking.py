@@ -21,6 +21,7 @@ from Extra.xfmOp import InvertCommand
 from Extra.morphomat import MorphCommand
 from Extra.info import StatsCommand
 from Extra.resample import param2xfmCommand
+from Extra.obj import *
 import Registration.registration as reg
 import pyminc.volumes.factory as pyminc
 
@@ -43,6 +44,7 @@ class LabelsInput(BaseInterfaceInputSpec):
     brainmask = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
     brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brainmask")
     ones_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal threshold so that label image is only 1s and 0s")
+    surf = File(desc="Obj surface")
     out_file  = File(desc="Labels in analysis space")
 
 class LabelsOutput(TraitedSpec):
@@ -131,21 +133,10 @@ class Labels(BaseInterface):
         run_resample.inputs.nearest_neighbour_interpolation = True
         run_resample.run()
 
-        #if self.inputs.space == "stereo" and self.inputs.label_type == "atlas-template": 
-        #    5) Resample 'other' atlas into T1 native space 
-        #    run_resample = minc.Resample() 
-        #    run_resample.inputs.input_file = out_file_2
-        #    run_resample.inputs.output_file = self.inputs.LabelsT1
-        #    run_resample.inputs.like = self.inputs.nativeT1
-        #    run_resample.inputs.transformation = self.inputs.LinMNIT1Xfm
-        #    run_resample.inputs.nearest_neighbour_interpolation = True
-        #    print run_resample.cmdline
-        #    run_resample.run()
         label = run_resample.inputs.output_file
 
         #Copy to output
         shutil.copy(label, self.inputs.out_file)
-        #self.inputs.out_file = run_resample.inputs.output_file
         
         print(self.inputs.brainmask)
         # 6) Mask brain for T1 and MNI labels
@@ -170,7 +161,6 @@ class Labels(BaseInterface):
             run_calc.inputs.expression = " A[0] > 0.1 ? 1 : 0 " 
             run_calc.clobber = True
             run_calc.run()
-            #shutil.copy(temp_mask, label)
             shutil.copy(temp_mask, self.inputs.out_file)
 	
         return runtime
@@ -263,7 +253,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brainmask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm',  "LinPETMNIXfm", "LinMNIPETXfm", "LinT1PETXfm", "LinPETT1Xfm"]
+    in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm',  "LinPETMNIXfm", "LinMNIPETXfm", "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
     if not opts.nopvc: 
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -294,7 +284,6 @@ def get_workflow(name, infosource, opts):
     
     results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
     
-    brain_mask_tfm_node, brain_mask_tfm_file, brain_mask_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, 'stereo', opts.analysis_space, identity_transform)
     ###################
     # Brain Mask Node #
     ###################
@@ -319,6 +308,27 @@ def get_workflow(name, infosource, opts):
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
         workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")
         like_file="mniT1"
+
+    #################
+    # Surface masks #
+    #################
+    if opts.use_surfaces:
+        if opts.analysis_space != "stereo" :
+            surface_left_node = pe.Node(transform_objectCommand(), name="surface_left_node")
+            surface_right_node = pe.Node(transform_objectCommand(), name="surface_right_node")
+            workflow.connect(inputnode, 'surf_left', surface_left_node, 'in_file')
+            workflow.connect(inputnode, 'surf_right', surface_right_node, 'in_file')
+            if opts.analysis_space == "t1" :
+                workflow.connect(MNIT1, 'output_file', surface_left_node, 'tfm_file')
+                workflow.connect(MNIT1, 'output_file', surface_right_node, 'tfm_file')
+            elif opts.analysis_space == "pet" :
+                workflow.connect(MNIPET, 'output_file', surface_left_node, 'tfm_file')
+                workflow.connect(MNIPET, 'output_file', surface_right_node, 'tfm_file')
+        else :
+            surface_left_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_left_node")
+            surface_right_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_right_node")
+            workflow.connect(inputnode, "surf_left", surface_left_node, "output_file")
+            workflow.connect(inputnode, "surf_right", surface_right_node, "output_file")
 
     resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
     resultsLabels.inputs.analysis_space = opts.analysis_space
@@ -363,5 +373,4 @@ def get_workflow(name, infosource, opts):
         workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brainmask')
         workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
    
-    #workflow.connect(brain_mask_node,"output_file", outputnode, 'brain_mask')
     return(workflow)

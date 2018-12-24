@@ -170,6 +170,7 @@ if __name__ == "__main__":
     ###################
     group= OptionGroup(parser,"Surface options")
     group.add_option("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
+    group.add_option("--surf-label",dest="surface_label", default='*', help="Label string to identify surface ROI .txt file")
     group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
     group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
     parser.add_option_group(group)      

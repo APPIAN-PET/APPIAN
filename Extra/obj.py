@@ -11,15 +11,15 @@ import os
 class objOutput(TraitedSpec):
 	out_file=traits.File(argstr="%s", desc="Out file")
 
-class objInput(TraitedSpec):
+class objInput(CommandLineInputSpec):
 	in_file=traits.File(argstr="%s",position=1, desc="In obj file")
 	tfm_file=traits.File(argstr="%s",position=2, desc="Transform file")
 	out_file=traits.File(argstr="%s",position=3, desc="Out file")
 
-class transform_objectCommand(BaseInterface ):
+class transform_objectCommand(CommandLine ):
     input_spec = objInput  
     output_spec = objOutput
-    _cmd = "transform_object"
+    _cmd = "transform_objects"
     _suffix="_tfm"
 
     def _gen_outputs(self, fn) :
@@ -34,6 +34,14 @@ class transform_objectCommand(BaseInterface ):
 
         outputs["out_file"] = self.inputs.out_file
         return outputs
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = self._gen_outputs(self.inputs.in_file)
+        return super(transform_objectCommand, self)._parse_inputs(skip=skip)
 
 
 class volume_object_evaluateOutput(TraitedSpec):

@@ -1,21 +1,21 @@
 # Contributing to APPIAN
 Table of Contents
 =================
-[To Do](#to-do)
+[1. To Do](#to-do)
 
-[Introduction](#introduction)
+[2. Introduction](#introduction)
 
-[Labels](#labels)
+[3. Labels](#labels)
 
-[Making a change](#making-a-change)
+[4. Making a change](#making-a-change)
 
-[Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
+[5. Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
 
-[APPIAN coding style guide](#appian-coding-style-guide)
+[6. APPIAN coding style guide](#appian-coding-style-guide)
 
-[Validation](#validation)
+[7. Validation](#validation)
 
-[Recognizing contributions](#recognizing-contributions)
+[8. Recognizing contributions](#recognizing-contributions)
 
 ### To Do
 

@@ -254,7 +254,7 @@ myworkflow_rh_wf = init_workflow_wf(name='myworkflow_rh_wf')
 ```
 
 ## Validation
-This is a script that essentially runs APPIAN a bunch of different times with varying options. In theory, it should be useable with any data set, although in practice it has only been developed using the CIMBI data set availble on OpenNeuro. 
+The [validate_appian.sh][https://github.com/APPIAN-PET/APPIAN/blob/master/Test/test.sh] in Test/ directory runs APPIAN  many times with varying options to check that they all run. In theory, it should be useable with any data set, although in practice it has only been developed using the CIMBI data set availble on OpenNeuro. 
 
 The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package. As such it should be run before pushing any new changes to the Git repository and especially before creating an updated Docker container with a new version APPIAN.
 

@@ -14,7 +14,7 @@
 	5.4 [Masking](#masking) \
 	5.5 [Partial-Volume Correction](#pvc) \
 	5.6 [Reporting of Results](#results) \
-	5.7 [Quality Control](#qc)\
+	5.7 [Quality Control](#qc) 
 7. [Atlases](#atlases)
 
 

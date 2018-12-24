@@ -13,6 +13,8 @@ Table of Contents
 
 [APPIAN coding style guide](#appian-coding-style-guide)
 
+[Validation](#validation)
+
 [Recognizing contributions](#recognizing-contributions)
 
 ### To Do

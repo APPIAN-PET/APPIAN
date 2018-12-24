@@ -15,12 +15,12 @@ Table of Contents
 
 [Recognizing contributions](#recognizing-contributions)
 
-###To Do
+### To Do
 
-#### Finish changes to label management
-#### Set up automatic testing
-#### Read in JSON from Nifti files
-#### Implement/test surface masks
+#### ~~Finish changes to label management~~
+#### ~~Set up automatic testing~~
+#### ~~Read in JSON from Nifti files~~
+#### ~~Implement/test surface masks~~
 
 
 ### Introduction
@@ -69,7 +69,10 @@ Make sure to [keep your fork up to date][link_updateupstreamwiki] with the maste
 Try to keep the changes focused. If you feel tempted to "branch out" then please make a [new branch][link_branches].
 It can also be helpful to test your changes locally, using an [APPIAN development environment][link_devel].
 
-**4. Submit a [pull request][link_pullrequest].**
+**4. Use [validation script](#validation) to test that the changes don't break anything.**
+
+
+**5. Submit a [pull request][link_pullrequest].**
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
@@ -249,6 +252,14 @@ myworkflow1_wf = init_workflow_wf(name='myworkflow1_wf')
 myworkflow_lh_wf = init_workflow_wf(name='myworkflow_lh_wf')
 myworkflow_rh_wf = init_workflow_wf(name='myworkflow_rh_wf')
 ```
+
+## Validation
+This is a script that essentially runs APPIAN a bunch of different times with varying options. In theory, it should be useable with any data set, although in practice it has only been developed using the CIMBI data set availble on OpenNeuro. 
+
+The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package. As such it should be run before pushing any new changes to the Git repository and especially before creating an updated Docker container with a new version APPIAN.
+
+More tests will need to be added in the future as the current set are not exhaustive. Each test can take a long time. It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily. For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the previous tests can be reused for subsequent ones.
+
 
 ## Recognizing contributions
 

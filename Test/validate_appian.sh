@@ -14,7 +14,7 @@
 # previous tests can be reused for subsequent ones. 
 #
 
-run_appian(){
+run_appian() {
     test_name=$1 #Name of the test command to run on APPIAN
     extra_options=${2:-""} #Options beyond the minimal ones necessary to run APPIAN (e.g., pvc, tka, atlases, etc.)
     log=${test_dir}/test_${test_name}.txt  #Name of the log file where stdout/stderr from test will be saved
@@ -88,7 +88,7 @@ echo Warning: You should have commited latest changes to current git branch
 #Number of threads to use for running APPIAN. Default=1, recommended is 4 or more.
 threads=${1:-1} 
 base_path=${2:-"/APPIAN"}
-test_data_path=${3:-"/APPIAN/Test/cimbi"}
+test_data_path=${3:-"/APPIAN/Test/test_data"}
 out_data_path=${4:-"/APPIAN/Test"}
 #Create a timestamp for testing session. 
 #Can use existing timestamp if using output files from previous test run

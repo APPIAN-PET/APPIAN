@@ -158,14 +158,25 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
 			#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
 			#Otherwise you can specify it using "Info":"Halflife" (units=seconds)
 			"Halflife" : 100
-      		}
+      		},
+		#Optional : Specify bodyweight (kg) for SUV
+		"BodyWeight":85,
+		{
+		
+		}
+		
      	},
     	"Time" : {
         	"FrameTimes": {
             		"Units": ["m", "m"],
             		"Values":[[14,64]]
       		}
-    	}
+    	},
+	#Optional : Specify injected radioactivity dose for SUV
+	"RadioChem":{
+		InjectedRadioactivity:, 8
+		InjectedRadioactivityUnits: Mbq
+	}
     }
 ```
 ## Usage <a name="useage"></a>

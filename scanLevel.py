@@ -442,7 +442,6 @@ def run_scan_level(opts,args):
         workflow.run(); 
         return(0)
 
-
     #####################
     # MRI Preprocessing # 
     #####################
@@ -587,8 +586,6 @@ def run_scan_level(opts,args):
         workflow.run();
         return(0)
 
-
-
     #############################
     # Partial-volume correction #
     #############################
@@ -687,11 +684,12 @@ def run_scan_level(opts,args):
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
         workflow.connect(wf_init_pet, 'outputnode.pet_volume',  distance_metricNode, 'pet')
-        workflow.connect(wf_pet2mri,'t1_brain_mask_pet-space.output_file',distance_metricNode,'pet_brain_mask')
+        
+        workflow.connect(wf_pet2mri, 'pet_brainmask.out_file', distance_metricNode, 'pet_brain_mask')
+        workflow.connect(wf_pet2mri,  't1_brain_mask_pet-space.output_file', distance_metricNode, 't1_brain_mask')
+        #workflow.connect(wf_masking,  'brain_mask.output_file', distance_metricNode, 't1_brain_mask')
+        
         workflow.connect(wf_pet2mri, 't1_pet_space.output_file',  distance_metricNode, 't1')
-        workflow.connect(wf_masking, 'brain_mask.output_file', distance_metricNode, 't1_brain_mask')
-        #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')
-        #workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')
         workflow.connect(infosource, 'ses', distance_metricNode, 'ses')
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')

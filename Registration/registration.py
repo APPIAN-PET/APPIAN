@@ -686,14 +686,14 @@ def get_workflow(name, infosource, opts):
         final_pet2mri.inputs.error = error
 
     node_name="t1_brain_mask_pet-space"
-    pet_brain_mask = pe.Node(interface=minc.Resample(), name=node_name)
-    pet_brain_mask.inputs.nearest_neighbour_interpolation = True
-    pet_brain_mask.inputs.clobber = True
-    pet_brain_mask_img = 'output_file'
+    t1_brain_mask_rsl = pe.Node(interface=minc.Resample(), name=node_name)
+    t1_brain_mask_rsl.inputs.nearest_neighbour_interpolation = True
+    t1_brain_mask_rsl.inputs.clobber = True
+    t1_brain_mask_img = 'output_file'
     
-    workflow.connect([(inputnode, pet_brain_mask, [('t1_brain_mask', 'input_file' )]),
-                        (inputnode, pet_brain_mask, [('pet_volume', 'like')]), 
-                        (pet2mri, pet_brain_mask, [('out_file_xfm_invert', 'transformation')])
+    workflow.connect([(inputnode, t1_brain_mask_rsl, [('t1_brain_mask', 'input_file' )]),
+                        (inputnode, t1_brain_mask_rsl, [('pet_volume', 'like')]), 
+                        (pet2mri, t1_brain_mask_rsl, [('out_file_xfm_invert', 'transformation')])
                     ]) 
 
 
@@ -730,7 +730,7 @@ def get_workflow(name, infosource, opts):
         transform_brainmaskNode.inputs.interpolation='nearest_neighbour'
         workflow.connect(pet2misalign_xfm, 'out_file', transform_brainmaskNode, 'transformation')
         workflow.connect(transform_resampleNode, 'out_file', transform_brainmaskNode, 'model_file')
-        workflow.connect(pet_brain_mask, pet_brain_mask_img, transform_brainmaskNode, 'in_file')   
+        workflow.connect(t1_brain_mask_rsl, t1_brain_mask_img, transform_brainmaskNode, 'in_file')   
 
         invert_concat_pet2misalign_xfm=pe.Node(interface=minc.XfmInvert(),name="invert_concat_pet2misalign_xfm")
         workflow.connect(pet2misalign_xfm,'out_file',invert_concat_pet2misalign_xfm,'input_file') 
@@ -738,11 +738,10 @@ def get_workflow(name, infosource, opts):
         workflow.connect(transform_resampleNode, "out_file", final_pet2mri, "out_file_img")
         workflow.connect(pet2misalign_xfm, "out_file", final_pet2mri, "out_file_xfm")
         workflow.connect(invert_concat_pet2misalign_xfm, "output_file", final_pet2mri, "out_file_xfm_invert")
-        pet_brain_mask = transform_brainmaskNode
-        pet_brain_mask_img = 'out_file'
+        t1_brain_mask_rsl = transform_brainmaskNode
+        t1_brain_mask_img = 'out_file'
     
     #Resample 4d PET image to T1 space
-
     #pettot1_4d = pe.Node(interface=gzipResampleCommand(), name='pettot1_4d')
     pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
     #pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
@@ -771,5 +770,5 @@ def get_workflow(name, infosource, opts):
     workflow.connect(final_pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
     workflow.connect(final_pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
     workflow.connect(final_pet2mri, 'out_file_img', outputnode, 'petmri_img')
-    workflow.connect(pet_brain_mask, pet_brain_mask_img, outputnode,'pet_brain_mask' )
+    workflow.connect(t1_brain_mask_rsl, t1_brain_mask_img, outputnode,'t1_brain_mask' )
     return workflow 

@@ -175,7 +175,7 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
 	#Optional : Specify injected radioactivity dose for SUV
 	"RadioChem":{
 		InjectedRadioactivity:, 8
-		InjectedRadioactivityUnits: Mbq
+		InjectedRadioactivityUnits: "kBq"
 	}
     }
 ```

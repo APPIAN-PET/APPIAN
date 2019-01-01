@@ -168,12 +168,12 @@ class ecattominc2Command(BaseInterface):
 
         node1 = ecattomincCommand()
         node1.inputs.in_file = self.inputs.in_file
-        node1.inputs.out_file = "/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+        node1.inputs.out_file =os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node1.run()
 
         node2 = mincconvertCommand()
         node2.inputs.in_file = node1.inputs.out_file
-        node2.inputs.out_file = "/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+        node2.inputs.out_file = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node2.run()
         os.remove(node1.inputs.out_file)
         
@@ -183,7 +183,6 @@ class ecattominc2Command(BaseInterface):
             node3.inputs.header = self.inputs.header
             node3.run()
             move(node3.inputs.output_file, self.inputs.out_file)
-            #os.remove(node2.inputs.out_file)
         else : 
             move(node2.inputs.out_file, self.inputs.out_file)
 
@@ -258,7 +257,6 @@ class minc2ecatCommand(BaseInterface):
             eframeNode = eframeCommand()
             eframeNode.inputs.frame_file = sifNode.inputs.out_file 
             eframeNode.inputs.pet_file = isotopeNode.inputs.out_file 
-            print(eframeNode.cmdline)
             eframeNode.run()
 
             imgunitNode = imgunitCommand()
@@ -596,7 +594,7 @@ class nii2mnc2Command(BaseInterface):
     output_spec = nii2mnc_shOutput
 
     def _run_interface(self, runtime):
-        temp_fn = "/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+        temp_fn = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         convert = nii2mnc_shCommand()
         convert.inputs.in_file=self.inputs.in_file
         convert.inputs.out_file=temp_fn

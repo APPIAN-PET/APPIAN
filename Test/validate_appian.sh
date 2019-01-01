@@ -148,7 +148,6 @@ echo
 
 ### Minimal Inputs
 run_appian "Mininimum"
-exit 0 
 
 ### PVC
 pvc_methods="GTM idSURF"

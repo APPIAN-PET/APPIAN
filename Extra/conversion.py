@@ -22,11 +22,12 @@ import nibabel as nib
 from sys import argv
 from re import sub
 from pyminc.volumes.factory import *
-
 from turku import imgunitCommand, e7emhdrInterface, eframeCommand, sifCommand
 from time import gmtime, strftime
 from Extra.modifHeader import FixHeaderCommand
+import time
 
+np.random.seed(int(time.time()))
 
 class convertOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")

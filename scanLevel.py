@@ -657,10 +657,9 @@ def run_scan_level(opts,args):
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
            
-            if int(dim) == 3 :
-                workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
-            elif int(dim) == 4:
-                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name )   
+            workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
+            if int(dim) == 4:
+                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name +"_4d")
             
             if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
@@ -678,9 +677,8 @@ def run_scan_level(opts,args):
                 workflow.connect(datasourceSurf, 'mask_left', resultsReportSurf, 'mask_left')
                 workflow.connect(wf_masking, 'surface_right_node.out_file', resultsReportSurf, "surf_right")
                 workflow.connect(datasourceSurf, 'mask_right', resultsReportSurf, 'mask_right')   
-                if int(dim) == 4 :
-                    workflow.connect( resultsReportSurf, 'out_file_3d', datasink, "results"+os.sep+node_name )
-                elif int(dim) == 4:
+                workflow.connect( resultsReportSurf, 'out_file_3d', datasink, "results"+os.sep+node_name )
+                if int(dim) == 4:
                     workflow.connect( resultsReportSurf, 'out_file_4d', datasink, "results"+os.sep+node_name )    
     ############################
     # Subject-level QC Metrics #

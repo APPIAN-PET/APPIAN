@@ -34,7 +34,11 @@ run_appian() {
         #The number of errors produced by the APPIAN run is determined by the number of crash reports with
         # .pklz suffix produced by Nipype in the current directory. This is why any existing crash reports must 
         # moved elsewhere before initiating the run
+            
         n_errors=`ls crash-*pklz 2> /dev/null | wc -l`
+        if [[ $errorcode != 0 && $n_errors == 0 ]]; then
+            n_errors=1
+        fi
         printf "Errors = %s -->" "$n_errors"
         
         if [[ $n_errors != 0 || $errorcode != 0 ]]; then

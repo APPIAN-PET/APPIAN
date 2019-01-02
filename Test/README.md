@@ -4,7 +4,10 @@ __Name :__        appian_validation.sh
 
 __Description:__  Run validation test suite on current version of APPIAN
 
-__Useage :__      ```validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>```
+__Useage :__      
+```
+validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>
+```
   
               n threads :             number of CPU threads to use for testing (default=1, recommended=4)
               

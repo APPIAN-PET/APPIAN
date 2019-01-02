@@ -8,6 +8,7 @@ __Useage :__
 ```
 validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>
 ```
+__Options:__
   
               n threads :             number of CPU threads to use for testing (default=1, recommended=4)
               

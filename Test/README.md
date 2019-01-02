@@ -62,7 +62,7 @@ Test: Atlas-DKA -- Errors = 0 --> passed.
 Test: Atlas-AAL -- Errors = 0 --> passed.
 ```
 ### Output files :
-The output files contain stderr and stdout. They have the <.passed> suffix if the test was complete successfully and <.failed> otherwise. The info.json file contains some basic information about the validation.
+The output files contain stderr and stdout from APPIAN run. They have the <.passed> suffix if the test was complete successfully and <.failed> otherwise. The info.json file contains some basic information about the validation.
 ```
 appian_validation/test_20190102-002046:
 info.json              test_Mininimum.passed   test_Quant-lp.passed    test_Space-MRI.passed

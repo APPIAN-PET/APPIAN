@@ -160,11 +160,7 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
 			"Halflife" : 100
       		},
 		#Optional : Specify bodyweight (kg) for SUV
-		"BodyWeight":85,
-		{
-		
-		}
-		
+		"BodyWeight":85
      	},
     	"Time" : {
         	"FrameTimes": {
@@ -174,8 +170,8 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
     	},
 	#Optional : Specify injected radioactivity dose for SUV
 	"RadioChem":{
-		InjectedRadioactivity:, 8
-		InjectedRadioactivityUnits: "kBq"
+		"InjectedRadioactivity": 8,
+		"InjectedRadioactivityUnits": "kBq"
 	}
     }
 ```

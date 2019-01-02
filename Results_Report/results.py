@@ -98,17 +98,18 @@ class resultsCommand( BaseInterface):
     input_spec = resultsInput
     output_spec = resultsOutput
     
-    def _gen_output(self, in_file):
-        print "\n\n",in_file,"\n\n"
+    def _gen_output(self, in_file, suffix):
         ii =  os.path.splitext(os.path.basename(in_file))[0]
-        out_file_3d = os.getcwd() + os.sep + ii + "_3d.csv"
-        out_file_4d = os.getcwd() + os.sep + ii + "_4d.csv"
-        return [out_file_3d, out_file_4d]
+        out_file = os.getcwd() + os.sep + ii + suffix +".csv"
+        return out_file
 
     def _run_interface(self, runtime):
         print '\n\n', self.inputs.in_file, '\n\n'
-        if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
-            [self.inputs.out_file_3d, self.inputs.out_file_4d ]=self._gen_output(self.inputs.in_file)
+        if not isdefined(self.inputs.out_file_3d) :
+           self.inputs.out_file_3d=self._gen_output(self.inputs.in_file, '_3d')
+        
+        if not isdefined(self.inputs.out_file_4d) and self.inputs.dim == '4':
+            self.inputs.out_file_4d=self._gen_output(self.inputs.in_file, '_4d')
 
         resultsReport = groupstatsCommand()
         resultsReport.inputs.image = self.inputs.in_file
@@ -145,24 +146,28 @@ class resultsCommand( BaseInterface):
 
         add_csvInfoNode.inputs.node =self.inputs.node
         if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
-        else: add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
+        else : add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
         add_csvInfoNode.run()
-        
+       
         if self.inputs.dim == '4':
             integrate_resultsReport = integrate_TACCommand()
             integrate_resultsReport.inputs.header = self.inputs.header
             integrate_resultsReport.inputs.in_file = add_csvInfoNode.inputs.out_file
             integrate_resultsReport.inputs.out_file = self.inputs.out_file_3d
             integrate_resultsReport.run()   
-        
+
         return runtime
 
     def _list_outputs(self):
-        if not isdefined(self.inputs.out_file_3d) or not isdefined(self.inputs.out_file_4d) :
-            [ self.inputs.out_file_3d, self.inputs.out_file_4d ] = self._gen_output(self.inputs.in_file)
+        if not isdefined(self.inputs.out_file_3d) :
+           self.inputs.out_file_3d=self._gen_output(self.inputs.in_file, '_3d')
+        
+        if not isdefined(self.inputs.out_file_4d) and self.inputs.dim == '4':
+            self.inputs.out_file_4d=self._gen_output(self.inputs.in_file, '_4d')
+        
         outputs = self.output_spec().get()
-        outputs["out_file_3d"] = self.inputs.out_file_3d
-        outputs["out_file_4d"] = self.inputs.out_file_4d
+        outputs['out_file_4d'] = self.inputs.out_file_4d
+        outputs['out_file_3d'] = self.inputs.out_file_3d
         return outputs
 
 
@@ -312,6 +317,7 @@ class descriptive_statisticsCommand( BaseInterface):
     def _run_interface(self, runtime):
         df = pd.read_csv( self.inputs.in_file   )
 #        df_pivot = lambda y : pd.DataFrame(df.pivot_table(rows=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
+        print(df)
         df_pivot = lambda y : pd.DataFrame(df.pivot_table(index=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
         ses_df =  df_pivot(["analysis", "metric", "roi", "ses"]) 
         task_df =df_pivot(["analysis", "metric","roi", "task"])  
@@ -364,7 +370,6 @@ class integrate_TACCommand( BaseInterface):
         return out_file 
 
     def _run_interface(self, runtime):
-        
         header = json.load(open( self.inputs.header ,"rb"))
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
@@ -384,16 +389,14 @@ class integrate_TACCommand( BaseInterface):
         if time_frames == [] : time_frames = [1.]
 
         out_df = pd.DataFrame( columns=metric_columns)
-        
-        for name, temp_df in  df.groupby(["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]):
-            print temp_df
-            print time_frames
+        groups=["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]
+        df.fillna("NA", inplace=True )
+        for name, temp_df in  df.groupby(groups):
             if len(time_frames) > 1 :
                 mean_int = simps(temp_df["value"], time_frames)
                 print("Integral of mean:", mean_int)
-            else:
+            else :
                 mean_int = temp_df.value.values[0] * time_frames[0]
-                print "\n",mean_int, "=", temp_df.value.values[0], "x", time_frames[0], "\n"
 
             row = pd.DataFrame( [list(name) + ['integral', mean_int]], columns=metric_columns  )
             out_df = pd.concat( [out_df, row] )

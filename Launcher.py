@@ -104,7 +104,8 @@ def check_masking_options(opts, label_img, label_template, label_space):
         label_type      label type tells you what kind of labled image we're dealing with. there are several
                         possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
     '''
-    
+    print("Label img:", label_img, "Label template:", label_template)
+    print( "Check masking options:",os.path.exists(label_img) ); 
     #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
     if os.path.exists(label_img):
     # 1) Atlas 
@@ -385,9 +386,12 @@ if __name__ == "__main__":
     opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_template, opts.tka_label_space)
     #Check inputs for results masking
     #opts.results_label_img = split_label_img(opts.results_label_img)
-    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.tka_label_template, opts.results_label_space)
+    opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_template, opts.results_label_space)
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
+    print(opts.pvc_label_type)
+    print(opts.tka_label_type)
+    print(opts.results_label_type)
 
     roi_label = set_labels(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask

@@ -28,21 +28,27 @@ run_appian() {
         printf "Test: $test_name -- "
         
         #Define variable with minimal command to launch APPIAN
-        minimal_options="python2.7 $base_path/Launcher.py -s ${test_data_path} -t ${out_data_path} --threads ${threads}"
+        minimal_options="python2.7 $base_path/Launcher.py -s ${test_data_path} -t ${out_data_path}/validation_output --threads ${threads}"
         bash -c "$minimal_options $extra_options" &> $log
-       
+        errorcode=$? 
         #The number of errors produced by the APPIAN run is determined by the number of crash reports with
         # .pklz suffix produced by Nipype in the current directory. This is why any existing crash reports must 
         # moved elsewhere before initiating the run
+            
         n_errors=`ls crash-*pklz 2> /dev/null | wc -l`
+        if [[ $errorcode != 0 && $n_errors == 0 ]]; then
+            n_errors=1
+        fi
         printf "Errors = %s -->" "$n_errors"
-
-        if [[ $n_errors != 0 ]]; then
+        
+        if [[ $n_errors != 0 || $errorcode != 0 ]]; then
             #If errors are detected, then the log suffix is set to failed
             printf " failed.\n"
             out_log=${test_dir}/test_${test_name}.failed
             crash_files=`ls crash-*pklz &> /dev/null`
-            mv $crash_files  $test_dir #Move Nipype crash reports to test directory
+            if [[ $crash_files ]]; then
+                mv $crash_files  ${test_dir}/ #Move Nipype crash reports to test directory
+            fi
         else
             #If errors are detected, then the log suffix is set to passed
             printf " passed.\n"
@@ -89,11 +95,11 @@ echo Warning: You should have commited latest changes to current git branch
 threads=${1:-1} 
 base_path=${2:-"/APPIAN"}
 test_data_path=${3:-"/APPIAN/Test/test_data"}
-out_data_path=${4:-"/APPIAN/Test"}
+out_data_path=${4:-"/APPIAN/Test/"}
 #Create a timestamp for testing session. 
 #Can use existing timestamp if using output files from previous test run
 ts=${5:-`date +"%Y%m%d-%H%M%S"`}
-test_dir="appian_validation/test_$ts"
+test_dir="${out_data_path}/appian_validation/test_$ts"
 
 ################
 # Check Inputs #
@@ -125,7 +131,7 @@ fi
 #################################
 
 #Create directory to store test results
-mkdir -p appian_validation $test_dir
+mkdir -p  ${out_data_path}/appian_validation $test_dir
 
 #Get hash for current git commit
 current_git_commit=`git rev-parse HEAD`
@@ -146,7 +152,7 @@ run_appian "Mininimum"
 ### PVC
 pvc_methods="GTM idSURF"
 for pvc in $pvc_methods; do
-    run_appian "PVC-${pvc}" "--fwhm 3 3 3 --pvc-method ${pvc}" 
+    run_appian "PVC-${pvc}" "--fwhm 6 6 6 --pvc-method ${pvc}" 
 done
 
 ### Quantification
@@ -156,9 +162,17 @@ for quant in $quant_methods; do
     run_appian "Quant-${quant}" "--tka-method ${quant} --tka-label 3 --tka-label-erosion 1"
 done
 
+### Analysis Space
+## Stereotaxic space
+run_appian  "Space-Stereo" "--analysis-space stereo --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+
+## MRI space
+run_appian  "Space-MRI" "--analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+
 ### Atlas / Templates
 ## DKA atlas in MNI 152 space
-run_appian "Atlas-DKA" "--tka-label-img  /APPIAN/Atlas/MNI152/dka.mnc --results-label-img--tka-labels 2,41 --tka-label-ones-only"  
+run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"  
+
 ## AAL atlas with Colin 27 template
-run_appian "mininimum" "--results-label-img  /APPIAN/Atlas/ROI_MNI_AAL_V5_UBYTE_round.mnc /APPIAN/Atlas/colin27_t1_tal_lin_ubyte.mnc  --threads ${threads}"  
+run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template /APPIAN/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "  
 

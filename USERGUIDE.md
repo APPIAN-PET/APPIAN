@@ -160,7 +160,7 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
 			"Halflife" : 100
       		},
 		#Optional : Specify bodyweight (kg) for SUV
-		"BodyWeight":85
+		"BodyWeight": 75.0
      	},
     	"Time" : {
         	"FrameTimes": {

@@ -4,7 +4,7 @@ __Name :__        appian_validation.sh
 
 __Description:__  Run validation test suite on current version of APPIAN
 
-__Useage :__      ```validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <timestamp>```
+__Useage :__      ```validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>```
   
               n threads :             number of CPU threads to use for testing (default=1, recommended=4)
               
@@ -12,7 +12,9 @@ __Useage :__      ```validate_appian.sh <n threads> <path to APPIAN dir> <path t
               
               path to data :          Path to data to be used to testing (default=/APPIAN/Test/cimbi)
               
-              path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test) 
+              path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test)
+              
+              exit on failure:        Exit validation if a test fails. Set to 1 to enable (default=0)
               
               timestamp :             Timestamp for validation. Will be set each time scipt is run. 
                                       However, users that are debugging may wish to continue validation with
@@ -31,13 +33,17 @@ Feel free to add additional tests to the validate_appian.sh script as needed.
 1. Minimal APPIAN run (T1 preprocessing, Coregistration, Results Report, Automated QC)
 2. PVC with GTM
 3. PVC with idSURF
-4. Quantification with Logan Plot
-5. Quantification with Patlak-Gjedde Plot
-6. Quantification with SUVR
-7. APPIAN run in stereotaxic space
-8. APPIAN run in MRI native space
-9. APPIAN run with DKA atlas in MNI 152 space 
-10. APPIAN with AAL atlas in Colin27 space
+4. Quantification with Logan Plot (Voxelwise)
+5. Quantification with Logan Plot (ROI)
+6. Quantification with Patlak-Gjedde Plot (Voxelwise)
+7. Quantification with Patlak-Gjedde Plot (ROI)
+8. Quantification with SUV
+9. Quantification with SUVR
+10. Quantification with SRTM
+11. APPIAN run in stereotaxic space
+12. APPIAN run in MRI native space
+13. APPIAN run with DKA atlas in MNI 152 space 
+14. APPIAN with AAL atlas in Colin27 space
 
 ## Example output :
 

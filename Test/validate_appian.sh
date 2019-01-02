@@ -49,6 +49,7 @@ run_appian() {
             if [[ $crash_files ]]; then
                 mv $crash_files  ${test_dir}/ #Move Nipype crash reports to test directory
             fi
+
         else
             #If errors are detected, then the log suffix is set to passed
             printf " passed.\n"
@@ -56,6 +57,12 @@ run_appian() {
             rm -f ${test_dir}/test_${test_name}.failed #If there is a previous failed log, remove it
         fi
         mv $log $out_log #Move log to version with passed/failed suffix
+
+        if [[ $n_errors != 0 || $errorcode != 0 ]]; then
+            if [[ $exit_on_failure == 1 ]] ; then
+                exit 0
+            fi
+        fi
     fi
 }
 
@@ -63,11 +70,12 @@ if [[ $1 == "-help" || $1 == "--help" || $1 == "-h" || $1 == "--h" ]]; then
     echo
     echo 'Name :        appian_validation.sh'
     echo 'Description:  Run validation test suite on current version of APPIAN'
-    echo 'Useage :      test.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <timestamp>'
+    echo 'Useage :      test.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>'
     echo "              n threads :             number of CPU threads to use for testing (default=1, recommended=4)"
     echo "              path to APPIAN dir :    Abs. path to location of APPIAN repository (default=/APPIAN)"
     echo "              path to data :          Path to data to be used to testing (default=/APPIAN/Test/cimbi)"
     echo "              path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test)"
+    echo "              exit on failure :       Exit validation if a test fails. Set to 1 to enable (default=0)"
     echo "              timestamp :             Timestamp for validation. Will be set each time scipt is run. "
     echo "                                      However, users that are debugging may wish to continue validation with"
     echo "                                      existing timestamp to prevent rerunning all test. In this case, "
@@ -98,7 +106,8 @@ test_data_path=${3:-"/APPIAN/Test/test_data"}
 out_data_path=${4:-"/APPIAN/Test/"}
 #Create a timestamp for testing session. 
 #Can use existing timestamp if using output files from previous test run
-ts=${5:-`date +"%Y%m%d-%H%M%S"`}
+exit_on_failure=${5:-0}
+ts=${6:-`date +"%Y%m%d-%H%M%S"`}
 test_dir="${out_data_path}/appian_validation/test_$ts"
 
 ################
@@ -150,16 +159,16 @@ echo
 run_appian "Mininimum"
 
 ### PVC
-pvc_methods="GTM idSURF"
+pvc_methods="GTM idSURF VC"
 for pvc in $pvc_methods; do
     run_appian "PVC-${pvc}" "--fwhm 6 6 6 --pvc-method ${pvc}" 
 done
 
 ### Quantification
-quant_methods="lp pp suvr" #suv srtm, roi
+quant_methods="lp lp-roi pp pp-roi suv suvr srtm" #suv srtm, roi
 
 for quant in $quant_methods; do
-    run_appian "Quant-${quant}" "--tka-method ${quant} --tka-label 3 --tka-label-erosion 1"
+    run_appian "Quant-${quant}" "--start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 done
 
 ### Analysis Space

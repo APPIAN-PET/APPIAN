@@ -278,8 +278,8 @@ if __name__ == "__main__":
     group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
     group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
     group.add_option("","--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
-    group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=0)
-    group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=0)
+    group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=None)
+    group.add_option("","--end-time",dest="tka_end_time",help="End time for SUV average.",type='float', default=None)
     group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
     parser.add_option_group(group)
 

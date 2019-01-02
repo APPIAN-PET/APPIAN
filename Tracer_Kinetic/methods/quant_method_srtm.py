@@ -3,7 +3,8 @@ from quantification_template import *
 global quant_format
 global reference
 global voxelwise
-file_format="ECAT"
+in_file_format="ECAT"
+out_file_format="ECAT"
 reference=True
 voxelwise=True
 

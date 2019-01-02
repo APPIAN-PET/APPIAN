@@ -11,7 +11,7 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 from Extra.base import MINCCommand, MINCCommandInputSpec
 from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow, mincconvertCommand, ecattominc2Command)
 from Extra.modifHeader import FixHeaderLinkCommand
-from Turku.dft import img2dftCommand
+from Turku.dft import img2dft_unit_conversion
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
 import ntpath
@@ -46,8 +46,8 @@ class createImgFromROI(BaseInterface) :
                     roi.append([int(ll[1]), float(ll[3])])
 
         for label, value in roi : 
-            out.data[ref == label] = value
-            print(label, np.mean(out.data[ref == label]))
+            out.data[ref.data == label] = value
+            print("Label",ref,label, np.mean(out.data[ref == label]))
         out.writeFile()
         out.closeVolume()
 
@@ -123,7 +123,6 @@ def get_tka_workflow(name, opts):
     out_files = ["out_file"]
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
-    
 
     ### Quantification module
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
@@ -135,7 +134,7 @@ def get_tka_workflow(name, opts):
     try :
         quant_module = importlib.import_module(quant_module_fn)
     except ImportError :
-        print("Error: Could not find source file", quant_module_fn, "corresponding to quantification method:", opts.tka_method )
+        print("Error: Could not find source file",quant_module_fn,"corresponding to quantification method:",opts.tka_method)
         exit(1)
     
     tkaNode = pe.Node(interface=quant_module.quantCommand(), name=opts.tka_method)
@@ -173,21 +172,17 @@ def get_tka_workflow(name, opts):
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
         convertParametric=pe.Node(ecattominc2Command(), name="convertParametric")
-        #convertParametric=pe.Node(ecat2mincCommand(), name="convertParametric")
         
         #Connect quantification node to output node
         workflow.connect(tkaNode, 'out_file', convertParametric, 'in_file')
-        #workflow.connect(inputnode, 'mask', convertParametric, 'like_file')
         workflow.connect(inputnode, 'header', convertParametric, 'header')
-        #workflow.connect(convertParametric, 'out_file', convertParametric, 'in_file')
-        #workflow.connect(inputnode, 'header', convertParametric, 'header')
 
         tka_source = convertParametric
     elif quant_module.out_file_format == "MINC"  :
         tka_source = tkaNode
     elif quant_module.out_file_format == "DFT"  :
         #Create 3/4D volume based on ROI values
-        roi2img = pe.Node(interface= createImgFromROI(), name='img') 
+        roi2img = pe.Node(interface=createImgFromROI(), name='img') 
         workflow.connect(inputnode, 'mask', roi2img, 'like_file')
         workflow.connect(tkaNode, 'out_file', roi2img, 'in_file')
         tka_source = roi2img
@@ -206,7 +201,7 @@ def get_tka_workflow(name, opts):
         workflow.connect(pet_source, pet_file, tkaNode, 'in_file')
     else : 
         convertROI=pe.Node(interface=minc2ecatCommand(), name="minctoecat_roi")
-        extractROI=pe.Node(interface=img2dftCommand(), name="roimask_extract")
+        extractROI=pe.Node(interface=img2dft_unit_conversion(), name="roimask_extract")
         workflow.connect(inputnode, 'mask', convertROI, 'in_file')
         workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
         #workflow.connect(tacReference, 'reference', tkaNode, 'reference')
@@ -231,7 +226,7 @@ def get_tka_workflow(name, opts):
                 #Convert reference mask from minc to ecat
                 convertReference=pe.Node(interface=minc2ecatCommand(), name="minctoecat_reference") 
                 workflow.connect(inputnode, 'reference', convertReference, 'in_file')
-                extractReference=pe.Node(interface=img2dftCommand(), name="referencemask_extract")
+                extractReference=pe.Node(interface=img2dft_unit_conversion(), name="referencemask_extract")
                 # convertReference --> extractReference 
                 workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
                 workflow.connect(pet_source, pet_file, extractReference, 'in_file')

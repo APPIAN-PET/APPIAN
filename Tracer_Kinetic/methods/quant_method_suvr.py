@@ -92,4 +92,4 @@ class quantCommand(BaseInterface):
             skip = []
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
-        return super(suvCommand, self)._parse_inputs(skip=skip)
+        return super(quantCommand, self)._parse_inputs(skip=skip)

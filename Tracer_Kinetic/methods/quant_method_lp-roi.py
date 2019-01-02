@@ -1,4 +1,5 @@
 from quantification_template import *
+import json 
 
 in_file_format="ECAT"
 out_file_format="DFT"
@@ -14,10 +15,11 @@ class quantInput( MINCCommandInputSpec):
     in_file = File(exists=True, mandatory=True, position=-5, argstr="%s", desc="PET file")
     reference = File(exists=True, mandatory=True, position=-4, argstr="%s", desc="Reference file")
     BPnd = traits.Bool(argstr="-BPnd", position=1, usedefault=True, default_value=True)
+    header = traits.File(exists=True, mandatory=True, desc="Input file ")
     C = traits.Bool(argstr="-C", position=2, usedefault=True, default_value=True)
-    start_time=traits.Float(argstr="%s", mandatory=True, position=-3, desc="Start time for regression in mtga.")
+    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
     k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
-    end_time=traits.Float(argstr="%s", mandatory=True, position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
+    end_time=traits.Float(argstr="%s", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
 
 class quantCommand(quantificationCommand):
     input_spec = quantInput
@@ -25,6 +27,31 @@ class quantCommand(quantificationCommand):
     _cmd = "logan" #input_spec.pvc_method 
     _suffix = "_lp-roi" 
 
+    def _parse_inputs(self, skip=None):
+        header = json.load(open(self.inputs.header, "r") )
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        
+        if not isdefined(self.inputs.start_time) : 
+            self.inputs.start_time=header['Time']['FrameTimes']['Values'][0][0]
+            if header['Time']['FrameTimes']['Units'][0] == 's' : self.inputs.start_time /= 60.
+            elif header['Time']['FrameTimes']['Units'][0] == 'm' : pass
+            elif header['Time']['FrameTimes']['Units'][0] == 'h' : self.inputs.start_time *= 60.
+            else :
+                print("Error : unrecognized time units in ", self.inputs.header)
+                exit(1)
+        if not isdefined(self.inputs.end_time) : 
+            self.inputs.end_time=header['Time']['FrameTimes']['Values'][-1][1]
+            if header['Time']['FrameTimes']['Units'][1] == 's' : self.inputs.end_time /= 60.
+            elif header['Time']['FrameTimes']['Units'][1] == 'm' :  pass
+            elif header['Time']['FrameTimes']['Units'][0] == 'h' : self.inputs.end_time *= 60.
+            else :
+                print("Error : unrecognized time units in ", self.inputs.header)
+                exit(1)       
+
+        return super(quantCommand, self)._parse_inputs(skip=skip)
 
 def check_options(tkaNode, opts):
     #Define node for logan plot analysis 

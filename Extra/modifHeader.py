@@ -96,7 +96,7 @@ class FixHeaderCommand(CommandLine):
         if 'time' in dims :       
             
             #See if there is a start time defined, else set to 0
-            try: 
+            try : 
                 data["time"]["start"][0]
                 self.inputs.tstart = data["time"]["start"][0]
             except KeyError: 
@@ -115,7 +115,7 @@ class FixHeaderCommand(CommandLine):
             self.inputs.zstep  = data["zspace"]["step"][0]
             self.inputs.ystep  = data["yspace"]["step"][0]
             self.inputs.xstep  = data["xspace"]["step"][0]
-        
+       
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
 

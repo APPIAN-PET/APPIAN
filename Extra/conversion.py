@@ -24,7 +24,6 @@ from re import sub
 from pyminc.volumes.factory import *
 from turku import imgunitCommand, e7emhdrInterface, eframeCommand, sifCommand
 from time import gmtime, strftime
-from Extra.modifHeader import FixHeaderCommand
 import time
 
 np.random.seed(int(time.time()))
@@ -186,7 +185,15 @@ class ecattominc2Command(BaseInterface):
         else : 
             move(node2.inputs.out_file, self.inputs.out_file)
 
+        temp_fn=os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
 
+        vol = volumeFromFile(self.inputs.out_file)
+        vol2 = volumeLikeFile(self.inputs.out_file, temp_fn)
+        vol2.data = np.flipud(vol.data)
+        vol2.writeFile()
+        vol2.closeVolume()
+
+        move(temp_fn, self.inputs.out_file)
         return runtime
 
     def _gen_output(self, basefile):

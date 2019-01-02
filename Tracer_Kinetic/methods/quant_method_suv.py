@@ -39,7 +39,7 @@ class quantCommand(BaseInterface):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         
         try :
-            dose = float(header["RadioChem"]["InjectedRadioactivity"][0])
+            dose = float(header["RadioChem"]["InjectedRadioactivity"])
         except ValueError :
             print("Error: Could not find injected dose in subject's header. Make sure subject has a .json header in BIDS format with [RadioChem][InjectedRadioactivity]")
             exit(1)

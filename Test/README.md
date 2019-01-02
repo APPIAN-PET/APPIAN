@@ -1,9 +1,5 @@
 # Running APPIAN validation
 
-```
-./validate_appian.sh <Number of Threads> <Path to APPIAN Dir> <Path to Test Data>  <Output Dir>
-```
-
 __Name :__        appian_validation.sh
 
 __Description:__  Run validation test suite on current version of APPIAN
@@ -28,8 +24,51 @@ __Examples :__\
           2) Run validation with 8 threads in non-default directories. Timestamp genereated at runtime\
               ```./validate_appian.sh 8 /home/APPIAN /data1/projects/cimbi /data1/projects/```  \
           3) Run with 1 thread in default directories with pre-existing timestamp\
-              ```./validate_appian.sh 1 /APPIAN /APPIAN/Test/cimbi /APPIAN/Test 20181221-220648```\
+              ```./validate_appian.sh 1 /APPIAN /APPIAN/Test/cimbi /APPIAN/Test 20181221-220648```
+## Tests
+Feel free to add additional tests to the validate_appian.sh script as needed.
 
+1. Minimal APPIAN run (T1 preprocessing, Coregistration, Results Report, Automated QC)
+2. PVC with GTM
+3. PVC with idSURF
+4. Quantification with Logan Plot
+5. Quantification with Patlak-Gjedde Plot
+6. Quantification with SUVR
+7. APPIAN run in stereotaxic space
+8. APPIAN run in MRI native space
+9. APPIAN run with DKA atlas in MNI 152 space 
+10. APPIAN with AAL atlas in Colin27 space
+
+## Example output :
+
+### Stdout :
+```
+    Launching APPIAN validation tests 
+   -------------------------------------
+Warning: You should have commited latest changes to current git branch
+fatal: Not a git repository (or any of the parent directories): .git
+Timestamp: 20190102-002046
+Git Commit :
+
+Test: Mininimum -- Errors = 0 --> passed.
+Test: PVC-GTM -- Errors = 0 --> passed.
+Test: PVC-idSURF -- Errors = 0 --> passed.
+Test: Quant-lp -- Errors = 0 --> passed.
+Test: Quant-pp -- Errors = 0 --> passed.
+Test: Quant-suvr -- Errors = 0 --> passed.
+Test: Space-Stereo -- Errors = 0 --> passed.
+Test: Space-MRI -- Errors = 0 --> passed.
+Test: Atlas-DKA -- Errors = 0 --> passed.
+Test: Atlas-AAL -- Errors = 0 --> passed.
+```
+### Output files :
+The output files contain stderr and stdout. They have the <.passed> suffix if the test was complete successfully and <.failed> otherwise. The info.json file contains some basic information about the validation.
+```
+appian_validation/test_20190102-002046:
+info.json              test_Mininimum.passed   test_Quant-lp.passed    test_Space-MRI.passed
+test_Atlas-AAL.passed  test_PVC-GTM.passed     test_Quant-pp.passed    test_Space-Stereo.passed
+test_Atlas-DKA.passed  test_PVC-idSURF.passed  test_Quant-suvr.passed
+```
 
 # Running dockerized APPIAN validation
 Dockerized version of script will automatically mount the path to the directory where "dockerized_validation_script.sh" to /APPIAN in the docker container. Your test data and output directory must be accessible from this mounted directory. 

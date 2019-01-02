@@ -171,8 +171,8 @@ run_appian  "Space-MRI" "--analysis-space t1 --tka-method suvr --tka-label 3 --t
 
 ### Atlas / Templates
 ## DKA atlas in MNI 152 space
-run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-labels 2,41 --tka-label-ones-only"  
+run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"  
 
 ## AAL atlas with Colin 27 template
-run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/ROI_MNI_AAL_V5_UBYTE_round.mnc /APPIAN/Atlas/colin27_t1_tal_lin_ubyte.mnc "  
+run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template /APPIAN/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "  
 

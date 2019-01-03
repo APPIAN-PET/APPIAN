@@ -21,7 +21,7 @@
 
 
 
-## Quick Start
+## 1. Quick Start
 
 ### Download CIMBI Open Data  <a name="quickstart"></a>
 Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or using the Amazon web service command line interface (AWS CLI):
@@ -91,7 +91,7 @@ You can run the following examples to see some of the basic functionality of APP
 #### PVC + Quantification
 	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
 
-## File Formats  <a name="fileformat"></a>
+## 2. File Formats  <a name="fileformat"></a>
 
 ### Nifti
 APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
@@ -176,7 +176,7 @@ Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acqu
 	}
     }
 ```
-## Usage <a name="useage"></a>
+## 3. Usage <a name="useage"></a>
 
 ### Launching APPIAN
 APPIAN is a Python program (Python 2.7 to be specific) that is launched using a command of the form:
@@ -245,7 +245,7 @@ docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/
 ```
 Either method will give you the same results, it’s up to you and what you find more convenient. 
 
-## Example use cases  <a name="example"></a>
+## 4. Example use cases  <a name="example"></a>
 
 ### FDG
 FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (`--tka-method "pp"`) is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: `--LC`) and concentration of native substrate in arterial plasma (flag: `--Ca`). The Turku Pet Centre has a useful [description for LC here][link_turkuLC] with standard values from the literature. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
@@ -255,9 +255,9 @@ Example:
 --tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
 ```
 
-## Pipeline Overview  <a name="overview"></a>
+## 5. Pipeline Overview  <a name="overview"></a>
 
-### Base User Options  <a name="options"></a>
+### 5.1 Base User Options  <a name="options"></a>
 APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`), the list of sessions during which the scans were acquired (`-sessions`). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
 
 ####  File options (mandatory):
@@ -291,13 +291,13 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
 
-### [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
+### 5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
 
-### [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) 
-### [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
-### [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
-### [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
-### [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
-### [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+### 5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) 
+### 5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) 
+### 5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) 
+### 5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) 
+### 5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) 
+### 5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 
-## [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)

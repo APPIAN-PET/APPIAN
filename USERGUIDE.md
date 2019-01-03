@@ -9,7 +9,7 @@
 5. [Examples](#example)
 6. [Overview](#overview) \
 	5.1 [Base Options](#options) \
-	5.2 [MRI Preprocessing](#mri) \
+	5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
 	5.3 [Coregistration](#coregistration) \
 	5.4 [Masking](#masking) \
 	5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
@@ -290,22 +290,6 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
                         (default=icbm152)
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
-
-### Coregistration <a name="coregistration"></a>
-The first processing step in PET processing is the coregistration of the T1 image to the PET image. The co-registration algorithm is based on minctracc -- which estimates the best linear spatial transformation required to register two 3D volumes -- and proceeds hierarchically by performing iterative co-registrations at progressively finer spatial scales (Collins 1993). Two iterations of the co-registration are performed: one using binary masks of the PET brain mask and the T1 brain mask, the second iteration without any binary mask.
-
-#### Coregistration Options
-
-    --coreg-method=COREG_METHOD 	Coregistration method: minctracc, ants (default=minctracc)
-    --coregistration-brain-mask 	Target T1 mask for coregistration (Default=True)
-    --second-pass-no-mask    		Do a second pass of coregistration without masks (Default=True)
-    --slice-factor=SLICE_FACTOR		Value (between 0. to 1.) that is multiplied by the 
-    					maximum of the slices of the PET image. Used to
-                        		threshold slices. Lower value means larger mask.
-    --total-factor=TOTAL_FACTOR		Value (between 0. to 1.) that is multiplied by the
-                        		thresholded means of each slice.
-##### Please cite the following paper for the coregistration stage
-Collins, D.L., Neelin, P., Peters, T.M., Evans, A.C. Automatic 3D intersubject registration of MR volumetric data in standardized Talairach space. Journal of Computer Assisted Tomography. 18 (2), 192–205. 1994
 
 ### Masking <a name="masking"></a>
 The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).

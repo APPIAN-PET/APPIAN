@@ -13,8 +13,9 @@
 	5.3 [Coregistration](#coregistration) \
 	5.4 [Masking](#masking) \
 	5.5 [Partial-Volume Correction](#pvc) \
-	5.6 [Reporting of Results](#results) \
-	5.7 [Quality Control](#qc) 
+	5.6 [Quantification](#quantification) \
+	5.7 [Reporting of Results](#results) \
+	5.8 [Quality Control](#qc) 
 7. [Atlases](#atlases)
 
 

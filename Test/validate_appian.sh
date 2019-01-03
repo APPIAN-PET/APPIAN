@@ -69,7 +69,10 @@ run_appian() {
             printf " passed.\n"
             out_log=${test_dir}/test_${test_name}.passed
             rm -f ${test_dir}/test_${test_name}.failed #If there is a previous failed log, remove it
-            validation_qc
+            
+            if [[ $qc == 1 ]]; then
+                validation_qc
+            fi
         fi
         mv $log $out_log #Move log to version with passed/failed suffix
 
@@ -91,6 +94,7 @@ if [[ $1 == "-help" || $1 == "--help" || $1 == "-h" || $1 == "--h" ]]; then
     echo "              path to data :          Path to data to be used to testing (default=/APPIAN/Test/cimbi)"
     echo "              path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test)"
     echo "              exit on failure :       Exit validation if a test fails. Set to 1 to enable (default=0)"
+    echo "              qc :                    Create .png images of output files. Set to 1 to enable (default=0)"
     echo "              timestamp :             Timestamp for validation. Will be set each time scipt is run. "
     echo "                                      However, users that are debugging may wish to continue validation with"
     echo "                                      existing timestamp to prevent rerunning all test. In this case, "
@@ -122,7 +126,8 @@ out_data_path=${4:-"/APPIAN/Test/"}
 #Create a timestamp for testing session. 
 #Can use existing timestamp if using output files from previous test run
 exit_on_failure=${5:-0}
-ts=${6:-`date +"%Y%m%d-%H%M%S"`}
+qc=${6:-0}
+ts=${7:-`date +"%Y%m%d-%H%M%S"`}
 test_dir="${out_data_path}/appian_validation/test_$ts"
 
 ################

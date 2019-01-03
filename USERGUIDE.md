@@ -14,7 +14,7 @@
 	6.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
 	6.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
 	6.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
-	6.7 [Reporting of Results](#https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
+	6.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
 	6.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 7. [Atlases](#atlases)
 

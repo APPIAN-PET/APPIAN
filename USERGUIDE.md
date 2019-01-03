@@ -8,14 +8,14 @@
 4. [Useage](#useage)
 5. [Examples](#example)
 6. [Overview](#overview) \
-	5.1 [Base Options](#options) \
-	5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
-	5.3 [Coregistration](#coregistration) \
-	5.4 [Masking](#masking) \
-	5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
-	5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
-	5.7 [Reporting of Results](#results) \
-	5.8 [Quality Control](#qc) 
+	6.1 [Base Options](#options) \
+	6.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
+	6.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
+	6.4 [Masking](#masking) \
+	6.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
+	6.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
+	6.7 [Reporting of Results](#results) \
+	6.8 [Quality Control](#qc) 
 7. [Atlases](#atlases)
 
 
@@ -290,77 +290,6 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
                         (default=icbm152)
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
-
-### Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
-
-  #### Masking options: PVC
-
-    --pvc-label-space=PVC_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
-                        Options: [pet/t1/stereo]
-    --pvc-label-img=PVC_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --pvc-label=PVC_LABELS
-                        Label values to use for pvc
-    --pvc-label-erosion=PVC_ERODE_TIMES
-                        Number of times to erode label
-    --pvc-labels-brain-only
-                        Mask pvc labels with brain mask
-    --pvc-labels-ones-only
-                        Flag to signal threshold so that label image is only
-                        1s and 0s
-
-  #### Masking options: Quantification
-
-    --tka-label-space=TKA_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
-                        Options: [pet/t1/stereo]
-    --tka-label-img=TKA_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --tka-label=TKA_LABELS
-                        Label values to use for TKA
-    --tka-label-erosion=TKA_ERODE_TIMES
-                        Number of times to erode label
-    --tka-labels-brain-only
-                        Mask tka labels with brain mask
-    --tka-labels-ones-only
-                        Flag to signal threshold so that label image is only
-                        1s and 0s
-
- #### Masking options: Results
-
-    --no-results-report
-                        Don't calculate descriptive stats for results ROI.
-    --results-label-space=RESULTS_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
-                        Options: [pet/t1/stereo]
-    --results-label-img=RESULTS_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --results-label=RESULTS_LABELS
-                        Label values to use for results
-    --results-label-erosion=RESULTS_ERODE_TIMES
-                        Number of times to erode label
-    --results-labels-brain-only
-                        Mask results labels with brain mask
-    --results-labels-ones-only
-                        Flag to signal threshold so that label image is only 1s and 0s
-
 
 ### Reporting of results <a name="results"></a>
 The ROI masks described in *section 5.4* are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 

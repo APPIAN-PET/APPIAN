@@ -7,7 +7,7 @@ More tests will need to be added in the future as the current set are not exhaus
 
 It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily. For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the previous tests can be reused for subsequent ones. 
 
-# Setup
+## Setup
 1. Uncompress Tests/test_data.tar.bz2
 2. Uncompress Atlas/MNI152/dka.mnc.tar.bz2
 

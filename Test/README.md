@@ -16,7 +16,7 @@ __Description:__  Run validation test suite on current version of APPIAN
 
 __Useage :__      
 ```
-validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>
+validate_appian.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <qc> <timestamp>
 ```
 __Options:__
   
@@ -29,7 +29,7 @@ __Options:__
               path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test)
               
               exit on failure:        Exit validation if a test fails. Set to 1 to enable (default=0)
-              
+              qc :                    Create .png images of output files. Set to 1 to enable (default=0)
               timestamp :             Timestamp for validation. Will be set each time scipt is run. 
                                       However, users that are debugging may wish to continue validation with
                                       existing timestamp to prevent rerunning all test. In this case, 
@@ -40,7 +40,7 @@ __Examples :__\
           2) Run validation with 8 threads in non-default directories. Timestamp genereated at runtime\
               ```./validate_appian.sh 8 /home/APPIAN /data1/projects/cimbi /data1/projects/```  \
           3) Run with 1 thread in default directories with pre-existing timestamp\
-              ```./validate_appian.sh 1 /APPIAN /APPIAN/Test/cimbi /APPIAN/Test 20181221-220648```
+              ```./validate_appian.sh 1 /APPIAN /APPIAN/Test/cimbi /APPIAN/Test 0 0 20181221-220648```
 ## Tests
 Feel free to add additional tests to the validate_appian.sh script as needed.
 

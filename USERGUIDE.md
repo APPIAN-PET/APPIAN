@@ -13,7 +13,7 @@
 	5.3 [Coregistration](#coregistration) \
 	5.4 [Masking](#masking) \
 	5.5 [Partial-Volume Correction](#pvc) \
-	5.6 [Quantification](#quantification) \
+	5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
 	5.7 [Reporting of Results](#results) \
 	5.8 [Quality Control](#qc) 
 7. [Atlases](#atlases)
@@ -445,21 +445,6 @@ Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J.
 *Note: MG, LAB, MTC, IY, RVC, RL are all implemented with PETPVC. You should therefore cite the following paper if you use one of these.* 
 
 Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
-
-
-##### References
-###### Logan Plot (lp)
-Logan, J., Fowler, J.S., Volkow, N.D., Wang, G.-J., Ding, Y.-S., Alexoff, D.L., 1996. Distribution Volume Ratios Without Blood Sampling from Graphical Analysis of PET Data. J. Cereb. Blood Flow Metab. 16, 834–840. doi:10.1097/00004647-199609000-00008
-
-###### Patlak-Gjedde Plot (pp)
-*Please cite both of the following papers when using the Patlak-Gjedde method*
-
-Patlak, C. S., Blasberg, R. G., and Fenstermacher, J. D. (1983). Graphical evaluation of blood-to-brain transfer constants from multiple-time uptake data. J. Cereb. Blood Flow Metab. 3, 1–7. doi: 10.1038/jcbfm.1983.1
-
-Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain uptake of glucose analogs in vivo: a re-examination. Brain Res. 257, 237–274. doi: 10.1016/0165-0173(82)90018-2
-
-###### Simplified Reference Tissue Model (srtm)
-Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.
 
 ### Reporting of results <a name="results"></a>
 The ROI masks described in *section 5.4* are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 

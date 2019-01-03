@@ -1,18 +1,33 @@
 # 
 # This is a script that essentially runs APPIAN a bunch of different times with varying options. In theory, it should
-# be useable with any data set, although in practice it has only been developed using the CIMBI data set availble
-# on OpenNeuro. 
+# be useable with any data set, although in practice it has only been developed using a small test data set of 
+# simulated PET images and T1 images from the 1000 Connectomes Project.
 #
 # The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package.
 # As such it should be run before pushing any new changes to the Git repository and especially before creating an
 # updated Docker container with a new version APPIAN.
 #
-# More tests will need to be added in the future as the current set are not exhaustive. Each test can take a long time.
+# More tests will need to be added in the future as the current set are not exhaustive. 
+
 # It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily.
 # For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing
 # stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the 
 # previous tests can be reused for subsequent ones. 
 #
+
+validation_qc(){
+    qc_dir=${test_dir}/qc
+    mkdir -p $qc_dir
+
+    for f in `find ${out_data_path}/validation_output -name "*.mnc"`; do
+        var1=`stat $f | grep Modify | awk '{split($0,ar," "); print ar[2] ar[3] }'`
+        f2=${qc_dir}/`basename $f | sed "s/.mnc/_${var1}.png/"`
+        if [[ ! -f $f2 ]] ; then
+            python ${base_path}/Test/validation_qc.py $f $f2 2> /dev/null
+        fi
+    done
+
+}
 
 run_appian() {
     test_name=$1 #Name of the test command to run on APPIAN
@@ -49,12 +64,12 @@ run_appian() {
             if [[ $crash_files ]]; then
                 mv $crash_files  ${test_dir}/ #Move Nipype crash reports to test directory
             fi
-
         else
             #If errors are detected, then the log suffix is set to passed
             printf " passed.\n"
             out_log=${test_dir}/test_${test_name}.passed
             rm -f ${test_dir}/test_${test_name}.failed #If there is a previous failed log, remove it
+            validation_qc
         fi
         mv $log $out_log #Move log to version with passed/failed suffix
 
@@ -128,7 +143,7 @@ if [[ ! -d $out_data_path ]]; then
     exit 1
 fi
 
-if [[ `ls crash*pklz 2> /dev/null` ]]; then
+if [[ `ls crash*pklz &> /dev/null` ]]; then
     echo Warning: Moving existin crash .pklz reports to `pwd`/crash_backup
     echo Test script requires that there be no crash reports in the current directory
     mkdir -p nipype_crash_backup

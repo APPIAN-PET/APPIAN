@@ -89,7 +89,8 @@ class FixHeaderCommand(CommandLine):
         if skip is None:
             skip = []
         data = json.load(open( header ,"rb"))
-
+        
+        
         vol=pyminc.volumeFromFile(self.inputs.in_file)
         dims = vol.getDimensionNames()
         #try : 

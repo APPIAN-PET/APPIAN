@@ -16,7 +16,7 @@
 	6.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
 	6.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
 	6.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
-7. [Atlases](#atlases)
+7. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
 
 
 
@@ -300,4 +300,4 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
 ### [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
 ### [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 
-## Atlases <a name="atlases"></a>
+## [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)

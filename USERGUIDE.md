@@ -2,22 +2,21 @@
 
 # Table of Contents
 1. [Quick Start](#quickstart)
-2. [File Formats](#fileformat) 
-	2.1 [Nifti](#nifti) 
-	2.2 [MINC](#minc)
-3. [Useage](#useage)
-4. [Examples](#example)
-5. [Overview](#overview) 
-	5.1 [Base Options](#options)
-	5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) 
-	5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md)
-	5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) 
-	5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md)
-	5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md)
-	5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md)
-	5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
-	
-6. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+2. [File Formats](#fileformat) \
+	2.1 [Nifti](#nifti) \
+	2.2 [MINC](#minc) \
+3. [Useage](#useage) \
+4. [Examples](#example) \
+5. [Overview](#overview) \
+	5.1 [Base Options](#options) \
+	5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
+	5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
+	5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
+	5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
+	5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
+	5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
+	5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) \
+6. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md) \
 
 
 

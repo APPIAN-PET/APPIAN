@@ -291,14 +291,6 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
 
-### Reporting of results <a name="results"></a>
-The ROI masks described in *section 5.4* are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 
-
-####  Results reporting options:
-    --no-group-stats    Don't calculate quantitative group-wise descriptive
-                        statistics.
-
-
 ### Quality control <a name="qc"></a>
 Quality control is a crucial step of any automated pipeline. It is essential that the user be able to easily confirm that the pipeline has performed as expected and identify any problematic subjects or processing steps. 
 In order to facilitate rigorous quality control, we are implementing qualitative and quantitative quality control for every major processing step. The user will be able to peruse all output images in GIF format to verify that the images appear as expected (e.g., that there is no gross error in co-registration). Users will also be able to open the full 3D volumes using the BrainBrowser web interface. 

@@ -1,3 +1,13 @@
+# About
+This is a script that essentially runs APPIAN a bunch of different times with varying options. In theory, it should be useable with any data set, although in practice it has only been developed using a small test data set of simulated PET images and T1 images from the 1000 Connectomes Project.
+
+The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package. As such it should be run before pushing any new changes to the Git repository and especially before creating an updated Docker container with a new version APPIAN.
+
+More tests will need to be added in the future as the current set are not exhaustive. 
+
+It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily. For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the previous tests can be reused for subsequent ones. 
+
+
 # Running APPIAN validation
 
 __Name :__        appian_validation.sh

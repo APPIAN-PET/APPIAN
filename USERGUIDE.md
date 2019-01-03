@@ -292,12 +292,25 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
                         Extension to use for surfaces
 
 ### 5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
+Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.
 
 ### 5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) 
+Rigid coregistration of PET image to T1 MRI. 
+
 ### 5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) 
+Create ROI mask volumes for partial-volume correction, quantification (tracer-kinetic analysis), and reporting of results.
+
 ### 5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) 
+Partial-volume correction of point-spread function of PET scanner.
+
 ### 5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) 
+Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
+
 ### 5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) 
+Regional mean values for each ROI of results mask volumes are saved to .csv files.
+
 ### 5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+Quality control metrics are calculated for each image volume and each processing stage.
 
 ## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 

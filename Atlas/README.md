@@ -1,4 +1,4 @@
-#Atlases
+# Atlases
 ### Please cite the following papers if you use one of the available atlases.
 ### Don't hesitate to make pull requests to add more atlases! 
 #### MNI 152 Template

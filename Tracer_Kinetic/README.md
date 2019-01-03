@@ -45,3 +45,16 @@ Quantification [usuallly with tracer kinetic analysis (TKA)] allows for the quan
                         subject names and injected radiotracer dose (MBq).
     --tka-type=TKA_TYPE
                         Type of tka analysis: voxel or roi.
+##### References
+###### Logan Plot (lp)
+Logan, J., Fowler, J.S., Volkow, N.D., Wang, G.-J., Ding, Y.-S., Alexoff, D.L., 1996. Distribution Volume Ratios Without Blood Sampling from Graphical Analysis of PET Data. J. Cereb. Blood Flow Metab. 16, 834–840. doi:10.1097/00004647-199609000-00008
+
+###### Patlak-Gjedde Plot (pp)
+*Please cite both of the following papers when using the Patlak-Gjedde method*
+
+Patlak, C. S., Blasberg, R. G., and Fenstermacher, J. D. (1983). Graphical evaluation of blood-to-brain transfer constants from multiple-time uptake data. J. Cereb. Blood Flow Metab. 3, 1–7. doi: 10.1038/jcbfm.1983.1
+
+Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain uptake of glucose analogs in vivo: a re-examination. Brain Res. 257, 237–274. doi: 10.1016/0165-0173(82)90018-2
+
+###### Simplified Reference Tissue Model (srtm)
+Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.

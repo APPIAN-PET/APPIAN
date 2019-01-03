@@ -11,7 +11,7 @@
 	6.1 [Base Options](#options) \
 	6.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
 	6.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
-	6.4 [Masking](#masking) \
+	6.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
 	6.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
 	6.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
 	6.7 [Reporting of Results](#results) \

@@ -22,9 +22,6 @@ global spaces
 spaces=['pet', 't1', 'stereo']
 
 def set_labels(opts, roi_label, masks):
-    #The default setting for "atlas" ROI needs to be set.
-    #This is done by finding the unique values (with get_mask_list)
-    #in the atlas volume
     out={}
     labels={"pvc":opts.pvc_labels, "tka":opts.tka_labels, "results":opts.results_labels}
     for name, item in masks.items():
@@ -34,26 +31,9 @@ def set_labels(opts, roi_label, masks):
         if labels[name] != None:
             out[name]=labels[name]
         else: # mask_type == 'other' or mask_type == 'roi-user':
-            #label_values = get_mask_list(opts.sourceDir, mask_value )
             out[name] = None #label_values
     return out
 
-def get_mask_list(sourceDir, ROIMask ):
-    gen = os.walk(sourceDir)
-    print(ROIMask)
-    exit(0)
-    for dirName, subdirList, fileList in gen: 
-        for f in fileList: 
-            if ROIMask[0] in f : 
-                #Load in volume and get unique values
-                print(f)
-                exit(0)
-                mask= pyminc.volumeFromFile(dirName+os.sep+f)
-                mask_flat=mask.data.flatten()
-                label=[ str(int(round(i))) for i in np.unique(mask_flat) ]
-                if 0 in label :  label.remove(0)
-                return(label)
-    return([1])
 
 def get_opt_list(option,opt,value,parser):
     print(value)
@@ -389,9 +369,6 @@ if __name__ == "__main__":
     opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_template, opts.results_label_space)
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
-    print(opts.pvc_label_type)
-    print(opts.tka_label_type)
-    print(opts.results_label_type)
 
     roi_label = set_labels(opts,roi_label, masks)  
     #If no label given by user, set default label for PVC mask

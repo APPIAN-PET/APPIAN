@@ -185,15 +185,16 @@ class ecattominc2Command(BaseInterface):
         else : 
             move(node2.inputs.out_file, self.inputs.out_file)
 
-        temp_fn=os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
 
-        vol = volumeFromFile(self.inputs.out_file)
-        vol2 = volumeLikeFile(self.inputs.out_file, temp_fn)
-        vol2.data = np.flipud(vol.data)
-        vol2.writeFile()
-        vol2.closeVolume()
-
-        move(temp_fn, self.inputs.out_file)
+        header_dict = json.load(open(self.inputs.header, 'r+'))
+        if float(header_dict["zspace"]["step"][0]) > 0 :
+            temp_fn=os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+            vol = volumeFromFile(self.inputs.out_file)
+            vol2 = volumeLikeFile(self.inputs.out_file, temp_fn)
+            vol2.data = np.flipud(vol.data)
+            vol2.writeFile()
+            vol2.closeVolume()
+            move(temp_fn, self.inputs.out_file)
         return runtime
 
     def _gen_output(self, basefile):

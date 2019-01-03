@@ -680,7 +680,7 @@ def run_scan_level(opts,args):
                 workflow.connect(datasourceSurf, 'mask_right', resultsReportSurf, 'mask_right')   
                 workflow.connect( resultsReportSurf, 'out_file_3d', datasink, "results"+os.sep+node_name )
                 if int(dim) == 4:
-                    workflow.connect( resultsReportSurf, 'out_file_4d', datasink, "results"+os.sep+node_name )    
+                    workflow.connect( resultsReportSurf, 'out_file_4d', datasink, "results"+os.sep+node_name+"_4d" )    
     ############################
     # Subject-level QC Metrics #
     ############################

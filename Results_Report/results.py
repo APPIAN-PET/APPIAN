@@ -387,23 +387,25 @@ class integrate_TACCommand( BaseInterface):
                 time_frames = []
    
         if time_frames == [] : time_frames = [1.]
-
-        out_df = pd.DataFrame( columns=metric_columns)
-        groups=["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]
+        value_cols=['metric','value']
+        groups=list(df.columns.values) #["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]
+        groups = [ i for i in groups if not i in value_cols+['frame'] ] 
+        #out_df = pd.DataFrame( columns=metric_columns)
         df.fillna("NA", inplace=True )
+        out_df = pd.DataFrame( columns=groups)
         for name, temp_df in  df.groupby(groups):
             if len(time_frames) > 1 :
                 mean_int = simps(temp_df["value"], time_frames)
                 print("Integral of mean:", mean_int)
             else :
                 mean_int = temp_df.value.values[0] * time_frames[0]
-
-            row = pd.DataFrame( [list(name) + ['integral', mean_int]], columns=metric_columns  )
+            row = pd.DataFrame( [list(name) + ['integral', mean_int]], columns=groups + value_cols  )
             out_df = pd.concat( [out_df, row] )
         out_df["frame"] = [0] * out_df.shape[0]
         if not isdefined(self.inputs.in_file): 
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         out_df.to_csv(self.inputs.out_file, index=False)
+
         return runtime
 
 

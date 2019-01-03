@@ -148,7 +148,7 @@ if [[ ! -d $out_data_path ]]; then
     exit 1
 fi
 
-if [[ `ls crash*pklz &> /dev/null` ]]; then
+if [[ `ls crash*pklz ` ]]; then
     echo Warning: Moving existin crash .pklz reports to `pwd`/crash_backup
     echo Test script requires that there be no crash reports in the current directory
     mkdir -p nipype_crash_backup

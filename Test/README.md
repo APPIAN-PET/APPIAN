@@ -7,6 +7,9 @@ More tests will need to be added in the future as the current set are not exhaus
 
 It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily. For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the previous tests can be reused for subsequent ones. 
 
+# Setup
+1. Uncompress Tests/test_data.tar.bz2
+2. Uncompress Atlas/MNI152/dka.mnc.tar.bz2
 
 # Running APPIAN validation
 
@@ -94,11 +97,10 @@ test_Atlas-DKA.passed  test_PVC-idSURF.passed  test_Quant-suvr.passed
 Dockerized version of script will automatically mount the path to the directory where "dockerized_validation_script.sh" to /APPIAN in the docker container. Your test data and output directory must be accessible from this mounted directory. 
 
 1. Clone APPIAN repo onto your system (or just download dockerized_validation_script.sh)
-2. Uncompress Tests/test_data.tar.bz2
-3. Run command :
+2. Run command :
 
 ```
-./docker_validate_appian.sh <Number of Threads> <Path to APPIAN Dir> <Path to Test Data>  <Output Dir> <Time stamp>
+./docker_validate_appian.sh <Number of Threads> <Path to APPIAN Dir> <Path to Test Data>  <Output Dir> <exit on failure> <qc> <Time stamp>
 ``` 
 
 ## Example 

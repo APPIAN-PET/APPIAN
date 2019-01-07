@@ -11,6 +11,22 @@ It is therefore a good idea to reuse the output of previous tests to avoid rerun
 1. Uncompress Tests/test_data.tar.bz2
 2. Uncompress Atlas/MNI152/dka.mnc.tar.bz2
 
+
+# Running dockerized APPIAN validation
+You should generally run the APPIAN validation through the dockerized version of the validate_appian script. This will automatically mount the path to APPIAN/ directory from which you launch "dockerized_validation_script.sh". This will directory be mounted to /APPIAN in the docker container. Your test data and output directory must be accessible from this mounted directory. 
+
+1. Clone APPIAN repo onto your system (or just download dockerized_validation_script.sh)
+2. Run command :
+
+```
+./docker_validate_appian.sh <Number of Threads> <Path to APPIAN Dir> <Path to Test Data>  <Output Dir> <exit on failure> <qc> <Time stamp>
+``` 
+
+## Example 
+Run dockerized validation script with 4 threads using APPIAN in docker container.
+
+```./docker_validate_appian.sh 4 /opt/APPIAN /APPIAN/Test/test_data  /APPIAN/Test/```
+
 # Running APPIAN validation
 
 __Name :__        appian_validation.sh
@@ -93,17 +109,3 @@ test_Atlas-AAL.passed  test_PVC-GTM.passed     test_Quant-pp.passed    test_Spac
 test_Atlas-DKA.passed  test_PVC-idSURF.passed  test_Quant-suvr.passed
 ```
 
-# Running dockerized APPIAN validation
-Dockerized version of script will automatically mount the path to the directory where "dockerized_validation_script.sh" to /APPIAN in the docker container. Your test data and output directory must be accessible from this mounted directory. 
-
-1. Clone APPIAN repo onto your system (or just download dockerized_validation_script.sh)
-2. Run command :
-
-```
-./docker_validate_appian.sh <Number of Threads> <Path to APPIAN Dir> <Path to Test Data>  <Output Dir> <exit on failure> <qc> <Time stamp>
-``` 
-
-## Example 
-Run dockerized validation script with 4 threads using APPIAN in docker container.
-
-```./docker_validate_appian.sh 4 /opt/APPIAN /APPIAN/Test/test_data  /APPIAN/Test/```

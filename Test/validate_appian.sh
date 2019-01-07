@@ -120,9 +120,9 @@ echo Warning: You should have commited latest changes to current git branch
 
 #Number of threads to use for running APPIAN. Default=1, recommended is 4 or more.
 threads=${1:-1} 
-base_path=${2:-"/APPIAN"}
-test_data_path=${3:-"/APPIAN/Test/test_data"}
-out_data_path=${4:-"/APPIAN/Test/"}
+base_path=${2:-"/opt/APPIAN"}
+test_data_path=${3:-"/opt/APPIAN/Test/test_data"}
+out_data_path=${4:-"/opt/APPIAN/Test/"}
 #Create a timestamp for testing session. 
 #Can use existing timestamp if using output files from previous test run
 exit_on_failure=${5:-0}

@@ -24,7 +24,7 @@ def get_workflow(name, valid_args, opts):
     print("In Fields:", in_fields)
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
-    label_imgs= [opts.tka_label_img[0], opts.results_label_img[0], opts.pvc_label_img[0] ]
+    label_imgs= [opts.tka_label_img, opts.results_label_img, opts.pvc_label_img ]
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
@@ -165,6 +165,7 @@ def get_workflow(name, valid_args, opts):
 
     seg=None
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
+        print(img, seg)
         if 'antsAtropos' == img and seg == None :
             seg = pe.Node(interface=mincAtroposCommand(), name="segmentation_ants")
             seg.inputs.dimension=3

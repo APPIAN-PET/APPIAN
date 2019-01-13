@@ -4,7 +4,7 @@ import json
 import shutil
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-
+import pyminc.volumes.factory as pyminc
 
 class ModifyHeaderOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
@@ -12,7 +12,6 @@ class ModifyHeaderOutput(TraitedSpec):
 class ModifyHeaderInput(CommandLineInputSpec):
     in_file = File(position=-1, argstr="%s", mandatory=True, desc="Image")
     out_file = File(desc="Image after centering")
-
     sinsert = traits.Bool(argstr="-sinsert", position=-3, default_value=False, desc="Insert a string attribute")
     dinsert = traits.Bool(argstr="-dinsert", position=-3, default_value=False, desc="Insert a double precision attribute")
     sappend = traits.Bool(argstr="-sappend", position=-3, default_value=False, desc="Append a string attribute")
@@ -73,7 +72,7 @@ class FixHeaderInput(CommandLineInputSpec):
     header = traits.File(desc="MINC header for PET image stored in dictionary.")
     output_file = File(desc="Image after centering")
     in_file = File(argstr="%s", position=1, desc="Image after centering")
-    time_only = traits.Bool(default_value=False)
+    time_only = traits.Bool(use_default=True, default_value=False)
 #class FixHeaderCommand(ModifyHeaderCommand):
 class FixHeaderCommand(CommandLine):
     input_spec = FixHeaderInput
@@ -90,13 +89,15 @@ class FixHeaderCommand(CommandLine):
         if skip is None:
             skip = []
         data = json.load(open( header ,"rb"))
-
-        try : 
-            #There is a time dimension in header
-            data["time"]
+        
+        
+        vol=pyminc.volumeFromFile(self.inputs.in_file)
+        dims = vol.getDimensionNames()
+        #try : 
+        if 'time' in dims :       
             
             #See if there is a start time defined, else set to 0
-            try: 
+            try : 
                 data["time"]["start"][0]
                 self.inputs.tstart = data["time"]["start"][0]
             except KeyError: 
@@ -107,7 +108,6 @@ class FixHeaderCommand(CommandLine):
                 self.inputs.tstep = data["time"]["step"][0]
             except KeyError : 
                 self.inputs.tstep = 1
-        except KeyError : pass
 
         if not self.inputs.time_only :  
             self.inputs.zstart = data["zspace"]["start"][0]
@@ -116,7 +116,7 @@ class FixHeaderCommand(CommandLine):
             self.inputs.zstep  = data["zspace"]["step"][0]
             self.inputs.ystep  = data["yspace"]["step"][0]
             self.inputs.xstep  = data["xspace"]["step"][0]
-        
+       
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
 

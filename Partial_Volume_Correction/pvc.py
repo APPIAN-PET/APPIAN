@@ -12,7 +12,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,is
 import shutil
 import sys
 import importlib
-from Extra.conversion import nii2mncCommand, mnc2niiCommand
+from Extra.conversion import nii2mnc2Command, mnc2niiCommand
 from Extra.extra import separate_mask_labelsCommand
 from Extra.modifHeader import FixHeaderLinkCommand
 """
@@ -65,17 +65,19 @@ def get_pvc_workflow(name, infosource, opts):
         convertMask=pe.Node(interface=mnc2niiCommand(), name="convertMask")
         workflow.connect(mask_source, mask_file, convertMask, 'in_file')
 
-        convertPVC=pe.Node(nii2mncCommand(), name="convertPVC")
+        convertPVC=pe.Node(nii2mnc2Command(), name="convertPVC")
         workflow.connect(pvcNode, 'out_file', convertPVC, 'in_file')
-        workflow.connect(inputnode, 'in_file', convertPVC, 'like_file')
+        #workflow.connect(inputnode, 'in_file', convertPVC, 'like_file')
 
         pet_source = convertPET
         pet_file = "out_file" 
         mask_source = convertMask
         mask_file="out_file"
+        output_pvc_node = convertPVC
     elif pvc_module.file_format == "MINC"  :
         pet_source = inputnode
         pet_file = "in_file" 
+        output_pvc_node = pvcNode
     else :
         print("Error: not file format specified in module file.\nIn", pvc_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
         exit(1)
@@ -83,7 +85,7 @@ def get_pvc_workflow(name, infosource, opts):
     workflow.connect(pet_source, pet_file, pvcNode, 'in_file')
     workflow.connect(mask_source, mask_file, pvcNode, 'mask_file')
 
-    workflow.connect(pvcNode, 'out_file', fixHeaderNode, 'in_file')
+    workflow.connect(output_pvc_node, 'out_file', fixHeaderNode, 'in_file')
     workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
 
     workflow.connect(fixHeaderNode, 'output_file', outputnode, 'out_file')

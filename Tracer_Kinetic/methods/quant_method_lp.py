@@ -23,11 +23,12 @@ class quantInput( CommandLineInputSpec):
     v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
     n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
     
+    
 class quantCommand(quantificationCommand):
-    input_spec = quantInput
+    input_spec =  quantInput
     output_spec = quantOutput
-    _cmd = "imgdv"
-    _suffix = "_lp"
+    _cmd = "imgdv" #input_spec.pvc_method 
+    _suffix = "_lp" 
 
 
 def check_options(tkaNode, opts):

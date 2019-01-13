@@ -29,12 +29,13 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Quality_Control.dashboard as dash
 import Test.test_group_qc as tqc
 from Masking import surf_masking
 from MRI import normalize
+
+
 """
 .. module:: scanLevel
     :platform: Unix
@@ -59,9 +60,11 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
         pet_list += ['rec']
     if len(run_list) != 0: 
         pet_str = pet_str + '*run-%s'
-        pet_list += ['run'] 
-    pet_str = pet_str + '*_pet.'+img_ext
-    t1_str = t1_str + '*_T1w.'+img_ext
+        pet_list += ['run']
+    pet_str = pet_str + '*_pet.mnc'
+    #pet_str = pet_str + '*_pet.mnc%s'
+    #pet_list += ['compression']
+    t1_str = t1_str + '*_T1w.mnc'
     #Dictionary for basic structural inputs to DataGrabber
     field_template_t1 = dict(
         nativeT1 = t1_str,
@@ -86,32 +89,28 @@ def set_base(datasourcePET, datasourceT1, task_list, run_list, acq, rec, sourceD
 
 
 
-def set_label(datasource, img, template, task_list, run_list, label_img, template_img, sourceDir, img_ext):
+def set_label(datasource, img, template, label_type, task_list, run_list, label_img, template_img, sourceDir, img_ext):
     '''
-    set_labels(datasource, opts.pvc_label_img[0],  opts.pvc_label_img[1], [],  )
     '''
     field_template={}
     template_args={}
-
-    if template == None :
+    print( "Hello",  label_type) 
+    if label_type == 'user_cls' :
         label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
-
         template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
         label_img_template +='*_variant-'+img+'_dtissue.'+img_ext
-
         field_template[label_img] = label_img_template
-
+    elif label_type == 'atlas' or label_type == 'atlas-template' :
+        field_template[label_img] = "%s"
+        template_args[label_img] = [[img]]       
+        if label_type == 'atlas-template'  :
+            field_template[template_img] = "%s"
+            template_args[template_img] = [[template]]
     else :
-        field_template[label_img] = "*"
-        field_template[template_img] = img
-        field_template[template_img] = "*"
-        field_template[template_img] = template
+        print("Error : label_type not valid", label_type)
+        exit(1)
         
-        template_args[label_img]=['']  
-        template_args[template_img]=['']  
-        datasource.inputs.out_fields += [template_img]
-
-    datasource.inputs.field_template.update( field_template  )
+    datasource.inputs.field_template.update( field_template )
     datasource.inputs.template_args.update( template_args )
     return datasource
 
@@ -303,7 +302,8 @@ def run_scan_level(opts,args):
     ### Infosource ###
     ##################
     infosource = pe.Node(interface=init.SplitArgsRunning(), name="infosource")
-
+    workflow.connect(preinfosource, 'args', infosource, "args")
+    
     #################
     ###Datasources###
     #################
@@ -322,7 +322,7 @@ def run_scan_level(opts,args):
     
     ### Use DataGrabber to get key input files
     infields_list = []
-    base_t1_outputs  = ['nativeT1', 'xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_template_img", "tka_template_img", "results_template_img" ]
+    base_t1_outputs  = ['nativeT1', 'xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
     base_pet_outputs  = [ 'pet', "json_header" ]
 
 
@@ -347,22 +347,22 @@ def run_scan_level(opts,args):
 
     datasourcePET, datasourceT1 = set_base(datasourcePET,datasourceT1,opts.taskList,opts.runList,opts.acq, opts.rec, opts.sourceDir, opts.img_ext)
     if opts.pvc_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.pvc_label_img[0], opts.pvc_label_img[1], opts.taskList, opts.runList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
+        datasourceT1 = set_label(datasourceT1, opts.pvc_label_img, opts.pvc_label_template, opts.pvc_label_type, opts.taskList, opts.runList, 'pvc_label_img', 'pvc_label_template', opts.sourceDir, opts.img_ext )
         workflow.connect(datasourceT1, 'pvc_label_img', datasource, 'pvc_label_img' )
-        if opts.pvc_label_img[1] != None :
+        if opts.pvc_label_template != None :
             workflow.connect(datasourceT1, 'pvc_template_img', datasource, 'pvc_template_img')
 
     if opts.tka_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.tka_label_img[0], opts.tka_label_img[1], opts.taskList, opts.runList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
+        datasourceT1 = set_label(datasourceT1, opts.tka_label_img, opts.tka_label_template, opts.tka_label_type, opts.taskList, opts.runList, 'tka_label_img', 'tka_label_template', opts.sourceDir, opts.img_ext )
         workflow.connect(datasourceT1, 'tka_label_img', datasource, 'tka_label_img' )
-        if opts.tka_label_img[1] != None :
-            workflow.connect(datasourceT1, 'tka_template_img', datasource,  'tka_template_img')
+        if opts.tka_label_template != None :
+            workflow.connect(datasourceT1,'tka_label_template',datasource,'tka_label_template')
 
     if opts.results_label_type != "internal_cls" :
-        datasourceT1 = set_label(datasourceT1, opts.results_label_img[0], opts.results_label_img[1], opts.taskList, opts.runList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
+        datasourceT1 = set_label(datasourceT1, opts.results_label_img, opts.results_label_template, opts.results_label_type,  opts.taskList, opts.runList, 'results_label_img', 'results_label_template', opts.sourceDir, opts.img_ext)
         workflow.connect(datasourceT1, 'results_label_img', datasource, 'results_label_img' )
-        if opts.results_label_img[1] != None :
-            workflow.connect(datasourceT1, 'results_template_img', datasource, 'results_template_img' )
+        if opts.results_label_template != None :
+            workflow.connect(datasourceT1, 'results_label_template', datasource, 'results_label_template' )
 
     if opts.user_t1mni :
         datasourceT1 = set_transform(datasourceT1, task_list, opts.runList, opts.sourceDir)
@@ -377,37 +377,43 @@ def run_scan_level(opts,args):
     
     ### Use DataGrabber to get sufraces
     if opts.use_surfaces:
-        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec'], outfields=[ 'gm_surf', 'wm_surf', 'mid_surf'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
+        datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec', 'label'], outfields=['surf_left','mask_left', 'surf_right', 'mask_right'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
         datasourceSurf.inputs.base_directory = opts.sourceDir
         datasourceSurf.inputs.template = '*'
         datasourceSurf.inputs.acq=opts.acq
         datasourceSurf.inputs.rec=opts.rec
+        datasourceSurf.inputs.label=opts.surface_label
         datasourceSurf.inputs.field_template =dict(
-            mid_surf="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness."+opts.surf_ext,
+            surf_left="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-L_space-stereo_midthickness.surf.obj",
+            surf_right="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-R_space-stereo_midthickness.surf.obj",
             #FIXME Not sure what BIDS spec is for a surface mask
-            surf_mask="sub-%s/_ses-%s/anat/sub-%s_ses-%s_task-%s_midthickness_mask.txt" 
+            mask_left="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-L_space-stereo_%s.txt",
+            mask_right="sub-%s/_ses-%s/anat/sub-%s_ses-%s_*T1w_hemi-R_space-stereo_%s.txt",
         )
         datasourceSurf.inputs.template_args = dict(
-            mid_surf = [['sid', 'ses', 'sid', 'ses', 'task']]
+            surf_left = [['sid', 'ses', 'sid', 'ses']],
+            surf_right = [['sid', 'ses', 'sid', 'ses']],
+            mask_left = [['sid', 'ses', 'sid', 'ses', 'label']],
+            mask_right = [['sid', 'ses', 'sid', 'ses','label']]
         )
         workflow.connect([
                 (infosource, datasourceSurf, [('sid', 'sid')]),
                 (infosource, datasourceSurf, [('cid', 'cid')]),
                 (infosource, datasourceSurf, [('task', 'task')]),
                 (infosource, datasourceSurf, [('ses', 'ses')]),
-                (infosource, datasource, [('run', 'run')]),
+                (infosource, datasourceSurf, [('run', 'run')]),
                  ])
 
     #############################################
     ### Define Workflow and basic connections ###
     #############################################
-    workflow.connect(preinfosource, 'args', infosource, "args")
     workflow.connect([
                     (infosource, datasourcePET, [('sid', 'sid')]),
                     (infosource, datasourcePET, [('ses', 'ses')]),
                     (infosource, datasourcePET, [('cid', 'cid')]),
                     (infosource, datasourcePET, [('task', 'task')]),
                     (infosource, datasourcePET, [('run', 'run')]),
+                    #(infosource, datasourcePET, [('compression', 'compression')]),
                      ])
     workflow.connect([
                     (infosource, datasourceT1, [('sid', 'sid')]),
@@ -430,6 +436,19 @@ def run_scan_level(opts,args):
     out_img_dim=[]
     out_node_list=[]
     
+
+    ###################
+    # PET prelimaries #
+    ###################
+    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
+    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
+    #if opts.json :
+    workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
+    
+    if opts.initialize_only :
+        workflow.run(); 
+        return(0)
+
     #####################
     # MRI Preprocessing # 
     #####################
@@ -461,17 +480,6 @@ def run_scan_level(opts,args):
     
     workflow.connect(datasourceT1, 'nativeT1', wf_mri_preprocess, 'inputnode.t1')    
     
-    ###################
-    # PET prelimaries #
-    ###################
-    wf_init_pet=init.get_workflow("prelimaries", infosource, opts)
-    workflow.connect(datasource, 'pet', wf_init_pet, "inputnode.pet")
-    #if opts.json :
-    workflow.connect(datasource, 'json_header', wf_init_pet, "inputnode.json_header")
-    
-    if opts.initialize_only :
-        workflow.run(); 
-        return(0)
     #####################################################################   
     # Set the appropriate nodes and inputs for desired "analysis_level" #
     # and for the source for the labels                                 #
@@ -492,21 +500,21 @@ def run_scan_level(opts,args):
     #################################################
     # Combine possible label source into one source #
     #################################################
-    if opts.tka_label_type == 'atlas' or opts.tka_label_type == 'user_cls' :
+    if opts.tka_label_type in ['atlas', 'atlas-template', 'user_cls'] :
         tka_label_node = datasource
         tka_label_file = 'tka_label_img'
-    elif opts.tka_label_type == 'internal_cls' :
+    else : # opts.tka_label_type == 'internal_cls' :
         tka_label_node = wf_mri_preprocess
         tka_label_file = 'outputnode.tka_label_img'
 
-    if opts.pvc_label_type == 'atlas' or opts.pvc_label_type == 'user_cls' :
+    if opts.pvc_label_type in ['atlas', 'atlas-template', 'user_cls'] :
         pvc_label_node = datasource
         pvc_label_file = 'pvc_label_img'
     elif opts.pvc_label_type == 'internal_cls' :
         pvc_label_node = wf_mri_preprocess
         pvc_label_file = 'outputnode.pvc_label_img'
 
-    if opts.results_label_type == 'atlas' or opts.results_label_type == 'user_cls' :
+    if opts.results_label_type in [ 'atlas', 'atlas-template', 'user_cls'] :
         results_label_node = datasource
         results_label_file = 'results_label_img'
     elif opts.results_label_type == 'internal_cls' :
@@ -565,30 +573,25 @@ def run_scan_level(opts,args):
     workflow.connect(results_label_node, results_label_file, wf_masking, "inputnode.results_label_img")
     workflow.connect(wf_init_pet, 'outputnode.pet_volume', wf_masking, "inputnode.pet_volume")
 
-    # If <pvc/tka/results>_label_img[1] has been set, this means that label_img[0] contains the file path
-    # to stereotaxic atlas and label_img[1] contains the file path to the template image for the atlas
-    if not opts.pvc_label_img[1] == None: 
+    # If <pvc/tka/results>_label_template has been set, this means that label_img[0] contains the file path
+    # to stereotaxic atlas and label_template contains the file path to the template image for the atlas
+    if not opts.pvc_label_template == None: 
         workflow.connect(datasource, "pvc_label_template", wf_masking, "inputnode.pvc_label_template")
-    if not opts.tka_label_img[1] == None: 
+    if not opts.tka_label_template == None: 
         workflow.connect(datasource, "tka_label_template", wf_masking, "inputnode.tka_label_template")
-    if not opts.results_label_img[1] == None: 
+    if not opts.results_label_template == None: 
         workflow.connect(datasource, "results_label_template", wf_masking, "inputnode.results_label_template")
-
-    if opts.masking_only:
-        workflow.run();
-        return(0)
 
     ######################
     # Transform Surfaces #
     ######################
     if opts.use_surfaces:
-        surf_wf = surf_masking.get_surf_workflow('surface_transform', infosource, datasink, opts)
-        workflow.connect(t1mni_node, t1mni_file, surf_wf, 'inputnode.T1MNI')
-        workflow.connect(wf_masking, 'invert_MNI2T1.output_file',  surf_wf, 'inputnode.MNIT1')
-        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm",  surf_wf, 'inputnode.PETT1')
-        workflow.connect(wf_pet2mri, "outputnode.petmri_xfm_invert", surf_wf, 'inputnode.T1PET')
-        workflow.connect(datasourceSurf, 'mid_surf', surf_wf, 'inputnode.obj_file')
-        workflow.connect(wf_masking, 'resultsLabels.out_file', surf_wf, 'inputnode.vol_file')
+        workflow.connect(datasourceSurf, 'surf_left', wf_masking, 'inputnode.surf_left')
+        workflow.connect(datasourceSurf, 'surf_right', wf_masking, 'inputnode.surf_right')
+
+    if opts.masking_only:
+        workflow.run();
+        return(0)
 
     #############################
     # Partial-volume correction #
@@ -616,20 +619,13 @@ def run_scan_level(opts,args):
         else : 
             tka_target_wf = pet_input_node # #CHANGE
             tka_target_img= pet_input_file # ##CHANGE
-                
         tka_wf=tka.get_tka_workflow("tka", opts)
-        header_type='outputnode.pet_header_json'
-        if opts.tka_method in ["suvr"] : header_type = 'outputnode.pet_header_dict'
-        workflow.connect(wf_init_pet, header_type, tka_wf, "inputnode.header")
-        if opts.tka_method in ecat_methods : 
-           workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, 'inputnode.like_file')
-        workflow.connect(infosource, 'sid', tka_wf, "inputnode.sid")
-        #if opts.tka_method in reference_methods:
+        workflow.connect(wf_init_pet, 'outputnode.pet_header_json', tka_wf, "inputnode.header")
         workflow.connect(wf_masking, "resultsLabels.out_file", tka_wf, "inputnode.mask") 
         workflow.connect(tka_target_wf, tka_target_img, tka_wf, "inputnode.in_file")
         if opts.arterial :
             workflow.connect(datasourceArterial, 'arterial_file', tka_wf, "inputnode.reference")
-        elif opts.tka_method in reference_methods + ['suvr']: #FIXME should not just add suvr like this 
+        else :     
             workflow.connect(wf_masking, 'tkaLabels.out_file', tka_wf, "inputnode.reference")
         
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
@@ -650,6 +646,7 @@ def run_scan_level(opts,args):
     if not opts.no_results_report:
         for node, img, dim in zip(out_node_list, out_img_list, out_img_dim):
             print "outputnode", node.name, "image name", img
+            
             node_name="results_" + node.name 
             resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             resultsReport.inputs.dim = dim
@@ -663,24 +660,30 @@ def run_scan_level(opts,args):
             workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReport, "header")
             workflow.connect(wf_masking, 'resultsLabels.out_file', resultsReport, 'mask')
             workflow.connect(node, img, resultsReport, 'in_file')
-            if int(dim) == 3 :
-                workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
-            elif int(dim) == 4:
-                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name )
+           
+            workflow.connect( resultsReport, 'out_file_3d', datasink, "results"+os.sep+node_name )
+            if int(dim) == 4:
+                workflow.connect( resultsReport, 'out_file_4d', datasink, "results"+os.sep+node_name +"_4d")
             
             if opts.use_surfaces :
                 node_name="results_surf_" + node.name 
                 resultsReportSurf = pe.Node(interface=results.resultsCommand(), name=node_name)
                 resultsReportSurf.inputs.dim = dim
                 resultsReportSurf.inputs.node = node.name
+                resultsReportSurf.inputs.acq = opts.acq
+                resultsReportSurf.inputs.rec = opts.rec
                 workflow.connect(infosource, 'sid', resultsReportSurf, "sub")
                 workflow.connect(infosource, 'ses', resultsReportSurf, "ses")
                 workflow.connect(infosource, 'task', resultsReportSurf, "task")
-                workflow.connect(wf_init_pet, 'outputnode.pet_header_dict', resultsReportSurf, "header")
+                workflow.connect(wf_init_pet, 'outputnode.pet_header_json', resultsReportSurf, "header")
                 workflow.connect(node, img, resultsReportSurf, 'in_file')
-                workflow.connect(surf_wf, 'outputnode.surface', resultsReportSurf, "surf_mesh")
-                workflow.connect(surf_wf, 'outputnode.mask', resultsReportSurf, 'surf_mask')
-        
+                workflow.connect(wf_masking, 'surface_left_node.out_file', resultsReportSurf, "surf_left")
+                workflow.connect(datasourceSurf, 'mask_left', resultsReportSurf, 'mask_left')
+                workflow.connect(wf_masking, 'surface_right_node.out_file', resultsReportSurf, "surf_right")
+                workflow.connect(datasourceSurf, 'mask_right', resultsReportSurf, 'mask_right')   
+                workflow.connect( resultsReportSurf, 'out_file_3d', datasink, "results"+os.sep+node_name )
+                if int(dim) == 4:
+                    workflow.connect( resultsReportSurf, 'out_file_4d', datasink, "results"+os.sep+node_name+"_4d" )    
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -688,11 +691,12 @@ def run_scan_level(opts,args):
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
         workflow.connect(wf_init_pet, 'outputnode.pet_volume',  distance_metricNode, 'pet')
-        workflow.connect(wf_pet2mri,'t1_brain_mask_pet-space.output_file',distance_metricNode,'pet_brain_mask')
+        
+        workflow.connect(wf_pet2mri, 'pet_brainmask.out_file', distance_metricNode, 'pet_brain_mask')
+        workflow.connect(wf_pet2mri,  't1_brain_mask_pet-space.output_file', distance_metricNode, 't1_brain_mask')
+        #workflow.connect(wf_masking,  'brain_mask.output_file', distance_metricNode, 't1_brain_mask')
+        
         workflow.connect(wf_pet2mri, 't1_pet_space.output_file',  distance_metricNode, 't1')
-        workflow.connect(wf_masking, 'brain_mask_node.output_file', distance_metricNode, 't1_brain_mask')
-        #workflow.connect(wf_masking, 'output_node.brain_mask', distance_metricNode, 't1_brain_mask')
-        #workflow.connect(wf_masking, 'outputnode.brain_mask', distance_metricNode, 't1_brain_mask')
         workflow.connect(infosource, 'ses', distance_metricNode, 'ses')
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')

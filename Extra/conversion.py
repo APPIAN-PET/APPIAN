@@ -22,9 +22,11 @@ import nibabel as nib
 from sys import argv
 from re import sub
 from pyminc.volumes.factory import *
-
 from turku import imgunitCommand, e7emhdrInterface, eframeCommand, sifCommand
+from time import gmtime, strftime
+import time
 
+np.random.seed(int(time.time()))
 
 class convertOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Logan Plot distribution volume (DVR) parametric image.")
@@ -33,6 +35,7 @@ class convertInput(CommandLineInputSpec):
     out_file = File( argstr="%s", position=-1, desc="image to operate on")
     in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
     two= traits.Bool(argstr="-2", usedefault=True, default_value=True, desc="Convert from minc 1 to minc 2")
+    clobber= traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite existing file")
 
 class mincconvertCommand(CommandLine):
     input_spec =  convertInput
@@ -151,6 +154,7 @@ class ecattominc2Output(TraitedSpec):
 class ecattominc2Input(CommandLineInputSpec):
     in_file = File(exists=True, mandatory=True, desc="PET file")
     out_file= File(argstr="%s", desc="MINC PET file")
+    header= File(argstr="%s", desc="Optional header file")
 #tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 
 class ecattominc2Command(BaseInterface):
@@ -163,14 +167,34 @@ class ecattominc2Command(BaseInterface):
 
         node1 = ecattomincCommand()
         node1.inputs.in_file = self.inputs.in_file
-        node1.inputs.out_file = "/tmp/tmp_mnc_"+str(np.random.randint(9999999999))+".mnc"
+        node1.inputs.out_file =os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node1.run()
 
         node2 = mincconvertCommand()
         node2.inputs.in_file = node1.inputs.out_file
-        node2.inputs.out_file = self.inputs.out_file
+        node2.inputs.out_file = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node2.run()
+        os.remove(node1.inputs.out_file)
+        
+        if isdefined(self.inputs.header) :
+            node3 = FixHeaderCommand()
+            node3.inputs.in_file = node2.inputs.out_file
+            node3.inputs.header = self.inputs.header
+            node3.run()
+            move(node3.inputs.output_file, self.inputs.out_file)
+        else : 
+            move(node2.inputs.out_file, self.inputs.out_file)
 
+
+        header_dict = json.load(open(self.inputs.header, 'r+'))
+        if float(header_dict["zspace"]["step"][0]) > 0 :
+            temp_fn=os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+            vol = volumeFromFile(self.inputs.out_file)
+            vol2 = volumeLikeFile(self.inputs.out_file, temp_fn)
+            vol2.data = np.flipud(vol.data)
+            vol2.writeFile()
+            vol2.closeVolume()
+            move(temp_fn, self.inputs.out_file)
         return runtime
 
     def _gen_output(self, basefile):
@@ -205,8 +229,6 @@ def ecattomincWorkflow(name):
     workflow.connect(conversionNode, 'out_file', fixHeaderNode, 'in_file')
     workflow.connect(inputNode, 'header', fixHeaderNode, 'header')
     workflow.connect(fixHeaderNode, 'out_file', outputNode, 'out_file')
-
-
 
     return(workflow)
 
@@ -243,7 +265,6 @@ class minc2ecatCommand(BaseInterface):
             eframeNode = eframeCommand()
             eframeNode.inputs.frame_file = sifNode.inputs.out_file 
             eframeNode.inputs.pet_file = isotopeNode.inputs.out_file 
-            print(eframeNode.cmdline)
             eframeNode.run()
 
             imgunitNode = imgunitCommand()
@@ -581,7 +602,7 @@ class nii2mnc2Command(BaseInterface):
     output_spec = nii2mnc_shOutput
 
     def _run_interface(self, runtime):
-        temp_fn="/tmp/temp_"+str( np.random.randint(0,1000000) )+".mnc"
+        temp_fn = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         convert = nii2mnc_shCommand()
         convert.inputs.in_file=self.inputs.in_file
         convert.inputs.out_file=temp_fn

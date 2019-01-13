@@ -37,7 +37,7 @@ That’s it, APPIAN is installed on your computer.
 
 ## Documentation
 ### Developers
-For those interested in extending or contributing to APPIAN please check out our [developper guide][link_contributing]. 
+For those interested in extending or contributing to APPIAN please check out our [developer guide][link_contributing]. 
 
 ### Users
 

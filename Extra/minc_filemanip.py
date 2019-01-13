@@ -11,8 +11,6 @@ import shutil
 
 import numpy as np
 
-from nipype.interfaces.traits_extension import isdefined
-from nipype.utils.misc import is_container
 
 #from nipype.utils import logging, config
 #fmlogger = logging.getLogger("filemanip")

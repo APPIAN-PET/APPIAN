@@ -1,26 +1,28 @@
 # Contributing to APPIAN
 Table of Contents
 =================
-[To Do](#to-do)
+[1. To Do](#to-do)
 
-[Introduction](#introduction)
+[2. Introduction](#introduction)
 
-[Labels](#labels)
+[3. Labels](#labels)
 
-[Making a change](#making-a-change)
+[4. Making a change](#making-a-change)
 
-[Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
+[5. Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
 
-[APPIAN coding style guide](#appian-coding-style-guide)
+[6. APPIAN coding style guide](#appian-coding-style-guide)
 
-[Recognizing contributions](#recognizing-contributions)
+[7. Validation](#validation)
 
-###To Do
+[8. Recognizing contributions](#recognizing-contributions)
 
-#### Finish changes to label management
-#### Set up automatic testing
-#### Read in JSON from Nifti files
-#### Implement/test surface masks
+### To Do
+
+#### ~~Finish changes to label management~~
+#### ~~Set up automatic testing~~
+#### ~~Read in JSON from Nifti files~~
+#### ~~Implement/test surface masks~~
 
 
 ### Introduction
@@ -69,7 +71,10 @@ Make sure to [keep your fork up to date][link_updateupstreamwiki] with the maste
 Try to keep the changes focused. If you feel tempted to "branch out" then please make a [new branch][link_branches].
 It can also be helpful to test your changes locally, using an [APPIAN development environment][link_devel].
 
-**4. Submit a [pull request][link_pullrequest].**
+**4. Use [validation script](#validation) to test that the changes don't break anything.**
+
+
+**5. Submit a [pull request][link_pullrequest].**
 
 A member of the development team will review your changes to confirm that they can be merged into the main codebase.
 
@@ -249,6 +254,14 @@ myworkflow1_wf = init_workflow_wf(name='myworkflow1_wf')
 myworkflow_lh_wf = init_workflow_wf(name='myworkflow_lh_wf')
 myworkflow_rh_wf = init_workflow_wf(name='myworkflow_rh_wf')
 ```
+
+## Validation
+The [validate_appian.sh](https://github.com/APPIAN-PET/APPIAN/blob/master/Test/validate_appian.sh) in Test/ directory runs APPIAN  many times with varying options to check that they all run. In theory, it should be useable with any data set, although in practice it has only been developed using the CIMBI data set availble on OpenNeuro. 
+
+The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package. As such it should be run before pushing any new changes to the Git repository and especially before creating an updated Docker container with a new version APPIAN.
+
+More tests will need to be added in the future as the current set are not exhaustive. Each test can take a long time. It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily. For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the previous tests can be reused for subsequent ones.
+
 
 ## Recognizing contributions
 

@@ -67,6 +67,7 @@ class CreateHeaderRunning(BaseInterface):
             if 'unknown' in r.runtime.stdout :
             
                 print("Error: could not find variable <"+key_string+'> in '+ self.inputs.input_file )
+                exit(1)
                 exit_flag=True
             var_dict[var]=r.runtime.stdout
 

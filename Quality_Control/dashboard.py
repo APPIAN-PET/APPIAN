@@ -32,7 +32,6 @@ import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
-from Tracer_Kinetic import reference_methods, ecat_methods
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from Masking import surf_masking

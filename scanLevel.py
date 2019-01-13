@@ -725,6 +725,7 @@ def run_scan_level(opts,args):
             dashboard.inputs.tka_method = opts.tka_method;
             workflow.connect(tka_wf, 'outputnode.out_file',  dashboard, 'tka')
 
+
     #vizualization graph of the workflow
     #workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'exec')
 

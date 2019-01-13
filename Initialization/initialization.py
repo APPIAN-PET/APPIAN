@@ -234,8 +234,9 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     pet_fn=mri_fn=""
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
-                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc*' 
-                    pet_list=glob(pet_string)
+                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
+                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc.gz' 
+                    pet_list=glob(pet_string) + glob(pet_string_gz)
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     mri_arg_list = ['sub-'+sub, 'ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
@@ -245,7 +246,7 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     if opts.verbose : print( arg_list );
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list, opts.verbose )
-                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc*' )
+                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc.gz' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
                     #if pet_fn == [] or mri_fn == [] : continue 

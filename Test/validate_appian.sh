@@ -163,7 +163,10 @@ fi
 mkdir -p  ${out_data_path}/appian_validation $test_dir
 
 #Get hash for current git commit
-current_git_commit=`git rev-parse HEAD`
+
+current_git_commit=`cd $base_path; git rev-parse HEAD`
+
+current_docker_container=`cat /etc/hostname`
 
 #Create a .json with some info about the run. Should help keep track of what version of APPIAN was tested
 echo "{ "base_path":$base_path, "test_data_path":$test_data_path,"out_data_path":$out_data_path,"git_hash":$current_git_commit,"timestamp":$ts}" > ${test_dir}/info.json
@@ -173,6 +176,7 @@ echo "{ "base_path":$base_path, "test_data_path":$test_data_path,"out_data_path"
 #############
 echo Timestamp: $ts
 echo Git Commit : $current_git_commit
+echo Docker Container / Hostname: $current_docker_container
 echo
 
 ### Minimal Inputs

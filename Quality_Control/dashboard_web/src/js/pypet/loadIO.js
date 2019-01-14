@@ -358,7 +358,7 @@ function tkaPage(tabScans,s){
                     
                     while(k<details.childNodes.length){
                         if ((image.nodeType == 1) && 
-                            (image.nodeName == "output_file") || (image.nodeName == "in_target_file")) {
+                            (image.nodeName == "out_file") || (image.nodeName == "in_target_file")) {
                             overlayFiles.push(image.textContent);
                         }
                         image=image.nextSibling;
@@ -700,7 +700,7 @@ function runBrainBrowser(file,bb) {
     // Load the volumes.
     /////////////////////
 
-    loading_div.show();
+    // loading_div.show();
     if(file.length == 1){
         viewer.loadVolume({
           type: "minc",
@@ -709,9 +709,9 @@ function runBrainBrowser(file,bb) {
           template: {
             element_id: "volume-ui-template",
             viewer_insert_class: "volume-viewer-display"
-          },
-          complete: function() {
-            loading_div.hide();
+          // },
+          // complete: function() {
+          //   loading_div.hide();
           }
         }, function() {
           $(".slice-display").css("display", "inline");
@@ -745,13 +745,13 @@ function runBrainBrowser(file,bb) {
               element_id: "overlay-ui-template",
               viewer_insert_class: "overlay-viewer-display"
             }
-          },
-          complete: function() {
-            loading_div.hide();
-//            $('.volume-controls').css("width", "210");
-//            if (bb !== "brainbrowserCoreg" ){
-//                $('.volume-viewer-controls').hide();
-//            }
+//           },
+//           complete: function() {
+//             loading_div.hide();
+// //            $('.volume-controls').css("width", "210");
+// //            if (bb !== "brainbrowserCoreg" ){
+// //                $('.volume-viewer-controls').hide();
+// //            }
           }
         });
       }
@@ -920,7 +920,7 @@ function runBrainBrowser(file,bb) {
 
       container = $(container);
 
-      container.find(".button").button();
+      // container.find(".button").button();
 
       // The world coordinate input fields.
       container.find(".world-coords").change(function() {
@@ -1014,77 +1014,8 @@ function runBrainBrowser(file,bb) {
         });
       });
 
-     
-
-      container.find(".time-div").each(function() {
-        var div = $(this);
-
-        if (volume.header.time) {
-          div.show();
-        } else {
-          return;
-        }
-
-        var slider = div.find(".slider");
-        var time_input = div.find("#time-val-" + vol_id);
-        var play_button = div.find("#play-" + vol_id);
-
-        var min = 0;
-        var max = volume.header.time.space_length - 1;
-        var play_interval;
-
-        slider.slider({
-          min: min,
-          max: max,
-          value: 0,
-          step: 1,
-          slide: function(event, ui) {
-            var value = +ui.value;
-            time_input.val(value);
-            volume.current_time = value;
-            viewer.redrawVolumes();
-          },
-          stop: function() {
-            $(this).find("a").blur();
-          }
-        });
-
-        time_input.change(function() {
-          var value = parseInt(this.value, 10);
-          if (!BrainBrowser.utils.isNumeric(value)) {
-            value = 0;
-          }
-
-          value = Math.max(min, Math.min(value, max));
-
-          this.value = value;
-          time_input.val(value);
-          slider.slider("value", value);
-          volume.current_time = value;
-          viewer.redrawVolumes();
-        });
-
-        play_button.change(function() {
-          if(play_button.is(":checked")){
-            clearInterval(play_interval);
-            play_interval = setInterval(function() {
-              var value = volume.current_time + 1;
-              value = value > max ? 0 : value;
-              volume.current_time = value;
-              time_input.val(value);
-              slider.slider("value", value);
-              viewer.redrawVolumes();
-            }, 200);
-          } else {
-            clearInterval(play_interval);
-          }
-        });
-
-      });
-        
-        
-         // Change the range of intensities that will be displayed.
-      container.find(".threshold-div").each(function() {
+    // Change the range of intensities that will be displayed.
+    container.find(".threshold-div").each(function() {
         var div = $(this);
 
         // Input fields to input min and max thresholds directly.
@@ -1162,8 +1093,73 @@ function runBrainBrowser(file,bb) {
           viewer.redrawVolumes();
         });
 
+    });
+
+    container.find(".time-div").each(function() {
+        var div = $(this);
+
+        if (volume.header.time) {
+          div.show();
+        } else {
+          return;
+        }
+
+        var slider = div.find(".slider");
+        var time_input = div.find("#time-val-" + vol_id);
+        var play_button = div.find("#play-" + vol_id);
+
+        var min = 0;
+        var max = volume.header.time.space_length - 1;
+        var play_interval;
+
+        slider.slider({
+          min: min,
+          max: max,
+          value: 0,
+          step: 1,
+          slide: function(event, ui) {
+            var value = +ui.value;
+            time_input.val(value);
+            volume.current_time = value;
+            viewer.redrawVolumes();
+          },
+          stop: function() {
+            $(this).find("a").blur();
+          }
+        });
+
+        time_input.change(function() {
+          var value = parseInt(this.value, 10);
+          if (!BrainBrowser.utils.isNumeric(value)) {
+            value = 0;
+          }
+
+          value = Math.max(min, Math.min(value, max));
+
+          this.value = value;
+          time_input.val(value);
+          slider.slider("value", value);
+          volume.current_time = value;
+          viewer.redrawVolumes();
+        });
+
+        play_button.change(function() {
+          if(play_button.is(":checked")){
+            clearInterval(play_interval);
+            play_interval = setInterval(function() {
+              var value = volume.current_time + 1;
+              value = value > max ? 0 : value;
+              volume.current_time = value;
+              time_input.val(value);
+              slider.slider("value", value);
+              viewer.redrawVolumes();
+            }, 200);
+          } else {
+            clearInterval(play_interval);
+          }
+        });
+
       });
-        
 
       // Create an image of all slices in a certain
       // orientation.

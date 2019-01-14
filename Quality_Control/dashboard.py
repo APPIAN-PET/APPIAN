@@ -96,7 +96,7 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
                 });
     if tka_method != None :
         listOfNodes.append({"name" : "tka",
-                 "mnc_inputs" : {"node" : "convertParametric", "file" : 'output_file'},
+                 "mnc_inputs" : {"node" : "convertParametric", "file" : 'out_file'},
                  "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
                 });
 

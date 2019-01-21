@@ -180,6 +180,10 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 ### Minimal Inputs
+run_appian "Mininimum" "--beast-voxel-size 4 --beast-no-median "
+
+exit 0
+### Minimal Inputs
 run_appian "Mininimum"
 
 ### PVC

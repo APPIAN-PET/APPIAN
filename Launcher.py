@@ -141,6 +141,8 @@ if __name__ == "__main__":
     group= OptionGroup(parser,"MRI preprocessing options")
     group.add_option("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
     group.add_option("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
+    group.add_option("--beast-voxel-size", dest="beast_voxel_size", default=3, type=int, help="Voxel size for brain segmentation" ) 
+    group.add_option("--beast-no-median", dest="beast_median", default=True, action='store_false', help="Use median filter" ) 
     group.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
     group.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
     group.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 

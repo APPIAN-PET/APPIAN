@@ -125,7 +125,6 @@ def get_workflow(name, valid_args, opts):
             t1_mni_node=mri2template
             tfm_node= mri2template
             tfm_file='out_file_xfm'
-
     else :
         transform_t1 = pe.Node(interface=minc.Resample(), name="transform_t1"  )
         transform_t1.inputs.two=True
@@ -138,7 +137,6 @@ def get_workflow(name, valid_args, opts):
         tfm_node = inputnode
         tfm_file = 'xfmT1MNI'
 
-
     if not opts.user_brainmask :
         #Brain Mask MNI-Space
         t1MNI_brain_mask = pe.Node(interface=mincbeast(), name="t1_mni_brain_mask")
@@ -147,6 +145,8 @@ def get_workflow(name, valid_args, opts):
         t1MNI_brain_mask.inputs.same_resolution = True
         t1MNI_brain_mask.inputs.median = True
         t1MNI_brain_mask.inputs.fill = True
+        t1MNI_brain_mask.inputs.voxel_size=opts.beast_voxel_size
+        t1MNI_brain_mask.inputs.median = opts.beast_median
 
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )
 

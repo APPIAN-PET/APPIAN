@@ -50,12 +50,13 @@ def group_level_qc(opts, args):
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
     outfields=['coreg_metrics','tka_metrics','pvc_metrics']
-    paths={'coreg_metrics':"*/coreg_qc_metrics/*_distance_metric.csv", 'tka_metrics':"*/results_tka/*_3d.csv",'pvc_metrics':"pvc_qc_metrics/*_pvc_qc_metric.csv"}
+    paths={'coreg_metrics':"*/coreg_qc_metrics/*_metric.csv", 'tka_metrics':"*/results_tka/*_3d.csv",'pvc_metrics':"*/pvc_qc_metrics/*qc_metric.csv"}
 
     #If any one of the sets of metrics does not exist because it has not been run at the scan level, then 
     #remove it from the list of outfields and paths that the datagrabber will look for.
     for  outfield, path in paths.items(): # zip(paths, outfields):
         full_path = opts.targetDir + os.sep + opts.preproc_dir + os.sep + path
+        print(full_path)
         if len(glob(full_path)) == 0 :
             outfields.remove(outfield)
             paths.pop(outfield)
@@ -66,7 +67,7 @@ def group_level_qc(opts, args):
     datasource.inputs.template = '*'
     datasource.inputs.field_template = paths
     #datasource.inputs.template_args = dict( coreg_metrics = [['preproc_dir']] )
-
+    
     ##################
     # Coregistration #
     ##################

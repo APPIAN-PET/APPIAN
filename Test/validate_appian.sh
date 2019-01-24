@@ -179,8 +179,8 @@ echo Git Commit : $current_git_commit
 echo Docker Container / Hostname: $current_docker_container
 echo
 
-run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC" 
-exit 1
+#run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC"
+#exit 1
 ### Minimal Inputs
 run_appian "Mininimum"
 

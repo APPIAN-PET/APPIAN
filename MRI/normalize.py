@@ -145,7 +145,7 @@ def get_workflow(name, valid_args, opts):
         t1MNI_brain_mask.inputs.same_resolution = True
         t1MNI_brain_mask.inputs.median = True
         t1MNI_brain_mask.inputs.fill = True
-        t1MNI_brain_mask.inputs.voxel_size=opts.beast_voxel_size
+        #t1MNI_brain_mask.inputs.voxel_size=opts.beast_voxel_size
         t1MNI_brain_mask.inputs.median = opts.beast_median
 
         workflow.connect(t1_mni_node, t1_mni_file, t1MNI_brain_mask, "in_file" )

@@ -180,7 +180,9 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 ### Minimal Inputs
-run_appian "Mininimum" "--beast-voxel-size 4 --beast-no-median "
+
+run_appian "Quant-srtm" "--start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-srtm-bf" "--start-time 2.5 --tka-method srtm-bf --srtm2 --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
 exit 0
 ### Minimal Inputs

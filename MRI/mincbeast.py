@@ -76,7 +76,7 @@ class mincbeastInput(CommandLineInputSpec):
 	out_file = File(argstr="%s",  desc="Brain Mask", position=-1)
 	in_file= File(exists=True, argstr="%s", position=-2, desc="PET file")
 	library_dir = File( argstr="%s", position=-3, desc="image to operate on")
-	voxel_size = traits.Int( argstr="-voxel_size %s", position=-4, default=3, use_default=True  )
+	voxel_size = traits.Int( argstr="-voxel_size %s", position=-4, default=2, use_default=False  )
 	same_resolution = traits.Bool(argstr="-same_resolution", position=-5, default=True, use_default=True )
 	median = traits.Bool(argstr="-median", position=-6, default=True, use_default=True )
 	fill = traits.Bool(argstr="-fill", position=-7, default=True, use_default=True )

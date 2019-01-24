@@ -18,14 +18,14 @@ from pyminc.volumes.factory import *
 from nipype.algorithms.misc import Gunzip
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.minc import Resample as ResampleCommand
 from Extra.minc_filemanip import update_minchd_json
 from Extra.info import  InfoCommand
-from Extra.modifHeader import ModifyHeaderCommand
+from Extra.modifHeader import ModifyHeaderCommand, FixCosinesCommand
 from Extra.reshape import  ReshapeCommand
 from Extra.modifHeader import FixHeaderCommand
 #from Extra.compression import gunzipCommand, gzipCommand
@@ -51,19 +51,19 @@ def recursive_dict_search(d, target, level=0):
     level+=1
     for k,v  in zip(d.keys(), d.values()) :
         #print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
-        
+
         #End condition
         if string_test(k) :
             if target.lower() in k.lower().split("_") :
                 print("\t"*level,"Return:",k)
                 return [k]
-        
+
         #Search dictionary
         if type(v) == dict :
             test = [k] + recursive_dict_search(v, target, level)
             if not None in test :
                 return test
-        
+
     return [None]
 
 def fix_df(d, target):
@@ -77,7 +77,7 @@ def fix_df(d, target):
     return value
 
 def set_isotope_halflife(d, user_halflife=None, target="halflife"):
-    #find path in dictionary to target 
+    #find path in dictionary to target
     dict_path = recursive_dict_search(d, target=target)
     #if there is no path to target, try backup
     if None in dict_path :
@@ -95,7 +95,7 @@ def set_isotope_halflife(d, user_halflife=None, target="halflife"):
         for i in dict_path :
             temp_d = temp_d[i]
         halflife = temp_d
-    
+
     if type(halflife) == list :
         halflife=halflife[0]
 
@@ -103,7 +103,7 @@ def set_isotope_halflife(d, user_halflife=None, target="halflife"):
         d["acquisition"]
     except :
         d["acquisition"]={"radionuclide_halflife": halflife }
-    else :  
+    else :
         d["acquisition"]["radionuclide_halflife"] = halflife
 
     return d
@@ -111,9 +111,9 @@ def set_isotope_halflife(d, user_halflife=None, target="halflife"):
 
 
 def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes","Values"], verbose=True):
-    #find path in dictionary to target 
+    #find path in dictionary to target
     #dict_path = recursive_dict_search(d, target="FrameLengths")
-  
+
     #if minc_input : # MINC Input
     #    print("Check header for MINC input")
     #    dict_path = recursive_dict_search(d, target="frames-length")
@@ -123,16 +123,16 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     #    FrameLengths=temp_d
 
     #    values_dict_path = recursive_dict_search(d, target="frames-time")
-    #    
+    #
     #    Values=None
-    #    
+    #
     #    if not None in values_dict_path :
     #        temp_d = d
     #        if verbose : print( values_dict_path )
     #        for i in values_dict_path :
     #            temp_d = temp_d[i]
     #            print(temp_d)
-    #    
+    #
     #    temp_d = [ float(i) for i in temp_d ]
     #    FrameLengths=list(np.diff(temp_d))
     #    FrameLengths.append(FrameLengths[-1])
@@ -166,38 +166,38 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     except KeyError :
         print("\nError Could not find Time:FrameTimes:Units in header\n")
         exit(1)
-    
+
     for s, e in frame_times :
         FrameLengths.append(c1*e - c0*s)
 
     d["Time"]["FrameTimes"]["Duration"] = FrameLengths
 
     return d
-    
+
 
 def unique_file(files, attributes, verbose=False):
-    
-    out_files=[] 
+
+    out_files=[]
     for f in files :
         skip=False
         for a in attributes :
             #if verbose : print(a, a in f, f)
-            if not a in f : 
+            if not a in f :
                 skip=True
                 break
         if verbose : print(f,'skip file=', skip)
-        if not skip : 
+        if not skip :
             out_files.append(f)
 
     if attributes == [] or len(out_files) == 0 : return ''
- 
+
     #Check if out_files contains gzip compressed and uncompressed versions of the same file
     if len(out_files) == 2 :
         if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
-            #Check if '.gz' is in the path extension for the located file. 
+            #Check if '.gz' is in the path extension for the located file.
             #If so remove the file without .gz in the extension from the list of out_files
             print(out_files)
-            if '.gz' in os.path.splitext(out_files[1])[1] : 
+            if '.gz' in os.path.splitext(out_files[1])[1] :
                 out_files.remove(out_files[0])
             else :
                 out_files.remove(out_files[1])
@@ -208,7 +208,7 @@ def unique_file(files, attributes, verbose=False):
         print(out_files)
         exit(1)
 
-    return( out_files[0] ) 
+    return( out_files[0] )
 
 
 def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
@@ -234,8 +234,8 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     pet_fn=mri_fn=""
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
-                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc' 
-                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc.gz' 
+                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc'
+                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc.gz'
                     pet_list=glob(pet_string) + glob(pet_string_gz)
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     mri_arg_list = ['sub-'+sub, 'ses-'+ses]
@@ -249,7 +249,7 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc.gz' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
-                    #if pet_fn == [] or mri_fn == [] : continue 
+                    #if pet_fn == [] or mri_fn == [] : continue
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
                         #compression=''
@@ -257,7 +257,7 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
 
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run} #,'compression':compression}
                         sub_ses_dict[sub]=ses
-                        if opts.verbose : 
+                        if opts.verbose :
                             print(pet_fn, os.path.exists(pet_fn))
                             print(mri_fn, os.path.exists(mri_fn))
                             print('Adding to dict of valid args',d)
@@ -278,7 +278,7 @@ def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
 
 class SplitArgsOutput(TraitedSpec):
     cid = traits.Str(mandatory=True, desc="Condition ID")
-    sid = traits.Str(mandatory=True, desc="Subject ID") 
+    sid = traits.Str(mandatory=True, desc="Subject ID")
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
     run = traits.Str(desc="Run ID")
@@ -308,7 +308,7 @@ class SplitArgsRunning(BaseInterface):
         if not isdefined(self.inputs.sid) :
             self.inputs.sid=self.inputs.args['sid']
         if self.inputs.ses_sub_only : return runtime
-        
+
             #self.inputs.cid=+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
 
         try :
@@ -316,7 +316,7 @@ class SplitArgsRunning(BaseInterface):
             cid = cid + '_' +self.inputs.args['task']
         except  KeyError:
             pass
-            
+
         try:
             self.inputs.run=self.inputs.args['run']
             cid = cid + '_' +self.inputs.args['run']
@@ -331,14 +331,14 @@ class SplitArgsRunning(BaseInterface):
         if isdefined(self.inputs.RoiSuffix):
             self.inputs.RoiSuffix=self.inputs.RoiSuffix
         return runtime
-    
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if isdefined(self.inputs.cid):
             outputs["cid"] = self.inputs.cid
         if isdefined(self.inputs.sid):
             outputs["sid"] = self.inputs.sid
-        
+
         if isdefined(self.inputs.ses):
             outputs["ses"] = self.inputs.ses
 
@@ -426,28 +426,28 @@ class MincHdrInfoRunning(BaseInterface):
                     var = str(key)
                     attr = str(subkey)
                     #Populate dictionary with some useful image parameters (e.g., world coordinate start values of dimensions)
-                    self._params[key][subkey]=data_in 
+                    self._params[key][subkey]=data_in
                     update_minchd_json(temp_out_file, data_in, var, attr)
         except RuntimeError :
             print("Warning: Could not read header file from", self.inputs.in_file)
-        
-        
+
+
         header = json.load(open(temp_out_file, "r+") )
         #fp.close()
 
         minc_input=True
-        if not isdefined(self.inputs.json_header) : 
+        if not isdefined(self.inputs.json_header) :
             print("Error: could not find json file", self.inputs.json_header)
             exit(1)
-        
+
         print("\n\nMINC INPUT =", minc_input, self.inputs.json_header)
         json_header = json.load(open(self.inputs.json_header, "r+"))
         header.update(json_header)
         minc_input=False
-        
+
         header = set_frame_duration(header, minc_input)
         header = set_isotope_halflife(header, self.inputs.halflife, 'halflife')
-        
+
         fp=open(self.inputs.out_file, "w+")
         fp.seek(0)
         json.dump(header, fp, sort_keys=True, indent=4)
@@ -486,48 +486,28 @@ class VolCenteringRunning(BaseInterface):
             dname = dname = os.getcwd()
             self.inputs.out_file = dname + os.sep + fname + self._suffix + '.mnc'
 
-        shutil.copy(self.inputs.in_file, self.inputs.out_file)
+        temp_fn="/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
+        shutil.copy(self.inputs.in_file, temp_fn)
         infile = volumeFromFile(self.inputs.in_file)
         for view in ['xspace','yspace','zspace']:
-            start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
-            if '.gz' in os.path.splitext(self.inputs.in_file)[1] :
-                #IN: /path/file.mnc.gz
-                #OUT: /tmp/file.mnc
-                temp_fn="/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc.gz" 
-                
-                shutil.copy(self.inputs.in_file, temp_fn)
-                gunzip = gunzipCommand(in_file=temp_fn)
-                gunzip.run() 
-                
-                print(gunzip.inputs)
-                run_modifHrd=ModifyHeaderCommand()
-                run_modifHrd.inputs.in_file =  gunzip.inputs.out_file
-                run_modifHrd.inputs.dinsert = True;
-                run_modifHrd.inputs.opt_string = view+":start="+str(start);
-                run_modifHrd.run()
+            #start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
+            dim = infile.dimnames.index( view )
+            start = infile.starts[dim]
 
-                print(run_modifHrd.inputs)
-                out_file_unzip = re.sub('.mnc.gz', '.mnc', self.inputs.out_file)
-                shutil.copy(run_modifHrd.inputs.out_file, out_file_unzip)
+            run_modifHrd=ModifyHeaderCommand()
+            run_modifHrd.inputs.in_file = temp_fn
+            run_modifHrd.inputs.dinsert = True;
+            run_modifHrd.inputs.opt_string = view+":start="+str(start);
+            run_modifHrd.run()
 
-                gzip = gzipCommand()
-                gzip.inputs.in_file = out_file_unzip
-                gzip.run() 
-
-            else :
-                run_modifHrd=ModifyHeaderCommand()
-                run_modifHrd.inputs.in_file = self.inputs.out_file;
-                run_modifHrd.inputs.dinsert = True;
-                run_modifHrd.inputs.opt_string = view+":start="+str(start);
-                run_modifHrd.run()
-                
         node_name="fixIrregularDimension"
         fixIrregular = ModifyHeaderCommand()
-        #fixIrregular.inputs.sinsert = True;
-        fixIrregular.inputs.opt_string = "-dinsert xspace:direction_cosines=1,0,0 -dinsert yspace:direction_cosines=0,1,0 -dinsert zspace:direction_cosines=0,0,1 -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\"  "
-        fixIrregular.inputs.in_file = run_modifHrd.inputs.out_file
+        fixIrregular.inputs.opt_string = "-dinsert xspace:direction_cosines=1,0,0 -dinsert yspace:direction_cosines=0,1,0 -dinsert zspace:direction_cosines=0,0,1  -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
+        fixIrregular.inputs.in_file = temp_fn
+        print( fixIrregular.cmdline )
         fixIrregular.run()
 
+        shutil.copy(temp_fn, self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):
@@ -584,7 +564,7 @@ class PETexcludeFrRunning(BaseInterface):
         #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
-        infile = volumeFromFile(self.inputs.in_file)      
+        infile = volumeFromFile(self.inputs.in_file)
         rank=10
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
         try :
@@ -599,13 +579,13 @@ class PETexcludeFrRunning(BaseInterface):
             run_mincreshape=ReshapeCommand()
             run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
             run_mincreshape.inputs.in_file = self.inputs.in_file
-            run_mincreshape.inputs.out_file = self.inputs.out_file 
+            run_mincreshape.inputs.out_file = self.inputs.out_file
             if self.inputs.verbose:
                 print run_mincreshape.cmdline
             if self.inputs.run:
                 run_mincreshape.run()
-        else : 
-            self.inputs.out_file = self.inputs.in_file 
+        else :
+            self.inputs.out_file = self.inputs.in_file
 
         return runtime
 
@@ -616,7 +596,7 @@ class PETexcludeFrRunning(BaseInterface):
         return outputs
 
 """
-.. module:: initialization 
+.. module:: initialization
     :platform: Unix
     :synopsis: Workflow to initialize PET images
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
@@ -624,7 +604,7 @@ class PETexcludeFrRunning(BaseInterface):
 
 def get_workflow(name, infosource, opts):
     '''
-    Nipype workflow that initializes the PET images by 
+    Nipype workflow that initializes the PET images by
         1. Centering the PET image: petCenter
         2. Exlcude start and end frames: petExcludeFr
         3. Average 4D PET image into 3D image: petVolume
@@ -648,14 +628,14 @@ def get_workflow(name, infosource, opts):
 
     #header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
     #workflow.connect(inputnode, 'pet',  header_init, 'in_file')
-    
+
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
 
     node_name="petExcludeFr"
     petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
-    petExFr.inputs.verbose = opts.verbose   
+    petExFr.inputs.verbose = opts.verbose
     #petExFr.inputs.run = opts.prun
     #rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 

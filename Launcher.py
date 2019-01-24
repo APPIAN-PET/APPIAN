@@ -255,7 +255,7 @@ if __name__ == "__main__":
     group.add_option("","--rp",dest="tka_rp",help="Program writes regression parameters in the specified image file.",type='str', default=None)
     group.add_option("","--dual",dest="tka_dual",help="Instead of BP, program saves the DVR (=BP+1) values.",type='str', default=None)
     group.add_option("","--DVR",dest="tka_DVR",help="Program writes number of i in set p in NNLS dual solution vector in the specified image file",action='store_const', const=True, default=False)
-    group.add_option("","--srtm2",dest="tka_srtm2",help="STRM2 method is applied; in brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
+    group.add_option("","--no-srtm2",dest="tka_srtm2",help="STRM2 method is applied by default, this option will turn it off. In brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
     group.add_option("","--bf",dest="tka_bf",help="Basis function curves are written in specified file.",type='str', default=None)
     group.add_option("","--err",dest="tka_err",help="Errors are written in specified file.",type='str', default=None)
     group.add_option("","--noneg",dest="tka_noneg",help="Pixels with negative BP values are set to zero.", action='store_const', const=True, default=None)

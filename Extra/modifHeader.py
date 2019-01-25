@@ -40,6 +40,7 @@ class FixCosinesOutput(TraitedSpec):
 class FixCosinesInput(CommandLineInputSpec):
     out_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
     in_file = File(argstr="%s", position=-2, desc="Image")
+    keep_real_range=traits.Bool(argstr="-keep_real_range",position=-4, use_default=False, default_value=True)
     dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1",position=-3, use_default=True, default_value=True)
 #class FixHeaderCommand(ModifyHeaderCommand):
 class FixCosinesCommand(CommandLine):

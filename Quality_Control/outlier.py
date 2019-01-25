@@ -32,7 +32,7 @@ def k_dist(p1, k=0):
         minPts += [ d1[1:k] ]
 
     return([kd, idx, minPts])
-                                                                                        
+
 def local_reach_dist(p, idx, minPts, kd):
     lrd=[]
     for i in range(len(p)):
@@ -106,15 +106,26 @@ from scipy.integrate import simps
 
 def kde(z, cdf=False, bandwidth=0.3):
     #print(z)
+    print(z)
     z = np.array(z)
-    z= (z - z.mean(axis=0)) /  z.std(axis=0)
+    #Set NaN values to 0
+    z[np.isnan(z)]=0
+
+    std = z.std(axis=0)
+
+    if std == 0 or np.isnan(std) :
+        std = 1
+
+    z= (z - z.mean(axis=0)) / std
     factor=1
     #euc_dist = np.array([np.sqrt(np.sum((p-np.min(z,axis=0))**2))  for p in z] ).reshape(-1,1)
     euc_dist = np.mean(z, axis=1).reshape(-1,1)
     #print(euc_dist)
+
+    print(euc_dist)
     kde = KernelDensity(bandwidth=bandwidth).fit(euc_dist)
     density = np.exp(kde.score_samples(euc_dist)).reshape(-1,1)
-   
+
     min_euc_dist = min(euc_dist) #* -factor #0
     max_euc_dist = max(euc_dist) #* factor
     dd = np.linspace(min_euc_dist,max_euc_dist).reshape(-1,1)
@@ -125,15 +136,15 @@ def kde(z, cdf=False, bandwidth=0.3):
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
     dd_range = range(len(dd))
-    
-    if not cdf : 
-        for ed,i in zip(euc_dist,range(n)):      
+
+    if not cdf :
+        for ed,i in zip(euc_dist,range(n)):
             cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if abs(dd[j]) > abs(ed) ]) * ddx
         return (cum_dense)
 
     for ed,i in zip(euc_dist,range(n)):
         cum_dense[i] = np.sum([ lin_density[j] for j in dd_range if dd[j] < ed]) * ddx
-        
+
     return(cum_dense)
 
 
@@ -190,8 +201,8 @@ def lof(z, k=0, bandwidth=0.3, factor=2 ):
     n=len(density)
     cum_dense=np.zeros(n).reshape(-1,1)
     for l,ed,i in zip(lcf,euc_dist,range(n)):
-        cum_dense[i] = np.sum([ lin_density[j] for j in range(len(xx)) if dd[j] < ed ]) * ddx 
-    
+        cum_dense[i] = np.sum([ lin_density[j] for j in range(len(xx)) if dd[j] < ed ]) * ddx
+
     return(cum_dense)
 '''
 

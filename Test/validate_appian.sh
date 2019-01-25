@@ -125,7 +125,7 @@ test_data_path=${3:-"/opt/APPIAN/Test/test_data"}
 out_data_path=${4:-"/opt/APPIAN/Test/"}
 #Create a timestamp for testing session.
 #Can use existing timestamp if using output files from previous test run
-exit_on_failure=${5:-0}
+exit_on_failure=${5:-1}
 qc=${6:-0}
 ts=${7:-`date +"%Y%m%d-%H%M%S"`}
 test_dir="${out_data_path}/appian_validation/test_$ts"
@@ -179,7 +179,8 @@ echo Git Commit : $current_git_commit
 echo Docker Container / Hostname: $current_docker_container
 echo
 
-#run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC"
+#run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC"'
+#run_appian "Quant-suvr" "--start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 #exit 1
 ### Minimal Inputs
 run_appian "Mininimum"

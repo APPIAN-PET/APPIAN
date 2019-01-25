@@ -3,11 +3,11 @@ import numpy as np
 import tempfile
 import shutil
 import pickle
-import ntpath 
+import ntpath
 
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 #from nipype.interfaces.base import Info
@@ -39,7 +39,7 @@ class LabelsInput(BaseInterfaceInputSpec):
     label_img  = File(mandatory=True, desc="Mask on the template")
     erode_times = traits.Int(desc="Number of times to erode image", usedefault=True, default=0)
     mni2target = File(desc="Transformation from stereotaxic to analysis space")
-    like_file = File(desc="Target img") 
+    like_file = File(desc="Target img")
     label_template=traits.Str(usedefault=True,default_value='NA',desc="Template for stereotaxic atlas")
     brainmask = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
     brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brainmask")
@@ -59,31 +59,31 @@ class Labels(BaseInterface):
     def _gen_output(self, basefile, _suffix):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
-        print(self.inputs) 
-        self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space) 
+        print(self.inputs)
+        self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
 
         tmpDir = os.getcwd() + os.sep + 'tmp_label'  #tempfile.mkdtemp()
         os.mkdir(tmpDir)
 
         out_file_1 =temp_mask = tmpDir+"/mask.mnc"
         temp_mask_clean = tmpDir+"/mask_clean.mnc"
-        if self.inputs.labels == [] : 
+        if self.inputs.labels == [] :
             mask= pyminc.volumeFromFile(self.inputs.label_img)
             mask_flat=mask.data.flatten()
             labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
             if '0' in labels :  labels.remove('0')
             print("Labels: ", labels)
-        else : 
+        else :
             labels = self.inputs.labels
         # 1) Select Labels
         run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
         run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas
         run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-        run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in  labels ]) + ' ? A[0] : 0'  
+        run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in  labels ]) + ' ? A[0] : 0'
         run_calc.run()
         print("Select Labels:\n", run_calc.cmdline)
 
@@ -92,25 +92,25 @@ class Labels(BaseInterface):
             run_mincmorph = MorphCommand()
             run_mincmorph.inputs.in_file = temp_mask
             run_mincmorph.inputs.out_file = temp_mask_clean
-            run_mincmorph.inputs.successive='E' * self.inputs.erode_times 
+            run_mincmorph.inputs.successive='E' * self.inputs.erode_times
             run_mincmorph.run()
             out_file_1 = temp_mask_clean
+        else :
+            out_file_1 = temp_mask #self.inputs.out_file
 
-        out_file_1 = self.inputs.out_file
-       
         # 3) Co-registration
         if self.inputs.space == "stereo" and self.inputs.label_type == "atlas-template"    :
             if self.inputs.nLinAtlasMNIXfm == '':
                 sourceToModel_xfm = os.getcwd() + os.sep + 'template2mni.xfm'
                 run_nlinreg = reg.nLinRegRunning()
                 run_nlinreg.inputs.in_source_file = self.inputs.label_template
-                run_nlinreg.inputs.in_target_file = self.inputs.mniT1  
+                run_nlinreg.inputs.in_target_file = self.inputs.mniT1
                 run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm # xfm file for the transformation from template to subject stereotaxic
                 run_nlinreg.run()
 
                 mni2target = minc.XfmConcat()
                 mni2target.inputs.input_file_1 = sourceToModel_xfm
-                mni2target.inputs.input_file_2 = self.inputs.mni2target 
+                mni2target.inputs.input_file_2 = self.inputs.mni2target
                 mni2target.run()
                 xfm = mni2target.inputs.out_file
                 self.inputs.nLinAtlasMNIXfm=mni2target.inputs.output_file
@@ -119,14 +119,14 @@ class Labels(BaseInterface):
                 xfm=self.inputs.nLinAtlasMNIXfm
         else :
             xfm = self.inputs.LinXfm
-        
-        # 4) Apply transformation 
+
+        # 4) Apply transformation
         like_file = self.inputs.like_file
         base=splitext(out_file_1)
         out_file_2=base[0]+self.inputs.analysis_space+base[1]
 
-        run_resample = minc.Resample() 
-        run_resample.inputs.input_file = self.inputs.label_img
+        run_resample = minc.Resample()
+        run_resample.inputs.input_file = out_file_1 # self.inputs.label_img
         run_resample.inputs.output_file = out_file_2
         run_resample.inputs.like = like_file
         run_resample.inputs.transformation = xfm
@@ -137,15 +137,15 @@ class Labels(BaseInterface):
 
         #Copy to output
         shutil.copy(label, self.inputs.out_file)
-        
+
         print(self.inputs.brainmask)
         # 6) Mask brain for T1 and MNI labels
         if self.inputs.brain_only :
             temp_mask = tmpDir+"/mask.mnc"
             run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-            run_calc.inputs.input_files = [ label, self.inputs.brainmask] 
+            run_calc.inputs.input_files = [ label, self.inputs.brainmask]
             run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-            run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 " 
+            run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 "
             run_calc.clobber = True
             run_calc.run()
             #shutil.copy(temp_mask, label)
@@ -158,19 +158,19 @@ class Labels(BaseInterface):
             run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
             run_calc.inputs.input_files = [ label ] #The ANIMAL or CIVET classified atlas
             run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-            run_calc.inputs.expression = " A[0] > 0.1 ? 1 : 0 " 
+            run_calc.inputs.expression = " A[0] > 0.1 ? 1 : 0 "
             run_calc.clobber = True
             run_calc.run()
             shutil.copy(temp_mask, self.inputs.out_file)
-	
+
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        if not isdefined(self.inputs.out_file): 
-            self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space) 
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
         outputs["out_file"] = self.inputs.out_file #Masks in stereotaxic space
-        outputs["nLinAtlasMNIXfm"] = self.inputs.nLinAtlasMNIXfm 
+        outputs["nLinAtlasMNIXfm"] = self.inputs.nLinAtlasMNIXfm
         return outputs
 
     def _parse_inputs(self, skip=None):
@@ -181,12 +181,12 @@ class Labels(BaseInterface):
 """
 .. module:: masking
     :platform: Unix
-    :synopsis: Module to create labeled images. 
+    :synopsis: Module to create labeled images.
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
 def get_transforms_for_stage(MNIT1, MNIPET, inputnode, label_space, analysis_space, identity):
-    if label_space == "stereo" :  
+    if label_space == "stereo" :
         if analysis_space == "t1":
             tfm_node=MNIT1
             transform_file="output_file"
@@ -199,7 +199,7 @@ def get_transforms_for_stage(MNIT1, MNIPET, inputnode, label_space, analysis_spa
             tfm_node=identity
             transform_file="out_file"
             target_file="mniT1"
-    elif label_space == "t1": 
+    elif label_space == "t1":
         if analysis_space == "stereo":
             tfm_node=inputnode
             transform_file="LinT1MNIXfm"
@@ -248,16 +248,16 @@ def get_workflow(name, infosource, opts):
         :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
         :param datasink: Node in which output data is sent
         :param opts: User options
-        
+
         :returns: workflow
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brainmask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
     in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm',  "LinPETMNIXfm", "LinMNIPETXfm", "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
-    if not opts.nopvc: 
+    if not opts.nopvc:
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
-    if not opts.tka_method == None: 
+    if not opts.tka_method == None:
         out_list += ["tka_label_img_t1", "tka_label_img_mni"]
         in_list +=  ["tka_labels", "tka_label_space","tka_label_template","tka_label_img"]
     #Define input node that will receive input from outside of workflow
@@ -278,19 +278,19 @@ def get_workflow(name, infosource, opts):
 
     if not opts.nopvc and not opts.pvc_method == None:
         pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
-        
+
     if not opts.tka_method == None:
        tka_tfm_node, tka_tfm_file, tka_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
-    
+
     results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
-    
+
     ###################
     # Brain Mask Node #
     ###################
     if opts.analysis_space != "stereo"  :
         brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
-        #brain_mask_node.inputs.output_file="brain_mask_space-"+opts.analysis_space+".mnc" 
+        #brain_mask_node.inputs.output_file="brain_mask_space-"+opts.analysis_space+".mnc"
 
         workflow.connect(inputnode, "brainmask", brain_mask_node, "input_file")
         if opts.analysis_space == "t1" :
@@ -372,5 +372,5 @@ def get_workflow(name, infosource, opts):
         workflow.connect(inputnode, like_file, tkaLabels, 'like_file')
         workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brainmask')
         workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
-   
+
     return(workflow)

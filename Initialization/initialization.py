@@ -502,12 +502,18 @@ class VolCenteringRunning(BaseInterface):
 
         node_name="fixIrregularDimension"
         fixIrregular = ModifyHeaderCommand()
-        fixIrregular.inputs.opt_string = "-dinsert xspace:direction_cosines=1,0,0 -dinsert yspace:direction_cosines=0,1,0 -dinsert zspace:direction_cosines=0,0,1  -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
+        #-dinsert xspace:direction_cosines=1,0,0 -dinsert yspace:direction_cosines=0,1,0 -dinsert zspace:direction_cosines=0,0,1
+        fixIrregular.inputs.opt_string = " -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
         fixIrregular.inputs.in_file = temp_fn
         print( fixIrregular.cmdline )
         fixIrregular.run()
 
-        shutil.copy(temp_fn, self.inputs.out_file)
+        fixCosine = FixCosinesCommand()
+        fixCosine.inputs.in_file = fixIrregular.inputs.out_file
+        fixCosine.inputs.keep_real_range=True
+        fixCosine.run()
+
+        shutil.copy(fixCosine.inputs.out_file, self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):

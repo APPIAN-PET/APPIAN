@@ -713,6 +713,7 @@ def run_scan_level(opts,args):
             workflow.connect(infosource, 'task', pvc_qc_metricsNode, "task")
 
 
+    # distutils.dir_util.copy_tree(opts.targetDir+"/preproc/graph1.json",opts.targetDir+"/preproc/graph_scanLevel.json", update=1, verbose=0)
     if opts.dashboard:
         dashboard=pe.Node(interface=dash.deployDashCommand(),name="dash_scanLevel")
         dashboard.inputs.targetDir = opts.targetDir;

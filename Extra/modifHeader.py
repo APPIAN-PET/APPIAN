@@ -34,24 +34,33 @@ class ModifyHeaderCommand(CommandLine):
         return outputs
 
 class FixCosinesOutput(TraitedSpec):
-    output_file = File(desc="Image with fixed cosines")
+    out_file = File(desc="Image with fixed cosines")
 
 #class FixHeaderInput(ModifyHeaderInput):
 class FixCosinesInput(CommandLineInputSpec):
-    output_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
-    input_file = File(argstr="%s", position=-2, desc="Image")
-    dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1", use_default=True, default=True)
+    out_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
+    in_file = File(argstr="%s", position=-2, desc="Image")
+    keep_real_range=traits.Bool(argstr="-keep_real_range",position=-4, use_default=False, default_value=True)
+    dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1",position=-3, use_default=True, default_value=True)
 #class FixHeaderCommand(ModifyHeaderCommand):
 class FixCosinesCommand(CommandLine):
     input_spec = FixCosinesInput
     output_spec = FixCosinesOutput
     _cmd = "mincresample"
 
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
+
+        return super( FixCosinesCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        if not isdefined(self.inputs.output_file) :
-            self.inputs.output_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
-        outputs["output_file"] = self.inputs.output_file
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 
 
@@ -89,34 +98,34 @@ class FixHeaderCommand(CommandLine):
         if skip is None:
             skip = []
         data = json.load(open( header ,"rb"))
-        
-        
+
+
         vol=pyminc.volumeFromFile(self.inputs.in_file)
         dims = vol.getDimensionNames()
-        #try : 
-        if 'time' in dims :       
-            
+        #try :
+        if 'time' in dims :
+
             #See if there is a start time defined, else set to 0
-            try : 
+            try :
                 data["time"]["start"][0]
                 self.inputs.tstart = data["time"]["start"][0]
-            except KeyError: 
+            except KeyError:
                 self.inputs.tstart = 0
 
             try :
                 data["time"]["start"][0]
                 self.inputs.tstep = data["time"]["step"][0]
-            except KeyError : 
+            except KeyError :
                 self.inputs.tstep = 1
 
-        if not self.inputs.time_only :  
+        if not self.inputs.time_only :
             self.inputs.zstart = data["zspace"]["start"][0]
             self.inputs.ystart = data["yspace"]["start"][0]
             self.inputs.xstart = data["xspace"]["start"][0]
             self.inputs.zstep  = data["zspace"]["step"][0]
             self.inputs.ystep  = data["yspace"]["step"][0]
             self.inputs.xstep  = data["xspace"]["step"][0]
-       
+
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
 
@@ -145,7 +154,7 @@ class FixHeaderLinkCommand(BaseInterface):
         self.inputs.output_file = os.getcwd() + os.sep + os.path.basename(self.inputs.in_file)
         #FIXME : Need a better solution for fixing file headers bc this uses a lot of memory
         shutil.copy(self.inputs.in_file, self.inputs.output_file)
-        
+
         fix_header_node = FixHeaderCommand()
         fix_header_node.inputs.in_file = self.inputs.output_file
         fix_header_node.inputs.header = self.inputs.header
@@ -160,8 +169,5 @@ class FixHeaderLinkCommand(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["output_file"] = self.inputs.output_file 
+        outputs["output_file"] = self.inputs.output_file
         return outputs
-
-
-

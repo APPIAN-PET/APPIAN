@@ -11,7 +11,7 @@ import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 import nipype.interfaces.minc as minc
@@ -62,7 +62,7 @@ class mincconvertCommand(CommandLine):
             fname_list[0] = fname_list[0] + "_mnc1"
 
 
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _parse_inputs(self, skip=None):
@@ -97,7 +97,7 @@ def minctoecatWorkflow(name):
     workflow.connect(conversionNode, 'out_file', eframeNode, 'pet_file')
     workflow.connect(sifNode, 'out_file', eframeNode, 'frame_file')
     ###workflow.connect(eframeNode, 'out_file', imgunitNode, 'in_file')
-    ###workflow.connect(imgunitNode, 'out_file', outputNode, 'out_file') 
+    ###workflow.connect(imgunitNode, 'out_file', outputNode, 'out_file')
 
     return(workflow)
 
@@ -116,7 +116,7 @@ class ecat2mincCommand(BaseInterface):
     input_spec = ecat2mincInput
     output_spec = ecat2mincOutput
 
-    def _run_interface(self, runtime): 
+    def _run_interface(self, runtime):
         in_fn = self.inputs.in_file
         like_fn = self.inputs.like_file
         fn = os.path.splitext(os.path.basename(self.inputs.in_file))
@@ -161,7 +161,7 @@ class ecattominc2Command(BaseInterface):
     input_spec = ecattominc2Input
     output_spec = ecattominc2Output
 
-    def _run_interface(self, runtime): 
+    def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
 
@@ -175,14 +175,14 @@ class ecattominc2Command(BaseInterface):
         node2.inputs.out_file = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         node2.run()
         os.remove(node1.inputs.out_file)
-        
+
         if isdefined(self.inputs.header) :
             node3 = FixHeaderCommand()
             node3.inputs.in_file = node2.inputs.out_file
             node3.inputs.header = self.inputs.header
             node3.run()
             move(node3.inputs.output_file, self.inputs.out_file)
-        else : 
+        else :
             move(node2.inputs.out_file, self.inputs.out_file)
 
 
@@ -200,7 +200,7 @@ class ecattominc2Command(BaseInterface):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _list_outputs(self):
@@ -248,8 +248,8 @@ class minc2ecatCommand(BaseInterface):
 
     def _run_interface(self, runtime):
         conversionNode = minctoecatInterfaceCommand()
-        conversionNode.inputs.in_file = self.inputs.in_file    
-        conversionNode.run()     
+        conversionNode.inputs.in_file = self.inputs.in_file
+        conversionNode.run()
 
         if isdefined(self.inputs.header):
             isotopeNode = e7emhdrInterface()
@@ -263,8 +263,8 @@ class minc2ecatCommand(BaseInterface):
             sifNode.run()
 
             eframeNode = eframeCommand()
-            eframeNode.inputs.frame_file = sifNode.inputs.out_file 
-            eframeNode.inputs.pet_file = isotopeNode.inputs.out_file 
+            eframeNode.inputs.frame_file = sifNode.inputs.out_file
+            eframeNode.inputs.pet_file = isotopeNode.inputs.out_file
             eframeNode.run()
 
             imgunitNode = imgunitCommand()
@@ -273,7 +273,7 @@ class minc2ecatCommand(BaseInterface):
             imgunitNode.run()
 
             self.inputs.out_file = imgunitNode.inputs.out_file
-        else : 
+        else :
             self.inputs.out_file = conversionNode.inputs.out_file
 
         return runtime
@@ -301,7 +301,7 @@ class minctoecatCommand(CommandLine):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".v"
 
     def _list_outputs(self):
@@ -333,7 +333,7 @@ class minctoecatInterfaceCommand(BaseInterface):
     def _run_interface(self, runtime):
         #Apply threshold and create and write outputfile
         cmd = minctoecatCommand();
-        cmd.inputs.in_file = self.inputs.in_file 
+        cmd.inputs.in_file = self.inputs.in_file
         cmd.inputs.out_file = "temp.v"
         print cmd.cmdline
         cmd.run()
@@ -346,7 +346,7 @@ class minctoecatInterfaceCommand(BaseInterface):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".v"
 
     def _list_outputs(self):
@@ -382,7 +382,7 @@ class nii2mncCommand(BaseInterface):
 
     _cmd = "nii2mnc"
     def _run_interface(self, runtime):
-        if not isdefined(self.inputs.like_file) : 
+        if not isdefined(self.inputs.like_file) :
             node = pe.Node(interface=nii2mnc_shCommand, in_file=self.inputs.in_file, name="nii2mnc")
             node.run()
             self.inputs.out_file=node.inputs.out_file
@@ -396,7 +396,7 @@ class nii2mncCommand(BaseInterface):
 
         if len(test.shape) > 3 :
             tmax = test.shape[3]
-        else : 
+        else :
             tmax = 1
 
         zmax=test.shape[0]
@@ -404,7 +404,7 @@ class nii2mncCommand(BaseInterface):
         xmax=test.shape[2]
         if len(test.shape) > 4 :
             ar = np.zeros([tmax,zmax,ymax,xmax])
-        else : 
+        else :
             ar = np.zeros([zmax,ymax,xmax])
 
         zz, yy, xx = np.meshgrid(range(zmax), range(ymax), range(xmax) )
@@ -417,7 +417,7 @@ class nii2mncCommand(BaseInterface):
         print("ar", ar.shape)
         print(minc_vol.data.shape)
         if tmax > 1 :
-            for t in range(tmax) : 
+            for t in range(tmax) :
                 ar[t,zz,yy,xx] = data[zz,yy,xx,t]
         else :
             ar[zz,yy,xx] = data[zz,yy,xx]
@@ -440,7 +440,7 @@ class nii2mncCommand(BaseInterface):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _parse_inputs(self, skip=None):
@@ -471,21 +471,21 @@ class mnc2niiCommand(BaseInterface):
         self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.nii'
 
         test = nib.minc2.load(in_fn)
-
-        if len(test.shape) > 3 :
+        print(test.shape)
+        if len(test.shape) >= 4 :
             tmax = test.shape[0]
             offset = 1
-        else : 
+        else :
             tmax = 1
             offset = 0
-
+        print("tmax", tmax)
         zmax=test.shape[offset+0]
         ymax=test.shape[offset+1]
         xmax=test.shape[offset+2]
 
         if len(test.shape) > 3 :
             ar = np.zeros([zmax,ymax,xmax,tmax])
-        else : 
+        else :
             ar = np.zeros([zmax,ymax,xmax])
 
         zz, yy, xx = np.meshgrid(range(zmax), range(ymax), range(xmax) )
@@ -495,7 +495,7 @@ class mnc2niiCommand(BaseInterface):
         data =  np.copy(test.dataobj)
 
         if tmax > 1 :
-            for t in range(tmax) : 
+            for t in range(tmax) :
                 ar[zz,yy,xx,t] = data[t,zz,yy,xx]
         else :
             ar[zz,yy,xx] = data[zz,yy,xx]
@@ -513,7 +513,7 @@ class mnc2niiCommand(BaseInterface):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".nii"
 
     def _parse_inputs(self, skip=None):
@@ -545,13 +545,13 @@ class mnc2nii_shCommand(CommandLine):
     def _gen_output(self, basefile):
         if self.inputs.truncate_path :
             fname = ntpath.basename(basefile)
-        else : 
-            fname = basefile 
+        else :
+            fname = basefile
 
         print("File Name:", fname)
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".nii"
 
     def _parse_inputs(self, skip=None):
@@ -587,7 +587,7 @@ class nii2mnc_shCommand(CommandLine):
             fname = basefile
 
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _parse_inputs(self, skip=None):
@@ -602,6 +602,10 @@ class nii2mnc2Command(BaseInterface):
     output_spec = nii2mnc_shOutput
 
     def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
+
+
         temp_fn = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         convert = nii2mnc_shCommand()
         convert.inputs.in_file=self.inputs.in_file
@@ -612,15 +616,17 @@ class nii2mnc2Command(BaseInterface):
         minc2 = mincconvertCommand()
         minc2.inputs.in_file=temp_fn
         minc2.inputs.out_file=self.inputs.out_file
-        minc2.inputs.two=True 
+        minc2.inputs.two=True
         print(minc2.cmdline)
         minc2.run()
 
-        self.inputs.out_file = minc2.inputs.out_file
+        move(minc2.inputs.out_file, self.inputs.out_file)
         os.remove(temp_fn)
         return runtime
     def _list_outputs(self):
         outputs = self.output_spec().get()
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
@@ -631,7 +637,9 @@ class nii2mnc2Command(BaseInterface):
             fname = basefile
 
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        if '.gz' in fname_list :
+            fname_list = os.path.splitext(fname_list[0])
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _parse_inputs(self, skip=None):
@@ -672,7 +680,7 @@ class ecattomincCommand(CommandLine):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
+        dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + ".mnc"
 
     def _parse_inputs(self, skip=None):
@@ -681,4 +689,3 @@ class ecattomincCommand(CommandLine):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(ecattomincCommand, self)._parse_inputs(skip=skip)
-

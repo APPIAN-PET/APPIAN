@@ -1,18 +1,18 @@
-# 
+#
 # This is a script that essentially runs APPIAN a bunch of different times with varying options. In theory, it should
-# be useable with any data set, although in practice it has only been developed using a small test data set of 
+# be useable with any data set, although in practice it has only been developed using a small test data set of
 # simulated PET images and T1 images from the 1000 Connectomes Project.
 #
 # The purpose of this validatation script is to check that changes made to the APPIAN code do not break the package.
 # As such it should be run before pushing any new changes to the Git repository and especially before creating an
 # updated Docker container with a new version APPIAN.
 #
-# More tests will need to be added in the future as the current set are not exhaustive. 
+# More tests will need to be added in the future as the current set are not exhaustive.
 
 # It is therefore a good idea to reuse the output of previous tests to avoid rerunning processing stages unecessarily.
 # For example, there is no need to rerun PET-MRI co-registration everytime one wants to test a downstream processing
-# stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the 
-# previous tests can be reused for subsequent ones. 
+# stage, like PVC or quantification. The tests are therefore organized such that at least some of the outputs of the
+# previous tests can be reused for subsequent ones.
 #
 
 validation_qc(){
@@ -41,21 +41,21 @@ run_appian() {
     else
         #Test APPIAN with minimal and extra options
         printf "Test: $test_name -- "
-        
+
         #Define variable with minimal command to launch APPIAN
         minimal_options="python2.7 $base_path/Launcher.py -s ${test_data_path} -t ${out_data_path}/validation_output --threads ${threads}"
         bash -c "$minimal_options $extra_options" &> $log
-        errorcode=$? 
+        errorcode=$?
         #The number of errors produced by the APPIAN run is determined by the number of crash reports with
-        # .pklz suffix produced by Nipype in the current directory. This is why any existing crash reports must 
+        # .pklz suffix produced by Nipype in the current directory. This is why any existing crash reports must
         # moved elsewhere before initiating the run
-            
+
         n_errors=`ls crash-*pklz 2> /dev/null | wc -l`
         if [[ $errorcode != 0 && $n_errors == 0 ]]; then
             n_errors=1
         fi
         printf "Errors = %s -->" "$n_errors"
-        
+
         if [[ $n_errors != 0 || $errorcode != 0 ]]; then
             #If errors are detected, then the log suffix is set to failed
             printf " failed.\n"
@@ -69,7 +69,7 @@ run_appian() {
             printf " passed.\n"
             out_log=${test_dir}/test_${test_name}.passed
             rm -f ${test_dir}/test_${test_name}.failed #If there is a previous failed log, remove it
-            
+
             if [[ $qc == 1 ]]; then
                 validation_qc
             fi
@@ -98,7 +98,7 @@ if [[ $1 == "-help" || $1 == "--help" || $1 == "-h" || $1 == "--h" ]]; then
     echo "              timestamp :             Timestamp for validation. Will be set each time scipt is run. "
     echo "                                      However, users that are debugging may wish to continue validation with"
     echo "                                      existing timestamp to prevent rerunning all test. In this case, "
-    echo "                                      users can provide timestamp from exisint validation." 
+    echo "                                      users can provide timestamp from exisint validation."
     echo "Examples :"
     echo "          1) Run validation defaults"
     echo "             ./validate_appian.sh"
@@ -119,13 +119,13 @@ echo Warning: You should have commited latest changes to current git branch
 ########################
 
 #Number of threads to use for running APPIAN. Default=1, recommended is 4 or more.
-threads=${1:-1} 
+threads=${1:-1}
 base_path=${2:-"/opt/APPIAN"}
 test_data_path=${3:-"/opt/APPIAN/Test/test_data"}
 out_data_path=${4:-"/opt/APPIAN/Test/"}
-#Create a timestamp for testing session. 
+#Create a timestamp for testing session.
 #Can use existing timestamp if using output files from previous test run
-exit_on_failure=${5:-0}
+exit_on_failure=${5:-1}
 qc=${6:-0}
 ts=${7:-`date +"%Y%m%d-%H%M%S"`}
 test_dir="${out_data_path}/appian_validation/test_$ts"
@@ -179,20 +179,20 @@ echo Git Commit : $current_git_commit
 echo Docker Container / Hostname: $current_docker_container
 echo
 
-##
-run_appian "Dashboard" "--dashboard --fwhm 6 6 6 --pvc-method GTM --start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
-exit 0
+#run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC"'
+#run_appian "Quant-suvr" "--start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+#exit 1
 ### Minimal Inputs
 run_appian "Mininimum"
 
 ### PVC
 pvc_methods="GTM idSURF VC"
 for pvc in $pvc_methods; do
-    run_appian "PVC-${pvc}" "--fwhm 6 6 6 --pvc-method ${pvc}" 
+    run_appian "PVC-${pvc}" "--fwhm 6 6 6 --pvc-method ${pvc}"
 done
 
 ### Quantification
-quant_methods="lp lp-roi pp pp-roi suv suvr srtm" #suv srtm, roi
+quant_methods="lp lp-roi pp pp-roi suv suvr srtm srtm-bf" #suv srtm, roi
 
 for quant in $quant_methods; do
     run_appian "Quant-${quant}" "--start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
@@ -207,11 +207,10 @@ run_appian  "Space-MRI" "--analysis-space t1 --tka-method suvr --tka-label 3 --t
 
 ### Atlas / Templates
 ## DKA atlas in MNI 152 space
-run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"  
+run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"
 
 ## AAL atlas with Colin 27 template
-run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template /APPIAN/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc " 
+run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template /APPIAN/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
 
-
-
-
+### Dashboard
+run_appian "Dashboard" "--dashboard --fwhm 6 6 6 --pvc-method GTM --start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"

@@ -29,27 +29,27 @@ function menuQC(xmlNodes){
     var subScanC=document.createElement("ul");
     subScanC.className="collapse";
     var subScan=document.createElement("li");
-    subScan.innerHTML="<a href=\"javascript:;\" >GroupQC</a>";
+    subScan.innerHTML="<a href=\"javascript:;\" >Stats</a>";
     subScan.appendChild(subScanC);
 
     var subScanSubC=document.createElement("ul");
     subScanSubC.className="collapse";
     var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pet-coregistration\',\'sub\')\">Subjects</a>";
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'sub\')\">Subjects</a>";
     subScanSub.appendChild(subScanSubC);
     subScanC.appendChild(subScanSub);
 
     var subScanSessC=document.createElement("ul");
     subScanSessC.className="collapse";
     var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pet-coregistration\',\'ses\')\">Sessions</a>";
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'ses\')\">Sessions</a>";
     subScanSess.appendChild(subScanSessC);
     subScanC.appendChild(subScanSess);
 
     var subScanTaskC=document.createElement("ul");
     subScanTaskC.className="collapse";
     var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pet-coregistration\',\'task\')\">Tasks</a>";
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'task\')\">Tasks</a>";
     subScanTask.appendChild(subScanTaskC);
     subScanC.appendChild(subScanTask);
 
@@ -59,27 +59,27 @@ function menuQC(xmlNodes){
     subScanC=document.createElement("ul");
     subScanC.className="collapse";
     subScan=document.createElement("li");
-    subScan.innerHTML="<a href=\"javascript:;\" onclick=\"qcPageGp(\'pvc\')\">GroupQC</a>";
+    subScan.innerHTML="<a href=\"javascript:;\" >Stats</a>";
     subScan.appendChild(subScanC);
 
     var subScanSubC=document.createElement("ul");
     subScanSubC.className="collapse";
     var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pvc\',\'sub\')\">Subjects</a>";
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'sub\')\">Subjects</a>";
     subScanSub.appendChild(subScanSubC);
     subScanC.appendChild(subScanSub);
 
     var subScanSessC=document.createElement("ul");
     subScanSessC.className="collapse";
     var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pvc\',\'ses\')\">Sessions</a>";
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'ses\')\">Sessions</a>";
     subScanSess.appendChild(subScanSessC);
     subScanC.appendChild(subScanSess);
 
     var subScanTaskC=document.createElement("ul");
     subScanTaskC.className="collapse";
     var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'pvc\',\'task\')\">Tasks</a>";
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'task\')\">Tasks</a>";
     subScanTask.appendChild(subScanTaskC);
     subScanC.appendChild(subScanTask);
 
@@ -88,51 +88,89 @@ function menuQC(xmlNodes){
 
     subScanC=document.createElement("ul");
     subScanC.className="collapse";
-    subScan=document.createElement("li");
-    subScan.innerHTML="<a href=\"javascript:;\" onclick=\"qcPageGp(\'tka\')\">GroupQC</a>";
-    subScan.appendChild(subScanC);
+    subScanS=document.createElement("li");
+    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
+    subScanS.appendChild(subScanC);
 
     var subScanSubC=document.createElement("ul");
     subScanSubC.className="collapse";
     var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'tka\',\'sub\')\">Subjects</a>";
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'sub\')\">Subjects</a>";
     subScanSub.appendChild(subScanSubC);
     subScanC.appendChild(subScanSub);
 
     var subScanSessC=document.createElement("ul");
     subScanSessC.className="collapse";
     var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'tka\',\'ses\')\">Sessions</a>";
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'ses\')\">Sessions</a>";
     subScanSess.appendChild(subScanSessC);
     subScanC.appendChild(subScanSess);
 
     var subScanTaskC=document.createElement("ul");
     subScanTaskC.className="collapse";
     var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"resPageGp(\'tka\',\'task\')\">Tasks</a>";
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'task\')\">Tasks</a>";
     subScanTask.appendChild(subScanTaskC);
     subScanC.appendChild(subScanTask);
 
-    $("#tka").append(subScan);
+
+
+    var subScanC=document.createElement("ul");
+    subScanC.className="collapse";
+    var subScanQ=document.createElement("li");
+    subScanQ.innerHTML="<a href=\"javascript:;\" >QC</a>";
+    subScanQ.appendChild(subScanC);
+
+    var subScanSubC=document.createElement("ul");
+    subScanSubC.className="collapse";
+    var subScanSub=document.createElement("li");
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'sub\')\">Subjects</a>";
+    subScanSub.appendChild(subScanSubC);
+    subScanC.appendChild(subScanSub);
+
+    var subScanSessC=document.createElement("ul");
+    subScanSessC.className="collapse";
+    var subScanSess=document.createElement("li");
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'ses\')\">Sessions</a>";
+    subScanSess.appendChild(subScanSessC);
+    subScanC.appendChild(subScanSess);
+
+    var subScanTaskC=document.createElement("ul");
+    subScanTaskC.className="collapse";
+    var subScanTask=document.createElement("li");
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'task\')\">Tasks</a>";
+    subScanTask.appendChild(subScanTaskC);
+    subScanC.appendChild(subScanTask);
+
+    $("#tka").append(subScanS);
+    $("#tka").append(subScanQ);
 
     tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
-        sid=tabScans[s].attributes[0].value;
-        cid=tabScans[s].attributes[1].value;
-
-        
+        arr = tabScans[s].attributes
+        Object.keys(arr).forEach(element => {
+          switch(arr[element].name){
+            case "sid":
+                sid=arr[element].value;
+            case "ses":
+                ses=arr[element].value;
+            case "task":
+                task=arr[element].value;
+            }
+        });
+       
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
         subScan.appendChild(subScanC);
         $("#coreg").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
         subScan.appendChild(subScanC);
         $("#pvc").append(subScan);
         
         subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+sid+"_"+cid+"</a>";
+        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
         subScan.appendChild(subScanC);
         $("#tka").append(subScan);
     }
@@ -195,7 +233,6 @@ function coregPage(tabScans,s){
                 details=details.nextSibling;
                 j++;   
             }
-            console.log(overlayFiles);
             runBrainBrowser(overlayFiles,bb);
         }
         node=node.nextSibling;
@@ -376,7 +413,7 @@ function tkaPage(tabScans,s){
 }
 
 
-function resPageGp(stage, level){
+function reachStats(stage, level){
     var req = null;
     if (XMLHttpRequest) {
         req = new XMLHttpRequest();
@@ -386,7 +423,7 @@ function resPageGp(stage, level){
     req.onreadystatechange = function(event) {
         if (this.readyState === XMLHttpRequest.DONE) {
             if (this.status === 200) {
-                readResults(this.responseText, stage);
+                readCSV(this.responseText, stage, level);
             } else {
                 console.log("Status de la réponse: %d (%s)", this.status, this.statusText);
             }
@@ -397,7 +434,7 @@ function resPageGp(stage, level){
 }
 
 
-var readResults = function (allText, stage) {
+var readCSV = function (allText, stage, level) {
     var allTextLines = allText.split(/\r\n|\n/);
     var headers = allTextLines[0].split(',');
     var dataCSV = [];
@@ -405,67 +442,77 @@ var readResults = function (allText, stage) {
         var line = allTextLines[i].split(',');
         if (line.length == headers.length) {
             var tarr = {};
-            if ( (headers[0] == 'analysis') && (line[0] == stage) ) {
                 for (var j=0; j<headers.length; j++) {
                     keyCol=headers[j];
                     valueCol=line[j];
                     tarr[keyCol]=valueCol;
                 }
                 dataCSV.push(tarr);
-            }
         }
     }
 
     if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
       console.log(dataCSV);
-      getResults(dataCSV, stage); 
+      getResults(dataCSV, stage, level); 
     }           
 };
 
 
 
-var measures=[];
-var metricsQC=[];
-var subjList=[];
-var getResults = function(dataCSV, stage) {
+
+
+var getResults = function(dataCSV, stage, level) {
 
     subjList = dataCSV.map(function(elem){return elem.sub;});
     rowLength = dataCSV.length;
     // Combine all data into single arrays
+
+    stageList = dataCSV.map(function(elem){return elem.analysis;});
+    if(stage === 'pet-coregistration'){
+        indices = stageList.map((e, i) => e === 'pet-coregistration' || e === 'prelimaries' ? i : '').filter(String);
+    }else{
+        indices = stageList.map((e, i) => e === stage ? i : '').filter(String);
+    }
+
     metric = dataCSV.map(function(elem){return elem.metric;});
     subjList = dataCSV.map(function(elem){return elem.sub;});
     valueList = dataCSV.map(function(elem){return elem.value;});
-    values = JSON.parse("[" + valueList + "]");
     roiList = dataCSV.map(function(elem){return elem.roi;});
-    measure =  roiList.filter(function(item, i, ar){ return ar.indexOf(item) === i; });
 
+    valueStage=[];roiStage=[];subjStage=[];
+    valueList.forEach(function (value, i) {
+        if (indices.includes(i)){
+            valueStage.push(value);
+            roiStage.push(roiList[i]);
+            subjStage.push(subjList[i]);
+    }});
+
+    xaxis_title = "ROI";
     switch (stage) {
         case 'pet-coregistration':
             title = "COREGISTRATION";
             yaxis_title = ("TAC %s", metric[0]);
-            xaxis_title = "ROI";
             break;
         case 'pvc':
             title = "PARTIAL VOLUME CORRECTION";
             yaxis_title = ("TAC %s", metric[0]);
-            xaxis_title = "ROI";
             break;
         case 'tka':
             title = "TRACER KINETIC ANALYSIS";
             yaxis_title = ("TAC %s", metric[0]);
-            xaxis_title = "ROI";
             break;
     }
 
-    displayPlotBrowser(roiList,valueList,subjList,
+    displayPlotBrowser(level,roiStage,valueStage,subjStage,
         xaxis_title,yaxis_title,title);
+
 };
 
 
 
 
 
-function qcPageGp(stage){
+function reachQC(stage, level){
     var req = null;
     if (XMLHttpRequest) {
         req = new XMLHttpRequest();
@@ -475,73 +522,23 @@ function qcPageGp(stage){
     req.onreadystatechange = function(event) {
         if (this.readyState === XMLHttpRequest.DONE) {
             if (this.status === 200) {
-                processData(this.responseText);
+                readCSV(this.responseText, stage, level);
             } else {
                 console.log("Status de la réponse: %d (%s)", this.status, this.statusText);
             }
         }
     };
-    req.open('GET', "qc/"+stage+"/outlier/"+stage+"_measures.csv");
+    req.open('GET', "qc/"+stage+"/metrics/"+stage+"_qc_metrics.csv");
     req.send(null);
 }
 
 
-var measures=[];
-var metricsQC=[];
-var subjList=[];
-var getQCmetrics = function(dataCSV) {
-
-    rowLength = dataCSV.length;
-    // Combine all data into single arrays
-    subjList = dataCSV.map(function(elem){return elem.sub;});
-    for(var i=0; i<subjList.length; i++){
-        subjList[i]=parseInt(subjList[i]);
-        subjList[i]="subj"+subjList[i].toString();
-    }
-    metricsQCraw = dataCSV.map(function(elem){return elem.value;});
-    metricsQC = JSON.parse("[" + metricsQCraw + "]");
-    measures = dataCSV.map(function(elem){return elem.roi;});
-    measure =  measures.filter(function(item, i, ar){ return ar.indexOf(item) === i; });
-    var max = .05;
-    var min = -.05;
-    measure.forEach(function(value, index, array) {
-      for (var i=0; i<measures.length; i++) {
-        if (measures[i] == value) {
-          measures[i]=index+1+Math.random() * (max - min) + min;
-        }
-      }
+var jitterme = function(list,jitter) {
+    list.forEach(function(value, index, array) {
+      list[index]=Number(value)+Math.random(value)*2*jitter-jitter;
     });
-    max = .005;
-    min = -.005;
-    for (var i=0; i<metricsQC.length; i++) {
-      metricsQC[i]=metricsQC[i]+Math.random() * (max - min) + min;
-    }
-    displayPlotBrowser(measures,metricsQC,subjList);
-};
-
-
-
-var processData = function (allText) {
-    var allTextLines = allText.split(/\r\n|\n/);
-    var headers = allTextLines[0].split(',');
-    var dataCSV = [];
-    for (var i=1; i<allTextLines.length; i++) {
-        var line = allTextLines[i].split(',');
-        if (line.length == headers.length) {
-            var tarr = {};
-            for (var j=0; j<headers.length; j++) {
-                keyCol=headers[j];
-                valueCol=line[j];
-                tarr[keyCol]=valueCol;
-            }
-            dataCSV.push(tarr);
-        }
-    }
-
-    if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
-      console.log(dataCSV);
-      getQCmetrics(dataCSV);          
-    }           
+    console.log(list);
+    return(list)
 };
 
 
@@ -551,12 +548,11 @@ var processData = function (allText) {
 
 
 
-var displayPlotBrowser = function(measures,metricsQC,subjList,xaxis_title,yaxis_title,title) {
 
 
+var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,yaxis_title,title) {
 
-    window.PLOTLYENV={'BASE_URL': 'https://plotly.bic.mni.mcgill.ca'};
-
+    // window.PLOTLYENV={'BASE_URL': 'https://plotly.bic.mni.mcgill.ca'};
     var figure = {
         "frames": [], 
         "layout": {
@@ -564,8 +560,8 @@ var displayPlotBrowser = function(measures,metricsQC,subjList,xaxis_title,yaxis_
             "boxmode": "group", 
             "yaxis": {
                 "range": [
-                    Math.min(metricsQC), 
-                    Math.max(metricsQC)
+                    Math.min(valueList), 
+                    Math.max(valueList)
                 ], 
                 "type": "linear", 
                 "autorange": true, 
@@ -577,15 +573,15 @@ var displayPlotBrowser = function(measures,metricsQC,subjList,xaxis_title,yaxis_
             "width": 1200, 
             "xaxis": {
                 "range": [
-                    Math.min(measures), 
-                    Math.max(measures)
+                    Math.min(roiList), 
+                    Math.max(roiList)
                 ], 
                 // "type": "linear", 
                 "type": "array", 
                 "autorange": true, 
                 "title": xaxis_title,
                 "tickvals": [1,2,3,4,5],
-                "ticktext": measure
+                "ticktext": roiList
             }, 
             "hovermode": "closest", 
             "breakpoints": []
@@ -611,8 +607,8 @@ var displayPlotBrowser = function(measures,metricsQC,subjList,xaxis_title,yaxis_
                 ], 
                 "xsrc": "klarch1:0:0e8650", 
                 "text": subjList, 
-                "y": metricsQC, 
-                "x": measures, 
+                "y": level == 'sub' ? jitterme(valueList,.005) : valueList, 
+                "x": level == 'sub' ? jitterme(roiList,.05) : roiList, 
                 "autobiny": true, 
                 "type": "scatter", 
                 "mode": "markers"
@@ -643,7 +639,6 @@ var displayPlotBrowser = function(measures,metricsQC,subjList,xaxis_title,yaxis_
                                 'class': "plotly-graph-div"}));
     $divBox.append($divBody);
 
-    // var gd = document.getElementById('f5c2994b-a41d-4761-b0da-4f4ea1707ff3')
     var resizeDebounce = null;
     function resizePlot() {
         var bb = document.getElementById("Plotly").getBoundingClientRect();

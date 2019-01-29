@@ -24,6 +24,8 @@ results_columns = metric_columns + ['frame']
     :synopsis: Module to get results from output image
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
+final_dir="stats"
+
 ######################################
 # Group level descriptive statistics #
 ######################################
@@ -41,7 +43,7 @@ def group_level_descriptive_statistics(opts, args):
         
         #Datasink
         datasink=pe.Node(interface=nio.DataSink(), name="output")
-        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+"stats"+os.sep+surf
+        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+final_dir+os.sep+surf
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
         #Datagrabber

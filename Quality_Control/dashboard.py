@@ -94,11 +94,23 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
                  "mnc_inputs" : {"node" : pvc_method, "file" : 'in_file'},
                  "mnc_outputs" : {"node" : pvc_method, "file" : 'out_file'}
                 });
+    # TODO : More elegant + revise the MRI background image
     if tka_method != None :
-        listOfNodes.append({"name" : "tka",
-                 "mnc_inputs" : {"node" : "convertParametric", "file" : 'out_file'},
-                 "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
-                });
+        # node_take = tka_method == "suvr" ? tka_method : "convertParametric"
+        # listOfNodes.append({"name" : "tka",
+        #          "mnc_inputs" : {"node" : node_tka, "file" : 'out_file'},
+        #          "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+        #         });
+        if tka_method == "suvr":
+            listOfNodes.append({"name" : "tka",
+                     "mnc_inputs" : {"node" : tka_method, "file" : 'out_file'},
+                     "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+                    });
+        else:
+            listOfNodes.append({"name" : "tka",
+                     "mnc_inputs" : {"node" : "convertParametric", "file" : 'out_file'},
+                     "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+                    });
 
     filename=targetDir+"/preproc/graph1.json";
     fp = file(filename, 'r')
@@ -113,14 +125,10 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
             nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
             if nodeName == "datasourcePET":
                 nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
-                for key, value in nodeReport.inputs.items():
-                    if key == "cid":
-                        cid = str(value)
-                    if key == "sid":
-                        sid = str(value)
                 xmlscan = SubElement(xmlQC, 'scan')
-                xmlscan.set('sid', sid)
-                xmlscan.set('cid', cid)
+                for key, value in nodeReport.inputs.items():
+                    if key in ('cid', 'sid', 'ses', 'run') :
+                        xmlscan.set(key, str(value))               
 
         for x in listOfNodes :
             xmlnode = SubElement(xmlscan, 'node')
@@ -159,13 +167,14 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
             mnc2vol(mincfile)
 
 
-def link_stats(opts, arg):
-    if not os.path.exists(targetDir+"/preproc/dashboard/") :
-        os.makedirs(targetDir+"/preproc/dashboard/");
-    # distutils.dir_util.copy_tree('/opt/appian/APPIAN/Quality_Control/dashboard_web', targetDir+'/preproc/dashboard', update=1, verbose=0)
-    if os.path.exists(os.path.join(targetDir,'preproc/dashboard/public/stats')):
-        os.remove(os.path.join(targetDir,'preproc/dashboard/public/stats'))
-    os.symlink('../../stats', os.path.join(targetDir,'preproc/dashboard/public/stats'))
+def link_stats(opts, arg, flag):
+    os.chdir(opts.targetDir+'/preproc/dashboard/public/')
+    lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
+    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
+        os.makedirs(opts.targetDir+"/preproc/dashboard/");
+    if os.path.islink(lnk):
+        os.remove(lnk)
+    os.symlink(os.path.join('../../../',flag), lnk)
 
 
 
@@ -194,9 +203,6 @@ class deployDashCommand(BaseInterface):
         return dname+os.sep+fname
 
     def _run_interface(self, runtime):
-        # petmri = self.inputs.petmri
-        # pvc = self.inputs.pvc
-        # tka = self.inputs.tka
         targetDir = self.inputs.targetDir;
         sourceDir = self.inputs.sourceDir;
         pvc_method = self.inputs.pvc_method;
@@ -214,7 +220,7 @@ class deployDashCommand(BaseInterface):
         for sub in glob.glob(os.path.join(sourceDir,'sub*')):
             if os.path.isdir(sub):
                 dest = os.path.join(targetDir,'preproc/dashboard/public/',os.path.basename(sub))
-                if os.path.exists(dest):
+                if os.path.islink(dest):
                     os.remove(dest)
                 os.symlink(sub, dest)        
 

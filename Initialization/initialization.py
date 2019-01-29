@@ -4,7 +4,7 @@ import tempfile
 import shutil
 import json
 import nipype.interfaces.minc as minc
-
+import ntpath
 import minc as pyezminc
 from os.path import basename
 import shutil
@@ -550,28 +550,32 @@ class get_stepCommand(BaseInterface):
         outputs["step"] = self.inputs.step
         return outputs
 
-class PETexcludeFrOutput(TraitedSpec):
+class pet3DVolumeOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
 
-class PETexcludeFrInput(BaseInterfaceInputSpec):
+class pet3DVolumeInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
     out_file = File(argstr="%s", desc="Image after centering")
-
-    run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class PETexcludeFrRunning(BaseInterface):
-    input_spec = PETexcludeFrInput
-    output_spec = PETexcludeFrOutput
-    _suffix = "_reshaped"
+class pet3DVolume(BaseInterface):
+    input_spec = pet3DVolumeInput
+    output_spec = pet3DVolumeOutput
+    _suffix = "_3D"
 
+    def _gen_output(self, basefile, _suffix):
+        fname = ntpath.basename(basefile)
+        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd()
+        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
         #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = volumeFromFile(self.inputs.in_file)
         rank=10
+
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
         try :
             nFrames = infile.sizes[infile.dimnames.index("time")]
@@ -585,20 +589,31 @@ class PETexcludeFrRunning(BaseInterface):
             run_mincreshape=ReshapeCommand()
             run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
             run_mincreshape.inputs.in_file = self.inputs.in_file
-            run_mincreshape.inputs.out_file = self.inputs.out_file
-            if self.inputs.verbose:
-                print run_mincreshape.cmdline
-            if self.inputs.run:
-                run_mincreshape.run()
+            run_mincreshape.run()
+
+            temp_fn = run_mincreshape.inputs.out_file
         else :
-            self.inputs.out_file = self.inputs.in_file
+            temp_fn = self.inputs.in_file
+        
+        petAverage = minc.Average()
+        petAverage.inputs.avgdim = 'time'
+        petAverage.inputs.width_weighted = False
+        petAverage.inputs.clobber = True
+        petAverage.inputs.input_files = [ temp_fn  ] 
+        petAverage.inputs.output_file = self.inputs.out_file
+        petAverage.run()
 
         return runtime
 
-
     def _list_outputs(self):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
+        
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
         return outputs
 
 """
@@ -632,56 +647,29 @@ def get_workflow(name, infosource, opts):
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=["pet_header_dict","pet_header_json","pet_center","pet_volume"]), name='outputnode')
 
-    #header_init = pe.Node(interface=MincHdrInfoRunning(), name="header_init")
-    #workflow.connect(inputnode, 'pet',  header_init, 'in_file')
-
     node_name="petCenter"
     petCenter= pe.Node(interface=VolCenteringRunning(), name=node_name)
     petCenter.inputs.verbose = opts.verbose
 
-    node_name="petExcludeFr"
-    petExFr = pe.Node(interface=PETexcludeFrRunning(), name=node_name)
-    petExFr.inputs.verbose = opts.verbose
-    #petExFr.inputs.run = opts.prun
-    #rPetExFr=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
-
     node_name="petVolume"
-    petVolume = pe.Node(interface=minc.Average(), name=node_name)
-    petVolume.inputs.avgdim = 'time'
-    petVolume.inputs.width_weighted = False
-    petVolume.inputs.clobber = True
-    #rPetVolume=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"),name="r"+node_name)
+    petVolume = pe.Node(interface=pet3DVolume(), name=node_name)
+    petVolume.inputs.verbose = opts.verbose
 
     node_name="petSettings"
     petSettings = pe.Node(interface=MincHdrInfoRunning(), name=node_name)
     petSettings.inputs.halflife = opts.halflife
     petSettings.inputs.clobber = True
-    #petSettings.inputs.run = opts.prun
-    #rPetSettings=pe.Node(interface=Rename(format_string="%(sid)s_%(cid)s_"+node_name+".mnc"), name="r"+node_name)
 
     workflow.connect([(inputnode, petCenter, [('pet', 'in_file')])])
-    #workflow.connect(header_init, 'out_file', petCenter, 'header')
 
     workflow.connect([(petCenter, petSettings, [('out_file', 'in_file')])])
-    #if opts.json :
     workflow.connect(inputnode, 'json_header', petSettings, 'json_header')
-    workflow.connect([(petCenter, petExFr, [('out_file', 'in_file')])])
-    #workflow.connect([(petExFr, rPetExFr, [('out_file', 'in_file')])])
-    #workflow.connect([(infosource, rPetExFr, [('sid', 'sid')]),
-    #    (infosource, rPetExFr, [('cid', 'cid')])
-    #    ])
+    workflow.connect([(petCenter, petVolume, [('out_file', 'in_file')])])
 
-    workflow.connect([(petExFr, petVolume, [('out_file', 'input_files')])])
-
-    #workflow.connect([(petVolume, rPetVolume, [('output_file', 'in_file')])])
-    #workflow.connect([(infosource, rPetVolume, [('sid', 'sid')]),
-    #    (infosource, rPetVolume, [('cid', 'cid')])
-    #    ])
 
     workflow.connect(petSettings, 'header', outputnode, 'pet_header_dict')
     workflow.connect(petSettings, 'out_file', outputnode, 'pet_header_json')
     workflow.connect(petCenter, 'out_file', outputnode, 'pet_center')
-    workflow.connect(petVolume, 'output_file', outputnode, 'pet_volume')
-
+    workflow.connect(petVolume, 'out_file', outputnode, 'pet_volume')
 
     return(workflow)

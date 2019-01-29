@@ -663,7 +663,7 @@ def get_workflow(name, infosource, opts):
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","nativeT1nuc","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error", "header" ]), name='inputnode')
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "petmri_img_4d","petmni_img_4d","petmri_xfm","mripet_xfm",'petmni_xfm', 'mnipet_xfm' ]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "pet_img_4d","petmri_xfm","mripet_xfm",'petmni_xfm', 'mnipet_xfm' ]), name='outputnode')
 
     node_name="pet_brainmask"
     petMasking = pe.Node(interface=PETheadMasking(), name=node_name)
@@ -672,14 +672,6 @@ def get_workflow(name, infosource, opts):
     workflow.connect(inputnode, 'pet_volume', petMasking, 'in_file')
     workflow.connect(inputnode, 'header', petMasking, 'in_json')
 
-    #node_name="pet2mri_withMask"
-    #pet2mri_withMask = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
-    #pet2mri_withMask.inputs.clobber = True
-    #pet2mri_withMask.inputs.verbose = opts.verbose
-    #pet2mri_withMask.inputs.lsq="lsq6"
-
-
-    #if opts.no_mask :
     node_name="pet2mri"
     pet2mri = pe.Node(interface=PETtoT1LinRegRunning(), name=node_name)
     pet2mri.inputs.clobber = True
@@ -697,24 +689,14 @@ def get_workflow(name, infosource, opts):
     t1_brain_mask_rsl.inputs.clobber = True
     t1_brain_mask_img = 'output_file'
 
+    workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
+                                  (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')])#,
+                                  ])
+
     workflow.connect([(inputnode, t1_brain_mask_rsl, [('t1_brain_mask', 'input_file' )]),
                         (inputnode, t1_brain_mask_rsl, [('pet_volume', 'like')]),
                         (pet2mri, t1_brain_mask_rsl, [('out_file_xfm_invert', 'transformation')])
                     ])
-
-
-    if opts.calculate_t1_pet_space :
-        t1_pet_space = pe.Node(interface=minc.Resample(), name="t1_pet_space")
-        t1_pet_space.inputs.keep_real_range=True
-        t1_pet_space.inputs.clobber = True
-        workflow.connect([(inputnode, t1_pet_space, [('nativeT1nuc', 'input_file' )]),
-                            (inputnode, t1_pet_space, [('pet_volume', 'like')]),
-                            (pet2mri, t1_pet_space, [('out_file_xfm_invert', 'transformation')])
-                        ])
-
-        workflow.connect([(inputnode, pet2mri, [('pet_volume', 'in_source_file')]),
-                          (inputnode, pet2mri, [('nativeT1nuc', 'in_target_file')])#,
-                          ])
 
     if opts.test_group_qc :
         ###Create rotation xfm files based on transform error
@@ -748,16 +730,7 @@ def get_workflow(name, infosource, opts):
         t1_brain_mask_rsl = transform_brainmaskNode
         t1_brain_mask_img = 'out_file'
 
-    #Resample 4d PET image to T1 space
-    #pettot1_4d = pe.Node(interface=gzipResampleCommand(), name='pettot1_4d')
-    pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
-    pettot1_4d.inputs.keep_real_range=True
-    #pettot1_4d.inputs.output_file='pet_space-t1_4d.mnc'
-    workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
-    workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
-    workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
 
-    #Resample 4d PET image to MNI space
     PETMNIXfm_node = pe.Node( interface=ConcatCommand(), name="PETMNIXfm_node")
     workflow.connect(pet2mri, "out_file_xfm", PETMNIXfm_node, "in_file")
     workflow.connect(inputnode, "xfmT1MNI", PETMNIXfm_node, "in_file_2")
@@ -765,17 +738,26 @@ def get_workflow(name, infosource, opts):
     MNIPETXfm_node = pe.Node(interface=minc.XfmInvert(), name="MNIPETXfm_node")
     workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
 
-    #pettomni_4d = pe.Node(interface=gzipResampleCommand(), name='pettomni_4d')
-    pettomni_4d = pe.Node(interface=minc.Resample(), name='pettomni_4d')
-    pettomni_4d.inputs.keep_real_range=True
-    workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_file')
-    workflow.connect(PETMNIXfm_node, "out_file", pettomni_4d, 'transformation')
-    workflow.connect(inputnode, 'T1Tal',pettomni_4d, 'like')
-
     workflow.connect(PETMNIXfm_node, 'out_file', outputnode, 'petmni_xfm' )
     workflow.connect(MNIPETXfm_node, 'output_file', outputnode, 'mnipet_xfm' )
-    workflow.connect(pettot1_4d,'output_file', outputnode, 'petmri_img_4d')
-    workflow.connect(pettomni_4d,'output_file', outputnode, 'petmni_img_4d')
+
+    #Resample 4d PET image to T1 space
+    if opts.analysis_space == 't1':
+        pettot1_4d = pe.Node(interface=minc.Resample(), name='pettot1_4d')
+        pettot1_4d.inputs.keep_real_range=True
+        workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
+        workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
+        workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
+        workflow.connect(pettot1_4d,'output_file', outputnode, 'pet_img_4d')
+    elif opts.analysis_space == "stereo" :
+        #Resample 4d PET image to MNI space
+        pettomni_4d = pe.Node(interface=minc.Resample(), name='pettomni_4d')
+        pettomni_4d.inputs.keep_real_range=True
+        workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_file')
+        workflow.connect(PETMNIXfm_node, "out_file", pettomni_4d, 'transformation')
+        workflow.connect(inputnode, 'T1Tal',pettomni_4d, 'like')
+        workflow.connect(pettomni_4d,'output_file', outputnode, 'pet_img_4d')
+    
     workflow.connect(final_pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
     workflow.connect(final_pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
     workflow.connect(final_pet2mri, 'out_file_img', outputnode, 'petmri_img')

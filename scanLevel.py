@@ -487,15 +487,12 @@ def run_scan_level(opts,args):
     wf_pet2mri=reg.get_workflow("pet-coregistration", infosource, opts)
     wf_masking=masking.get_workflow("masking", infosource, opts)
     
-    if opts.analysis_space == 'stereo':
-        pet_input_node=wf_pet2mri
-        pet_input_file='outputnode.petmni_img_4d'
-    elif opts.analysis_space == 'pet':
+    if opts.analysis_space == 'pet' :
         pet_input_node=wf_init_pet
         pet_input_file='outputnode.pet_center'
-    elif opts.analysis_space == 't1':
+    else : # analysis space is stereo or t1
         pet_input_node=wf_pet2mri
-        pet_input_file='outputnode.petmri_img_4d'
+        pet_input_file='outputnode.pet_img_4d'
 
     #################################################
     # Combine possible label source into one source #
@@ -538,7 +535,7 @@ def run_scan_level(opts,args):
         misregistration.iterables = ('error',tqc.errors)
         workflow.connect(misregistration, 'error', wf_pet2mri, "inputnode.error")
 
-    workflow.connect(wf_pet2mri, 'outputnode.petmri_img_4d', datasink,'pet_coregistration' )
+    workflow.connect(wf_pet2mri, 'outputnode.petmri_img', datasink,'pet_coregistration' )
     out_node_list += [pet_input_node] 
     out_img_list += [pet_input_file]
     out_img_dim += ['4']
@@ -690,13 +687,12 @@ def run_scan_level(opts,args):
     if opts.group_qc or opts.test_group_qc :
         #Automated QC: PET to MRI linear coregistration 
         distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
-        workflow.connect(wf_init_pet, 'outputnode.pet_volume',  distance_metricNode, 'pet')
+        workflow.connect(wf_pet2mri, 'outputnode.petmri_img',  distance_metricNode, 'pet')
+        #workflow.connect(wf_pet2mri, 'pet_brainmask.out_file', distance_metricNode, 'pet_brain_mask')
+        #workflow.connect(wf_pet2mri,  't1_brain_mask_pet-space.output_file', distance_metricNode, 't1_brain_mask')
+        workflow.connect(wf_masking,  'brain_mask.output_file', distance_metricNode, 't1_brain_mask')
         
-        workflow.connect(wf_pet2mri, 'pet_brainmask.out_file', distance_metricNode, 'pet_brain_mask')
-        workflow.connect(wf_pet2mri,  't1_brain_mask_pet-space.output_file', distance_metricNode, 't1_brain_mask')
-        #workflow.connect(wf_masking,  'brain_mask.output_file', distance_metricNode, 't1_brain_mask')
-        
-        workflow.connect(wf_pet2mri, 't1_pet_space.output_file',  distance_metricNode, 't1')
+        workflow.connect(datasourceT1, 'nativeT1',  distance_metricNode, 't1')
         workflow.connect(infosource, 'ses', distance_metricNode, 'ses')
         workflow.connect(infosource, 'task', distance_metricNode, 'task')
         workflow.connect(infosource, 'sid', distance_metricNode, 'sid')

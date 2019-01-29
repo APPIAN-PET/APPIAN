@@ -186,17 +186,18 @@ def temp_qc(vol0, mask0, vol1, mask1, out_fn):
     print out_fn
     plt.savefig(out_fn)
 
-def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
+#def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
+def distance(pet_fn, mri_fn, t1_brain_fn, dist_f_list):
     pet = pyminc.volumeFromFile(pet_fn)
     mri = pyminc.volumeFromFile(mri_fn)
     t1_mask= pyminc.volumeFromFile(t1_brain_fn)
-    pet_mask= pyminc.volumeFromFile(pet_brain_fn)
+    #pet_mask= pyminc.volumeFromFile(pet_brain_fn)
 
 
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
     t1_mask_data=t1_mask.data.flatten()
-    pet_mask_data=pet_mask.data.flatten()
+    #pet_mask_data=pet_mask.data.flatten()
     
     if not pet.data.shape == mri.data.shape : 
         print("Dimension mismatch between pet and mri:")
@@ -204,13 +205,13 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
         print(mri_fn, t1_mask.data.shape)
         exit(1)
 
-    if not t1_mask_data.shape == pet_mask_data.shape : 
-        print("Dimension mismatch between masks pet and mri:")
-        print(pet_brain_fn, pet_mask.data.shape) 
-        print(t1_brain_fn, t1_mask.data.shape)
-        exit(1)
+    #if not t1_mask_data.shape == pet_mask_data.shape : 
+    #    print("Dimension mismatch between masks pet and mri:")
+    #    print(pet_brain_fn, pet_mask.data.shape) 
+    #    print(t1_brain_fn, t1_mask.data.shape)
+    #    exit(1)
 
-    overlap = t1_mask_data * pet_mask_data
+    overlap = t1_mask_data #* pet_mask_data
     overlap[ overlap >= 1 ] = 1
     #temp_qc(np.array(pet.data), np.array(mri.data), np.array(t1_mask.data+pet_mask.data), pet_mask.data, os.path.basename(pet_fn)+'.png')
     #print(pet_fn)
@@ -224,9 +225,9 @@ def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
     del pet
     del mri
     del t1_mask
-    del pet_mask
+    #del pet_mask
     del t1_mask_data
-    del pet_mask_data
+    #del pet_mask_data
     dist_list=[]
     for dist_f in dist_f_list:
         dist_list.append(dist_f(masked_pet_data, masked_mri_data))
@@ -495,7 +496,7 @@ class coreg_qc_metricsInput(BaseInterfaceInputSpec):
     pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
     t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
-    pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    #pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     sid = traits.Str(desc="Subject")
     ses = traits.Str(desc="Session")
     task = traits.Str(desc="Task")
@@ -530,7 +531,7 @@ class coreg_qc_metricsCommand(BaseInterface):
         acq = self.inputs.acq
 
         t1_brain_mask = self.inputs.t1_brain_mask
-        pet_brain_mask = self.inputs.pet_brain_mask
+        #pet_brain_mask = self.inputs.pet_brain_mask
 
         path, ext = os.path.splitext(pet)
         base=basename(path)
@@ -539,7 +540,8 @@ class coreg_qc_metricsCommand(BaseInterface):
           
         distance_metric_methods=distance_metrics.values()
         distance_metric_names=distance_metrics.keys()
-        mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metric_methods )
+        #mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metric_methods )
+        mis_metric=distance(pet, t1, t1_brain_mask,  distance_metric_methods )
 
         df=pd.DataFrame(columns=metric_columns )
         for m,metric_name,metric_func in zip(mis_metric, distance_metric_names, distance_metric_methods):

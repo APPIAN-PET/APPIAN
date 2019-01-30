@@ -1,29 +1,20 @@
 # Contributing to APPIAN
 Table of Contents
 =================
-[1. To Do](#to-do)
 
-[2. Introduction](#introduction)
+[1. Introduction](#introduction)
 
-[3. Labels](#labels)
+[2. Labels](#labels)
 
-[4. Making a change](#making-a-change)
+[3. Making a change](#making-a-change)
 
-[5. Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
+[4. Adding new PET quantification and PVC methods](#adding-pet-quantification-and-pvc-methods)
 
-[6. APPIAN coding style guide](#appian-coding-style-guide)
+[5. APPIAN coding style guide](#appian-coding-style-guide)
 
-[7. Validation](#validation)
+[6. Validation](#validation)
 
-[8. Recognizing contributions](#recognizing-contributions)
-
-### To Do
-
-#### ~~Finish changes to label management~~
-#### ~~Set up automatic testing~~
-#### ~~Read in JSON from Nifti files~~
-#### ~~Implement/test surface masks~~
-
+[7. Recognizing contributions](#recognizing-contributions)
 
 ### Introduction
 Here is a guide that will hopefully make it easy to participate. If you have any questions that are not answered in our [User Guide][link_userguide], in the [Developer API guide][link_html] (still in progress, best viewed locally), or below, please do not hesitate to send us an email (tffunck@gmail.com). One day we will have a mailing list or forum, but not yet.

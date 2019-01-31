@@ -94,23 +94,13 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
                  "mnc_inputs" : {"node" : pvc_method, "file" : 'in_file'},
                  "mnc_outputs" : {"node" : pvc_method, "file" : 'out_file'}
                 });
-    # TODO : More elegant + revise the MRI background image
     if tka_method != None :
-        # node_take = tka_method == "suvr" ? tka_method : "convertParametric"
-        # listOfNodes.append({"name" : "tka",
-        #          "mnc_inputs" : {"node" : node_tka, "file" : 'out_file'},
-        #          "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
-        #         });
-        if tka_method == "suvr":
-            listOfNodes.append({"name" : "tka",
-                     "mnc_inputs" : {"node" : tka_method, "file" : 'out_file'},
-                     "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
-                    });
-        else:
-            listOfNodes.append({"name" : "tka",
-                     "mnc_inputs" : {"node" : "convertParametric", "file" : 'out_file'},
-                     "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
-                    });
+        node_tka = tka_method if tka_method == "suvr" else "convertParametric"
+        listOfNodes.append({"name" : "tka",
+                 "mnc_inputs" : {"node" : node_tka, "file" : 'out_file'},
+                 "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+                });
+
 
     filename=targetDir+"/preproc/graph1.json";
     fp = file(filename, 'r')
@@ -167,7 +157,7 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
             mnc2vol(mincfile)
 
 
-def link_stats(opts, arg, flag):
+def link_stats_qc(opts, arg, flag):
     os.chdir(opts.targetDir+'/preproc/dashboard/public/')
     lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
     if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :

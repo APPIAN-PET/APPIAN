@@ -39,6 +39,8 @@ from scipy.ndimage.filters import gaussian_filter
 #datasink for dist metrics
 #check how the calc outlier measure node is implemented, may need to be reimplemented
 
+final_dir="qc"
+
 def group_level_qc(opts, args):
     #setup workflow
     workflow = pe.Workflow(name=opts.preproc_dir)

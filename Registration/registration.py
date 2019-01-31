@@ -673,7 +673,7 @@ def get_workflow(name, infosource, opts):
     if isdefined(inputnode.inputs.error) :
         final_pet2mri.inputs.error = error
 
-    node_name="t1_brain_mask_pet-space"
+    node_name="t1_brain_mask_pet_space"
     t1_brain_mask_rsl = pe.Node(interface=minc.Resample(), name=node_name)
     t1_brain_mask_rsl.inputs.nearest_neighbour_interpolation = True
     t1_brain_mask_rsl.inputs.clobber = True

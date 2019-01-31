@@ -313,8 +313,8 @@ def get_workflow(name, infosource, opts):
             workflow.connect(inputnode, 'surf_left', surface_left_node, 'in_file')
             workflow.connect(inputnode, 'surf_right', surface_right_node, 'in_file')
             if opts.analysis_space == "t1" :
-                workflow.connect(MNIT1, 'output_file', surface_left_node, 'tfm_file')
-                workflow.connect(MNIT1, 'output_file', surface_right_node, 'tfm_file')
+                workflow.connect(inputnode, "LinMNIT1Xfm", surface_left_node, 'tfm_file')
+                workflow.connect(inputnode, "LinMNIT1Xfm", surface_right_node, 'tfm_file')
             elif opts.analysis_space == "pet" :
                 workflow.connect(inputnode, 'LinMNIPETXfm', surface_left_node, 'tfm_file')
                 workflow.connect(inputnode, 'LinMNIPETXfm', surface_right_node, 'tfm_file')

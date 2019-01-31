@@ -26,127 +26,70 @@ function collectIO(){
 var tabScans,tabNodes,tabOptions,tabParams,tabInMinc,tabOutMinc;
 function menuQC(xmlNodes){
 
+    var array = ['pet-coregistration', 'pvc', 'tka'];
+
+    array.forEach(function(stage) {
+
+    var subScanS=document.createElement("li");
+    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
     var subScanC=document.createElement("ul");
     subScanC.className="collapse";
-    var subScan=document.createElement("li");
-    subScan.innerHTML="<a href=\"javascript:;\" >Stats</a>";
-    subScan.appendChild(subScanC);
 
     var subScanSubC=document.createElement("ul");
     subScanSubC.className="collapse";
     var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'sub\')\">Subjects</a>";
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'sub\')\">Subjects</a>";
     subScanSub.appendChild(subScanSubC);
     subScanC.appendChild(subScanSub);
 
     var subScanSessC=document.createElement("ul");
     subScanSessC.className="collapse";
     var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'ses\')\">Sessions</a>";
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'ses\')\">Sessions</a>";
     subScanSess.appendChild(subScanSessC);
     subScanC.appendChild(subScanSess);
 
     var subScanTaskC=document.createElement("ul");
     subScanTaskC.className="collapse";
     var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pet-coregistration\',\'task\')\">Tasks</a>";
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'task\')\">Tasks</a>";
     subScanTask.appendChild(subScanTaskC);
     subScanC.appendChild(subScanTask);
 
-    $("#coreg").append(subScan);
-
-
-    subScanC=document.createElement("ul");
-    subScanC.className="collapse";
-    subScan=document.createElement("li");
-    subScan.innerHTML="<a href=\"javascript:;\" >Stats</a>";
-    subScan.appendChild(subScanC);
-
-    var subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'sub\')\">Subjects</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
-
-    var subScanSessC=document.createElement("ul");
-    subScanSessC.className="collapse";
-    var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'ses\')\">Sessions</a>";
-    subScanSess.appendChild(subScanSessC);
-    subScanC.appendChild(subScanSess);
-
-    var subScanTaskC=document.createElement("ul");
-    subScanTaskC.className="collapse";
-    var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'pvc\',\'task\')\">Tasks</a>";
-    subScanTask.appendChild(subScanTaskC);
-    subScanC.appendChild(subScanTask);
-
-    $("#pvc").append(subScan);
-
-
-    subScanC=document.createElement("ul");
-    subScanC.className="collapse";
-    subScanS=document.createElement("li");
-    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
     subScanS.appendChild(subScanC);
 
-    var subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'sub\')\">Subjects</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
 
-    var subScanSessC=document.createElement("ul");
-    subScanSessC.className="collapse";
-    var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'ses\')\">Sessions</a>";
-    subScanSess.appendChild(subScanSessC);
-    subScanC.appendChild(subScanSess);
-
-    var subScanTaskC=document.createElement("ul");
-    subScanTaskC.className="collapse";
-    var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'tka\',\'task\')\">Tasks</a>";
-    subScanTask.appendChild(subScanTaskC);
-    subScanC.appendChild(subScanTask);
-
-
-
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
     var subScanQ=document.createElement("li");
     subScanQ.innerHTML="<a href=\"javascript:;\" >QC</a>";
-    subScanQ.appendChild(subScanC);
+    var subScanC=document.createElement("ul");
+    subScanC.className="collapse";
 
     var subScanSubC=document.createElement("ul");
     subScanSubC.className="collapse";
     var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'sub\')\">Subjects</a>";
+    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'sub\')\">Subjects</a>";
     subScanSub.appendChild(subScanSubC);
     subScanC.appendChild(subScanSub);
 
     var subScanSessC=document.createElement("ul");
     subScanSessC.className="collapse";
     var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'ses\')\">Sessions</a>";
+    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'ses\')\">Sessions</a>";
     subScanSess.appendChild(subScanSessC);
     subScanC.appendChild(subScanSess);
 
     var subScanTaskC=document.createElement("ul");
     subScanTaskC.className="collapse";
     var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'tka\',\'task\')\">Tasks</a>";
+    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'task\')\">Tasks</a>";
     subScanTask.appendChild(subScanTaskC);
     subScanC.appendChild(subScanTask);
 
-    $("#tka").append(subScanS);
-    $("#tka").append(subScanQ);
+    subScanQ.appendChild(subScanC);
 
     tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
+        var subScanI=document.createElement("li");
         arr = tabScans[s].attributes
         Object.keys(arr).forEach(element => {
           switch(arr[element].name){
@@ -159,21 +102,32 @@ function menuQC(xmlNodes){
             }
         });
        
-        subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-        subScan.appendChild(subScanC);
-        $("#coreg").append(subScan);
-        
-        subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-        subScan.appendChild(subScanC);
-        $("#pvc").append(subScan);
-        
-        subScan=document.createElement("li");
-        subScan.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-        subScan.appendChild(subScanC);
-        $("#tka").append(subScan);
+
+        switch(stage){
+            case "pet-coregistration":
+                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
+                $("#coreg").append(subScanI);
+                document.getElementById(stage).append(subScanI);
+                break;
+            case "pvc":
+                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
+                $("#pvc").append(subScanI);
+                document.getElementById(stage).append(subScanI);
+                break;
+            case "tka":
+                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
+                $("#tka").append(subScanI);
+                document.getElementById(stage).append(subScanI);
+                break;
+        }
+
     }
+
+    document.getElementById(stage).append(subScanS);
+    document.getElementById(stage).append(subScanQ);
+
+    });
+
 }
 
 
@@ -528,6 +482,7 @@ function reachQC(stage, level){
             }
         }
     };
+    stage = stage === 'pet-coregistration' ? 'coreg' : stage;
     req.open('GET', "qc/"+stage+"/metrics/"+stage+"_qc_metrics.csv");
     req.send(null);
 }
@@ -581,7 +536,7 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
                 "autorange": true, 
                 "title": xaxis_title,
                 "tickvals": [1,2,3,4,5],
-                "ticktext": roiList
+                // "ticktext": roiList
             }, 
             "hovermode": "closest", 
             "breakpoints": []
@@ -607,8 +562,10 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
                 ], 
                 "xsrc": "klarch1:0:0e8650", 
                 "text": subjList, 
-                "y": level == 'sub' ? jitterme(valueList,.005) : valueList, 
-                "x": level == 'sub' ? jitterme(roiList,.05) : roiList, 
+                "y": valueList, 
+                // "x": roiList, 
+                // "y": level == 'sub' ? jitterme(valueList,.00005) : valueList, 
+                "x": level == 'sub' ? jitterme(roiList,.005) : roiList, 
                 "autobiny": true, 
                 "type": "scatter", 
                 "mode": "markers"

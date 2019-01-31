@@ -19,9 +19,10 @@ def run_group_level(opts,args):
                 command(opts,args)
                 if opts.dashboard:
                     try :
-                        dash.link_stats(opts,args,module.final_dir)
+                        dash.link_stats_qc(opts,args,module.final_dir)
                     except AttributeError :
                         pass
+
     else :
         print "Warning: only one subject, cannot run group level analysis."
 

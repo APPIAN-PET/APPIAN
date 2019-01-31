@@ -211,7 +211,13 @@ def unique_file(files, attributes, verbose=False):
     return( out_files[0] )
 
 
-def gen_args(opts, session_ids, task_ids, run_ids, acq, rec, subjects):
+def gen_args(opts, subjects):
+    session_ids = opts.sessionList 
+    task_ids = opts.taskList 
+    run_ids = opts.runList
+    acq = opts.acq 
+    rec = opts.rec
+    
     task_args=[]
     sub_ses_args=[]
     sub_ses_dict={}
@@ -511,8 +517,9 @@ class VolCenteringRunning(BaseInterface):
         fixCosine = FixCosinesCommand()
         fixCosine.inputs.in_file = fixIrregular.inputs.out_file
         fixCosine.inputs.keep_real_range=True
+        fixCosine.inputs.dircos=True
         fixCosine.run()
-
+        print(fixCosine.cmdline)
         shutil.copy(fixCosine.inputs.out_file, self.inputs.out_file)
         return runtime
 

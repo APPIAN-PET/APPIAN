@@ -1,6 +1,5 @@
-host_path=$1
-docker_path=$2
-dir=$3
+docker_path=$1
+host_path=$2
 
 for f in `find -L  -type l `; do
     new_link=`readlink $f | sed "s#$docker_path#$host_path#g"`

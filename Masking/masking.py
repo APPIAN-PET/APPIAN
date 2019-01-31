@@ -185,15 +185,15 @@ class Labels(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_transforms_for_stage(MNIT1, MNIPET, inputnode, label_space, analysis_space, identity):
+def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
     if label_space == "stereo" :
         if analysis_space == "t1":
-            tfm_node=MNIT1
-            transform_file="output_file"
+            tfm_node=inputnode
+            transform_file="LinMNIT1Xfm"
             target_file="nativeT1"
         elif analysis_space == "pet":
-            tfm_node=MNIPET
-            transform_file="output_file"
+            tfm_node=inputnode
+            transform_file='LinMNIPETXfm'
             target_file="pet_volume"
         else :
             tfm_node=identity
@@ -253,7 +253,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brainmask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm',  "LinPETMNIXfm", "LinMNIPETXfm", "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
+    in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm','LinMNIT1Xfm',  "LinPETMNIXfm", "LinMNIPETXfm",'LinT1MNIXfm', "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
     if not opts.nopvc:
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -271,18 +271,13 @@ def get_workflow(name, infosource, opts):
     identity_transform.inputs.rotation="0 0 0"
     identity_transform.inputs.scales="1 1 1"
 
-    MNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
-    workflow.connect(inputnode, 'LinT1MNIXfm',MNIT1 , 'input_file')
-    MNIPET = pe.Node(interface=minc.XfmInvert(), name="MNIPET")
-    workflow.connect(inputnode, 'LinPETMNIXfm',MNIPET , 'input_file')
-
     if not opts.nopvc and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
+        pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
 
     if not opts.tka_method == None:
-       tka_tfm_node, tka_tfm_file, tka_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
+       tka_tfm_node, tka_tfm_file, tka_target_file = get_transforms_for_stage(  inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
 
-    results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage( MNIT1, MNIPET, inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
+    results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage(  inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
 
     ###################
     # Brain Mask Node #
@@ -290,15 +285,14 @@ def get_workflow(name, infosource, opts):
     if opts.analysis_space != "stereo"  :
         brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
-        #brain_mask_node.inputs.output_file="brain_mask_space-"+opts.analysis_space+".mnc"
 
         workflow.connect(inputnode, "brainmask", brain_mask_node, "input_file")
         if opts.analysis_space == "t1" :
-            workflow.connect(MNIT1, "output_file", brain_mask_node, "transformation")
+            workflow.connect(inputnode, "LinMNIT1Xfm",  brain_mask_node, "transformation")
             like_file="nativeT1"
             workflow.connect(inputnode, "nativeT1", brain_mask_node, "like")
         elif opts.analysis_space == "pet" :
-            workflow.connect(MNIPET, "output_file", brain_mask_node, "transformation")
+            workflow.connect(inputnode, "LinMNIPETXfm", brain_mask_node, "transformation")
             workflow.connect(inputnode, "pet_volume", brain_mask_node, "like")
             like_file="pet_volume"
         else :
@@ -322,8 +316,8 @@ def get_workflow(name, infosource, opts):
                 workflow.connect(MNIT1, 'output_file', surface_left_node, 'tfm_file')
                 workflow.connect(MNIT1, 'output_file', surface_right_node, 'tfm_file')
             elif opts.analysis_space == "pet" :
-                workflow.connect(MNIPET, 'output_file', surface_left_node, 'tfm_file')
-                workflow.connect(MNIPET, 'output_file', surface_right_node, 'tfm_file')
+                workflow.connect(inputnode, 'LinMNIPETXfm', surface_left_node, 'tfm_file')
+                workflow.connect(inputnode, 'LinMNIPETXfm', surface_right_node, 'tfm_file')
         else :
             surface_left_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_left_node")
             surface_right_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_right_node")

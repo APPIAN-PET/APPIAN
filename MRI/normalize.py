@@ -12,7 +12,7 @@ from Extra.mincants import mincANTSCommand, mincAtroposCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
 
-def get_workflow(name, valid_args, opts):
+def get_workflow(name, opts):
     workflow = pe.Workflow(name=name)
     in_fields = ['t1']
     if opts.user_brainmask :
@@ -28,7 +28,7 @@ def get_workflow(name, valid_args, opts):
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
-    out_fields=	[ 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni' ]
+    out_fields=	[ 'xfmMNIT1', 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni', 't1_nat' ]
     for stage, label_type in zip(stages, label_types):
         print( stage, label_type )
         if 'internal_cls' == label_type :
@@ -37,6 +37,9 @@ def get_workflow(name, valid_args, opts):
     
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
+    #
+    # Setup dir for minc beast if not using user provided brain mask
+    #
     if not opts.user_brainmask : 
         if opts.beast_library_dir == None :
             library_dir = mincbeast_library(opts.template)
@@ -45,18 +48,10 @@ def get_workflow(name, valid_args, opts):
         
         template_rsl = create_alt_template(opts.template, library_dir)
 
-    #if not opts.user_brainmask : 
-    #    #Template Brain Mask
-    #    template_brain_mask = pe.Node(interface=mincbeastCommand(), name="template_brain_mask")
-    #    template_brain_mask.inputs.library_dir  = mincbeast_library(opts.template)
-    #    template_brain_mask.inputs.configuration = template_brain_mask.inputs.library_dir+os.sep+"default.2mm.conf"
-    #    template_brain_mask.inputs.in_file = opts.template
-    #    template_brain_mask.inputs.same_resolution = True
-    #    template_brain_mask.inputs.voxel_size = 2
-    #    brain_mask_file = "out_file"
-    #else :
-    #    template_brain_mask = inputnode
-    #    brain_mask_file = "brain_mask_mni"
+    ##########################################
+    # T1 spatial (+ intensity) normalization #
+    ##########################################
+
     if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
             mri2template = pe.Node(interface=mincANTSCommand(args='--float',
@@ -98,28 +93,19 @@ def get_workflow(name, valid_args, opts):
                 name="mincANTS_registration")
 
             mri2template.inputs.write_composite_transform=True
-            #mri2template.inputs.interpolation=""
             workflow.connect(inputnode, 't1', mri2template, 'moving_image')
-            #workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'fixed_image_mask')  
 
             t1_mni_file = 'warped_image'
             t1_mni_node=mri2template
             tfm_node= mri2template
             tfm_file='composite_transform'
         else :
-            #mri2template = pe.Node(interface=PETtoT1LinRegRunning(), name="minctracc_registration")
-            #mri2template = pe.Node(interface=beast_normalize(), name="minctracc_registration")
             mri2template = pe.Node(interface=beast_normalize_with_conversion(), name="mri_normalize")
-            #mri2template.inputs.clobber = True
-            #mri2template.inputs.verbose = opts.verbose
             template_name = os.path.splitext(os.path.basename(template_rsl))[0]
             template_dir = os.path.dirname(opts.template)
-            #mri2template.inputs.in_target_file = opts.template
             mri2template.inputs.modelname = template_name
             mri2template.inputs.modeldir = template_dir
-            #workflow.connect(inputnode, 't1', mri2template, 'in_source_file')
             workflow.connect(inputnode, 't1', mri2template, 'in_file')
-            #workflow.connect(template_brain_mask, brain_mask_file, mri2template, 'in_target_mask') 
 
             t1_mni_file = 'out_file_vol'
             t1_mni_node=mri2template
@@ -137,6 +123,30 @@ def get_workflow(name, valid_args, opts):
         tfm_node = inputnode
         tfm_file = 'xfmT1MNI'
 
+    #
+    # Invert transformation from T1 to MNI space
+    #
+    xfmMNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
+    workflow.connect(tfm_node, tfm_file, xfmMNIT1 , 'input_file')
+
+    #
+    # Transform the T1 image from stereotaxic space to native space. If mincbeast
+    # is used, then this means the T1 in native space will be intensity normalized.
+    # Otherwise, it simply tranforms the input T1 back into native space. This is 
+    # redundant, but it makes the creation of the visualization dasboard much easier.
+    # It means that the T1 in native space will be part of the APPIAN target directory
+    # and hence it won't be necessary to link to the T1 in the source directory.
+    #
+    transform_t1_nat = pe.Node(interface=minc.Resample(), name="transform_t1_nat"  )
+    transform_t1_nat.inputs.two=True
+    transform_t1_nat.inputs.invert_transformation=True
+    workflow.connect(t1_mni_node, t1_mni_file, transform_t1_nat, 'input_file')
+    workflow.connect(tfm_node, tfm_file, transform_t1_nat, 'transformation')
+    workflow.connect(inputnode, 't1', transform_t1_nat, 'like')
+    
+    ####################
+    # T1 Brain masking #
+    ####################
     if not opts.user_brainmask :
         #Brain Mask MNI-Space
         t1MNI_brain_mask = pe.Node(interface=mincbeast(), name="t1_mni_brain_mask")
@@ -155,7 +165,9 @@ def get_workflow(name, valid_args, opts):
     else :			
         brain_mask_node = inputnode
         brain_mask_file = 'brain_mask_mni'
-
+    #
+    # Transform brain mask from stereotaxic to T1 native space
+    #
     transform_brain_mask = pe.Node(interface=minc.Resample(), name="transform_brain_mask"  )
     transform_brain_mask.inputs.nearest_neighbour_interpolation = True
     transform_brain_mask.inputs.invert_transformation = True
@@ -163,6 +175,10 @@ def get_workflow(name, valid_args, opts):
     workflow.connect(inputnode, 't1', transform_brain_mask, 'like')
     workflow.connect(tfm_node, tfm_file, transform_brain_mask, 'transformation')
 
+
+    ###################################
+    # Segment T1 in Stereotaxic space #
+    ###################################
     seg=None
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
         print(img, seg)
@@ -173,17 +189,20 @@ def get_workflow(name, valid_args, opts):
             seg.inputs.initialization = 'Otsu'
             
             workflow.connect(t1_mni_node, t1_mni_file,  seg, 'intensity_images' )
-            #workflow.connect(inputnode,'t1' ,  seg, 'intensity_images' )
-            #workflow.connect(transform_brain_mask, 'output_file',  seg, 'mask_image' )
             workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
            
         if 'antsAtropos' == img :
            workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
-            
+   
+    ###############################
+    # Pass results to output node #
+    ###############################
     workflow.connect(brain_mask_node, brain_mask_file, outputnode, 'brain_mask_mni')
     workflow.connect(tfm_node, tfm_file, outputnode, 'xfmT1MNI' )
+    workflow.connect(xfmMNIT1, 'output_file', outputnode, 'xfmMNIT1' )
     workflow.connect(transform_brain_mask, 'output_file', outputnode, 'brain_mask_t1')
     workflow.connect(t1_mni_node, t1_mni_file, outputnode, 't1_mni')
+    workflow.connect(transform_t1_nat, 'output_file', outputnode, 't1_nat')
     return(workflow)
 
 

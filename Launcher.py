@@ -308,11 +308,17 @@ if __name__ == "__main__":
         args = [ sub('sub-', '',os.path.basename(f)) for f in glob(opts.sourceDir+os.sep+"sub-*") ]
         print("Warning : No subject arguments passed. Will run all subjects found in source directory "+ opts.sourceDir)
         print("Subjects:", ' '.join( args))
-    
+   
+        if len(args) == 0:
+            print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
+            exit(1)
+
+
     if opts.sessionList == None :
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
+    else : opts.sessionList=sessionList.split(',')
 
     #########################
     #Automatically set tasks#
@@ -334,7 +340,9 @@ if __name__ == "__main__":
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
-    
+    else : 
+        opts.taskList=opts.taskList.split(',')
+
     ########################
     #Automatically set runs#
     ########################
@@ -409,6 +417,7 @@ if __name__ == "__main__":
                 print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
                 exit(1)
 
+
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
     opts.preproc_dir='preproc'
@@ -435,4 +444,3 @@ if __name__ == "__main__":
             run_scan_level(opts,args)
         if opts.run_group_level:
             run_group_level(opts,args)
-

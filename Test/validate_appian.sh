@@ -179,9 +179,11 @@ echo Git Commit : $current_git_commit
 echo Docker Container / Hostname: $current_docker_container
 echo
 
-#run_appian "PVC-VC" "--fwhm 6 6 6 --pvc-method VC"'
-#run_appian "Quant-suvr" "--start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
-#exit 1
+#run_appian "Dashboard" "--dashboard --fwhm 6 6 6 --pvc-method GTM --start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+
+# TODO (1) Add surface testing
+# TODO (2) Arterial Input
+
 ### Minimal Inputs
 run_appian "Mininimum"
 

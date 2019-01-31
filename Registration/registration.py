@@ -406,7 +406,6 @@ class nLinRegRunning(BaseInterface):
 
 
     def _run_interface(self, runtime):
-        #tmpDir = tempfile.mkdtemp()
         tmpDir = os.getcwd() + os.sep + 'tmp_nLinReg'
         os.mkdir(tmpDir)
         source = self.inputs.in_source_file
@@ -592,7 +591,6 @@ class nLinRegRunning(BaseInterface):
 
             i += 1
 
-
         if isdefined(self.inputs.init_file_xfm):
             run_concat = minc.XfmConcat();
             run_concat.inputs.input_files=[ self.inputs.init_xfm, prev_xfm  ]
@@ -601,13 +599,6 @@ class nLinRegRunning(BaseInterface):
                 print run_concat.cmdline
             if self.inputs.run:
                 run_concat.run()
-
-        # else:
-        #     if self.inputs.verbose:
-        #         cmd=' '.join(['cp', prev_xfm, self.inputs.out_file_xfm])
-        #         print(cmd)
-        #     if self.inputs.run:
-        #         shutil.copy(prev_xfm, self.inputs.out_file_xfm)
 
         print '\n-+- creating '+self.inputs.out_file_img+' using '+self.inputs.out_file_xfm+' -+-\n'
         run_resample = minc.Resample();
@@ -621,7 +612,6 @@ class nLinRegRunning(BaseInterface):
         if self.inputs.run:
             run_resample.run()
 
-        #shutil.rmtree(tmpDir)
         return runtime
 
 
@@ -749,6 +739,8 @@ def get_workflow(name, infosource, opts):
         workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
         workflow.connect(inputnode, 'nativeT1nuc', pettot1_4d, 'like')
         workflow.connect(pettot1_4d,'output_file', outputnode, 'pet_img_4d')
+
+        workflow.connect(inputnode, 'nativeT1nuc', outputnode, 't1_analysis_space')
     elif opts.analysis_space == "stereo" :
         #Resample 4d PET image to MNI space
         pettomni_4d = pe.Node(interface=minc.Resample(), name='pettomni_4d')

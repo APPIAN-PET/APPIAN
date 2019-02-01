@@ -204,7 +204,6 @@ def get_tka_workflow(name, opts):
         extractROI=pe.Node(interface=img2dft_unit_conversion(), name="roimask_extract")
         workflow.connect(inputnode, 'mask', convertROI, 'in_file')
         workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
-        #workflow.connect(tacReference, 'reference', tkaNode, 'reference')
         workflow.connect(pet_source, pet_file, extractROI, 'in_file')
         workflow.connect(extractROI, 'out_file', tkaNode, 'in_file')
 
@@ -220,7 +219,7 @@ def get_tka_workflow(name, opts):
             #Using arterial input file (which must be provided by user). 
             #No conversion or extraction necessary
             #Extract TAC from input image using reference mask
-            workflow.connect(inputnode, 'reference', tkaReference, 'reference')
+            workflow.connect(inputnode, 'reference', tacReference, 'reference')
         else :
             if quant_module.in_file_format == "ECAT" :
                 #Convert reference mask from minc to ecat

@@ -66,7 +66,8 @@ def adjust_hdr(mincfile):
         cmd("minc_modify_header -dinsert time:step=1 {}".format(mincfile))
 
 def mnc2vol(mincfile):
-    f = h5py.File(mincfile)
+    print('hello', mincfile)
+    f = h5py.File(mincfile, 'r')
     datatype = str(f['minc-2.0/image/0']['image'].dtype)
     rawfile = mincfile+'.raw'
     headerfile = mincfile+'.header'
@@ -86,8 +87,10 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
 
     listOfNodes = [
             {"name" : "pet2mri", 
-             "mnc_inputs" : {"node" : "pet2mri", "file" : 'in_target_file'},
-             "mnc_outputs" : {"node" : "pet2mri", "file" : 'out_file_img'}
+             #"mnc_inputs" : {"node" : "pet2mri", "file" : 'in_target_file'},
+             "mnc_inputs" : {"node" : "t1_nat", "file" : 'output_file'},
+             "mnc_outputs" : {"node" : "t1_nat", "file" : 'output_file'},
+             #"mnc_outputs" : {"node" : "pet2mri", "file" : 'out_file_img'}
             }];
     if pvc_method != None :
         listOfNodes.append({"name" : "pvc",
@@ -97,8 +100,9 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
     if tka_method != None :
         node_tka = tka_method if tka_method == "suvr" else "convertParametric"
         listOfNodes.append({"name" : "tka",
-                 "mnc_inputs" : {"node" : node_tka, "file" : 'out_file'},
-                 "mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
+                    "mnc_inputs" : {"node" : node_tka, "file" : 'out_file'},
+                    "mnc_outputs" : {"node" : "t1_nat", "file" : 'output_file'}
+                 #"mnc_outputs" : {"node" : "pet2mri", "file" : 'in_target_file'}
                 });
 
 
@@ -129,31 +133,36 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method):
                     nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
                     xmlmnc = SubElement(xmlnode, 'inMnc')
                     for key, value in nodeReport.inputs.items():
+                        print "Inputs:", nodeName, key, value
                         if key in x['mnc_inputs']["file"]:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmlmnc, str(key))
                             xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
                             listVolumes.append(str(value))
-
+                            print "\tAdding"
                 if nodeName == x["mnc_outputs"]["node"]:
                     nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
                     xmlmnc = SubElement(xmlnode, 'outMnc')
                     for key, value in nodeReport.inputs.items():
+                        print "Outputs", nodeName, key, value
                         if key in x['mnc_outputs']["file"]:
                             value = value[0] if type(value) == list else value
                             xmlkey = SubElement(xmlmnc, str(key))
                             xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
                             listVolumes.append(str(value))                        
+                            print "\tAdding"
 
 
     with open(targetDir+"/preproc/dashboard/public/nodes.xml","w") as f:
         f.write(prettify(xmlQC))
 
     for mincfile in listVolumes:
+        print("MINC; ", mincfile)
         rawfile = mincfile+'.raw'
         headerfile = mincfile+'.header'
         if not os.path.exists(rawfile) or not os.path.exists(headerfile):
-            adjust_hdr(mincfile)
+            print "mnc2vol"
+            #adjust_hdr(mincfile) #CANNOT USE THIS BECAUSE IT MODIFIES EXISTING FILES. ALSO MESSES UP COSINES
             mnc2vol(mincfile)
 
 
@@ -207,12 +216,12 @@ class deployDashCommand(BaseInterface):
         if os.path.exists(os.path.join(targetDir,'preproc/dashboard/public/preproc')):
             os.remove(os.path.join(targetDir,'preproc/dashboard/public/preproc'))
         os.symlink('../../../preproc', os.path.join(targetDir,'preproc/dashboard/public/preproc'))
-        for sub in glob.glob(os.path.join(sourceDir,'sub*')):
-            if os.path.isdir(sub):
-                dest = os.path.join(targetDir,'preproc/dashboard/public/',os.path.basename(sub))
-                if os.path.islink(dest):
-                    os.remove(dest)
-                os.symlink(sub, dest)        
+        #for sub in glob.glob(os.path.join(sourceDir,'sub*')):
+        #    if os.path.isdir(sub):
+        #        dest = os.path.join(targetDir,'preproc/dashboard/public/',os.path.basename(sub))
+        #        if os.path.islink(dest):
+        #            os.remove(dest)
+        #        os.symlink(sub, dest)        
 
         generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method);
         

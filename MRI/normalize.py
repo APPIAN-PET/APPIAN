@@ -9,8 +9,10 @@ import nipype.interfaces.io as nio
 import os
 from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion, mincbeast, create_alt_template
 from Extra.mincants import mincANTSCommand, mincAtroposCommand
+from Extra.extra import copyCommand
 import nipype.interfaces.minc as minc
 from Registration.registration import PETtoT1LinRegRunning
+from nipype.interfaces.utility import Rename
 
 def get_workflow(name, opts):
     workflow = pe.Workflow(name=name)
@@ -28,7 +30,7 @@ def get_workflow(name, opts):
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
-    out_fields=	[ 'xfmMNIT1', 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni', 't1_nat' ]
+    out_fields=['xfmMNIT1', 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni', 't1_nat' ]
     for stage, label_type in zip(stages, label_types):
         print( stage, label_type )
         if 'internal_cls' == label_type :
@@ -130,20 +132,12 @@ def get_workflow(name, opts):
     workflow.connect(tfm_node, tfm_file, xfmMNIT1 , 'input_file')
 
     #
-    # Transform the T1 image from stereotaxic space to native space. If mincbeast
-    # is used, then this means the T1 in native space will be intensity normalized.
-    # Otherwise, it simply tranforms the input T1 back into native space. This is 
-    # redundant, but it makes the creation of the visualization dasboard much easier.
-    # It means that the T1 in native space will be part of the APPIAN target directory
+    # T1 in native space will be part of the APPIAN target directory
     # and hence it won't be necessary to link to the T1 in the source directory.
     #
-    transform_t1_nat = pe.Node(interface=minc.Resample(), name="transform_t1_nat"  )
-    transform_t1_nat.inputs.two=True
-    transform_t1_nat.inputs.invert_transformation=True
-    workflow.connect(t1_mni_node, t1_mni_file, transform_t1_nat, 'input_file')
-    workflow.connect(tfm_node, tfm_file, transform_t1_nat, 'transformation')
-    workflow.connect(inputnode, 't1', transform_t1_nat, 'like')
-    
+    copy_t1_nat = pe.Node(interface=copyCommand(), name="t1_nat"  )
+    workflow.connect(inputnode, 't1', copy_t1_nat, 'input_file')
+
     ####################
     # T1 Brain masking #
     ####################
@@ -202,7 +196,7 @@ def get_workflow(name, opts):
     workflow.connect(xfmMNIT1, 'output_file', outputnode, 'xfmMNIT1' )
     workflow.connect(transform_brain_mask, 'output_file', outputnode, 'brain_mask_t1')
     workflow.connect(t1_mni_node, t1_mni_file, outputnode, 't1_mni')
-    workflow.connect(transform_t1_nat, 'output_file', outputnode, 't1_nat')
+    workflow.connect(copy_t1_nat, 'output_file', outputnode, 't1_nat')
     return(workflow)
 
 

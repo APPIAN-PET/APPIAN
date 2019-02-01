@@ -7,7 +7,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.ants.base import ANTSCommandInputSpec
 from nipype.interfaces.ants.segmentation import Atropos
-from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand, mnc2niiCommand
+from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand, nii2mnc2Command, mnc2niiCommand
 import scipy.io
 import os
 from nipype.interfaces.minc import Math
@@ -105,7 +105,7 @@ class mincAtroposCommand(BaseInterface):
         seg.run()
 
         seg.outputs=seg._list_outputs() #seg._outputs()
-        classified_nii2mnc_sh = nii2mnc_shCommand() 
+        classified_nii2mnc_sh = nii2mnc2Command() 
         classified_nii2mnc_sh.inputs.in_file = seg.outputs["classified_image"]
         classified_nii2mnc_sh.inputs.truncate_path=True
         classified_nii2mnc_sh.run()

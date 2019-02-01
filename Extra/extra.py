@@ -9,9 +9,40 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 import ntpath
 import pandas as pd
 import os
-
+import shutil
 from pyminc.volumes.factory import *
 import numpy as np 
+
+
+class copyOutput(TraitedSpec):
+	output_file=traits.File(argstr="%s", desc="input")
+
+class copyInput(TraitedSpec):
+	input_file=traits.File(argstr="%s", desc="input")
+	output_file=traits.File(argstr="%s", desc="output")
+
+class copyCommand(BaseInterface ):
+    input_spec = copyInput  
+    output_spec = copyOutput
+   
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.output_file) :
+            self.inputs.output_file = self._gen_output(self.inputs.input_file)
+        shutil.copy(self.inputs.input_file, self.inputs.output_file)
+	return(runtime)
+
+    def _gen_output(self, fn) :
+        return os.getcwd() + os.sep +  os.path.basename( fn ) 
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+
+        if not isdefined(self.inputs.output_file) :
+            self.inputs.output_file = self._gen_output(self.inputs.input_file)
+
+        outputs["output_file"] = self.inputs.output_file
+        return outputs
+
 
 
 def _finditem(obj, key):

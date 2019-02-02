@@ -48,7 +48,7 @@ class ResampleCommand(CommandLine):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd()
-        return dname+ os.sep+fname_list[0] + suffix
+        return dname+ os.sep+fname_list[0] + suffix + fname_list[1]
 
     #def _gen_filename(self, name):
     #    if name == "out_file":

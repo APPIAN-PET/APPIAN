@@ -304,7 +304,7 @@ if __name__ == "__main__":
 
     #Quality Control 
     qc_opts = OptionGroup(parser,"Quality control options")
-    qc_opts.add_option("","--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
+    qc_opts.add_option("","--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     qc_opts.add_option("","--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
     qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
     parser.add_option_group(qc_opts)

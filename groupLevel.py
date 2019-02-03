@@ -7,21 +7,38 @@ import Test.test_group_qc as tqc
 import Quality_Control.dashboard as dash
 
 def run_group_level(opts,args):
+    print('HELLO!')
     #List of group level commands that can be run
-    module_list=[qc, tqc, results]
-    group_level_commands=[qc.group_level_qc, tqc.test_group_qc_groupLevel, results.group_level_descriptive_statistics ]
+    default=(opts,args)
+    
+    args_list=[
+            (qc, qc.group_level_qc, default, opts.group_qc ),
+            (tqc, tqc.test_group_qc_groupLevel,default, opts.test_group_qc ),
+            (results,results.group_level_descriptive_statistics, default,opts.group_stats )
+            ]
+  
+    final_dirs=[]
+     
+    for module, command, fargs, run_flag in args_list:
+        try :
+            final_dirs.append(module.final_dirs)
+        except AttributeError :
+            pass
+
+    args_list.append( (qc,dash.groupLevel_dashboard, (opts, final_dirs), True) )
+    
     #List of boolean flags that determine whether or not to run the comman
     if len(args) > 1 :
-        group_level_run_flag=[opts.group_qc, opts.test_group_qc, opts.group_stats]
-        for module, command, run_flag in zip(module_list, group_level_commands, group_level_run_flag):
+        for module, command, fargs, run_flag in args_list:
             print(command, run_flag)
             if run_flag: 
-                command(opts,args)
-                if opts.dashboard:
-                    try :
-                        dash.link_stats_qc(opts,args,module.final_dir)
-                    except AttributeError :
-                        pass
+                command(*fargs)
+
+                #if opts.dashboard:
+                #    try :
+                #        dash.link_stats_qc(opts,args,module.final_dir)
+                #    except AttributeError :
+                #        pass
 
     else :
         print "Warning: only one subject, cannot run group level analysis."

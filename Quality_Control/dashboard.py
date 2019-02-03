@@ -130,8 +130,8 @@ def set_stage_node_file(stage, method) :
     return {"node" : node, "file" : 'out_file'} 
 
 
-def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space):
-    
+def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,images, info, out_file):
+    ''' 
     #
     # Set input / output nodes for Coregistration stage
     #
@@ -144,7 +144,7 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space)
     #
     # Set input / output nodes for PVC stage
     #
-    if pvc_method != None :
+    if isdefined(pvc_method) :
         print('pvc_method', pvc_method)
         pvc_outputs_dict = set_stage_node_file('pvc', pvc_method )
 
@@ -155,7 +155,7 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space)
     #
     # Set input / output nodes for TKA / Quantification stage
     #
-    if tka_method != None :
+    if isdefined(tka_method) :
         tka_file_type = get_stage_file_type('quant', tka_method)
         node_tka = tka_method if tka_file_type == "MINC"  else "convertParametric"
        
@@ -172,9 +172,7 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space)
                     "mnc_inputs" : quant_input_dict,
                     "mnc_outputs" : quant_output_dict
                 });
-
-
-
+    '''
     filename=targetDir+"/preproc/graph1.json";
     fp = file(filename, 'r')
     data=json.load(fp)
@@ -183,7 +181,25 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space)
     xmlQC = Element('qc')
     listVolumes = list();
 
-    for subjIdx in range(0,len(data["groups"])):
+    xmlscan = SubElement(xmlQC, 'scan')
+    for key, value in info.items() :
+        xmlscan.set(key, str(value))               
+    
+    for node_name, img in images.items() :
+        xmlnode = SubElement(xmlscan, 'node')
+        xmlnode.set('name', node_name)
+        xmlmnc = SubElement(xmlnode, 'inMnc')
+        xmlkey = SubElement(xmlmnc, img['in_name'])
+        xmlkey.text = img["mnc_inputs"].replace(targetDir+"/",'') #str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
+        
+        xmlmnc = SubElement(xmlnode, 'outMnc')
+        xmlkey = SubElement(xmlmnc, img['out_name'])
+        xmlkey.text = img["mnc_outputs"].replace(targetDir+"/",'') #str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
+
+        listVolumes.append(img["mnc_inputs"])                        
+        listVolumes.append(img["mnc_outputs"])                        
+
+    '''for subjIdx in range(0,len(data["groups"])):
         for nodeID in range(data["groups"][subjIdx]["procs"][0],data["groups"][subjIdx]["procs"][-1]):
             nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
             if nodeName == "datasourcePET":
@@ -216,29 +232,34 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space)
                             xmlkey = SubElement(xmlmnc, str(key))
                             xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
                             listVolumes.append(str(value))                        
-
-
-    with open(targetDir+"/preproc/dashboard/public/nodes.xml","w") as f:
+    '''
+    print(xmlQC)
+    with open(out_file,"w") as f:
         f.write(prettify(xmlQC))
 
     for mincfile in listVolumes:
         print("MINC; ", mincfile)
         rawfile = mincfile+'.raw'
         headerfile = mincfile+'.header'
-        if not os.path.exists(rawfile) or not os.path.exists(headerfile):
+        if not os.path.exists(rawfile) or not os.path.exists(headerfile) or True:
             print "mnc2vol"
             #adjust_hdr(mincfile) #CANNOT USE THIS BECAUSE IT MODIFIES EXISTING FILES. ALSO MESSES UP COSINES
             mnc2vol(mincfile)
 
 
-def link_stats_qc(opts, arg, flag):
+def link_stats_qc(*args):
+    opts=args[0]
+    final_dirs=args[1]
+    if not os.path.exists(opts.targetDir+'/preproc/dashboard/public/') :
+        os.makedirs(opts.targetDir+'/preproc/dashboard/public/')
     os.chdir(opts.targetDir+'/preproc/dashboard/public/')
-    lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
-    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
-        os.makedirs(opts.targetDir+"/preproc/dashboard/");
-    if os.path.islink(lnk):
-        os.remove(lnk)
-    os.symlink(os.path.join('../../../',flag), lnk)
+    for flag in final_dirs :
+        lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
+        if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
+            os.makedirs(opts.targetDir+"/preproc/dashboard/");
+        if os.path.islink(lnk):
+            os.remove(lnk)
+        os.symlink(os.path.join('../../../',flag), lnk)
 
 
 
@@ -249,12 +270,21 @@ class deployDashOutput(TraitedSpec):
 class deployDashInput(BaseInterfaceInputSpec):
     targetDir = traits.File(mandatory=True, desc="Target directory")
     sourceDir = traits.File(mandatory=True, desc="Source directory")
-    pvc_method = traits.Str(desc="PVC method", default_value=None, usedefault=True)
-    tka_method = traits.Str(desc="TKA method", default_value=None, usedefault=True)
+    pvc_method = traits.Str(desc="PVC method")
+    tka_method = traits.Str(desc="TKA method")
     analysis_space = traits.Str(desc="Analysis Space")
-    petmri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
-    pvc = traits.File(desc="Output PVC image")
-    tka = traits.File(desc="Output TKA image")
+    pet = traits.File(exists=True, mandatory=True, desc="PET image")
+    pet_t1_space = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
+    t1_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
+    t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
+    pvc = traits.File(exists=True, desc="Output PVC image")
+    tka = traits.File(exists=True, desc="Output TKA image")
+    sid =traits.Str()
+    cid=traits.Str()
+    ses=traits.Str()
+    task=traits.Str()
+    run=traits.Str()
+
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
 
@@ -264,7 +294,8 @@ class deployDashCommand(BaseInterface):
   
     def _gen_output(self):
         fname = "nodes.xml"
-        dname = self.inputs.targetDir+"/preproc/dashboard/public" 
+        dname = os.getcwd()
+        #self.inputs.targetDir+"/preproc/dashboard/public" 
         return dname+os.sep+fname
 
     def _run_interface(self, runtime):
@@ -274,23 +305,17 @@ class deployDashCommand(BaseInterface):
         tka_method = self.inputs.tka_method;
         analysis_space = self.inputs.analysis_space
 
-        if not os.path.exists(targetDir+"/preproc/dashboard/") :
-            os.makedirs(targetDir+"/preproc/dashboard/");
+        if not isdefined( self.inputs.out_file) :
+            self.inputs.out_file = self._gen_output()
+        info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
-        distutils.dir_util.copy_tree(os.path.split(os.path.abspath(__file__))[0]+'/dashboard_web', targetDir+'/preproc/dashboard', update=1, verbose=0)
-
-        os.chdir(targetDir+'/preproc/dashboard/public/')
-        if os.path.exists(os.path.join(targetDir,'preproc/dashboard/public/preproc')):
-            os.remove(os.path.join(targetDir,'preproc/dashboard/public/preproc'))
-            os.symlink('../../../preproc', os.path.join(targetDir,'preproc/dashboard/public/preproc'))
-        #for sub in glob.glob(os.path.join(sourceDir,'sub*')):
-        #    if os.path.isdir(sub):
-        #        dest = os.path.join(targetDir,'preproc/dashboard/public/',os.path.basename(sub))
-        #        if os.path.islink(dest):
-        #            os.remove(dest)
-        #        os.symlink(sub, dest)        
-
-        generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space);
+        images={"pet2mri":{"mnc_inputs":self.inputs.t1_nat, "mnc_outputs":self.inputs.pet_t1_space, 'in_name':'in_target_file', 'out_name':'out_file_img'}}
+        if isdefined(pvc_method) :
+            images["pvc"]= {"mnc_inputs":self.inputs.pet, "mnc_outputs":self.inputs.pvc, 'in_name':'in_file', 'out_name':'out_file' }
+        if isdefined(tka_method) :
+            images["tka"]= {"mnc_inputs":self.inputs.t1_analysis_space, "mnc_outputs":self.inputs.tka, 'out_name':'out_file', 'in_name':'in_target_file' }
+        
+        generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,images,info, self.inputs.out_file);
         
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
@@ -303,3 +328,76 @@ class deployDashCommand(BaseInterface):
             self.inputs.out_file = self._gen_output()
         outputs["out_file"] = self.inputs.out_file
         return outputs
+
+
+def groupLevel_dashboard(opts, final_dirs):
+    workflow = pe.Workflow(name="concat_dashboard_xml")
+    workflow.base_dir = opts.targetDir + '/preproc'
+  
+
+    if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
+        os.makedirs(opts.targetDir+"/preproc/dashboard/");
+
+    distutils.dir_util.copy_tree(os.path.split(os.path.abspath(__file__))[0]+'/dashboard_web', opts.targetDir+'/preproc/dashboard', update=1, verbose=0)
+
+    os.chdir(opts.targetDir+'/preproc/dashboard/public/')
+    if os.path.exists(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc')):
+        os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+    os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
+
+    link_stats_qc(opts, final_dirs)
+
+    datasource = pe.Node( interface=nio.DataGrabber( outfields=['xml'], raise_on_empty=True, sort_filelist=False), name="datasourceDashboard")
+    datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
+    datasource.inputs.template = '*'
+    datasource.inputs.field_template = {"xml" : '*'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml'}
+
+    
+    concat_dashboard_xmlNode=pe.Node(interface=concat_xml(), name="concat_xml")
+    concat_dashboard_xmlNode.inputs.out_file=opts.targetDir+"/preproc/dashboard/public/nodes.xml"
+    workflow.connect(datasource, 'xml', concat_dashboard_xmlNode, 'in_list')
+    #workflow.connect(concat_dashboard_xmlNode, "out_file", datasink, 'results')
+    workflow.run() 
+
+from lxml import etree
+import xml.dom.minidom
+
+
+class concat_xmlOutput(TraitedSpec):
+    out_file = traits.File(desc="Output file")
+
+class concat_xmlInput(BaseInterfaceInputSpec):
+    in_list = traits.List(mandatory=True, exists=True, desc="Input list")
+    out_file = traits.File(mandatory=True, desc="Output file")
+
+class concat_xml(BaseInterface):
+
+
+    input_spec =  concat_xmlInput 
+    output_spec = concat_xmlOutput 
+
+    def _run_interface(self, runtime):
+        out = open(self.inputs.out_file, 'w+')
+        out.write('<qc>\n')
+        
+        n=len(self.inputs.in_list)
+
+        for filename in self.inputs.in_list :
+            with open(filename, 'r') as f :
+                for l in f.readlines() : 
+                    if (not '<qc>' in l) and (not '</qc>' in l) and (not 'xml version' in l) :
+                        print 'writing', l
+                        out.write(l)
+                    else :
+                        print 'skipping', l
+
+        out.write('</qc>')
+        return(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = os.getcwd() + os.sep + self.inputs.out_file
+        return outputs
+
+
+

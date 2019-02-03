@@ -131,137 +131,57 @@ def set_stage_node_file(stage, method) :
 
 
 def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,images, info, out_file):
-    ''' 
-    #
-    # Set input / output nodes for Coregistration stage
-    #
-    listOfNodes = [
-            {"name" : "pet2mri", 
-             "mnc_inputs" : {"node" : "pet2mri", "file" : 'in_target_file'},
-             "mnc_outputs" : {"node" : "pet2mri", "file" : 'out_file_img'}
-            }];
-
-    #
-    # Set input / output nodes for PVC stage
-    #
-    if isdefined(pvc_method) :
-        print('pvc_method', pvc_method)
-        pvc_outputs_dict = set_stage_node_file('pvc', pvc_method )
-
-        listOfNodes.append({"name" : "tka",
-                    "mnc_inputs" : {"node" : pvc_method, "file" : 'in_file'},
-                    "mnc_outputs" : pvc_outputs_dict
-                });
-    #
-    # Set input / output nodes for TKA / Quantification stage
-    #
-    if isdefined(tka_method) :
-        tka_file_type = get_stage_file_type('quant', tka_method)
-        node_tka = tka_method if tka_file_type == "MINC"  else "convertParametric"
-       
-        if analysis_space == "pet":
-            quant_output_dict={"node":"t1_pet_space", "file":"out_file"}
-        elif analysis_space == "t1":
-            quant_output_dict={"node" : "pet2mri", "file" : 'in_target_file'}
-        elif analysis_space == "stereo":
-            quant_output_dict={"node" : "mri_normalize", "file" : 'out_file_vol'}
-
-        quant_input_dict = set_stage_node_file('quant', tka_method )
-
-        listOfNodes.append({"name" : "tka",
-                    "mnc_inputs" : quant_input_dict,
-                    "mnc_outputs" : quant_output_dict
-                });
-    '''
-    filename=targetDir+"/preproc/graph1.json";
-    fp = file(filename, 'r')
-    data=json.load(fp)
-    fp.close()
-
+    #Create root for xml, called <qc> 
     xmlQC = Element('qc')
+    
+    # Initialize empty list to store volumes that may need to be converted
     listVolumes = list();
 
+    # Write variables related to scan info: sid, ses, task, cid
     xmlscan = SubElement(xmlQC, 'scan')
     for key, value in info.items() :
         xmlscan.set(key, str(value))               
-    
+   
+    # Iterate over the images dict and write the paths for
+    # outMnc and inMnc
     for node_name, img in images.items() :
         xmlnode = SubElement(xmlscan, 'node')
         xmlnode.set('name', node_name)
         xmlmnc = SubElement(xmlnode, 'inMnc')
         xmlkey = SubElement(xmlmnc, img['in_name'])
-        xmlkey.text = img["mnc_inputs"].replace(targetDir+"/",'') #str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
+        xmlkey.text = img["mnc_inputs"].replace(targetDir+"/",'') 
         
         xmlmnc = SubElement(xmlnode, 'outMnc')
         xmlkey = SubElement(xmlmnc, img['out_name'])
-        xmlkey.text = img["mnc_outputs"].replace(targetDir+"/",'') #str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
+        xmlkey.text = img["mnc_outputs"].replace(targetDir+"/",'') 
 
         listVolumes.append(img["mnc_inputs"])                        
         listVolumes.append(img["mnc_outputs"])                        
-
-    '''for subjIdx in range(0,len(data["groups"])):
-        for nodeID in range(data["groups"][subjIdx]["procs"][0],data["groups"][subjIdx]["procs"][-1]):
-            nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
-            if nodeName == "datasourcePET":
-                nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
-                xmlscan = SubElement(xmlQC, 'scan')
-                for key, value in nodeReport.inputs.items():
-                    if key in ('cid', 'sid', 'ses', 'run') :
-                        xmlscan.set(key, str(value))               
-
-        for x in listOfNodes :
-            xmlnode = SubElement(xmlscan, 'node')
-            xmlnode.set('name', x['name'])
-            for nodeID in range(data["groups"][subjIdx]["procs"][0],data["groups"][subjIdx]["procs"][-1]):
-                nodeName = "_".join(data["nodes"][nodeID]["name"].split("_")[1:])
-                if nodeName == x["mnc_inputs"]["node"]:
-                    nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
-                    xmlmnc = SubElement(xmlnode, 'inMnc')
-                    for key, value in nodeReport.inputs.items():
-                        if key in x['mnc_inputs']["file"]:
-                            value = value[0] if type(value) == list else value
-                            xmlkey = SubElement(xmlmnc, str(key))
-                            xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
-                            listVolumes.append(str(value))
-                if nodeName == x["mnc_outputs"]["node"]:
-                    nodeReport = loadcrash(targetDir+"/preproc/"+data["nodes"][nodeID]["result"])
-                    xmlmnc = SubElement(xmlnode, 'outMnc')
-                    for key, value in nodeReport.inputs.items():
-                        if key in x['mnc_outputs']["file"]:
-                            value = value[0] if type(value) == list else value
-                            xmlkey = SubElement(xmlmnc, str(key))
-                            xmlkey.text = str(value).replace(sourceDir+"/",'').replace(targetDir+"/",'')
-                            listVolumes.append(str(value))                        
-    '''
-    print(xmlQC)
+    
+    # Save the output xml file
     with open(out_file,"w") as f:
         f.write(prettify(xmlQC))
 
+    # Perform conversion to raw
     for mincfile in listVolumes:
-        print("MINC; ", mincfile)
         rawfile = mincfile+'.raw'
         headerfile = mincfile+'.header'
-        if not os.path.exists(rawfile) or not os.path.exists(headerfile) or True:
-            print "mnc2vol"
-            #adjust_hdr(mincfile) #CANNOT USE THIS BECAUSE IT MODIFIES EXISTING FILES. ALSO MESSES UP COSINES
-            mnc2vol(mincfile)
+        mnc2vol(mincfile)
 
 
 def link_stats_qc(*args):
     opts=args[0]
-    final_dirs=args[1]
     if not os.path.exists(opts.targetDir+'/preproc/dashboard/public/') :
         os.makedirs(opts.targetDir+'/preproc/dashboard/public/')
     os.chdir(opts.targetDir+'/preproc/dashboard/public/')
+    
+    final_dirs = [ os.path.basename(f) for f in glob.glob(opts.targetDir+'/*') ]
     for flag in final_dirs :
         lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
-        if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
-            os.makedirs(opts.targetDir+"/preproc/dashboard/");
         if os.path.islink(lnk):
             os.remove(lnk)
+        print('Linking\t\t', os.path.join('../../../',flag), lnk )
         os.symlink(os.path.join('../../../',flag), lnk)
-
-
 
 
 class deployDashOutput(TraitedSpec):
@@ -295,27 +215,28 @@ class deployDashCommand(BaseInterface):
     def _gen_output(self):
         fname = "nodes.xml"
         dname = os.getcwd()
-        #self.inputs.targetDir+"/preproc/dashboard/public" 
         return dname+os.sep+fname
 
     def _run_interface(self, runtime):
-        targetDir = self.inputs.targetDir;
-        sourceDir = self.inputs.sourceDir;
-        pvc_method = self.inputs.pvc_method;
-        tka_method = self.inputs.tka_method;
-        analysis_space = self.inputs.analysis_space
-
+        
+        #create dictionary with information about scan
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
         info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
+        #Create dictionary with file paths and names for volumes that we want to display in dashboard
         images={"pet2mri":{"mnc_inputs":self.inputs.t1_nat, "mnc_outputs":self.inputs.pet_t1_space, 'in_name':'in_target_file', 'out_name':'out_file_img'}}
-        if isdefined(pvc_method) :
+
+        # If PVC method is defined, then add PVC images
+        if isdefined(self.inputs.pvc_method) :
             images["pvc"]= {"mnc_inputs":self.inputs.pet, "mnc_outputs":self.inputs.pvc, 'in_name':'in_file', 'out_name':'out_file' }
-        if isdefined(tka_method) :
+
+        # If TKA method is defined, then add quantification images
+        if isdefined(self.inputs.tka_method) :
             images["tka"]= {"mnc_inputs":self.inputs.t1_analysis_space, "mnc_outputs":self.inputs.tka, 'out_name':'out_file', 'in_name':'in_target_file' }
-        
-        generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,images,info, self.inputs.out_file);
+       
+        #Create xml for current scan
+        generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.tka_method,self.inputs.analysis_space,images,info, self.inputs.out_file);
         
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
@@ -330,7 +251,7 @@ class deployDashCommand(BaseInterface):
         return outputs
 
 
-def groupLevel_dashboard(opts, final_dirs):
+def groupLevel_dashboard(opts, args):
     workflow = pe.Workflow(name="concat_dashboard_xml")
     workflow.base_dir = opts.targetDir + '/preproc'
   
@@ -345,22 +266,17 @@ def groupLevel_dashboard(opts, final_dirs):
         os.remove(os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
     os.symlink('../../../preproc', os.path.join(opts.targetDir,'preproc/dashboard/public/preproc'))
 
-    link_stats_qc(opts, final_dirs)
+    link_stats_qc(opts)
 
     datasource = pe.Node( interface=nio.DataGrabber( outfields=['xml'], raise_on_empty=True, sort_filelist=False), name="datasourceDashboard")
     datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
     datasource.inputs.template = '*'
     datasource.inputs.field_template = {"xml" : '*'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml'}
 
-    
     concat_dashboard_xmlNode=pe.Node(interface=concat_xml(), name="concat_xml")
     concat_dashboard_xmlNode.inputs.out_file=opts.targetDir+"/preproc/dashboard/public/nodes.xml"
     workflow.connect(datasource, 'xml', concat_dashboard_xmlNode, 'in_list')
-    #workflow.connect(concat_dashboard_xmlNode, "out_file", datasink, 'results')
     workflow.run() 
-
-from lxml import etree
-import xml.dom.minidom
 
 
 class concat_xmlOutput(TraitedSpec):
@@ -371,8 +287,6 @@ class concat_xmlInput(BaseInterfaceInputSpec):
     out_file = traits.File(mandatory=True, desc="Output file")
 
 class concat_xml(BaseInterface):
-
-
     input_spec =  concat_xmlInput 
     output_spec = concat_xmlOutput 
 

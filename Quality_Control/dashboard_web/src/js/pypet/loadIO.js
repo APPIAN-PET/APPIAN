@@ -375,6 +375,7 @@ function reachStats(stage, level){
         req = new ActiveXObject("Microsoft.XMLHTTP");
     }
     req.onreadystatechange = function(event) {
+
         if (this.readyState === XMLHttpRequest.DONE) {
             if (this.status === 200) {
                 readCSV(this.responseText, stage, level);

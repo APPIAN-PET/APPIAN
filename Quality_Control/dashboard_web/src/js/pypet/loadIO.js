@@ -60,30 +60,9 @@ function menuQC(xmlNodes){
 
 
     var subScanQ=document.createElement("li");
-    subScanQ.innerHTML="<a href=\"javascript:;\" >QC</a>";
+    subScanQ.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'sub\')\">QC</a>";
     var subScanC=document.createElement("ul");
     subScanC.className="collapse";
-
-    var subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'sub\')\">Subjects</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
-
-    var subScanSessC=document.createElement("ul");
-    subScanSessC.className="collapse";
-    var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'ses\')\">Sessions</a>";
-    subScanSess.appendChild(subScanSessC);
-    subScanC.appendChild(subScanSess);
-
-    var subScanTaskC=document.createElement("ul");
-    subScanTaskC.className="collapse";
-    var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'task\')\">Tasks</a>";
-    subScanTask.appendChild(subScanTaskC);
-    subScanC.appendChild(subScanTask);
 
     subScanQ.appendChild(subScanC);
 

@@ -544,9 +544,9 @@ class Workflows:
         field_template={}
         template_args={}
         if label_type == 'user_cls' :
-            label_img_template=sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
+            label_img_template=opts.sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
             template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-            label_img_template +='*_variant-'+img+'_dtissue.'+img_ext
+            label_img_template +='*_variant-'+img+'_dtissue.'+opts.img_ext
             field_template[label_img] = label_img_template
         elif label_type == 'atlas' or label_type == 'atlas-template' :
             field_template[label_img] = "%s"

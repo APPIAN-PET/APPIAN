@@ -1,483 +1,114 @@
-function collectIO(){
-    var req = null;
-    if (XMLHttpRequest) {
-        req = new XMLHttpRequest();
-    } else {
-        req = new ActiveXObject("Microsoft.XMLHTTP");
-    }
 
-    req.onreadystatechange = function(event) {
-        if (this.readyState === XMLHttpRequest.DONE) {
-            if (this.status === 200) {
-                menuQC(this.responseXML);
-            } else {
-                console.log("Response statut: %d (%s)", this.status, this.statusText);
-            }
-        }
-    };
+function deployPage(tabScans,s,stage){    
+    
+    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
+    
+    //$("#inner").innerHTML="";
+    document.getElementById("inner").innerHTML = "";
 
-    req.open('GET', 'nodes.xml');
-    req.send(null);
-}
+    $divRow = $("<div>", {'class': "row"});
+    $("#inner").append($divRow);
+
+    $divStage = $("<div>", {'class': "col-lg-12"});
+    $divBox = $("<div>", {'class': "box"});
+    $divHdr = $("<header>");
+    $divTlb = $("<div>", {'id': "loading",
+                          'class': "toolbar",
+                          'style': "display: none"});
+    $divBody = $("<div>", {'class': "body"});
+    
+    $divRow.append($divStage);
+    $divStage.append($divBox);
+    $divBox.append($divHdr);
+
+    overlayFiles=[];
+    $scan = $( tabScans[s] ),
+    $node = $scan.find("node");
+    $node.each(function(index, element) {
+    $ele = $( element )
+    if(element.attributes["name"].value == stage ) {
+
+    switch(stage){
+        case 'pet2mri':
+            overlayFiles.push($ele.find("volume1").text());
+            overlayFiles.push($ele.find("volume2").text());
+
+            $divHdr.append($("<h5>").text("PET-MRI"));
+            bb="brainbrowserCoreg";
+            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
+            $divHdr.append($divTlb);
+            $divBody.append($("<div>", {'id':bb}));
+            $divBox.append($divBody);
+
+            runBrainBrowser(overlayFiles,bb);
+            break;
+
+        case "pvc":
+
+            $divHdr.append($("<h5>").text("pre-PVC"));
+            bb="brainbrowserPrePVC";
+            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
+            $divHdr.append($divTlb);
+            $divBody.append($("<div>", {'id':bb}));
+            $divBox.append($divBody);
+            
+            overlayFiles.push($ele.find("volumet1").text());
+            runBrainBrowser(overlayFiles,bb);
+            
+            overlayFiles=[];
+
+            $divRow = $("<div>", {'class': "row"});
+            $("#inner").append($divRow);
+
+            $divStage = $("<div>", {'class': "col-lg-12"});
+            $divBox = $("<div>", {'class': "box"});
+            $divHdr = $("<header>");
+            $divTlb = $("<div>", {'id': "loading",
+                                  'class': "toolbar",
+                                  'style': "display: none"});
+            $divBody = $("<div>", {'class': "body"});
+            $divRow.append($divStage);
+            $divStage.append($divBox);
+            $divBox.append($divHdr);
 
 
+            $divHdr.append($("<h5>").text("post-PVC"));
+            bb="brainbrowserPostPVC";
+            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
+            $divHdr.append($divTlb);
+            $divBody.append($("<div>", {'id':bb}));
+            $divBox.append($divBody);
 
+            overlayFiles.push($ele.find("volumet2").text());
+            runBrainBrowser(overlayFiles,bb);
+            break;
 
-var tabScans,tabNodes,tabOptions,tabParams,tabInMinc,tabOutMinc;
-function menuQC(xmlNodes){
+        case "tka":
+            overlayFiles.push($ele.find("volume1").text());
+            overlayFiles.push($ele.find("volume2").text());
 
-    var array = ['pet-coregistration', 'pvc', 'tka'];
+            $divHdr.append($("<h5>").text("TKA"));
+            bb="brainbrowserTKA";
+            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
+            $divHdr.append($divTlb);
+            $divBody.append($("<div>", {'id':bb}));
+            $divBox.append($divBody);
 
-    array.forEach(function(stage) {
-
-    var subScanS=document.createElement("li");
-    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
-
-    var subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    var subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'sub\')\">Subjects</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
-
-    var subScanSessC=document.createElement("ul");
-    subScanSessC.className="collapse";
-    var subScanSess=document.createElement("li");
-    subScanSess.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'ses\')\">Sessions</a>";
-    subScanSess.appendChild(subScanSessC);
-    subScanC.appendChild(subScanSess);
-
-    var subScanTaskC=document.createElement("ul");
-    subScanTaskC.className="collapse";
-    var subScanTask=document.createElement("li");
-    subScanTask.innerHTML="<a href=\"javascript:;\" onclick=\"reachStats(\'"+stage+"\',\'task\')\">Tasks</a>";
-    subScanTask.appendChild(subScanTaskC);
-    subScanC.appendChild(subScanTask);
-
-    subScanS.appendChild(subScanC);
-
-
-    var subScanQ=document.createElement("li");
-    subScanQ.innerHTML="<a href=\"javascript:;\" onclick=\"reachQC(\'"+stage+"\',\'sub\')\">QC</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
-
-    subScanQ.appendChild(subScanC);
-
-    tabScans=xmlNodes.getElementsByTagName("scan");
-    for(var s=0;s<tabScans.length;s++){
-        var subScanI=document.createElement("li");
-        arr = tabScans[s].attributes
-        Object.keys(arr).forEach(element => {
-          switch(arr[element].name){
-            case "sid":
-                sid=arr[element].value;
-            case "ses":
-                ses=arr[element].value;
-            case "task":
-                task=arr[element].value;
-            }
-        });
-       
-
-        switch(stage){
-            case "pet-coregistration":
-                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"coregPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-                $("#coreg").append(subScanI);
-                document.getElementById(stage).append(subScanI);
-                break;
-            case "pvc":
-                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"pvcPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-                $("#pvc").append(subScanI);
-                document.getElementById(stage).append(subScanI);
-                break;
-            case "tka":
-                subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"tkaPage(tabScans,"+s+")\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
-                $("#tka").append(subScanI);
-                document.getElementById(stage).append(subScanI);
-                break;
-        }
-
-    }
-
-    document.getElementById(stage).append(subScanS);
-    document.getElementById(stage).append(subScanQ);
-
+            runBrainBrowser(overlayFiles,bb);
+            break;
+    }} 
     });
-
 }
 
 
-
-
-
-
-function coregPage(tabScans,s){    
-    
-    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
-    
-    //$("#inner").innerHTML="";
-    document.getElementById("inner").innerHTML = "";
-
-    $divRow = $("<div>", {'class': "row"});
-    $("#inner").append($divRow);
-    
-    scan=tabScans[s];
-    node = scan.firstChild;
-    i=0;
-    $divPetMri = $("<div>", {'class': "col-lg-12"});
-    $divBox = $("<div>", {'class': "box"});
-    $divHdr = $("<header>");
-    $divTlb = $("<div>", {'id': "loading",
-                          'class': "toolbar",
-                          'style': "display: none"});
-    $divBody = $("<div>", {'class': "body"});
-    
-    $divRow.append($divPetMri);
-    $divPetMri.append($divBox);
-    $divBox.append($divHdr);
-    $divHdr.append($("<h5>").text("PET-MRI"));
-    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-    $divHdr.append($divTlb);
-    bb="brainbrowserCoreg";
-    $divBody.append($("<div>", {'id':bb}));
-    $divBox.append($divBody);
-    while(i<scan.childNodes.length){
-        if ((node.nodeType == 1) && (node.attributes[0].textContent == "pet2mri")) {
-            details=node.firstChild;
-            j=0;
-            overlayFiles=[];
-            while(j<node.childNodes.length){         
-                if (details.nodeType == 1) {
-                    image=details.firstChild;
-                    k=0;
-                    
-                    while(k<details.childNodes.length){
-                        if ((image.nodeType == 1) && 
-                            (image.nodeName == "out_file_img") || (image.nodeName == "in_target_file")) {
-                            overlayFiles.push(image.textContent);
-                        }
-                        image=image.nextSibling;
-                        k++;
-                    }
-                }
-                details=details.nextSibling;
-                j++;   
-            }
-            runBrainBrowser(overlayFiles,bb);
-        }
-        node=node.nextSibling;
-        i++;    
-    }
-    
-}
-
-function pvcPage(tabScans,s){    
-    
-    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
-    
-    //$("#inner").innerHTML="";
-    document.getElementById("inner").innerHTML = "";
-
-    $divRow = $("<div>", {'class': "row"});
-    $("#inner").append($divRow);
-    
-    scan=tabScans[s];
-    node = scan.firstChild;
-    i=0;
-    $divPrePVC = $("<div>", {'class': "col-lg-12"});
-    $divBox = $("<div>", {'class': "box"});
-    $divHdr = $("<header>");
-    $divTlb = $("<div>", {'id': "loading",
-                          'class': "toolbar",
-                          'style': "display: none"});
-    $divBody = $("<div>", {'class': "body"});
-    
-    $divRow.append($divPrePVC);
-    $divPrePVC.append($divBox);
-    $divBox.append($divHdr);
-    $divHdr.append($("<h5>").text("pre-PVC"));
-    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-    $divHdr.append($divTlb);
-    bb="brainbrowserPrePVC";
-    $divBody.append($("<div>", {'id':bb}));
-    $divBox.append($divBody);
-    while(i<scan.childNodes.length){
-        if ((node.nodeType == 1) && (node.attributes[0].value == "pvc")) {
-            details=node.firstChild;
-            j=0;
-            overlayFiles=[];
-            while(j<node.childNodes.length){
-                if (details.nodeType == 1) {
-                    image=details.firstChild;
-                    k=0;
-                    
-                    while(k<details.childNodes.length){
-                        if ((image.nodeType == 1) && 
-                            (image.nodeName == "in_file")) {
-                            overlayFiles.push(image.textContent);
-                        }
-                        image=image.nextSibling;
-                        k++;
-                    }
-                }
-                details=details.nextSibling;
-                j++;   
-            }
-            runBrainBrowser(overlayFiles,bb);
-        }
-        node=node.nextSibling;
-        i++;    
-    }
-    
-    
-    
-    $divRow = $("<div>", {'class': "row"});
-    $("#inner").append($divRow);
-    
-    scan=tabScans[s];
-    node = scan.firstChild;
-    i=0;
-    $divPostPVC = $("<div>", {'class': "col-lg-12"});
-    $divBox = $("<div>", {'class': "box"});
-    $divHdr = $("<header>");
-    $divTlb = $("<div>", {'id': "loading",
-                          'class': "toolbar",
-                          'style': "display: none"});
-    $divBody = $("<div>", {'class': "body"});
-    
-    $divRow.append($divPostPVC);
-    $divPostPVC.append($divBox);
-    $divBox.append($divHdr);
-    $divHdr.append($("<h5>").text("post-PVC"));
-    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-    $divHdr.append($divTlb);
-    bb="brainbrowserPostPVC";
-    $divBody.append($("<div>", {'id':bb}));
-    $divBox.append($divBody);
-    while(i<scan.childNodes.length){
-        if ((node.nodeType == 1) && (node.attributes[0].textContent == "pvc")) {
-            details=node.firstChild;
-            j=0;
-            overlayFiles=[];
-            while(j<node.childNodes.length){         
-                if (details.nodeType == 1) {
-                    image=details.firstChild;
-                    k=0;
-                    
-                    while(k<details.childNodes.length){
-                        if ((image.nodeType == 1) && 
-                            (image.nodeName == "out_file")) {
-                            overlayFiles.push(image.textContent);
-                        }
-                        image=image.nextSibling;
-                        k++;
-                    }
-                }
-                details=details.nextSibling;
-                j++;   
-            }
-            runBrainBrowser(overlayFiles,bb);
-        }
-        node=node.nextSibling;
-        i++;    
-    }
-}
-
-function tkaPage(tabScans,s){    
-    
-    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
-    
-    //$("#inner").innerHTML="";
-    document.getElementById("inner").innerHTML = "";
-    
-    $divRow = $("<div>", {'class': "row"});
-    $("#inner").append($divRow);
-    
-    scan=tabScans[s];
-    node = scan.firstChild;
-    i=0;
-    $divTKA = $("<div>", {'class': "col-lg-12"});
-    $divBox = $("<div>", {'class': "box"});
-    $divHdr = $("<header>");
-    $divTlb = $("<div>", {'id': "loading",
-                          'class': "toolbar",
-                          'style': "display: none"});
-    $divBody = $("<div>", {'class': "body"});
-    
-    $divRow.append($divTKA);
-    $divTKA.append($divBox);
-    $divBox.append($divHdr);
-    $divHdr.append($("<h5>").text("TKA"));
-    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-    $divHdr.append($divTlb);
-    bb="brainbrowserTKA";
-    $divBody.append($("<div>", {'id':bb}));
-    $divBox.append($divBody);
-    while(i<scan.childNodes.length){
-        if ((node.nodeType == 1) && (node.attributes[0].textContent == "tka")) {
-            details=node.firstChild;
-            j=0;
-            overlayFiles=[];
-            while(j<node.childNodes.length){         
-                if (details.nodeType == 1) {
-                    image=details.firstChild;
-                    k=0;
-                    
-                    while(k<details.childNodes.length){
-                        if ((image.nodeType == 1) && 
-                            (image.nodeName == "out_file") || (image.nodeName == "in_target_file")) {
-                            overlayFiles.push(image.textContent);
-                        }
-                        image=image.nextSibling;
-                        k++;
-                    }
-                }
-                details=details.nextSibling;
-                j++;   
-            }
-           runBrainBrowser(overlayFiles,bb);
-        }
-        node=node.nextSibling;
-        i++;    
-    }    
-}
-
-
-function reachStats(stage, level){
-    var req = null;
-    if (XMLHttpRequest) {
-        req = new XMLHttpRequest();
-    } else {
-        req = new ActiveXObject("Microsoft.XMLHTTP");
-    }
-    req.onreadystatechange = function(event) {
-
-        if (this.readyState === XMLHttpRequest.DONE) {
-            if (this.status === 200) {
-                readCSV(this.responseText, stage, level);
-            } else {
-                console.log("Status de la réponse: %d (%s)", this.status, this.statusText);
-            }
-        }
-    };
-    req.open('GET', "stats/"+level+"/descriptive_statistics_"+level+".csv");
-    req.send(null);
-}
-
-
-var readCSV = function (allText, stage, level) {
-    var allTextLines = allText.split(/\r\n|\n/);
-    var headers = allTextLines[0].split(',');
-    var dataCSV = [];
-    for (var i=1; i<allTextLines.length; i++) {
-        var line = allTextLines[i].split(',');
-        if (line.length == headers.length) {
-            var tarr = {};
-                for (var j=0; j<headers.length; j++) {
-                    keyCol=headers[j];
-                    valueCol=line[j];
-                    tarr[keyCol]=valueCol;
-                }
-                dataCSV.push(tarr);
-        }
-    }
-
-    if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
-      console.log(dataCSV);
-      getResults(dataCSV, stage, level); 
-    }           
-};
-
-
-
-
-
-var getResults = function(dataCSV, stage, level) {
-
-    subjList = dataCSV.map(function(elem){return elem.sub;});
-    rowLength = dataCSV.length;
-    // Combine all data into single arrays
-
-    stageList = dataCSV.map(function(elem){return elem.analysis;});
-    if(stage === 'pet-coregistration'){
-        indices = stageList.map((e, i) => e === 'pet-coregistration' || e === 'prelimaries' ? i : '').filter(String);
-    }else{
-        indices = stageList.map((e, i) => e === stage ? i : '').filter(String);
-    }
-
-    metric = dataCSV.map(function(elem){return elem.metric;});
-    subjList = dataCSV.map(function(elem){return elem.sub;});
-    valueList = dataCSV.map(function(elem){return elem.value;});
-    roiList = dataCSV.map(function(elem){return elem.roi;});
-
-    valueStage=[];roiStage=[];subjStage=[];
-    valueList.forEach(function (value, i) {
-        if (indices.includes(i)){
-            valueStage.push(value);
-            roiStage.push(roiList[i]);
-            subjStage.push(subjList[i]);
-    }});
-
-    xaxis_title = "ROI";
-    switch (stage) {
-        case 'pet-coregistration':
-            title = "COREGISTRATION";
-            yaxis_title = ("TAC %s", metric[0]);
-            break;
-        case 'pvc':
-            title = "PARTIAL VOLUME CORRECTION";
-            yaxis_title = ("TAC %s", metric[0]);
-            break;
-        case 'tka':
-            title = "TRACER KINETIC ANALYSIS";
-            yaxis_title = ("TAC %s", metric[0]);
-            break;
-    }
-
-    displayPlotBrowser(level,roiStage,valueStage,subjStage,
-        xaxis_title,yaxis_title,title);
-
-};
-
-
-
-
-
-function reachQC(stage, level){
-    var req = null;
-    if (XMLHttpRequest) {
-        req = new XMLHttpRequest();
-    } else {
-        req = new ActiveXObject("Microsoft.XMLHTTP");
-    }
-    req.onreadystatechange = function(event) {
-        if (this.readyState === XMLHttpRequest.DONE) {
-            if (this.status === 200) {
-                readCSV(this.responseText, stage, level);
-            } else {
-                console.log("Status de la réponse: %d (%s)", this.status, this.statusText);
-            }
-        }
-    };
-    stage = stage === 'pet-coregistration' ? 'coreg' : stage;
-    req.open('GET', "qc/"+stage+"/metrics/"+stage+"_qc_metrics.csv");
-    req.send(null);
-}
 
 
 var jitterme = function(list,jitter) {
     list.forEach(function(value, index, array) {
       list[index]=Number(value)+Math.random(value)*2*jitter-jitter;
     });
-    console.log(list);
     return(list)
 };
-
-
-
 
 
 
@@ -1388,4 +1019,7 @@ function runBrainBrowser(file,bb) {
       
     });
 }
+
+
+
 

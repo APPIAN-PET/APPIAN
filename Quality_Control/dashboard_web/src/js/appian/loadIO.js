@@ -14,7 +14,7 @@ function collectIO(){
         console.log("Response statut: %d (%s)", this.status, this.statusText);
     }}};
 
-    req.open('GET', 'nodes_2.xml');
+    req.open('GET', 'nodes.xml');
     req.send(null);
 }
 

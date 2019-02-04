@@ -343,7 +343,6 @@ if __name__ == "__main__":
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
-    else : opts.sessionList=opts.sessionList.split(',')
 
     #########################
     #Automatically set tasks#

@@ -11,8 +11,6 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from Extra.minc_json_header_batch import create_minc_headers
 import re
 import time
-#from optparse import ArgumentParser
-#from optparse import OptionGroup
 from argparse import ArgumentParser
 import distutils
 from distutils import dir_util
@@ -23,123 +21,7 @@ version = "1.0"
 global spaces
 spaces=['pet', 't1', 'stereo']
 
-def set_labels(opts, roi_label, masks):
-    out={}
-    labels={"pvc":opts.pvc_labels, "tka":opts.tka_labels, "results":opts.results_labels}
-    for name, item in masks.items():
-        mask_type  = item[0]
-        mask_value = item[1]
-        
-        if labels[name] != None:
-            out[name]=labels[name]
-        else: # mask_type == 'other' or mask_type == 'roi-user':
-            out[name] = None #label_values
-    return out
-
-
-def get_opt_list(option,opt,value,parser):
-    print(value)
-    setattr(parser.values,option.dest,value.split(','))
-
-def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
-    """
-    Print basic options input by user
-
-    :param opts: User-defined options.
-    :param subject_ids: Subject IDs
-    :param session_ids: Session variable IDs
-    :param task_list: Task variable IDs
-
-    """
-    uname = os.popen('uname -s -n -r').read()
-    print "\n"
-    print "* Pipeline started at "+time.strftime("%c")+"on "+uname
-    print "* Command line is : \n "+str(sys.argv)+"\n"
-    print "* The source directory is : "+opts.sourceDir
-    print "* The target directory is : "+opts.targetDir+"\n"
-    print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
-    #   print "* PET conditions : "+ ','.join(opts.condiList)+"\n"
-    print "* Sessions : ", session_ids, "\n"
-    print "* Tasks : " , task_list , "\n"
-    print "* Runs : " , run_list , "\n"
-    print "* Acquisition : " , acq , "\n"
-    print "* Reconstruction : " , rec , "\n"
-
-
-############################################
-# Define dictionaries for default settings #
-############################################
-#Set defaults for label
-roi_label={} 
-animal_WM=[73, 45, 83, 59, 30, 17, 105, 57]
-animal_CER=[67,76]
-animal_GM=[218,219,210,211,8,4,2,6]
-animal_sGM=[14,16,11,12,53,39,102,203]
-animal_labels=animal_WM + animal_CER + animal_GM + animal_sGM 
-roi_label["results"]={  
-        "roi-user":[],
-        "icbm152":[39,53,16,14,25,72],
-        "civet":[1,2,3,4],
-        "animal":animal_GM+animal_sGM, 
-        "atlas":[]}
-roi_label["tka"]={  
-        "roi-user":[1],
-        "icbm152":[39,53,16,14,25,72],
-        "civet":[3],
-        "atlas":[3],
-        "animal":animal_CER}
-roi_label["pvc"]={
-        "roi-user":[],
-        "icbm152":[39,53,16,14,25,72],
-        "civet":[2,3,4],
-        "animal":animal_labels,
-        "atlas":[]}
-
-#Default FWHM for PET scanners
-pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
-
-internal_cls_methods=["antsAtropos"]
-def check_masking_options(opts, label_img, label_template, label_space):
-    '''
-    Inputs:
-        opts            user defined inputs to program using configparser
-        label_img       the label that describes the type of image we're dealing with
-        label-space     the coordinate space of the the image
-    Outputs: 
-        label_type      label type tells you what kind of labled image we're dealing with. there are several
-                        possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
-    '''
-    print("Label img:", label_img, "Label template:", label_template)
-    print( "Check masking options:",os.path.exists(label_img) ); 
-    #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
-    if os.path.exists(label_img):
-    # 1) Atlas 
-        label_type ="atlas"
-        #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
-        if label_template != None :
-            if os.path.exists(label_template) : 
-                label_type="atlas-template"
-    elif label_img in internal_cls_methods :
-    # 2) Internal classification metion
-        label_type = 'internal_cls'
-        label_space="stereo"
-    elif type(label_img) == str:
-    # 3) String that defines user classification
-        label_type='user_cls'
-    else : 
-        print "Label error: ", label_img
-        exit(1)
-
-    return label_type, label_space
-
-def split_label_img(label_img_str):
-    label_img_list = label_img_str.split(',')
-    if len(label_img_list) == 1 : label_img_list += [None]
-
-    return label_img_list
-
-if __name__ == "__main__":
-    usage = "usage: "
+def get_parser():
     parser = ArgumentParser(usage=usage,version=version)
     #group= OptionGroup(parser,"File options (mandatory)")
     parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory")
@@ -190,7 +72,6 @@ if __name__ == "__main__":
     #group= OptionGroup(parser,"File options (Optional)")
     parser.add_argument("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Run group level analysis")
     parser.add_argument("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Run scan level analysis")
-    parser.add_argument("--test",dest="test",action='store_true', default=False, help="Run unit tests to validate APPIAN")
 
     parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='mnc')
     parser.add_argument("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
@@ -325,10 +206,128 @@ if __name__ == "__main__":
     parser.add_argument("--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
     parser.add_argument("--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
     
+    return parser
 
+
+def set_labels(opts, roi_label, masks):
+    out={}
+    labels={"pvc":opts.pvc_labels, "tka":opts.tka_labels, "results":opts.results_labels}
+    for name, item in masks.items():
+        mask_type  = item[0]
+        mask_value = item[1]
+        
+        if labels[name] != None:
+            out[name]=labels[name]
+        else: 
+            out[name] = None 
+    return out
+
+def get_opt_list(option,opt,value,parser):
+    print(value)
+    setattr(parser.values,option.dest,value.split(','))
+
+def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
+    """
+    Print basic options input by user
+
+    :param opts: User-defined options.
+    :param subject_ids: Subject IDs
+    :param session_ids: Session variable IDs
+    :param task_list: Task variable IDs
+
+    """
+    uname = os.popen('uname -s -n -r').read()
+    print "\n"
+    print "* Pipeline started at "+time.strftime("%c")+"on "+uname
+    print "* Command line is : \n "+str(sys.argv)+"\n"
+    print "* The source directory is : "+opts.sourceDir
+    print "* The target directory is : "+opts.targetDir+"\n"
+    print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
+    print "* Sessions : ", session_ids, "\n"
+    print "* Tasks : " , task_list , "\n"
+    print "* Runs : " , run_list , "\n"
+    print "* Acquisition : " , acq , "\n"
+    print "* Reconstruction : " , rec , "\n"
+
+
+############################################
+# Define dictionaries for default settings #
+############################################
+#Set defaults for label
+roi_label={} 
+animal_WM=[73, 45, 83, 59, 30, 17, 105, 57]
+animal_CER=[67,76]
+animal_GM=[218,219,210,211,8,4,2,6]
+animal_sGM=[14,16,11,12,53,39,102,203]
+animal_labels=animal_WM + animal_CER + animal_GM + animal_sGM 
+roi_label["results"]={  
+        "roi-user":[],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[1,2,3,4],
+        "animal":animal_GM+animal_sGM, 
+        "atlas":[]}
+roi_label["tka"]={  
+        "roi-user":[1],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[3],
+        "atlas":[3],
+        "animal":animal_CER}
+roi_label["pvc"]={
+        "roi-user":[],
+        "icbm152":[39,53,16,14,25,72],
+        "civet":[2,3,4],
+        "animal":animal_labels,
+        "atlas":[]}
+
+#Default FWHM for PET scanners
+pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
+
+internal_cls_methods=["antsAtropos"]
+def check_masking_options(opts, label_img, label_template, label_space):
+    '''
+    Inputs:
+        opts            user defined inputs to program using configparser
+        label_img       the label that describes the type of image we're dealing with
+        label-space     the coordinate space of the the image
+    Outputs: 
+        label_type      label type tells you what kind of labled image we're dealing with. there are several
+                        possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
+    '''
+    print("Label img:", label_img, "Label template:", label_template)
+    print( "Check masking options:",os.path.exists(label_img) ); 
+    #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
+    if os.path.exists(label_img):
+    # 1) Atlas 
+        label_type ="atlas"
+        #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
+        if label_template != None :
+            if os.path.exists(label_template) : 
+                label_type="atlas-template"
+    elif label_img in internal_cls_methods :
+    # 2) Internal classification metion
+        label_type = 'internal_cls'
+        label_space="stereo"
+    elif type(label_img) == str:
+    # 3) String that defines user classification
+        label_type='user_cls'
+    else : 
+        print "Label error: ", label_img
+        exit(1)
+
+    return label_type, label_space
+
+def split_label_img(label_img_str):
+    label_img_list = label_img_str.split(',')
+    if len(label_img_list) == 1 : label_img_list += [None]
+
+    return label_img_list
+
+if __name__ == "__main__":
+    usage = "usage: "
+    parser = get_parser()
+   
     opts = parser.parse_args()
     args=opts.args 
-   
     ############################
     #Automatically set sessions#
     ############################ 
@@ -391,10 +390,6 @@ if __name__ == "__main__":
         print("Runs:", ' '.join( opts.runList))
     opts.extension='mnc'
     
-    print(opts.args)
-    print(opts.runList)
-    print(opts.taskList)
-    print(opts.sessionList)
     printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
 
     ##########################################################
@@ -461,8 +456,6 @@ if __name__ == "__main__":
         printScan(opts,args)
     elif opts.pstages:
         printStages(opts,args)
-    elif opts.test :
-        test(opts, args)
     else :
         if opts.run_scan_level:
             run_scan_level(opts,args)

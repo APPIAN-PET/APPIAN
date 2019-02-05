@@ -11,8 +11,9 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from Extra.minc_json_header_batch import create_minc_headers
 import re
 import time
-from optparse import OptionParser
-from optparse import OptionGroup
+#from optparse import ArgumentParser
+#from optparse import OptionGroup
+from argparse import ArgumentParser
 import distutils
 from distutils import dir_util
 from scanLevel import run_scan_level
@@ -139,68 +140,70 @@ def split_label_img(label_img_str):
 
 if __name__ == "__main__":
     usage = "usage: "
-    parser = OptionParser(usage=usage,version=version)
-    group= OptionGroup(parser,"File options (mandatory)")
-    group.add_option("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory")
-    group.add_option("-t","--target","--targetdir",dest="targetDir",type='string', help="Absolute path for directory where output data will be saved in")
+    parser = ArgumentParser(usage=usage,version=version)
+    #group= OptionGroup(parser,"File options (mandatory)")
+    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory")
+    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in")
 
-    group.add_option("--radiotracer","--acq",dest="acq",type='string', default='', help="Radiotracer")
-    group.add_option("-r","--rec",dest="rec",type='string', default='', help="Reconstruction algorithm")
-    group.add_option("","--sessions",dest="sessionList",help="Comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
-    group.add_option("","--tasks",dest="taskList",help="Comma-separated list of conditions or scans",type='string',action='callback',callback=get_opt_list)
-    group.add_option("","--runs",dest="runList",help="Comma-separated list of runs",type='string',action='callback',callback=get_opt_list)
-    parser.add_option_group(group)      
+    parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
+    parser.add_argument("-r","--rec",dest="rec",type=str, default='', help="Reconstruction algorithm")
+    parser.add_argument("--sessions",dest="sessionList",default=[],help="List of conditions or scans",nargs='+')
+    parser.add_argument("--subjects",dest="args",default=[], help="List of subjects",nargs='+')
+    parser.add_argument("--tasks",dest="taskList",default=[],help="List of conditions or scans",nargs='+')
+    parser.add_argument("--runs",dest="runList",default=[],help="List of runs",nargs='+')
+          
 
     ###############
     # Information #
     ###############
-    group= OptionGroup(parser,"Options to supplement PET header information")
-    group.add_option("","--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type='float', default=0)
-    parser.add_option_group(group)      
+    #group= OptionGroup(parser,"Options to supplement PET header information")
+    parser.add_argument("--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type=float, default=0)
+          
 
     #############################
     # MRI Preprocessing Options #
     #############################
-    group= OptionGroup(parser,"MRI preprocessing options")
-    group.add_option("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
-    group.add_option("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
-    #group.add_option("--beast-voxel-size", dest="beast_voxel_size", default=2, type=int, help="Voxel size for brain segmentation" ) 
-    group.add_option("--beast-no-median", dest="beast_median", default=True, action='store_false', help="Use median filter" ) 
-    group.add_option("","--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type='string', default="minctracc")  
-    group.add_option("","--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type='string', default="beast")  
-    group.add_option("","--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type='string', default='ANTS' ) 
-    group.add_option("--beast-library-dir", dest="beast_library_dir",type='string',help="Directory to Beast library",default="/opt/beast-library-1.0")
-    parser.add_option_group(group)      
+    #group= OptionGroup(parser,"MRI preprocessing options")
+    parser.add_argument("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
+    parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
+    #parser.add_argument("--beast-voxel-size", dest="beast_voxel_size", default=2, type=int, help="Voxel size for brain segmentation" ) 
+    parser.add_argument("--beast-no-median", dest="beast_median", default=True, action='store_false', help="Use median filter" ) 
+    parser.add_argument("--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type=str, default="minctracc")  
+    parser.add_argument("--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type=str, default="beast")  
+    parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS' ) 
+    parser.add_argument("--beast-library-dir", dest="beast_library_dir",type=str,help="Directory to Beast library",default="/opt/beast-library-1.0")
+          
 
     ###################
     # Surface Options #
     ###################
-    group= OptionGroup(parser,"Surface options")
-    group.add_option("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
-    group.add_option("--surf-label",dest="surface_label", default='*', help="Label string to identify surface ROI .txt file")
-    group.add_option("--surf-space",dest="surface_space",type='string',default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
-    group.add_option("--surf-ext",dest="surf_ext",type='string',help="Extension to use for surfaces",default='obj')
-    parser.add_option_group(group)      
+    #group= OptionGroup(parser,"Surface options")
+    parser.add_argument("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
+    parser.add_argument("--surf-label",dest="surface_label", default='*', help="Label string to identify surface ROI .txt file")
+    parser.add_argument("--surf-space",dest="surface_space",type=str,default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
+    parser.add_argument("--surf-ext",dest="surf_ext",type=str,help="Extension to use for surfaces",default='obj')
+          
 
     ######################
     # Additional Options #
     ######################
-    group= OptionGroup(parser,"File options (Optional)")
-    group.add_option("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Run group level analysis")
-    group.add_option("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Run scan level analysis")
+    #group= OptionGroup(parser,"File options (Optional)")
+    parser.add_argument("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Run group level analysis")
+    parser.add_argument("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Run scan level analysis")
+    parser.add_argument("--test",dest="test",action='store_true', default=False, help="Run unit tests to validate APPIAN")
 
-    group.add_option("--img-ext",dest="img_ext",type='string',help="Extension to use for images.",default='mnc')
-    group.add_option("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
-    group.add_option("--threads",dest="num_threads",type='int',help="Number of threads to use. (defult=1)",default=1)
+    parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='mnc')
+    parser.add_argument("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
+    parser.add_argument("--threads",dest="num_threads",type=int,help="Number of threads to use. (defult=1)",default=1)
     
     file_dir, fn =os.path.split( os.path.abspath(__file__) )
-    group.add_option("--stereotaxic-template", dest="template",type='string',help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
-    group.add_option("","--datasource-exit",dest="datasource_exit",help="Stop scan level processing after initialization of datasources", action='store_true', default=False)
-    group.add_option("","--initialize-exit",dest="initialize_exit",help="Stop scan level processing after PET initialization", action='store_true', default=False)
-    group.add_option("","--coregistration-exit",dest="coregistration_exit",help="Stop scan level processing after coregistration", action='store_true', default=False)
-    group.add_option("","--masking-exit",dest="masking_exit",help="Stop scan level processing after masking", action='store_true', default=False)
-    group.add_option("","--mri-preprocess-exit",dest="mri_preprocess_exit",help="Stop scan level processing after MRI preprocessing", action='store_true', default=False)
-    parser.add_option_group(group)      
+    parser.add_argument("--stereotaxic-template", dest="template",type=str,help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
+    parser.add_argument("--datasource-exit",dest="datasource_exit",help="Stop scan level processing after initialization of datasources", action='store_true', default=False)
+    parser.add_argument("--initialize-exit",dest="initialize_exit",help="Stop scan level processing after PET initialization", action='store_true', default=False)
+    parser.add_argument("--coregistration-exit",dest="coregistration_exit",help="Stop scan level processing after coregistration", action='store_true', default=False)
+    parser.add_argument("--masking-exit",dest="masking_exit",help="Stop scan level processing after masking", action='store_true', default=False)
+    parser.add_argument("--mri-preprocess-exit",dest="mri_preprocess_exit",help="Stop scan level processing after MRI preprocessing", action='store_true', default=False)
+          
 
 
     ###################
@@ -209,122 +212,122 @@ if __name__ == "__main__":
     label_space_help="Coordinate space of labeled image to use for TKA. Options: [pet/t1/stereo] "
     label_img_help="Options: 1. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 2. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template 3. Internal classification method (" + ', '.join(internal_cls_methods) + ') 4. String that identifies labels in anat/ directory to be used as mask' 
     #PVC
-    group= OptionGroup(parser,"Masking options","PVC")
-    group.add_option("","--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='stereo', choices=spaces)
-    group.add_option("","--pvc-label-img",dest="pvc_label_img",help=label_img_help, type='string', default='antsAtropos')
-    group.add_option("","--pvc-label-template",dest="pvc_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
-    group.add_option("","--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type='string',action='callback',callback=get_opt_list,default=[] )
-    group.add_option("","--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type='int', default=0 )
-    group.add_option("","--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
-    group.add_option("","--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
-    group.add_option("","--pvc-labels-per-pet",dest="pvc_labels_per_pet",help="Mask pvc labels with brain mask",action='store_true',default=False)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"Masking options","PVC")
+    parser.add_argument("--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='stereo', choices=spaces)
+    parser.add_argument("--pvc-label-img",dest="pvc_label_img",help=label_img_help, type=str, default='antsAtropos')
+    parser.add_argument("--pvc-label-template",dest="pvc_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
+    parser.add_argument("--pvc-label",dest="pvc_labels",help="Label values to use for pvc", type=str)
+    parser.add_argument("--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type=int, default=0 )
+    parser.add_argument("--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    parser.add_argument("--pvc-labels-per-pet",dest="pvc_labels_per_pet",help="Mask pvc labels with brain mask",action='store_true',default=False)
+    
 
     # Quantification
-    group= OptionGroup(parser,"Masking options","Quantification")
-    group.add_option("","--tka-label-space",dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
-    group.add_option("","--tka-label-img",dest="tka_label_img", help=label_img_help, type='string',default='antsAtropos')
-    group.add_option("","--tka-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
-    group.add_option("","--tka-label",dest="tka_labels",help="Label values to use for TKA", type='string',action='callback',callback=get_opt_list,default=[] )
-    group.add_option("","--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type='int', default=0 )
-    group.add_option("","--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
-    group.add_option("","--tka-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"Masking options","Quantification")
+    parser.add_argument("--tka-label-space",dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
+    parser.add_argument("--tka-label-img",dest="tka_label_img", help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--tka-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
+    parser.add_argument("--tka-label",dest="tka_labels",help="Label values to use for TKA", type=str,default=[] )
+    parser.add_argument("--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type=int, default=0 )
+    parser.add_argument("--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--tka-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    
 
     #Results
-    group= OptionGroup(parser,"Masking options","Results")
-    group.add_option("","--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
-    group.add_option("","--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
-    group.add_option("","--results-label-img", dest="results_label_img",help=label_img_help, type='string',default='antsAtropos')
-    group.add_option("","--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type='string', default=None)
-    group.add_option("","--results-label",dest="results_labels",help="Label values to use for results", type='string',action='callback',callback=get_opt_list,default=[] )
-    group.add_option("","--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type='int',default=0 )
-    group.add_option("","--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
-    group.add_option("","--results-labels-ones-only",dest="results_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"Masking options","Results")
+    parser.add_argument("--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
+    parser.add_argument("--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
+    parser.add_argument("--results-label-img", dest="results_label_img",help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
+    parser.add_argument("--results-label",dest="results_labels",help="Label values to use for results", type=str,default=[] )
+    parser.add_argument("--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type=int,default=0 )
+    parser.add_argument("--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--results-labels-ones-only",dest="results_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    
 
     ##########################
     # Coregistration Options #
     ##########################
-    group= OptionGroup(parser,"Coregistation options")
-    group.add_option("--coreg-method", dest="coreg_method",type='string',help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
-    group.add_option("","--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
-    group.add_option("","--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
-    group.add_option("","--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type='float', default=0.25)
-    group.add_option("","--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type='float', default=0.333)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"Coregistation options")
+    parser.add_argument("--coreg-method", dest="coreg_method",type=str,help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
+    parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
+    parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
+    parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
+    parser.add_argument("--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type=float, default=0.333)
+    
 
     ###############
     # PVC options #
     ###############
-    group= OptionGroup(parser,"PVC Options")
-    group.add_option("","--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
-    group.add_option("","--pvc-method",dest="pvc_method",help="Method for PVC.",type='string', default=None)
-    group.add_option("","--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type='str', default=None)
-    group.add_option("","--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type='float', nargs=3, default=None)
-    group.add_option("","--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type='int', default=10)
-    group.add_option("","--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type='float', default=0.001)
-    group.add_option("","--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter (for IdSURF).",type='float', default=1)
-    group.add_option("","--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over (for IdSURF).",type='int', default=64)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"PVC Options")
+    parser.add_argument("--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
+    parser.add_argument("--pvc-method",dest="pvc_method",help="Method for PVC.",type=str, default=None)
+    parser.add_argument("--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type=str, default=None)
+    parser.add_argument("--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type=float, nargs=3, default=None)
+    parser.add_argument("--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type=int, default=10)
+    parser.add_argument("--pvc-tolerance",dest="tolerance",help="Tolerance for PVC algorithm.",type=float, default=0.001)
+    parser.add_argument("--pvc-denoise-fwhm",dest="denoise_fwhm",help="FWHM of smoothing filter (for IdSURF).",type=float, default=1)
+    parser.add_argument("--pvc-nvoxel-to-average",dest="nvoxel_to_average",help="Number of voxels to average over (for IdSURF).",type=int, default=64)
+    
 
     #TKA Options
-    group= OptionGroup(parser,"Quantification options")
-    group.add_option("","--tka-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type='string', default=None)
-    group.add_option("","--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type='float', default=None)
-    group.add_option("","--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type='float', default=None)
-    group.add_option("","--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type='float', default=None)
-    group.add_option("","--max",dest="tka_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type='float', default=None)
+    #group= OptionGroup(parser,"Quantification options")
+    parser.add_argument("--tka-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
+    parser.add_argument("--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
+    parser.add_argument("--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
+    parser.add_argument("--max",dest="tka_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type=float, default=None)
     
-    group.add_option("","--R1",dest="tka_R1",help="Program computes also an R1 image.",type='str', default=None)
-    group.add_option("","--rp",dest="tka_rp",help="Program writes regression parameters in the specified image file.",type='str', default=None)
-    group.add_option("","--dual",dest="tka_dual",help="Instead of BP, program saves the DVR (=BP+1) values.",type='str', default=None)
-    group.add_option("","--DVR",dest="tka_DVR",help="Program writes number of i in set p in NNLS dual solution vector in the specified image file",action='store_const', const=True, default=False)
-    group.add_option("","--no-srtm2",dest="tka_srtm2",help="STRM2 method is applied by default, this option will turn it off. In brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
-    group.add_option("","--bf",dest="tka_bf",help="Basis function curves are written in specified file.",type='str', default=None)
-    group.add_option("","--err",dest="tka_err",help="Errors are written in specified file.",type='str', default=None)
-    group.add_option("","--noneg",dest="tka_noneg",help="Pixels with negative BP values are set to zero.", action='store_const', const=True, default=None)
-    group.add_option("","--wss",dest="tka_wss",help="Weighted sum-of-squares are written in specified image file.",type='str', default=None)
-    group.add_option("","--min",dest="tka_min",help="Lower limit for Vt or DVR values, 0 by default",type='float', default=None)
-    group.add_option("","--t3max",dest="tka_t3max",help="Upper limit for theta3, 0.01 by default",type='float', default=None)
-    group.add_option("","--t3min",dest="tka_t3min",help="Lower limit for theta3, 0.001 by default",type='float', default=None)
-    group.add_option("","--nBF",dest="tka_nBF",help="Number of basis functions.",type='int', default=None)
-    group.add_option("","--filter",dest="tka_filter",help="Remove parametric pixel values that over 4x higher than their closest neighbours.",action='store_const',const=True, default=None)
-    group.add_option("","--reg-end",dest="tka_end",help="By default line is fit to the end of data. Use this option to enter the fit end time (in min).",type='float', default=None)
-    group.add_option("","--y-int",dest="tka_v",help="Y-axis intercepts time -1 are written as an image to specified file.",type='string', default=None)
-    group.add_option("","--num",dest="tka_n",help="Numbers of selected plot data points are written as an image.",type='string', default=None)
-    group.add_option("","--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type='float', default=None)
-    group.add_option("","--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type='float', default=None)
-    group.add_option("","--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type='float', default=None)
-    group.add_option("","--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
-    group.add_option("","--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type='float', default=None)
-    group.add_option("","--end-time",dest="tka_end_time",help="End time for quantification.",type='float', default=None)
-    group.add_option("","--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type='string', default="voxel")
-    parser.add_option_group(group)
+    parser.add_argument("--R1",dest="tka_R1",help="Program computes also an R1 image.",type=str, default=None)
+    parser.add_argument("--rp",dest="tka_rp",help="Program writes regression parameters in the specified image file.",type=str, default=None)
+    parser.add_argument("--dual",dest="tka_dual",help="Instead of BP, program saves the DVR (=BP+1) values.",type=str, default=None)
+    parser.add_argument("--DVR",dest="tka_DVR",help="Program writes number of i in set p in NNLS dual solution vector in the specified image file",action='store_const', const=True, default=False)
+    parser.add_argument("--no-srtm2",dest="tka_srtm2",help="STRM2 method is applied by default, this option will turn it off. In brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
+    parser.add_argument("--bf",dest="tka_bf",help="Basis function curves are written in specified file.",type=str, default=None)
+    parser.add_argument("--err",dest="tka_err",help="Errors are written in specified file.",type=str, default=None)
+    parser.add_argument("--noneg",dest="tka_noneg",help="Pixels with negative BP values are set to zero.", action='store_const', const=True, default=None)
+    parser.add_argument("--wss",dest="tka_wss",help="Weighted sum-of-squares are written in specified image file.",type=str, default=None)
+    parser.add_argument("--min",dest="tka_min",help="Lower limit for Vt or DVR values, 0 by default",type=float, default=None)
+    parser.add_argument("--t3max",dest="tka_t3max",help="Upper limit for theta3, 0.01 by default",type=float, default=None)
+    parser.add_argument("--t3min",dest="tka_t3min",help="Lower limit for theta3, 0.001 by default",type=float, default=None)
+    parser.add_argument("--nBF",dest="tka_nBF",help="Number of basis functions.",type=int, default=None)
+    parser.add_argument("--filter",dest="tka_filter",help="Remove parametric pixel values that over 4x higher than their closest neighbours.",action='store_const',const=True, default=None)
+    parser.add_argument("--reg-end",dest="tka_end",help="By default line is fit to the end of data. Use this option to enter the fit end time (in min).",type=float, default=None)
+    parser.add_argument("--y-int",dest="tka_v",help="Y-axis intercepts time -1 are written as an image to specified file.",type=str, default=None)
+    parser.add_argument("--num",dest="tka_n",help="Numbers of selected plot data points are written as an image.",type=str, default=None)
+    parser.add_argument("--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type=float, default=None)
+    parser.add_argument("--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type=float, default=None)
+    parser.add_argument("--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type=float, default=None)
+    parser.add_argument("--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
+    parser.add_argument("--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type=float, default=None)
+    parser.add_argument("--end-time",dest="tka_end_time",help="End time for quantification.",type=float, default=None)
+    parser.add_argument("--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type=str, default="voxel")
+    
 
     #Quality Control 
-    qc_opts = OptionGroup(parser,"Quality control options")
-    qc_opts.add_option("","--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
-    qc_opts.add_option("","--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
-    qc_opts.add_option("","--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
-    parser.add_option_group(qc_opts)
+    #parser = OptionGroup(parser,"Quality control options")
+    parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
+    parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
+    parser.add_argument("--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
+    parser.add_argument_group(parser)
 
     #Results reporting
-    qc_opts = OptionGroup(parser,"Results reporting options")
-    qc_opts.add_option("","--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
-    parser.add_option_group(qc_opts)
+    #parser = OptionGroup(parser,"Results reporting options")
+    parser.add_argument("--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
+    parser.add_argument_group(parser)
 
     #
-    group= OptionGroup(parser,"Command control")
-    group.add_option("-v","--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
-    parser.add_option_group(group)
-    group= OptionGroup(parser,"Pipeline control")
-    group.add_option("","--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
-    group.add_option("","--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
-    parser.add_option_group(group)
+    #group= OptionGroup(parser,"Command control")
+    parser.add_argument("--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
+    
+    #group= OptionGroup(parser,"Pipeline control")
+    parser.add_argument("--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
+    parser.add_argument("--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
+    
 
-    (opts, args) = parser.parse_args()
-   
+    opts = parser.parse_args()
+    args=opts.args 
    
     ############################
     #Automatically set sessions#
@@ -343,12 +346,12 @@ if __name__ == "__main__":
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
-    else : opts.sessionList=opts.sessionList.split(',')
+    
 
     #########################
     #Automatically set tasks#
     #########################
-    if opts.taskList == None :
+    if opts.taskList == [] :
         for f in glob(opts.sourceDir+os.sep+"**/**/pet/*task-*") :
             g=os.path.splitext(os.path.basename(f))[0]
             task_list = [ i  for i in   g.split('_') if 'task-' in i ]
@@ -365,13 +368,11 @@ if __name__ == "__main__":
         
         print("Warning : No task variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Task:", ' '.join( opts.taskList))
-    else : 
-        opts.taskList=opts.taskList.split(',')
 
     ########################
     #Automatically set runs#
     ########################
-    if opts.runList == None :
+    if opts.runList == [] :
         for f in glob(opts.sourceDir+os.sep+"**/**/pet/*run-*") :
             g=os.path.splitext(os.path.basename(f))[0]
             task_list = [ i  for i in   g.split('_') if 'run-' in i ]
@@ -389,10 +390,16 @@ if __name__ == "__main__":
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
     opts.extension='mnc'
+    
+    print(opts.args)
+    print(opts.runList)
+    print(opts.taskList)
+    print(opts.sessionList)
+    printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
 
-##########################################################
-# Check inputs to make sure there are no inconsistencies #
-##########################################################
+    ##########################################################
+    # Check inputs to make sure there are no inconsistencies #
+    ##########################################################
     if not opts.sourceDir or not opts.targetDir: 
         print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n"
         parser.print_help()
@@ -446,8 +453,7 @@ if __name__ == "__main__":
     ### Convert NII to MINC if necessary. # 
     #######################################
     opts.json = nii2mnc_batch(opts.sourceDir)	
-    
-    printOptions(opts,args, opts.sessionList, opts.taskList,opts.runList, opts.acq, opts.rec)
+   
     #################
     # Launch APPIAN #
     #################
@@ -455,6 +461,8 @@ if __name__ == "__main__":
         printScan(opts,args)
     elif opts.pstages:
         printStages(opts,args)
+    elif opts.test :
+        test(opts, args)
     else :
         if opts.run_scan_level:
             run_scan_level(opts,args)

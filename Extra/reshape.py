@@ -21,7 +21,7 @@ class ReshapeInput(CommandLineInputSpec):
 
 class ReshapeCommand(CommandLine):
     _cmd = "mincreshape"
-    _suffix = "_mincreshape"
+    _suffix = "_reshape"
     input_spec = ReshapeInput
     output_spec = ReshapeOutput
 

@@ -38,9 +38,7 @@ class ReshapeCommand(CommandLine):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
+    def _gen_filename(self, in_file, suffix):
+        split_in_file = os.path.splitext(os.path.basename(self.inputs.in_file))
+        return os.getcwd() + os.sep + split_in_file[0] + suffix + split_in_file[1]
 

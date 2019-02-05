@@ -148,11 +148,11 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,
         xmlnode = SubElement(xmlscan, 'node')
         xmlnode.set('name', node_name)
         xmlmnc = SubElement(xmlnode, 'inMnc')
-        xmlkey = SubElement(xmlmnc, img['in_name'])
+        xmlkey = SubElement(xmlmnc, 'volume1')
         xmlkey.text = img["mnc_inputs"].replace(targetDir+"/",'') 
         
         xmlmnc = SubElement(xmlnode, 'outMnc')
-        xmlkey = SubElement(xmlmnc, img['out_name'])
+        xmlkey = SubElement(xmlmnc, 'volume2')
         xmlkey.text = img["mnc_outputs"].replace(targetDir+"/",'') 
 
         listVolumes.append(img["mnc_inputs"])                        
@@ -225,15 +225,15 @@ class deployDashCommand(BaseInterface):
         info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
         #Create dictionary with file paths and names for volumes that we want to display in dashboard
-        images={"pet2mri":{"mnc_inputs":self.inputs.t1_nat, "mnc_outputs":self.inputs.pet_t1_space, 'in_name':'in_target_file', 'out_name':'out_file_img'}}
+        images={"pet2mri":{"mnc_inputs":self.inputs.t1_nat, "mnc_outputs":self.inputs.pet_t1_space}}
 
         # If PVC method is defined, then add PVC images
         if isdefined(self.inputs.pvc_method) :
-            images["pvc"]= {"mnc_inputs":self.inputs.pet, "mnc_outputs":self.inputs.pvc, 'in_name':'in_file', 'out_name':'out_file' }
+            images["pvc"]= {"mnc_inputs":self.inputs.pet, "mnc_outputs":self.inputs.pvc }
 
         # If TKA method is defined, then add quantification images
         if isdefined(self.inputs.tka_method) :
-            images["tka"]= {"mnc_inputs":self.inputs.t1_analysis_space, "mnc_outputs":self.inputs.tka, 'out_name':'out_file', 'in_name':'in_target_file' }
+            images["tka"]= {"mnc_inputs":self.inputs.t1_analysis_space, "mnc_outputs":self.inputs.tka }
        
         #Create xml for current scan
         generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.tka_method,self.inputs.analysis_space,images,info, self.inputs.out_file);

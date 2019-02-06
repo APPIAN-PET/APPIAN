@@ -59,39 +59,39 @@ function menuQC(xmlNodes){
 
     array.forEach(function(stage) {
 
-    var subScanS=document.createElement("li");
-    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
+    var menuSt=document.createElement("li");
+    menuSt.innerHTML="<a href=\"javascript:;\" >Stats</a>";
+    var subStats=document.createElement("ul");
+    subStats.className="collapse";
 
 
-    levels = ['sub', 'ses', 'task'];
-    levelsMenu = ['Subjects', 'Session', 'Task'];
+    lvlvar = ['sub', 'ses', 'task'];
+    levels = ['Subjects', 'Session', 'Task'];
     l=0;
 
-    levels.forEach(function(level) {
-    subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'"+level+"\',\'stats\')\">"+levelsMenu[l++]+"</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
-    subScanS.appendChild(subScanC);
+    lvlvar.forEach(function(level) {
+    subStLevel=document.createElement("ul");
+    subStLevel.className="collapse";
+    StLevel=document.createElement("li");
+    StLevel.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'"+level+"\',\'stats\')\">"+levels[l++]+"</a>";
+    StLevel.appendChild(subStLevel);
+    subStats.appendChild(StLevel);
+    menuSt.appendChild(subStats);
     });
 
-    subScanS.appendChild(subScanC);
+    menuSt.appendChild(subStats);
 
-    var subScanQ=document.createElement("li");
-    subScanQ.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'none\',\'qc\')\">QC</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
+    var menuQC=document.createElement("li");
+    menuQC.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'none\',\'qc\')\">QC</a>";
+    var subStats=document.createElement("ul");
+    subStats.className="collapse";
 
-    subScanQ.appendChild(subScanC);
+    menuQC.appendChild(subStats);
 
-    tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
         var subScanI=document.createElement("li");
-        arr = tabScans[s].attributes
+        scan = tabScans[s]
+        arr = scan.attributes
         Object.keys(arr).forEach(element => {
           switch(arr[element].name){
             case "sid":
@@ -102,7 +102,7 @@ function menuQC(xmlNodes){
                 task=arr[element].value;
             }
         });
-       
+       	id="sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task
 
         switch(stage){
             case "pet-coregistration":
@@ -119,13 +119,13 @@ function menuQC(xmlNodes){
                 break;
         }
 
-        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(tabScans,"+s+",\'"+stageXml+"\')\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
+        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(scan,\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
         $node.append(subScanI);
         document.getElementById(stage).append(subScanI);
 
     }
-    document.getElementById(stage).append(subScanS);
-    document.getElementById(stage).append(subScanQ);
+    document.getElementById(stage).append(menuSt);
+    document.getElementById(stage).append(menuQC);
 
     });
 

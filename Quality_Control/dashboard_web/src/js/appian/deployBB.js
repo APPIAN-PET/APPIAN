@@ -1,5 +1,5 @@
 
-function deployPage(tabScans,s,stage){    
+function deployPage(scan,id,stage){    
     
     var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
     
@@ -22,10 +22,10 @@ function deployPage(tabScans,s,stage){
     $divBox.append($divHdr);
 
     overlayFiles=[];
-    $scan = $( tabScans[s] ),
+    $scan = $( scan );
     $node = $scan.find("node");
     $node.each(function(index, element) {
-    $ele = $( element )
+    $ele = $( element );
     if(element.attributes["name"].value == stage ) {
 
     switch(stage){
@@ -33,7 +33,7 @@ function deployPage(tabScans,s,stage){
             overlayFiles.push($ele.find("volume1").text());
             overlayFiles.push($ele.find("volume2").text());
 
-            $divHdr.append($("<h5>").text("PET-MRI"));
+            $divHdr.append($("<h5>").text("PET-MRI : "+id));
             bb="brainbrowserCoreg";
             $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
             $divHdr.append($divTlb);
@@ -45,7 +45,7 @@ function deployPage(tabScans,s,stage){
 
         case "pvc":
 
-            $divHdr.append($("<h5>").text("pre-PVC"));
+            $divHdr.append($("<h5>").text("pre-PVC : "+id));
             bb="brainbrowserPrePVC";
             $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
             $divHdr.append($divTlb);
@@ -72,7 +72,7 @@ function deployPage(tabScans,s,stage){
             $divBox.append($divHdr);
 
 
-            $divHdr.append($("<h5>").text("post-PVC"));
+            $divHdr.append($("<h5>").text("post-PVC : "+id));
             bb="brainbrowserPostPVC";
             $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
             $divHdr.append($divTlb);
@@ -87,7 +87,7 @@ function deployPage(tabScans,s,stage){
             overlayFiles.push($ele.find("volume1").text());
             overlayFiles.push($ele.find("volume2").text());
 
-            $divHdr.append($("<h5>").text("TKA"));
+            $divHdr.append($("<h5>").text("TKA : "+id));
             bb="brainbrowserTKA";
             $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
             $divHdr.append($divTlb);

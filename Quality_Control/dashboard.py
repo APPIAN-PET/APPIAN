@@ -147,16 +147,17 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,
     for node_name, img in images.items() :
         xmlnode = SubElement(xmlscan, 'node')
         xmlnode.set('name', node_name)
-        xmlmnc = SubElement(xmlnode, 'inMnc')
-        xmlkey = SubElement(xmlmnc, img['in_name'])
-        xmlkey.text = img["mnc_inputs"].replace(targetDir+"/",'') 
-        
-        xmlmnc = SubElement(xmlnode, 'outMnc')
-        xmlkey = SubElement(xmlmnc, img['out_name'])
-        xmlkey.text = img["mnc_outputs"].replace(targetDir+"/",'') 
 
-        listVolumes.append(img["mnc_inputs"])                        
-        listVolumes.append(img["mnc_outputs"])                        
+        xmlkey = SubElement(xmlnode, 
+            'volumet1' if node_name == 'pvc' else 'volume1')
+        xmlkey.text = img["v1"].replace(targetDir+"/",'') 
+        
+        xmlkey = SubElement(xmlnode, 
+            'volumet2' if node_name == 'pvc' else 'volume2')
+        xmlkey.text = img["v2"].replace(targetDir+"/",'') 
+
+        listVolumes.append(img["v1"])                        
+        listVolumes.append(img["v2"])                        
     
     # Save the output xml file
     with open(out_file,"w") as f:
@@ -225,15 +226,15 @@ class deployDashCommand(BaseInterface):
         info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
         #Create dictionary with file paths and names for volumes that we want to display in dashboard
-        images={"pet2mri":{"mnc_inputs":self.inputs.t1_nat, "mnc_outputs":self.inputs.pet_t1_space, 'in_name':'in_target_file', 'out_name':'out_file_img'}}
+        images={"pet2mri":{"v1":self.inputs.t1_nat, "v2":self.inputs.pet_t1_space}}
 
         # If PVC method is defined, then add PVC images
         if isdefined(self.inputs.pvc_method) :
-            images["pvc"]= {"mnc_inputs":self.inputs.pet, "mnc_outputs":self.inputs.pvc, 'in_name':'in_file', 'out_name':'out_file' }
+            images["pvc"]= {"v1":self.inputs.pet, "v2":self.inputs.pvc}
 
         # If TKA method is defined, then add quantification images
         if isdefined(self.inputs.tka_method) :
-            images["tka"]= {"mnc_inputs":self.inputs.t1_analysis_space, "mnc_outputs":self.inputs.tka, 'out_name':'out_file', 'in_name':'in_target_file' }
+            images["tka"]= {"v1":self.inputs.t1_analysis_space, "v2":self.inputs.tka}
        
         #Create xml for current scan
         generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.tka_method,self.inputs.analysis_space,images,info, self.inputs.out_file);

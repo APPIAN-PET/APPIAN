@@ -118,7 +118,6 @@ function menuQC(xmlNodes){
                 $node = $("#tka");
                 break;
         }
-
         subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(scan,\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
         $node.append(subScanI);
         document.getElementById(stage).append(subScanI);
@@ -126,7 +125,6 @@ function menuQC(xmlNodes){
     }
     document.getElementById(stage).append(menuSt);
     document.getElementById(stage).append(menuQC);
-
     });
 
 }
@@ -140,19 +138,19 @@ function menuQC(xmlNodes){
 var readCSV = function (allText, stage, level) {
     var allTextLines = allText.split(/\r\n|\n/);
     var headers = allTextLines[0].split(',');
-    var dataCSV = [];
-    for (var i=1; i<allTextLines.length; i++) {
-        var line = allTextLines[i].split(',');
-        if (line.length == headers.length) {
-            var tarr = {};
-                for (var j=0; j<headers.length; j++) {
-                    keyCol=headers[j];
-                    valueCol=line[j];
-                    tarr[keyCol]=valueCol;
-                }
-                dataCSV.push(tarr);
-        }
+    var dataCSV = [];i=1;
+    while (i!=allTextLines.length-1) {
+    var line = allTextLines[i].split(',');
+    if (line.length == headers.length) {
+    var tarr = {};
+    for (var j=0; j<headers.length; j++) {
+        keyCol=headers[j];
+        valueCol=line[j];
+        tarr[keyCol]=valueCol;
     }
+    dataCSV.push(tarr);
+	}i++;
+	}
 
     if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
       getResults(dataCSV, stage, level); 

@@ -24,17 +24,13 @@ def run_scan_level(opts,args):
 
     scan_level_workflow.initialize(opts) 
 
-    #vizualization graph of the workflow
-    try :
-        scan_level_workflow.workflow.write_graph(opts.targetDir+os.sep+"workflow_graph.dot", graph2use = 'colored', format='png')
-    except RuntimeError :
-        print("Could not create exec workflow.")
-    
     #Run the work flow
     if opts.num_threads > 1 :
         scan_level_workflow.workflow.run(plugin='MultiProc', plugin_args={'n_procs': opts.num_threads})
     else : 
+        print(scan_level_workflow.workflow._get_all_nodes())
         scan_level_workflow.workflow.run()
+        print("Done.")
     return 0
 
 

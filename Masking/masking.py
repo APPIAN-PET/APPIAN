@@ -63,7 +63,6 @@ class Labels(BaseInterface):
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
-        print(self.inputs)
         self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
 
         tmpDir = os.getcwd() + os.sep + 'tmp_label'  #tempfile.mkdtemp()
@@ -76,7 +75,6 @@ class Labels(BaseInterface):
             mask_flat=mask.data.flatten()
             labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
             if '0' in labels :  labels.remove('0')
-            print("Labels: ", labels)
         else :
             labels = self.inputs.labels
         # 1) Select Labels
@@ -85,7 +83,6 @@ class Labels(BaseInterface):
         run_calc.inputs.output_file = temp_mask  #Output mask with desired label
         run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in  labels ]) + ' ? A[0] : 0'
         run_calc.run()
-        print("Select Labels:\n", run_calc.cmdline)
 
         # 2) Erode
         if int(self.inputs.erode_times) > 0:
@@ -138,7 +135,6 @@ class Labels(BaseInterface):
         #Copy to output
         shutil.copy(label, self.inputs.out_file)
 
-        print(self.inputs.brainmask)
         # 6) Mask brain for T1 and MNI labels
         if self.inputs.brain_only :
             temp_mask = tmpDir+"/mask.mnc"

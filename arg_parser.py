@@ -4,6 +4,8 @@ import numpy as np
 from argparse import ArgumentParser
 from glob import glob
 from re import sub
+import time
+import sys
  
 global spaces
 spaces=['pet', 't1', 'stereo']
@@ -12,11 +14,34 @@ internal_cls_methods=["antsAtropos"]
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
+def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
+    """
+    Print basic options input by user
+
+    :param opts: User-defined options.
+    :param subject_ids: Subject IDs
+    :param session_ids: Session variable IDs
+    :param task_list: Task variable IDs
+
+    """
+    uname = os.popen('uname -s -n -r').read()
+    print "\n"
+    print "* Pipeline started at "+time.strftime("%c")+"on "+uname
+    print "* Command line is : \n "+str(sys.argv)+"\n"
+    print "* The source directory is : "+opts.sourceDir
+    print "* The target directory is : "+opts.targetDir+"\n"
+    print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
+    print "* Sessions : ", session_ids, "\n"
+    print "* Tasks : " , task_list , "\n"
+    print "* Runs : " , run_list , "\n"
+    print "* Acquisition : " , acq , "\n"
+    print "* Reconstruction : " , rec , "\n"
+
 def get_parser():
     parser = ArgumentParser(usage="useage: ")
     #group= OptionGroup(parser,"File options (mandatory)")
-    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory")
-    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in")
+    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory", required=True)
+    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in", required=True)
     parser.add_argument("--preprocdir",dest="preproc_dir",type=str, default='preproc', help="Relative path (relative to targetDir) to preprocessing directory for intermediate files")
 
     parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
@@ -32,7 +57,6 @@ def get_parser():
     #group= OptionGroup(parser,"Options to supplement PET header information")
     parser.add_argument("--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type=float,default=0)
           
-
     #############################
     # MRI Preprocessing Options #
     #############################
@@ -46,7 +70,6 @@ def get_parser():
     parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS' ) 
     parser.add_argument("--beast-library-dir", dest="beast_library_dir",type=str,help="Directory to Beast library",default="/opt/beast-library-1.0")
           
-
     ###################
     # Surface Options #
     ###################
@@ -146,7 +169,7 @@ def get_parser():
 
     #TKA Options
     #group= OptionGroup(parser,"Quantification options")
-    parser.add_argument("--tka-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--tka-method","--quant-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
     parser.add_argument("--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
     parser.add_argument("--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
     parser.add_argument("--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
@@ -266,7 +289,6 @@ def modify_opts(opts) :
         print("Runs:", ' '.join( opts.runList))
     opts.extension='mnc'
     
-
     ##########################################################
     # Check inputs to make sure there are no inconsistencies #
     ##########################################################
@@ -302,6 +324,7 @@ def modify_opts(opts) :
                 exit(1)
 
 
+    printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
     return opts
 
 

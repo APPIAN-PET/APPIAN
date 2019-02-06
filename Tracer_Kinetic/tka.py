@@ -42,12 +42,10 @@ class createImgFromROI(BaseInterface) :
             for l in f.readlines() :
                 if 'Mask' in l : 
                     ll=re.split(' |\t', l)
-                    print(ll[1],ll[3])
                     roi.append([int(ll[1]), float(ll[3])])
 
         for label, value in roi : 
             out.data[ref.data == label] = value
-            print("Label",ref,label, np.mean(out.data[ref == label]))
         out.writeFile()
         out.closeVolume()
 
@@ -129,7 +127,6 @@ def get_tka_workflow(name, opts):
     #quant_module_fn="Tracer_Kinetic.methods.quant_method_"+opts.tka_method +".py"
     quant_module_fn="quant_method_"+opts.tka_method #+".py"
 
-    print("Loading modules", quant_module_fn) 
     quant_module = importlib.import_module(quant_module_fn)
     try :
         quant_module = importlib.import_module(quant_module_fn)

@@ -50,12 +50,10 @@ def recursive_dict_search(d, target, level=0):
     if level == 0 : print("Target:", target)
     level+=1
     for k,v  in zip(d.keys(), d.values()) :
-        #print("\t"*level+ str(level) + " key:",k, string_test(k) , target.lower() in k.lower().split("_"))
 
         #End condition
         if string_test(k) :
             if target.lower() in k.lower().split("_") :
-                print("\t"*level,"Return:",k)
                 return [k]
 
         #Search dictionary
@@ -181,7 +179,6 @@ def unique_file(files, attributes, verbose=False):
     for f in files :
         skip=False
         for a in attributes :
-            #if verbose : print(a, a in f, f)
             if not a in f :
                 skip=True
                 break
@@ -196,7 +193,6 @@ def unique_file(files, attributes, verbose=False):
         if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
             #Check if '.gz' is in the path extension for the located file.
             #If so remove the file without .gz in the extension from the list of out_files
-            print(out_files)
             if '.gz' in os.path.splitext(out_files[1])[1] :
                 out_files.remove(out_files[0])
             else :
@@ -222,9 +218,9 @@ def gen_args(opts, subjects):
     sub_ses_args=[]
     sub_ses_dict={}
     test_arg_list=[]
-    if session_ids ==[] : session_ids=['']
-    if task_ids ==[] : task_ids=['']
-    if run_ids ==[] : run_ids=['']
+    if len(session_ids) == 0 : session_ids=['']
+    if len(task_ids) == 0 : task_ids=['']
+    if len(run_ids) == 0 : run_ids=['']
 
     for sub in subjects:
         if opts.verbose: print("Sub:", sub)
@@ -450,7 +446,6 @@ class MincHdrInfoRunning(BaseInterface):
             print("Error: could not find json file", self.inputs.json_header)
             exit(1)
 
-        print("\n\nMINC INPUT =", minc_input, self.inputs.json_header)
         json_header = json.load(open(self.inputs.json_header, "r+"))
         header.update(json_header)
         minc_input=False

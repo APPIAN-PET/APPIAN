@@ -135,11 +135,6 @@ class PETtoT1LinRegRunning(BaseInterface):
         if not isdefined(self.inputs.out_file_img):
             self.inputs.out_file_img = os.getcwd()+os.sep+s_base+self._suffix+ '.mnc'
 
-        #print("\n\n\n")
-        #print( self.inputs.out_file_img )
-        #print("\n\n\n")
-        #exit(0)
-
         prev_xfm = None
         if self.inputs.init_file_xfm:
             prev_xfm = self.inputs.init_file_xfm

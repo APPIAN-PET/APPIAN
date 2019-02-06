@@ -29,7 +29,7 @@ class ReshapeCommand(CommandLine):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_filename(self.inputs.in_file, suffix=self._suffix)
 
         return super(ReshapeCommand, self)._parse_inputs(skip=skip)
 

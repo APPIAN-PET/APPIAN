@@ -182,7 +182,6 @@ echo
 
 #run_appian "Dashboard" "--fwhm 6 6 6 --pvc-method GTM --start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 # TODO (1) Add surface testing
-# TODO (2) Arterial Input
 #exit 1
 ### Minimal Inputs
 run_appian "Mininimum"
@@ -211,10 +210,10 @@ run_appian  "Space-MRI" "--analysis-space t1 --tka-method suvr --tka-label 3 --t
 
 ### Atlas / Templates
 ## DKA atlas in MNI 152 space
-run_appian "Atlas-DKA" "--tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --results-label-img /APPIAN/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"
+run_appian "Atlas-DKA" "--tka-label-img ${base_path}/Atlas/MNI152/dka.mnc --results-label-img ${base_path}/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"
 
 ## AAL atlas with Colin 27 template
-run_appian "Atlas-AAL" "--results-label-img  /APPIAN/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template /APPIAN/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+run_appian "Atlas-AAL" "--results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
 
 ### Dashboard
 #run_appian "Dashboard" "--dashboard --fwhm 6 6 6 --pvc-method GTM --start-time 2.5 --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"

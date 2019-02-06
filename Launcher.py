@@ -343,7 +343,6 @@ if __name__ == "__main__":
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])
         print("Warning : No session variables. Will run all sessions found in source directory "+ opts.sourceDir)
         print("Sessions:", ' '.join( opts.sessionList))
-    else : opts.sessionList=sessionList.split(',')
 
     #########################
     #Automatically set tasks#
@@ -398,21 +397,11 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
-    #If necessary, correct MNI space names
-    #Change label space to icbm152 if it was specified as some variant of MNI and 152
-    #mni_space_names =  ["MNI", "mni", "MNI152", "mni152"]
-    #if opts.pvc_label_space in mni_space_names: opts.pvc_label_space = "icbm152"
-    #if opts.tka_label_space in mni_space_names: opts.tka_label_space = "icbm152"
-    #if opts.results_label_space in mni_space_names: opts.results_label_space = "icbm152"
-
     #Check inputs for PVC masking 
-    #opts.pvc_label_img = split_label_img(opts.pvc_label_img)
     opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_template, opts.pvc_label_space)
     #Check inputs for TKA masking
-    #opts.tka_label_img = split_label_img(opts.tka_label_img)
     opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_template, opts.tka_label_space)
     #Check inputs for results masking
-    #opts.results_label_img = split_label_img(opts.results_label_img)
     opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_template, opts.results_label_space)
     #Set default label for atlas ROI
     masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }

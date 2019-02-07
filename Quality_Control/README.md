@@ -7,6 +7,19 @@ To run the dashboard simply use :
 ```
     python2 APPIAN/LaunchDashboard.py -o </path/to/APPIAN/results>
 ```
+For example, if you ran APPIAN with the following command :
+
+```
+    python2 APPIAN/Launcher.py -s /my/data/is/here -t /my/data/is/saved/here
+```
+
+Then you would launch the dashboard by running : 
+
+```
+    python2 APPIAN/LaunchDashboard.py -o /my/data/is/saved/here
+```
+
+Note that you cannot run this command from inside a docker container as there is no way to open up a web-browser from inside a container. 
 
 # Quality control <a name="qc"></a>
 Quality control is a crucial step of any automated pipeline. It is essential that the user be able to easily confirm that the pipeline has performed as expected and identify any problematic subjects or processing steps. 

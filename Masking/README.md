@@ -14,7 +14,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
     --pvc-label=PVC_LABELS
-                        Label values to use for pvc
+                        List of label values to use for pvc
     --pvc-label-erosion=PVC_ERODE_TIMES
                         Number of times to erode label
     --pvc-labels-brain-only
@@ -36,7 +36,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
     --tka-label=TKA_LABELS
-                        Label values to use for TKA
+                        List of label values to use for TKA
     --tka-label-erosion=TKA_ERODE_TIMES
                         Number of times to erode label
     --tka-labels-brain-only
@@ -60,7 +60,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
     --results-label=RESULTS_LABELS
-                        Label values to use for results
+                        List of label values to use for results
     --results-label-erosion=RESULTS_ERODE_TIMES
                         Number of times to erode label
     --results-labels-brain-only

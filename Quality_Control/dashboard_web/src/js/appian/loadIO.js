@@ -59,74 +59,76 @@ function menuQC(xmlNodes){
 
     array.forEach(function(stage) {
 
-    var subScanS=document.createElement("li");
-    subScanS.innerHTML="<a href=\"javascript:;\" >Stats</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
+    switch(stage){
+        case "pet-coregistration":
+            stageXml='pet2mri';
+            $node = $("#coreg");
+            break;
+        case "pvc":
+            stageXml='pvc';
+            $node = $("#pvc");
+            break;
+        case "tka":
+            stageXml='tka';
+            $node = $("#tka");
+            break;
+    }
+
+    var menuSt=document.createElement("li");
+    menuSt.innerHTML="<a href=\"javascript:;\" >Stats</a>";
+    var subStats=document.createElement("ul");
+    subStats.className="collapse";
 
 
-    levels = ['sub', 'ses', 'task'];
-    levelsMenu = ['Subjects', 'Session', 'Task'];
+    lvlvar = ['sub', 'ses', 'task'];
+    levels = ['Subjects', 'Session', 'Task'];
     l=0;
 
-    levels.forEach(function(level) {
-    subScanSubC=document.createElement("ul");
-    subScanSubC.className="collapse";
-    subScanSub=document.createElement("li");
-    subScanSub.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'"+level+"\',\'stats\')\">"+levelsMenu[l++]+"</a>";
-    subScanSub.appendChild(subScanSubC);
-    subScanC.appendChild(subScanSub);
-    subScanS.appendChild(subScanC);
+    lvlvar.forEach(function(level) {
+    subStLevel=document.createElement("ul");
+    subStLevel.className="collapse";
+    StLevel=document.createElement("li");
+    StLevel.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'"+level+"\',\'stats\')\">"+levels[l++]+"</a>";
+    StLevel.appendChild(subStLevel);
+    subStats.appendChild(StLevel);
+    menuSt.appendChild(subStats);
     });
 
-    subScanS.appendChild(subScanC);
+    menuSt.appendChild(subStats);
 
-    var subScanQ=document.createElement("li");
-    subScanQ.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'none\',\'qc\')\">QC</a>";
-    var subScanC=document.createElement("ul");
-    subScanC.className="collapse";
+    var menuQC=document.createElement("li");
+    menuQC.innerHTML="<a href=\"javascript:;\" onclick=\"reachCSV(\'"+stage+"\',\'none\',\'qc\')\">QC</a>";
+    var subStats=document.createElement("ul");
+    subStats.className="collapse";
 
-    subScanQ.appendChild(subScanC);
+    menuQC.appendChild(subStats);
 
-    tabScans=xmlNodes.getElementsByTagName("scan");
     for(var s=0;s<tabScans.length;s++){
         var subScanI=document.createElement("li");
-        arr = tabScans[s].attributes
+        scan = tabScans[s]
+        arr = scan.attributes
         Object.keys(arr).forEach(element => {
           switch(arr[element].name){
             case "sid":
                 sid=arr[element].value;
+                break;
             case "ses":
                 ses=arr[element].value;
+                break;
             case "task":
                 task=arr[element].value;
+                break;
             }
         });
-       
+       	id="sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task
 
-        switch(stage){
-            case "pet-coregistration":
-                stageXml='pet2mri';
-                $node = $("#coreg");
-                break;
-            case "pvc":
-                stageXml='pvc';
-                $node = $("#pvc");
-                break;
-            case "tka":
-                stageXml='tka';
-                $node = $("#tka");
-                break;
-        }
-
-        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(tabScans,"+s+",\'"+stageXml+"\')\">"+"sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task+"</a>";
+        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(scan,\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
         $node.append(subScanI);
         document.getElementById(stage).append(subScanI);
 
     }
-    document.getElementById(stage).append(subScanS);
-    document.getElementById(stage).append(subScanQ);
-
+    document.getElementById(stage).append(menuSt);
+    document.getElementById(stage).append(menuQC);
     });
 
 }
@@ -140,21 +142,22 @@ function menuQC(xmlNodes){
 var readCSV = function (allText, stage, level) {
     var allTextLines = allText.split(/\r\n|\n/);
     var headers = allTextLines[0].split(',');
-    var dataCSV = [];
-    for (var i=1; i<allTextLines.length; i++) {
-        var line = allTextLines[i].split(',');
-        if (line.length == headers.length) {
-            var tarr = {};
-                for (var j=0; j<headers.length; j++) {
-                    keyCol=headers[j];
-                    valueCol=line[j];
-                    tarr[keyCol]=valueCol;
-                }
-                dataCSV.push(tarr);
-        }
+    var dataCSV = [];i=1;
+    while (i!=allTextLines.length-1) {
+    var line = allTextLines[i].split(',');
+    if (line.length == headers.length) {
+    var tarr = {};
+    for (var j=0; j<headers.length; j++) {
+        keyCol=headers[j];
+        valueCol=line[j];
+        tarr[keyCol]=valueCol;
     }
+    dataCSV.push(tarr);
+	}
+	i++;
+	}
 
-    if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
+    if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {
       getResults(dataCSV, stage, level); 
     }           
 };
@@ -165,13 +168,14 @@ var readCSV = function (allText, stage, level) {
 
 var getResults = function(dataCSV, stage, level) {
 
-    subjList = dataCSV.map(function(elem){return elem.sub;});
     rowLength = dataCSV.length;
     // Combine all data into single arrays
 
     stageList = dataCSV.map(function(elem){return elem.analysis;});
     if(stage === 'pet-coregistration'){
-        indices = stageList.map((e, i) => e === 'pet-coregistration' || e === 'prelimaries' ? i : '').filter(String);
+        indices = stageList.map((e, i) => e === stage || e === 'initialization' ? i : '').filter(String);
+    }else if(stage === 'tka'){
+        indices = stageList.map((e, i) => e === stage || e === 'quantification' ? i : '').filter(String);
     }else{
         indices = stageList.map((e, i) => e === stage ? i : '').filter(String);
     }
@@ -194,6 +198,7 @@ var getResults = function(dataCSV, stage, level) {
 
     switch (stage) {
         case 'pet-coregistration':
+        case 'coreg':
             title = "COREGISTRATION";
             break;
         case 'pvc':

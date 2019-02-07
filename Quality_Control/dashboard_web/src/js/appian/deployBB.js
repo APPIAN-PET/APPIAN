@@ -1,14 +1,58 @@
 
-function deployPage(tabScans,s,stage){    
-    
-    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
-    
+function deployPage(scan,id,stage){    
+        
     //$("#inner").innerHTML="";
     document.getElementById("inner").innerHTML = "";
 
+    bbFiles=[];
+    $scan = $( scan );
+    $node = $scan.find("node");
+    $node.each(function(index, element) {
+    $ele = $( element );
+    if(element.attributes["name"].value == stage ) {
+
+    switch(stage){
+        case 'pet2mri':
+            bbFiles.push($ele.find("volume1").text());
+            bbFiles.push($ele.find("volume2").text());
+            idDiv="brainbrowserCoreg";
+            titleDiv="PET-MRI : "+id;
+            createDiv(idDiv,titleDiv);
+            runBrainBrowser(bbFiles,idDiv);
+            break;
+
+        case "pvc":
+            bbFiles.push($ele.find("volumet1").text());
+            idDiv="brainbrowserPrePVC";
+            titleDiv="pre-PVC : "+id;
+            createDiv(idDiv,titleDiv);
+            runBrainBrowser(bbFiles,idDiv);
+            
+            bbFiles=[];
+            bbFiles.push($ele.find("volumet2").text());
+			idDiv="brainbrowserPostPVC";
+            titleDiv="post-PVC : "+id;
+            createDiv(idDiv,titleDiv);
+            runBrainBrowser(bbFiles,idDiv);
+            break;
+
+        case "tka":
+            bbFiles.push($ele.find("volume1").text());
+            bbFiles.push($ele.find("volume2").text());
+            idDiv="brainbrowserTKA";
+            titleDiv="TKA : "+id;
+            createDiv(idDiv,titleDiv);
+            runBrainBrowser(bbFiles,idDiv);
+            break;
+    }} 
+    });
+}
+
+var createDiv = function(id,title,classDiv){
+    var $divRow,$bb,$divCol,$divBox,$divHdr,$divTlb,$divBody;
+
     $divRow = $("<div>", {'class': "row"});
     $("#inner").append($divRow);
-
     $divStage = $("<div>", {'class': "col-lg-12"});
     $divBox = $("<div>", {'class': "box"});
     $divHdr = $("<header>");
@@ -16,91 +60,19 @@ function deployPage(tabScans,s,stage){
                           'class': "toolbar",
                           'style': "display: none"});
     $divBody = $("<div>", {'class': "body"});
-    
     $divRow.append($divStage);
     $divStage.append($divBox);
-    $divBox.append($divHdr);
-
-    overlayFiles=[];
-    $scan = $( tabScans[s] ),
-    $node = $scan.find("node");
-    $node.each(function(index, element) {
-    $ele = $( element )
-    if(element.attributes["name"].value == stage ) {
-
-    switch(stage){
-        case 'pet2mri':
-            overlayFiles.push($ele.find("volume1").text());
-            overlayFiles.push($ele.find("volume2").text());
-
-            $divHdr.append($("<h5>").text("PET-MRI"));
-            bb="brainbrowserCoreg";
-            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-            $divHdr.append($divTlb);
-            $divBody.append($("<div>", {'id':bb}));
-            $divBox.append($divBody);
-
-            runBrainBrowser(overlayFiles,bb);
-            break;
-
-        case "pvc":
-
-            $divHdr.append($("<h5>").text("pre-PVC"));
-            bb="brainbrowserPrePVC";
-            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-            $divHdr.append($divTlb);
-            $divBody.append($("<div>", {'id':bb}));
-            $divBox.append($divBody);
-            
-            overlayFiles.push($ele.find("volumet1").text());
-            runBrainBrowser(overlayFiles,bb);
-            
-            overlayFiles=[];
-
-            $divRow = $("<div>", {'class': "row"});
-            $("#inner").append($divRow);
-
-            $divStage = $("<div>", {'class': "col-lg-12"});
-            $divBox = $("<div>", {'class': "box"});
-            $divHdr = $("<header>");
-            $divTlb = $("<div>", {'id': "loading",
-                                  'class': "toolbar",
-                                  'style': "display: none"});
-            $divBody = $("<div>", {'class': "body"});
-            $divRow.append($divStage);
-            $divStage.append($divBox);
-            $divBox.append($divHdr);
-
-
-            $divHdr.append($("<h5>").text("post-PVC"));
-            bb="brainbrowserPostPVC";
-            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-            $divHdr.append($divTlb);
-            $divBody.append($("<div>", {'id':bb}));
-            $divBox.append($divBody);
-
-            overlayFiles.push($ele.find("volumet2").text());
-            runBrainBrowser(overlayFiles,bb);
-            break;
-
-        case "tka":
-            overlayFiles.push($ele.find("volume1").text());
-            overlayFiles.push($ele.find("volume2").text());
-
-            $divHdr.append($("<h5>").text("TKA"));
-            bb="brainbrowserTKA";
-            $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-            $divHdr.append($divTlb);
-            $divBody.append($("<div>", {'id':bb}));
-            $divBox.append($divBody);
-
-            runBrainBrowser(overlayFiles,bb);
-            break;
-    }} 
-    });
+    $divBox.append($divHdr);	
+    $divHdr.append($("<h5>").text(title));
+    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
+    $divHdr.append($divTlb);
+    if(classDiv){
+	$divBody.append($("<div>", {'id':id,'class':classDiv}));
+    } else{
+	$divBody.append($("<div>", {'id':id}));
+    }
+    $divBox.append($divBody);
 }
-
-
 
 
 var jitterme = function(list,jitter) {
@@ -108,7 +80,7 @@ var jitterme = function(list,jitter) {
       list[index]=Number(value)+Math.random(value)*2*jitter-jitter;
     });
     return(list)
-};
+}
 
 
 
@@ -186,33 +158,18 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
 
     //$("#inner").innerHTML="";
     document.getElementById("inner").innerHTML = "";
-    
-    $divRow = $("<div>", {'class': "row"});
-    $divPlotly = $("<div>", {'class': "col-lg-12"});
-    $divBox = $("<div>", {'class': "box"});
-    $divHdr = $("<header>");
-    $divTlb = $("<div>", {'id': "loading",
-                          'class': "toolbar",
-                          'style': "display: none"});
-    $divBody = $("<div>", {'class': "body"});
-    
-    $("#inner").append($divRow);
-    $divRow.append($divPlotly);
-    $divPlotly.append($divBox);
-    $divBox.append($divHdr);
-    $divHdr.append($("<h5>").text("Quantitative QC"));
-    $divTlb.append($("<img>").attr("src","img/ajax-loader.gif"));
-    $divHdr.append($divTlb);
-    $divBody.append($("<div>", {'id':"Plotly",
-                                'class': "plotly-graph-div"}));
-    $divBox.append($divBody);
+
+    idDiv="Plotly";
+    titleDiv="Quantitative QC";
+    classDiv="plotly-graph-div";
+    createDiv(idDiv,titleDiv,classDiv);
 
     var resizeDebounce = null;
     function resizePlot() {
-        var bb = document.getElementById("Plotly").getBoundingClientRect();
+        var div = document.getElementById("Plotly").getBoundingClientRect();
         Plotly.relayout(document.getElementById("Plotly"), {
-            width: bb.width,
-            height: bb.height
+            width: div.width,
+            height: div.height
         });
     }
 
@@ -222,7 +179,7 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
         frames: figure.frames,
         // config: {"mapboxAccessToken": "", "linkText": "Export to plotly.bic.mni.mcgill.ca", "showLink": true}
     });  
-};
+}
 
 
 

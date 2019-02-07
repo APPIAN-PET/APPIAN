@@ -1,19 +1,15 @@
 # APPIAN
 Table of Contents
 =================
-[Introduction](#introduction)
-
-[Installation](#installation)
-
-[Documentation](#documentation)
-
-[Publications](#publications)
-
-[Getting Help](#gettinghelp)
-
-[About us](#about-us)
-
-[Terms and Conditions](#terms-and-conditions)
+ 1. [Introduction](#introduction)
+ 2. [Installation](#installation)
+ 3. [Documentation](documentation)\
+     3.1 [User Guide](link_user_guide)\
+     3.2 [Developer Guide](link_contributing)
+ 4. [Publications](#publications)
+ 5. [Getting Help](#getting-help)
+ 6. [About us](#about-us)
+ 7. [Terms and Conditions](#terms-and-conditions)
 
 
 ## Introduction

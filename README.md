@@ -50,9 +50,14 @@ Users seeking more information can check the [user guide][link_user_guide].
 
 ## Getting help
 
-If you get stuck or don't know how to get started please post on our google groups. We would be delighted to help in whatever way we can.
+If you get stuck or don't know how to get started please send a mail to the APPIAN mailing list :
+https://groups.google.com/forum/#!forum/appian-users
 
-https://groups.google.com/forum/#!forum/appian-pet
+For bugs, please post [here](#https://github.com/APPIAN-PET/APPIAN/issues) on the Github repository.
+
+To join the discussion for APPIAN development, join our developers mailing list : 
+https://groups.google.com/forum/#!forum/appian-dev
+
 
 ## About us
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\

@@ -96,10 +96,13 @@ function menuQC(xmlNodes){
           switch(arr[element].name){
             case "sid":
                 sid=arr[element].value;
+                break;
             case "ses":
                 ses=arr[element].value;
+                break;
             case "task":
                 task=arr[element].value;
+                break;
             }
         });
        	id="sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task
@@ -118,7 +121,6 @@ function menuQC(xmlNodes){
                 $node = $("#tka");
                 break;
         }
-
         subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(scan,\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
         $node.append(subScanI);
         document.getElementById(stage).append(subScanI);
@@ -126,7 +128,6 @@ function menuQC(xmlNodes){
     }
     document.getElementById(stage).append(menuSt);
     document.getElementById(stage).append(menuQC);
-
     });
 
 }
@@ -140,19 +141,20 @@ function menuQC(xmlNodes){
 var readCSV = function (allText, stage, level) {
     var allTextLines = allText.split(/\r\n|\n/);
     var headers = allTextLines[0].split(',');
-    var dataCSV = [];
-    for (var i=1; i<allTextLines.length; i++) {
-        var line = allTextLines[i].split(',');
-        if (line.length == headers.length) {
-            var tarr = {};
-                for (var j=0; j<headers.length; j++) {
-                    keyCol=headers[j];
-                    valueCol=line[j];
-                    tarr[keyCol]=valueCol;
-                }
-                dataCSV.push(tarr);
-        }
+    var dataCSV = [];i=1;
+    while (i!=allTextLines.length-1) {
+    var line = allTextLines[i].split(',');
+    if (line.length == headers.length) {
+    var tarr = {};
+    for (var j=0; j<headers.length; j++) {
+        keyCol=headers[j];
+        valueCol=line[j];
+        tarr[keyCol]=valueCol;
     }
+    dataCSV.push(tarr);
+	}
+	i++;
+	}
 
     if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {          
       getResults(dataCSV, stage, level); 
@@ -171,7 +173,9 @@ var getResults = function(dataCSV, stage, level) {
 
     stageList = dataCSV.map(function(elem){return elem.analysis;});
     if(stage === 'pet-coregistration'){
-        indices = stageList.map((e, i) => e === 'pet-coregistration' || e === 'prelimaries' ? i : '').filter(String);
+        indices = stageList.map((e, i) => e === 'pet-coregistration' || e === 'initialization' ? i : '').filter(String);
+    }else if(stage === 'tka'){
+        indices = stageList.map((e, i) => e === 'tka' || e === 'quantification' ? i : '').filter(String);
     }else{
         indices = stageList.map((e, i) => e === stage ? i : '').filter(String);
     }

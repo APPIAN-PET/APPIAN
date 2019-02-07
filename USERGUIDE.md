@@ -6,18 +6,17 @@
 	2.1 [Nifti](#nifti) \
 	2.2 [MINC](#minc) 
 3. [Useage](#useage) 
-4. [Examples](#example) 
-5. [Overview](#overview) \
-	5.1 [Base Options](#options) \
-	5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
-	5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
-	5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
-	5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
-	5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
-	5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
-	5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
-6. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md) 
-
+4. [Overview](#overview) \
+	4.1 [Base Options](#options) \
+	4.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
+	4.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
+	4.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
+	4.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
+	4.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
+	4.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
+	4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+5. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md) 
+6. [Examples](#example) 
 
 
 
@@ -246,19 +245,9 @@ docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/
 ```
 Either method will give you the same results, it’s up to you and what you find more convenient. 
 
-## 4. Example use cases  <a name="example"></a>
+## 4. Pipeline Overview  <a name="overview"></a>
 
-### FDG
-FDG is a non-reversibly bound tracer, meaning that once it binds to its target receptor (i.e., gets transported inside the cell body) it will not become unbound for the duration of the scan. The Patlak-Gjedde plot (`--tka-method "pp"`) is the standard TKA method for analyzing such images. The Patlak-Gjedde plot can be used to calculate the glucose metabolism rate using two variables: the lumped constant (flag: `--LC`) and concentration of native substrate in arterial plasma (flag: `--Ca`). The Turku Pet Centre has a useful [description for LC here][link_turkuLC] with standard values from the literature. The start time (minutes) is set to when the amount of radiotracer in the blood reaches equilibrium with that in the tissue.
-   
-Example:
-```
---tka-method "pp" --Ca 5.0 --LC 0.8 --start-time 1
-```
-
-## 5. Pipeline Overview  <a name="overview"></a>
-
-### 5.1 Base User Options  <a name="options"></a>
+### 4.1 Base User Options  <a name="options"></a>
 APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`), the list of sessions during which the scans were acquired (`-sessions`). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
 
 ####  File options (mandatory):
@@ -272,8 +261,10 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
-    --sessions=SESSIONLIST comma-separated list of sessions
-    --tasks=TASKLIST    comma-separated list of conditions or scans
+    --subjects=SUBJECTLIST List of subjects
+    --sessions=SESSIONLIST List of sessions
+    --tasks=TASKLIST    List of tasks
+    --runs=RUNSLIST     List of runs
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
     --img-ext=IMG_EXT   Extension to use for images.
@@ -292,26 +283,92 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
 
-### 5.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
+### 4.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
 Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.
 
-### 5.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) 
+### 4.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) 
 Rigid coregistration of PET image to T1 MRI. 
 
-### 5.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) 
+### 4.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) 
 Create ROI mask volumes for partial-volume correction, quantification (tracer-kinetic analysis), and reporting of results.
 
-### 5.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) 
+### 4.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) 
 Partial-volume correction of point-spread function of PET scanner.
 
-### 5.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) 
+### 4.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) 
 Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
 
-### 5.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) 
+### 4.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) 
 Regional mean values for each ROI of results mask volumes are saved to .csv files.
 
-### 5.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+### 4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 Quality control metrics are calculated for each image volume and each processing stage.
 
-## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+## 5 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
+
+## 6. Examples  <a name="example"></a>
+
+### Running APPIAN on subset of scans
+By default, APPIAN will run on all the scans it can identify in the source directory. However, you may want to run APPIAN on a subset of your scans. You can do this by setting which subjects, sessions, tasks, and runs you wish to process with APPIAN.
+
+For example, if your study contains 3 sessions "baseline", "treatment", "follow-up". You can then run APPIAN only on the, for example, "treatment" and "follow-up" images :
+
+```
+python2.7 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions baseline follow-up
+```
+
+The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
+
+
+### Partial-volume correction
+To use partial-volume correction (PVC), you must also specify the FWHM of the scanner you are using. The PVC method is specified with the "--pvc-method <PVC Method>" option. APPIAN will use the string you specify for <PVC Method> to find a correspdoning python module in "Partial_Volume_Correction/methods/pvc_method_<PVC Method>.py". 
+	
+Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
+	
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --pvc-label-img <label image> <label template> --pvc-label <list of labels> --fwhm <Z FWHM> <Y FWHM> <X FWHM> --pvc-method <PVC Method> 
+```
+For instance, let's say your images were acquired using the HR+ scanner (which has a FWHM of about 6.5 6.5 6.5) and you want to use the Geometric Transfer Matrix method (GTM). Let's say you want to use a predefined labeled image in the /anat directory of your source directory of the form sub-<subject>/ses-<session>/anat/sub-<subject>_ses-<session>_variant-segmentation_dseg.mnc. You would use : 
+
+```
+python2.7 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
+```
+
+### Quantification
+To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
+
+Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 
+	
+You may also need to either define a reference region or use arterial sampling. To use arterial sampling, you must set the flag "--arterial" and have a arterial inputs files in the [dft](http://www.turkupetcentre.net/formats/format_dft_1_0_0.pdf) file format. 
+On the other hand, you can use a labeled image to define a reference region. There are multiple types of labeled images that you can select with the "--tka-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use the WM mask from a GM/WM/CSF segmentation of the input T1 MRI. Additionally, the "--quant-labels-ones-only" is useful because it will set all of the labels you set with "--quant-label <list of labels>" to 1. 
+	
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --quant-label-img <label image> <label template> --quant-label <list of labels> --start-time <Start time in Min.> --quant-labels-ones-only --quant-method <Quantification Method> 
+```
+	
+For example, say you have FDG images and wish to use the Patlak-Gjedde plot method for tracer-kinetic analysis. In order to calculate glucose metabolism, you need to specify the lump constant (LC) and concentration of native substantce (Ca). Let's also imagine that you have a you use an atlas in MNI152 space that you want to use to specify a reference region in the cerebellum and where the two hemispheres of the cerebellum have labels 67 and 76, respectively. 
+
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.mnc --quant-label 67,76 --quant-labels-ones-only --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
+```
+
+To do the same analysis but with an arterial input file for each subject (instead of a reference region):
+
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --arterial --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
+```
+
+### Results report
+APPIAN produces a .csv file with mean regional values for the results labels. If you will not use the results report produced by APPIAN, you can use the "--no-results-report".
+
+As with PVC and quantification, the results labels are defined using the option "--results-label-img". By default, APPIAN will use all of the integer values in the label image.
+
+For example, if you want to use a segmentation defined on your own template of Alzheimer's patients defined in T1 native space, you would use :
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/segmentation.mnc --results-label-space t1
+```
+Similarly, if you want to create the results report with an atlas that is not in MNI space, but only for a single label value (i.e., 4), you would use :
+```
+python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/atlas.mnc /path/to/template.mnc --results-label 4
+```

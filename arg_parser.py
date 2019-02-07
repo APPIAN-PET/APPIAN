@@ -121,13 +121,13 @@ def get_parser():
 
     # Quantification
     #group= OptionGroup(parser,"Masking options","Quantification")
-    parser.add_argument("--tka-label-space",dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
-    parser.add_argument("--tka-label-img",dest="tka_label_img", help=label_img_help, type=str,default='antsAtropos')
-    parser.add_argument("--tka-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
-    parser.add_argument("--tka-label",dest="tka_labels",help="Label values to use for TKA", default=[3], nargs='+' )
-    parser.add_argument("--tka-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type=int, default=0 )
-    parser.add_argument("--tka-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
-    parser.add_argument("--tka-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    parser.add_argument("--tka-label-space","--quant-label-space", dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
+    parser.add_argument("--tka-label-img","--quant-label-img",dest="tka_label_img", help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--tka-label-template","--quant-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
+    parser.add_argument("--tka-label","--quant-label",dest="tka_labels",help="Label values to use for TKA", default=[3], nargs='+' )
+    parser.add_argument("--tka-label-erosion","--quant-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type=int, default=0 )
+    parser.add_argument("--tka-labels-brain-only","--quant-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--tka-labels-ones-only","--quant-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     
 
     #Results

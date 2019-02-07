@@ -3,8 +3,8 @@ Table of Contents
 =================
  1. [Introduction](#introduction)
  2. [Installation](#installation)
- 3. [Documentation](documentation)\
-     3.1 [User Guide](link_user_guide)\
+ 3. [Documentation](#documentation)\
+     3.1 [User Guide](https://github.com/APPIAN-PET/APPIAN/blob/master/README.md)\
      3.2 [Developer Guide](link_contributing)
  4. [Publications](#publications)
  5. [Getting Help](#getting-help)

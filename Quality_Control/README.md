@@ -10,13 +10,13 @@ To run the dashboard simply use :
 For example, if you ran APPIAN with the following command :
 
 ```
-    python2 APPIAN/Launcher.py -s /my/data/is/here -t /my/data/is/saved/here
+    python2 APPIAN/Launcher.py -s /my/data/is/here -t /my/results/are/here
 ```
 
 Then you would launch the dashboard by running : 
 
 ```
-    python2 APPIAN/LaunchDashboard.py -o /my/data/is/saved/here
+    python2 APPIAN/LaunchDashboard.py -o /my/results/are/here
 ```
 
 Note that you cannot run this command from inside a docker container as there is no way to open up a web-browser from inside a container. 

@@ -1,6 +1,6 @@
 #vim: set tabstop=4 expandtab shgftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
 #vim: filetype plugin indent on
-
+from glob import glob
 import os
 import sys
 import argparse
@@ -17,7 +17,7 @@ from workflows import Workflows
 """
 def run_scan_level(opts,args): 
     ###Define args with exiting subject and condition combinations
-    sub_valid_args, task_valid_args=init.gen_args(opts, args)
+    sub_valid_args, task_valid_args=gen_args(opts, args)
     
     scan_level_workflow = Workflows(opts)
 
@@ -106,3 +106,37 @@ def gen_args(opts, subjects):
     opts.task_valid_args = task_args
 
     return sub_ses_args, task_args
+
+
+def unique_file(files, attributes, verbose=False):
+
+    out_files=[]
+    for f in files :
+        skip=False
+        for a in attributes :
+            if not a in f :
+                skip=True
+                break
+        if verbose : print(f,'skip file=', skip)
+        if not skip :
+            out_files.append(f)
+
+    if attributes == [] or len(out_files) == 0 : return ''
+
+    #Check if out_files contains gzip compressed and uncompressed versions of the same file
+    if len(out_files) == 2 :
+        if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
+            #Check if '.gz' is in the path extension for the located file.
+            #If so remove the file without .gz in the extension from the list of out_files
+            if '.gz' in os.path.splitext(out_files[1])[1] :
+                out_files.remove(out_files[0])
+            else :
+                out_files.remove(out_files[1])
+
+    if len(out_files) > 1 :
+        print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
+        print("You can used --acq and --rec to specify the acquisition and receptor")
+        print(out_files)
+        exit(1)
+
+    return( out_files[0] )

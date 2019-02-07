@@ -173,38 +173,7 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     return d
 
 
-def unique_file(files, attributes, verbose=False):
 
-    out_files=[]
-    for f in files :
-        skip=False
-        for a in attributes :
-            if not a in f :
-                skip=True
-                break
-        if verbose : print(f,'skip file=', skip)
-        if not skip :
-            out_files.append(f)
-
-    if attributes == [] or len(out_files) == 0 : return ''
-
-    #Check if out_files contains gzip compressed and uncompressed versions of the same file
-    if len(out_files) == 2 :
-        if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
-            #Check if '.gz' is in the path extension for the located file.
-            #If so remove the file without .gz in the extension from the list of out_files
-            if '.gz' in os.path.splitext(out_files[1])[1] :
-                out_files.remove(out_files[0])
-            else :
-                out_files.remove(out_files[1])
-
-    if len(out_files) > 1 :
-        print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
-        print("You can used --acq and --rec to specify the acquisition and receptor")
-        print(out_files)
-        exit(1)
-
-    return( out_files[0] )
 
 
 class SplitArgsOutput(TraitedSpec):

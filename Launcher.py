@@ -22,7 +22,6 @@ if __name__ == "__main__":
     #if opts.test :
     #    test_appian(opts.sourceDir, opts.targetDir, opts.num_threads)
     #    exit(0)
-    exit(1)
     opts = modify_opts( opts ) 
     args=opts.args 
 

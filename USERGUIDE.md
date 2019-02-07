@@ -272,8 +272,10 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
-    --sessions=SESSIONLIST comma-separated list of sessions
-    --tasks=TASKLIST    comma-separated list of conditions or scans
+    --subjects=SUBJECTLIST List of subjects
+    --sessions=SESSIONLIST List of sessions
+    --tasks=TASKLIST    List of tasks
+    --runs=RUNSLIST     List of runs
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
     --img-ext=IMG_EXT   Extension to use for images.

@@ -384,7 +384,6 @@ class Workflows:
         if opts.tka_method != None:
             self.dashboard.inputs.tka_method = opts.tka_method;
             self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'tka')
-        self.workflow.run() ; exit(0)
     #####################
     ### Preinfosource ###
     #####################

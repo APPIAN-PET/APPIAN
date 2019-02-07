@@ -127,7 +127,9 @@ def get_tka_workflow(name, opts):
     #quant_module_fn="Tracer_Kinetic.methods.quant_method_"+opts.tka_method +".py"
     quant_module_fn="quant_method_"+opts.tka_method #+".py"
 
-    quant_module = importlib.import_module(quant_module_fn)
+    print(quant_module_fn)
+    exit(1)
+    #quant_module = importlib.import_module(quant_module_fn)
     try :
         quant_module = importlib.import_module(quant_module_fn)
     except ImportError :

@@ -6,7 +6,7 @@ from Extra.nii2mnc_batch import nii2mnc_batch
 from Extra.minc_json_header_batch import create_minc_headers
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
-from test_appian import test_appian
+from test_appian_bkp import test_appian
 from arg_parser import get_parser, modify_opts
 
 version = "1.0"
@@ -19,10 +19,10 @@ if __name__ == "__main__":
     parser = get_parser()
     
     opts = parser.parse_args() 
-    if opts.test :
-        test_appian(opts.sourceDir, opts.targetDir)
-        exit(0)
-    
+    #if opts.test :
+    #    test_appian(opts.sourceDir, opts.targetDir, opts.num_threads)
+    #    exit(0)
+    exit(1)
     opts = modify_opts( opts ) 
     args=opts.args 
 

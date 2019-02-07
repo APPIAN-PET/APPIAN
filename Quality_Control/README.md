@@ -1,3 +1,13 @@
+# Dashboard
+
+APPIAN provides a graphical-user interface via a web browser to allow you to visualize your results. This interface is called a dashboard and does not require you to install any software. 
+
+To run the dashboard simply use :
+
+```
+    python2 APPIAN/LaunchDashboard.py -o </path/to/APPIAN/results>
+```
+
 # Quality control <a name="qc"></a>
 Quality control is a crucial step of any automated pipeline. It is essential that the user be able to easily confirm that the pipeline has performed as expected and identify any problematic subjects or processing steps. 
 In order to facilitate rigorous quality control, we are implementing qualitative and quantitative quality control for every major processing step. The user will be able to peruse all output images in GIF format to verify that the images appear as expected (e.g., that there is no gross error in co-registration). Users will also be able to open the full 3D volumes using the BrainBrowser web interface. 
@@ -5,5 +15,6 @@ Quantitative quality control functions by calculating a metric that attempts to 
 
 ####  Quality control options:
     --no-group-qc       Don't perform quantitative group-wise quality control.
+    --no-dashboard      Don't create the xml files necessary to create the visual dashboard
     --test-group-qc     Perform simulations to test quantitative group-wise
                         quality control.

@@ -43,21 +43,20 @@ def gen_args(opts, subjects):
     task_args=[]
     sub_ses_args=[]
     sub_ses_dict={}
-    test_arg_list=[]
     if len(session_ids) == 0 : session_ids=['']
     if len(task_ids) == 0 : task_ids=['']
     if len(run_ids) == 0 : run_ids=['']
 
     for sub in subjects:
-        if opts.verbose: print("Sub:", sub)
+        if opts.verbose >= 2: print("Sub:", sub)
         for ses in session_ids:
-            if opts.verbose: print("Ses:",ses)
+            if opts.verbose >= 2: print("Ses:",ses)
             for task in task_ids:
-                if opts.verbose: print("Task:",task)
+                if opts.verbose >= 2: print("Task:",task)
                 for run in run_ids:
                     sub_arg='sub-'+sub
                     ses_arg='ses-'+ses
-                    task_arg=rec_arg=acq_arg=""
+                    rec_arg=acq_arg=""
 
                     pet_fn=mri_fn=""
                     if  acq == '': acq_arg='acq-'+acq
@@ -71,7 +70,7 @@ def gen_args(opts, subjects):
                     if not acq == '': arg_list += ['acq-'+acq]
                     if not rec == '': arg_list += ['rec-'+rec]
                     if not run == '': arg_list += ['run-'+run]
-                    if opts.verbose : print( arg_list );
+                    if opts.verbose >= 2: print( "Arguments for indentifying images:", arg_list );
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list, opts.verbose )
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc.gz' )
@@ -79,25 +78,25 @@ def gen_args(opts, subjects):
                         mri_fn = unique_file(mri_list, mri_arg_list )
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
-
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run} 
                         sub_ses_dict[sub]=ses
-                        if opts.verbose :
+                        if opts.verbose >= 2 :
                             print(pet_fn, os.path.exists(pet_fn))
                             print(mri_fn, os.path.exists(mri_fn))
                             print('Adding to dict of valid args',d)
                         task_args.append(d)
                     else:
-                        if not os.path.exists(pet_fn) and opts.verbose :
+                        if not os.path.exists(pet_fn) and opts.verbose >= 1:
                             print "Could not find PET for ", sub, ses, task, pet_fn
-                        if not os.path.exists(mri_fn) and opts.verbose :
+                        if not os.path.exists(mri_fn) and opts.verbose >= 1:
                             print "Could not find T1 for ", sub, ses, task, mri_fn
 
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses})
 
-    if opts.verbose :
-        print("Args:\n", task_args)
+    if opts.verbose >= 2:
+        print("Scans on which APPIAN will be run")
+        print( task_args)
     
     opts.sub_valid_args = sub_ses_args
     opts.task_valid_args = task_args
@@ -105,7 +104,7 @@ def gen_args(opts, subjects):
     return sub_ses_args, task_args
 
 
-def unique_file(files, attributes, verbose=False):
+def unique_file(files, attributes, verbose=1):
 
     out_files=[]
     for f in files :
@@ -114,24 +113,29 @@ def unique_file(files, attributes, verbose=False):
             if not a in f :
                 skip=True
                 break
-        if verbose : print(f,'skip file=', skip)
+        if verbose >= 2 : 
+            if skip :
+                print("Valid file", f)
+            else :
+                print("File missing attribute, skipping:",f)
+
         if not skip :
             out_files.append(f)
 
     if attributes == [] or len(out_files) == 0 : return ''
 
     #Check if out_files contains gzip compressed and uncompressed versions of the same file
-    if len(out_files) == 2 :
-        if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
-            #Check if '.gz' is in the path extension for the located file.
-            #If so remove the file without .gz in the extension from the list of out_files
-            if '.gz' in os.path.splitext(out_files[1])[1] :
-                out_files.remove(out_files[0])
-            else :
-                out_files.remove(out_files[1])
+    #if len(out_files) == 2 :
+    #    if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
+    #        #Check if '.gz' is in the path extension for the located file.
+    #        #If so remove the file without .gz in the extension from the list of out_files
+    #        if '.gz' in os.path.splitext(out_files[1])[1] :
+    #            out_files.remove(out_files[0])
+    #        else :
+    #            out_files.remove(out_files[1])
 
     if len(out_files) > 1 :
-        print("Error: PET files are not uniquely specified. Multiple files found for ", attributes)
+        print("Error: PET files are not uniquely specified. Multiple files found for the attributes ", attributes)
         print("You can used --acq and --rec to specify the acquisition and receptor")
         print(out_files)
         exit(1)

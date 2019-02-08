@@ -27,7 +27,12 @@ def run_group_level(opts,args):
         for module, command, fargs, run_flag in args_list:
             print(command, run_flag)
             if run_flag: 
-                command(*fargs)
+                try :
+                    command(*fargs)
+                except KeyboardInterrupt:
+                    raise
+                except:
+                    pass
     else :
         print "Warning: only one subject, cannot run group level analysis."
 

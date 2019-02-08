@@ -305,7 +305,7 @@ class VolCenteringInput(BaseInterfaceInputSpec):
     out_file = File(argstr="%s", desc="Image after centering")
 
     run = traits.Bool(argstr="-run", usedefault=True, default_value=True, desc="Run the commands")
-    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    verbose = traits.Int(argstr="-verbose", usedefault=True, default_value=1, desc="Write messages indicating progress")
 
 class VolCenteringRunning(BaseInterface):
     input_spec = VolCenteringInput
@@ -335,7 +335,8 @@ class VolCenteringRunning(BaseInterface):
         fixIrregular = ModifyHeaderCommand()
         fixIrregular.inputs.opt_string = " -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
         fixIrregular.inputs.in_file = temp_fn
-        print( fixIrregular.cmdline )
+        if self.inputs.verbose >= 2:
+            print( fixIrregular.cmdline )
         fixIrregular.run()
 
         fixCosine = FixCosinesCommand()
@@ -343,7 +344,8 @@ class VolCenteringRunning(BaseInterface):
         fixCosine.inputs.keep_real_range=True
         fixCosine.inputs.dircos=True
         fixCosine.run()
-        print(fixCosine.cmdline)
+        if self.inputs.verbose >= 2:
+            print(fixCosine.cmdline)
         shutil.copy(fixCosine.inputs.out_file, self.inputs.out_file)
         return runtime
 
@@ -387,7 +389,7 @@ class pet3DVolumeOutput(TraitedSpec):
 class pet3DVolumeInput(BaseInterfaceInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="Image")
     out_file = File(argstr="%s", desc="Image after centering")
-    verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
+    verbose = traits.Int(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class pet3DVolume(BaseInterface):
     input_spec = pet3DVolumeInput
@@ -420,13 +422,14 @@ class pet3DVolume(BaseInterface):
         else :    
             count=last-first
         
-        
-        
         run_mincreshape=ReshapeCommand()
         run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
         run_mincreshape.inputs.in_file = self.inputs.in_file
         run_mincreshape.run()
-        
+        if self.inputs.verbose >= 2 :
+            print('Start', first, 'Last', last, 'Count', count) 
+            print(run_mincreshape.cmdline)
+
         petAverage = minc.Average()
         petAverage.inputs.avgdim = 'time'
         petAverage.inputs.width_weighted = False
@@ -434,6 +437,8 @@ class pet3DVolume(BaseInterface):
         petAverage.inputs.input_files = [ run_mincreshape.inputs.out_file ] 
         petAverage.inputs.output_file = self.inputs.out_file
         petAverage.run()
+        if self.inputs.verbose >= 2 :
+            print(petAverage.cmdline)
 
         return runtime
 

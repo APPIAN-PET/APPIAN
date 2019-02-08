@@ -73,15 +73,17 @@ class Workflows:
         full APPIAN self.workflow. In this case some of the workflows have <return_early_flag> variables
         that can be set by the user when launching APPIAN and will result in APPIAN not initialzing
         any subsequent workflows'''
-        print("\n\nWorkflow Initialization: ")
+        
+        if opts.verbose >= 2 :
+            print("\n\nWorkflow Initialization: ")
         for set_workflow_function, return_early_flag, run_flag in self.init_functions :
             #TODO : Use line below with verbose option
             if run_flag != None and run_flag != False :
-                print "\t",set_workflow_function, return_early_flag, run_flag 
+                if opts.verbose >= 2 :
+                    print "\t",set_workflow_function, return_early_flag, run_flag 
                 set_workflow_function( opts)
                 if return_early_flag :
                     return(0)
-        print("\n")
 
     ######################
     # PET Initialization #
@@ -203,7 +205,8 @@ class Workflows:
         self.workflow.connect(self.pet2mri, "outputnode.mnipet_xfm", self.masking, "inputnode.LinMNIPETXfm")
         self.workflow.connect(self.mri_preprocess, "outputnode.xfmMNIT1", self.masking, "inputnode.LinMNIT1Xfm")
         self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.masking, "inputnode.mniT1")
-        self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brainmask")
+        self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brain_mask_stereo")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.masking, "inputnode.brain_mask_t1")
         if not opts.nopvc:
             #If PVC method has been set, define binary masks to contrain PVC
             self.workflow.connect(self.preinfosource, 'pvc_labels', self.masking, "inputnode.pvc_labels")
@@ -344,7 +347,7 @@ class Workflows:
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.distance_metricNode, 'pet')
-            self.workflow.connect(self.masking,  'brain_mask.output_file', self.distance_metricNode, 't1_brain_mask')
+            self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.distance_metricNode, 't1_brain_mask')
             self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat',  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')
             self.workflow.connect(self.infosource, 'task', self.distance_metricNode, 'task')

@@ -77,13 +77,10 @@ def gen_args(opts, subjects):
                     mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc.gz' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
-                    #if pet_fn == [] or mri_fn == [] : continue
 
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
-                        #compression=''
-                        #if '.gz' in pet_fn : compression='.gz'
 
-                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run} #,'compression':compression}
+                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run} 
                         sub_ses_dict[sub]=ses
                         if opts.verbose :
                             print(pet_fn, os.path.exists(pet_fn))

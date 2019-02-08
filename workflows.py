@@ -325,11 +325,10 @@ class Workflows:
             self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.resultsReport, "header")
             self.workflow.connect(node, img, self.resultsReport, 'in_file')
             if opts.use_surfaces :
-                self.workflow.connect(self.masking, 'surface_left_node.out_file', self.resultsReportSurf, "surf_left")
-                self.workflow.connect(self.datasourceSurf, 'mask_left', self.resultsReportSurf, 'mask_left')
-                self.workflow.connect(self.masking, 'surface_right_node.out_file', self.resultsReportSurf, "surf_right")
-                self.workflow.connect(self.datasourceSurf, 'mask_right', self.resultsReportSurf, 'mask_right')   
-                self.workflow.connect( self.resultsReportSurf, 'out_file_3d', self.datasink, "results"+os.sep+node_name )
+                self.workflow.connect(self.masking, 'surface_left_node.out_file', self.resultsReport, "surf_left")
+                self.workflow.connect(self.datasourceSurf, 'mask_left', self.resultsReport, 'mask_left')
+                self.workflow.connect(self.masking, 'surface_right_node.out_file', self.resultsReport, "surf_right")
+                self.workflow.connect(self.datasourceSurf, 'mask_right', self.resultsReport, 'mask_right')   
             else :
                 self.workflow.connect(self.masking, 'resultsLabels.out_file', self.resultsReport, 'mask')
 
@@ -521,11 +520,12 @@ class Workflows:
 
         if opts.results_label_type != "internal_cls" :
             self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts)
+
         if opts.user_t1mni :
-            self.datasourceAnat = set_transform(opts)
+            self.set_transform(opts)
 
         if opts.user_brainmask :
-            set_brain_mask(opts)
+            self.set_brain_mask(opts)
         
         #Create connections bettween infosource and datasourceAnat
         self.workflow.connect([
@@ -571,12 +571,13 @@ class Workflows:
 
         brain_mask_template = brain_mask_template + "_T1w_space-mni"
 
-        if not coregistration_brain_mask : 
+        if not opts.coregistration_brain_mask : 
             brain_mask_template = brain_mask_template + '_skullmask.*'+opts.img_ext
         else :
             brain_mask_template = brain_mask_template + '_brainmask.*'+opts.img_ext
 
         field_template["brain_mask_mni"] = brain_mask_template
+        
 
         self.datasourceAnat.inputs.field_template.update(field_template)
 

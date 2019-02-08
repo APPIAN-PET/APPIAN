@@ -109,40 +109,6 @@ def set_isotope_halflife(d, user_halflife=None, target="halflife"):
 
 
 def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes","Values"], verbose=True):
-    #find path in dictionary to target
-    #dict_path = recursive_dict_search(d, target="FrameLengths")
-
-    #if minc_input : # MINC Input
-    #    print("Check header for MINC input")
-    #    dict_path = recursive_dict_search(d, target="frames-length")
-    #    temp_d = d
-    #    for i in dict_path :
-    #        temp_d = temp_d[i]
-    #    FrameLengths=temp_d
-
-    #    values_dict_path = recursive_dict_search(d, target="frames-time")
-    #
-    #    Values=None
-    #
-    #    if not None in values_dict_path :
-    #        temp_d = d
-    #        if verbose : print( values_dict_path )
-    #        for i in values_dict_path :
-    #            temp_d = temp_d[i]
-    #            print(temp_d)
-    #
-    #    temp_d = [ float(i) for i in temp_d ]
-    #    FrameLengths=list(np.diff(temp_d))
-    #    FrameLengths.append(FrameLengths[-1])
-    #    print("Warning: Could not find FrameLengths in header. Setting last frame to equal duration of second to last frame.")
-    #    x = np.array(temp_d).astype(float)+np.array(FrameLengths).astype(float)
-    #    Values=zip( temp_d, x.astype(str)  )
-
-    #    d["Time"]={}
-    #    d["Time"]["FrameTimes"]={}
-    #    d["Time"]["FrameTimes"]["Duration"] = FrameLengths
-    #    d["Time"]["FrameTimes"]["Values"] =Values
-    #else : #NIFTI Input
     frame_times=[]
     try :
         frame_times = d["Time"]["FrameTimes"]["Values"]
@@ -171,9 +137,6 @@ def set_frame_duration(d, minc_input=False, json_frame_path=["Time","FrameTimes"
     d["Time"]["FrameTimes"]["Duration"] = FrameLengths
 
     return d
-
-
-
 
 
 class SplitArgsOutput(TraitedSpec):
@@ -209,8 +172,6 @@ class SplitArgsRunning(BaseInterface):
             self.inputs.sid=self.inputs.args['sid']
         if self.inputs.ses_sub_only : return runtime
 
-            #self.inputs.cid=+'_'+self.inputs.args['task']+'_'+self.inputs.args['run']
-
         try :
             self.inputs.task=self.inputs.args['task']
             cid = cid + '_' +self.inputs.args['task']
@@ -223,10 +184,6 @@ class SplitArgsRunning(BaseInterface):
         except  KeyError:
             pass
         self.inputs.cid=cid
-        #try:
-        #    self.inputs.compression=self.inputs.args['compression']
-        #except  KeyError:
-        #    pass
 
         if isdefined(self.inputs.RoiSuffix):
             self.inputs.RoiSuffix=self.inputs.RoiSuffix
@@ -247,9 +204,6 @@ class SplitArgsRunning(BaseInterface):
 
         if isdefined(self.inputs.run):
             outputs["run"] = self.inputs.run
-
-        #if isdefined(self.inputs.compression):
-        #    outputs["compression"] = self.inputs.compression
 
         if isdefined(self.inputs.RoiSuffix):
             outputs["RoiSuffix"]= self.inputs.RoiSuffix
@@ -286,11 +240,6 @@ class MincHdrInfoRunning(BaseInterface):
         except OSError:
             pass
 
-        #pettot1_4d_header_fixed = pe.Node(interface=FixHeaderCommand(), name="pettot1_4d_header_fixed")
-        #pettot1_4d_header_fixed.inputs.time_only=True
-        #pettot1_4d_header_fixed.inputs.in_file = fixIrregular.inputs.out_file
-        #pettot1_4d_header_fixed.inputs.header = self.inputs.header
-
         class InfoOptions:
             def __init__(self, command, variable, attribute, type_):
                 self.command = command
@@ -298,23 +247,8 @@ class MincHdrInfoRunning(BaseInterface):
                 self.attribute = attribute
                 self.type_ = type_
 
-        #options = [ InfoOptions('-dimnames','time','dimnames','string'),
-        #        InfoOptions('-varvalue time','time','frames-time','integer'),
-        #        InfoOptions('-varvalue time-width','time','frames-length','integer') ]
         temp_out_file=os.getcwd()+os.sep+"temp.json"
-        #for opt in options:
-        #    run_mincinfo=InfoCommand()
-        #    run_mincinfo.inputs.in_file = self.inputs.in_file
-        #    run_mincinfo.inputs.out_file = temp_out_file
-        #    run_mincinfo.inputs.opt_string = opt.command
-        #    run_mincinfo.inputs.json_var = opt.variable
-        #    run_mincinfo.inputs.json_attr = opt.attribute
-        #    run_mincinfo.inputs.json_type = opt.type_
-        #    run_mincinfo.inputs.error = 'unknown'
-
-        #    print run_mincinfo.cmdline
-        #    if self.inputs.run:
-        #        run_mincinfo.run()
+        
         try :
             img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
             hd = img.get_MINC_header()
@@ -333,7 +267,6 @@ class MincHdrInfoRunning(BaseInterface):
 
 
         header = json.load(open(temp_out_file, "r+") )
-        #fp.close()
 
         minc_input=True
         if not isdefined(self.inputs.json_header) :
@@ -389,7 +322,6 @@ class VolCenteringRunning(BaseInterface):
         shutil.copy(self.inputs.in_file, temp_fn)
         infile = volumeFromFile(self.inputs.in_file)
         for view in ['xspace','yspace','zspace']:
-            #start = -1*infile.separations[infile.dimnames.index(view)]*infile.sizes[infile.dimnames.index(view)]/2
             dim = infile.dimnames.index( view )
             start = infile.starts[dim]
 
@@ -401,7 +333,6 @@ class VolCenteringRunning(BaseInterface):
 
         node_name="fixIrregularDimension"
         fixIrregular = ModifyHeaderCommand()
-        #-dinsert xspace:direction_cosines=1,0,0 -dinsert yspace:direction_cosines=0,1,0 -dinsert zspace:direction_cosines=0,0,1
         fixIrregular.inputs.opt_string = " -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
         fixIrregular.inputs.in_file = temp_fn
         print( fixIrregular.cmdline )
@@ -474,7 +405,7 @@ class pet3DVolume(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = volumeFromFile(self.inputs.in_file)
-        rank=10
+        rank=0.25
 
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
         try :
@@ -482,24 +413,25 @@ class pet3DVolume(BaseInterface):
         except ValueError :
             nFrames = 1
 
-        if nFrames > 5 :
-            first=int(ceil(float(nFrames*rank)/100))
-            last=int(nFrames)-int(ceil(float(nFrames*4*rank)/100))
+        first=int(floor(nFrames*rank) )
+        last=int(nFrames)-int(ceil(nFrames*3*rank))
+        if first >= last : 
+            count=1 
+        else :    
             count=last-first
-            run_mincreshape=ReshapeCommand()
-            run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
-            run_mincreshape.inputs.in_file = self.inputs.in_file
-            run_mincreshape.run()
-
-            temp_fn = run_mincreshape.inputs.out_file
-        else :
-            temp_fn = self.inputs.in_file
+        
+        
+        
+        run_mincreshape=ReshapeCommand()
+        run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
+        run_mincreshape.inputs.in_file = self.inputs.in_file
+        run_mincreshape.run()
         
         petAverage = minc.Average()
         petAverage.inputs.avgdim = 'time'
         petAverage.inputs.width_weighted = False
         petAverage.inputs.clobber = True
-        petAverage.inputs.input_files = [ temp_fn  ] 
+        petAverage.inputs.input_files = [ run_mincreshape.inputs.out_file ] 
         petAverage.inputs.output_file = self.inputs.out_file
         petAverage.run()
 

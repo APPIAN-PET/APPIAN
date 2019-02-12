@@ -15,7 +15,7 @@ class quantInput( MINCCommandInputSpec):
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
     in_file= File(exists=True, position=-4, argstr="%s", desc="PET file")
     reference = File(exists=True,  position=-5, argstr="%s", desc="Reference file")
-    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
+    start_time=traits.Float( argstr="%s",default_value=0, usedefault=True, position=-3, desc="Start time for regression in mtga.")
     end_time=traits.Float(argstr="%f", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
     Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
     LC=traits.Float(argstr="-LC=%f", desc="Lumped constant in MR calculation; default is 1.0")

@@ -17,7 +17,7 @@ class quantInput( MINCCommandInputSpec):
     BPnd = traits.Bool(argstr="-BPnd", position=1, usedefault=True, default_value=True)
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
     C = traits.Bool(argstr="-C", position=2, usedefault=True, default_value=True)
-    start_time=traits.Float(argstr="%s", position=-3, desc="Start time for regression in mtga.")
+    start_time=traits.Float(argstr="%f",default_value=0, usedefault=True,position=-3, desc="Start time for regression in mtga.")
     k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
     end_time=traits.Float(argstr="%s", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
 

@@ -25,7 +25,7 @@ class quantInput(TraitedSpec):
     reference = File(exists=True,mandatory=True,desc="Mask file")
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
     end_time=traits.Float(argstr="%f", desc="End time")
-    start_time=traits.Float(argstr="%f",  desc="Start time (min).")
+    start_time=traits.Float(argstr="%f",default_value=0, usedefault=True,  desc="Start time (min).")
     out_file = File(desc="Output SUV image")
 
 class quantCommand(BaseInterface):

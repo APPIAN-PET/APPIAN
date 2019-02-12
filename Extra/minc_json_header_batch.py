@@ -49,13 +49,13 @@ class CreateHeaderRunning(BaseInterface):
             exit(1)
         
         options=[
-                ('acquisition','radionuclide', '-attvalue'),
-                ('acquisition','radionuclide_halflife', '-attvalue '),
-                ('time','units', '-attvalue '),
-                ('','time', '-varvalue '),
-                ('','time-width', '-varvalue ')]
+                ('acquisition','radionuclide', '-attvalue', False),
+                ('acquisition','radionuclide_halflife', '-attvalue ', False),
+                ('time','units', '-attvalue ',True),
+                ('','time', '-varvalue ',True),
+                ('','time-width', '-varvalue ', True)]
         var_dict={}
-        for key, var, opt in options:
+        for key, var, opt, exit_opt in options:
             key_string=key+':'+var
             if key == '' : key_string = var
             run_mincinfo=mincinfoCommand()
@@ -65,10 +65,8 @@ class CreateHeaderRunning(BaseInterface):
             run_mincinfo.terminal_output = 'file_split'
             r=run_mincinfo.run()
             if 'unknown' in r.runtime.stdout :
-            
-                print("Error: could not find variable <"+key_string+'> in '+ self.inputs.input_file )
-                exit(1)
-                exit_flag=True
+                print("Warning: could not find variable <"+key_string+'> in '+ self.inputs.input_file )
+                exit_flag=exit_opt
             var_dict[var]=r.runtime.stdout
 
         out_dict={}
@@ -113,7 +111,7 @@ def create_minc_headers(source_dir, clobber=False):
     pet_list = find(source_dir, "*_pet.mnc" )
    
     for pet in pet_list :
-        out_fn=sub('.mnc','.json',pet)
+        out_fn=sub('.nii', '', sub('.gz', '', sub('.mnc','',pet))) + '.json'
         if not os.path.exists(out_fn) or clobber :
             create_json = CreateHeaderRunning()
             create_json.inputs.input_file = pet

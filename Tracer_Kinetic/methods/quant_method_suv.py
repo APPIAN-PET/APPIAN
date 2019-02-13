@@ -17,7 +17,7 @@ class quantInput( CommandLineInputSpec):
     out_file = File(argstr="%s",  desc="Parametric image")
     end_time=traits.Float(argstr="%f", desc="End time")
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
-    start_time=traits.Float(argstr="%f",  desc="Start time (min).")
+    start_time=traits.Float(argstr="%f",default_value=0, usedefault=True,  desc="Start time (min).")
     in_file = File(argstr="%s", mandatory=True, desc="image to operate on")
     reference = File(exists=True,mandatory=True,desc="Mask file")
    

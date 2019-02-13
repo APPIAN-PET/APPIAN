@@ -41,8 +41,8 @@ class LabelsInput(BaseInterfaceInputSpec):
     mni2target = File(desc="Transformation from stereotaxic to analysis space")
     like_file = File(desc="Target img")
     label_template=traits.Str(usedefault=True,default_value='NA',desc="Template for stereotaxic atlas")
-    brainmask = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
-    brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brainmask")
+    brain_mask = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
+    brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brain_mask")
     ones_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal threshold so that label image is only 1s and 0s")
     surf = File(desc="Obj surface")
     out_file  = File(desc="Labels in analysis space")
@@ -139,16 +139,13 @@ class Labels(BaseInterface):
         if self.inputs.brain_only :
             temp_mask = tmpDir+"/mask.mnc"
             run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-            run_calc.inputs.input_files = [ label, self.inputs.brainmask]
+            run_calc.inputs.input_files = [ label, self.inputs.brain_mask]
             run_calc.inputs.output_file = temp_mask  #Output mask with desired label
             run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 "
             run_calc.clobber = True
             run_calc.run()
-            #shutil.copy(temp_mask, label)
             shutil.copy(temp_mask,  self.inputs.out_file)
             label = self.inputs.out_file
-            print "Warning: masking labeled image with brain mask."
-            print "Label: ", label
         if self.inputs.ones_only :
             temp_mask = tmpDir+"/mask.mnc"
             run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
@@ -222,9 +219,6 @@ def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
             transform_file="out_file"
             target_file="pet"
 
-    #print label_space, "to", analysis_space
-    #print "1", tfm_node, transform_file, transform_to
-    #print "2", tfm_node, transform_file, transform_to
     return([tfm_node, transform_file, target_file])
 
 
@@ -235,7 +229,7 @@ def get_workflow(name, infosource, opts):
 
         1. Invert T1 Native to MNI 152 transformation
         2. Transform
-        4. Transform brainmask from MNI 152 to T1 native
+        4. Transform brain_mask from MNI 152 to T1 native
         5. Create PVC labeled image
         6. Create quantification labeled image
         7. Create results labeled image
@@ -248,8 +242,8 @@ def get_workflow(name, infosource, opts):
         :returns: workflow
     '''
     workflow = pe.Workflow(name=name)
-    out_list=["pet_brainmask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brainmask", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm','LinMNIT1Xfm',  "LinPETMNIXfm", "LinMNIPETXfm",'LinT1MNIXfm', "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
+    out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
+    in_list=["nativeT1","mniT1","brain_mask_stereo", "brain_mask_t1", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm','LinMNIT1Xfm',  "LinPETMNIXfm", "LinMNIPETXfm",'LinT1MNIXfm', "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
     if not opts.nopvc:
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -278,26 +272,25 @@ def get_workflow(name, infosource, opts):
     ###################
     # Brain Mask Node #
     ###################
-    if opts.analysis_space != "stereo"  :
+    if opts.analysis_space == "stereo"  :
+        brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
+        workflow.connect(inputnode, "brain_mask_stereo", brain_mask_node, "output_file")
+        like_file="mniT1"
+    elif opts.analysis_space == "t1" :
+        brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
+        workflow.connect(inputnode, "brain_mask_t1", brain_mask_node, "output_file")
+        like_file="nativeT1"
+    elif opts.analysis_space == "pet" :
         brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
         brain_mask_node.inputs.nearest_neighbour_interpolation = True
-
-        workflow.connect(inputnode, "brainmask", brain_mask_node, "input_file")
-        if opts.analysis_space == "t1" :
-            workflow.connect(inputnode, "LinMNIT1Xfm",  brain_mask_node, "transformation")
-            like_file="nativeT1"
-            workflow.connect(inputnode, "nativeT1", brain_mask_node, "like")
-        elif opts.analysis_space == "pet" :
-            workflow.connect(inputnode, "LinMNIPETXfm", brain_mask_node, "transformation")
-            workflow.connect(inputnode, "pet_volume", brain_mask_node, "like")
-            like_file="pet_volume"
-        else :
-            print("Error: Analysis space must be one of pet,stereo,t1 but is",opts.analysis_space)
-            exit(1)
+        workflow.connect(inputnode, "brain_mask_stereo", brain_mask_node, "input_file")
+        workflow.connect(inputnode, "LinMNIPETXfm", brain_mask_node, "transformation")
+        workflow.connect(inputnode, "pet_volume", brain_mask_node, "like")
+        like_file="pet_volume"
     else :
-        brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
-        workflow.connect(inputnode, "brainmask", brain_mask_node, "output_file")
-        like_file="mniT1"
+        print("Error: Analysis space must be one of pet,stereo,t1 but is",opts.analysis_space)
+        exit(1)
+
 
     #################
     # Surface masks #
@@ -331,7 +324,7 @@ def get_workflow(name, infosource, opts):
     workflow.connect(inputnode, 'results_label_img', resultsLabels, 'label_img')
     workflow.connect(inputnode, 'results_label_template', resultsLabels, 'label_template')
     workflow.connect(inputnode, like_file, resultsLabels, 'like_file')
-    workflow.connect(brain_mask_node,"output_file", resultsLabels, 'brainmask')
+    workflow.connect(brain_mask_node,"output_file", resultsLabels, 'brain_mask')
     workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
 
     if not opts.nopvc and not opts.pvc_method == None:
@@ -346,7 +339,7 @@ def get_workflow(name, infosource, opts):
         workflow.connect(inputnode, 'pvc_label_img', pvcLabels, 'label_img')
         workflow.connect(inputnode, 'pvc_label_template', pvcLabels, 'label_template')
         workflow.connect(inputnode, like_file, pvcLabels, 'like_file')
-        workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brainmask')
+        workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brain_mask')
         workflow.connect(pvc_tfm_node, pvc_tfm_file, pvcLabels, "LinXfm")
     if not opts.tka_method == None:
         tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
@@ -360,7 +353,7 @@ def get_workflow(name, infosource, opts):
         workflow.connect(inputnode, 'tka_label_img', tkaLabels, 'label_img')
         workflow.connect(inputnode, 'tka_label_template', tkaLabels, 'label_template')
         workflow.connect(inputnode, like_file, tkaLabels, 'like_file')
-        workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brainmask')
+        workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brain_mask')
         workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
 
     return(workflow)

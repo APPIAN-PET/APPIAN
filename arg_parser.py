@@ -215,7 +215,7 @@ def get_parser():
 
     #
     #group= OptionGroup(parser,"Command control")
-    parser.add_argument("--verbose",dest="verbose",help="Write messages indicating progress.",action='store_true',default=False)
+    parser.add_argument("-v","--verbose",dest="verbose",help="Write messages indicating progress. 0=quiet, 1=normal, 2=debug",type=int,default=1)
     
     #group= OptionGroup(parser,"Pipeline control")
     parser.add_argument("--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)

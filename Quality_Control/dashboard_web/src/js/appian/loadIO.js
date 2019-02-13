@@ -30,7 +30,9 @@ function reachCSV(stage, level, type){
     req.onreadystatechange = function(event) {
     if (this.readyState === XMLHttpRequest.DONE) {
     if (this.status === 200) {
-        readCSV(this.responseText, stage, level);
+        dataCSV=readCSV(this.responseText);
+        // console.log(dataCSV);
+        getResults(dataCSV, stage, level, type);
     } else {
         console.log("Status de la réponse: %d (%s)", this.status, this.statusText);
     }}};
@@ -105,8 +107,7 @@ function menuQC(xmlNodes){
 
     for(var s=0;s<tabScans.length;s++){
         var subScanI=document.createElement("li");
-        scan = tabScans[s]
-        arr = scan.attributes
+        arr = tabScans[s].attributes
         Object.keys(arr).forEach(element => {
           switch(arr[element].name){
             case "sid":
@@ -122,7 +123,7 @@ function menuQC(xmlNodes){
         });
        	id="sub-"+sid+"_"+"ses-"+ses+"_"+"task-"+task
 
-        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(scan,\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
+        subScanI.innerHTML="<a href=\"javascript:;\" onclick=\"deployPage(tabScans,"+s+",\'"+id+"\',\'"+stageXml+"\')\">"+id+"</a>";
         $node.append(subScanI);
         document.getElementById(stage).append(subScanI);
 
@@ -139,7 +140,7 @@ function menuQC(xmlNodes){
 
 
 
-var readCSV = function (allText, stage, level) {
+var readCSV = function (allText) {
     var allTextLines = allText.split(/\r\n|\n/);
     var headers = allTextLines[0].split(',');
     var dataCSV = [];i=1;
@@ -158,15 +159,18 @@ var readCSV = function (allText, stage, level) {
 	}
 
     if(dataCSV !== null && dataCSV !== "" && dataCSV.length > 1) {
-      getResults(dataCSV, stage, level); 
-    }           
+      // getResults(dataCSV, stage, level); 
+      return dataCSV; 
+    }
+
+
 };
 
 
 
 
 
-var getResults = function(dataCSV, stage, level) {
+var getResults = function(dataCSV, stage, level, type) {
 
     rowLength = dataCSV.length;
     // Combine all data into single arrays
@@ -180,7 +184,7 @@ var getResults = function(dataCSV, stage, level) {
         indices = stageList.map((e, i) => e === stage ? i : '').filter(String);
     }
 
-    metric = dataCSV.map(function(elem){return elem.metric;});
+    metricList = dataCSV.map(function(elem){return elem.metric;});
     subjList = dataCSV.map(function(elem){return elem.sub;});
     valueList = dataCSV.map(function(elem){return elem.value;});
     roiList = dataCSV.map(function(elem){return elem.roi;});
@@ -189,28 +193,35 @@ var getResults = function(dataCSV, stage, level) {
     valueList.forEach(function (value, i) {
         if (indices.includes(i)){
             valueStage.push(value);
-            roiStage.push(roiList[i]);
+            roiStage.push(metricList[i]);
+            // roiStage.push(roiList[i]);
             subjStage.push(subjList[i]);
     }});
 
     xaxis_title = "ROI";
-    yaxis_title = ("TAC %s", metric[0]);
+    yaxis_title = "";
 
     switch (stage) {
         case 'pet-coregistration':
         case 'coreg':
-            title = "COREGISTRATION";
+            title_plot = "COREGISTRATION";
             break;
         case 'pvc':
-            title = "PARTIAL VOLUME CORRECTION";
+            title_plot = "PARTIAL VOLUME CORRECTION";
             break;
         case 'tka':
-            title = "TRACER KINETIC ANALYSIS";
+            title_plot = "TRACER KINETIC ANALYSIS";
             break;
+    }
+    if (type == 'qc'){
+    	titleDiv = "Quantitative QC";
+    }else{
+    	titleDiv = "Statistics ("+level+")";
+
     }
 
     displayPlotBrowser(level,roiStage,valueStage,subjStage,
-        xaxis_title,yaxis_title,title);
+        xaxis_title,yaxis_title,title_plot,titleDiv);
 
 };
 

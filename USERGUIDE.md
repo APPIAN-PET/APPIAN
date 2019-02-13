@@ -14,7 +14,8 @@
 	4.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
 	4.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
 	4.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
-	4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+	4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) \
+	4.9 [Dashboard GUI](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 5. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md) 
 6. [Examples](#example) 
 
@@ -33,8 +34,9 @@ aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
 ### Format data
 The data may need to be reformatted slightly to have the following structure. 
 As of version 00002 of the Cimbi data set, you can fix it using the following commands: 
-
-	find cimbi-test/ -name "*{nii,json}*" -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2' \;
+```
+	find -iregex '.*\.\(json\|mnc\|nii\|nii.gz\)$'   -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2  ' \;
+```
 
 The .json headers also need to be corrected by removing the "," at the end of the following lines
 
@@ -303,6 +305,10 @@ Regional mean values for each ROI of results mask volumes are saved to .csv file
 
 ### 4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
 Quality control metrics are calculated for each image volume and each processing stage.
+
+### 4.9 [Dashboard GUI](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+Web browser-based graphical-user interface for visualizing results.
+
 
 ## 5 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 

@@ -3,7 +3,7 @@ The ROI masks described [here](https://github.com/APPIAN-PET/APPIAN/blob/master/
 
 You can find the results stored in the target directory in "results/". Here you will see multiple sub-directories that are named "results_<processing stage><_4d>". The directories with <_4d> have the TACs, while those without contain only 3D results (e.g., parametric values derived with tracer-kinetic analysis). In each of these there will be another subdirctory for each PET scan that was processed and these in turn contain a .csv with the mean regional values.
 
-Basically, it will look something like this :
+The results directory it will look something like this :
 ```
 results_initialization/:
 _args_run01.task01.ses01.sid01  _args_run01.task01.ses01.sid02

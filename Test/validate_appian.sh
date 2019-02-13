@@ -90,19 +90,19 @@ if [[ $1 == "-help" || $1 == "--help" || $1 == "-h" || $1 == "--h" ]]; then
     echo 'Description:  Run validation test suite on current version of APPIAN'
     echo 'Useage :      test.sh <n threads> <path to APPIAN dir> <path to data> <path for outputs> <exit on failure> <timestamp>'
     echo "              n threads :             number of CPU threads to use for testing (default=1, recommended=4)"
-    echo "              path to APPIAN dir :    Abs. path to location of APPIAN repository (default=/APPIAN)"
+    echo "              path to APPIAN dir :    Absolute path to location of APPIAN repository (default=/APPIAN)"
     echo "              path to data :          Path to data to be used to testing (default=/APPIAN/Test/cimbi)"
     echo "              path for outputs :      Path where testing outputs will be saved (default=/APPIAN/Test)"
     echo "              exit on failure :       Exit validation if a test fails. Set to 1 to enable (default=0)"
     echo "              qc :                    Create .png images of output files. Set to 1 to enable (default=0)"
-    echo "              timestamp :             Timestamp for validation. Will be set each time scipt is run. "
+    echo "              timestamp :             Timestamp for validation. Will be set each time script is run. "
     echo "                                      However, users that are debugging may wish to continue validation with"
-    echo "                                      existing timestamp to prevent rerunning all test. In this case, "
-    echo "                                      users can provide timestamp from exisint validation."
+    echo "                                      existing timestamp to prevent rerunning all tests. In this case, "
+    echo "                                      users can provide timestamp from existing validation."
     echo "Examples :"
     echo "          1) Run validation defaults"
     echo "             ./validate_appian.sh"
-    echo "          2) Run validation with 8 threads in non-default directories. Timestamp genereated at runtime"
+    echo "          2) Run validation with 8 threads in non-default directories. Timestamp generated at runtime"
     echo "              ./validate_appian.sh 8 /home/APPIAN /data1/projects/cimbi /data1/projects/  "
     echo "          3) Run with 1 thread in default directories with pre-existing timestamp"
     echo "              ./validate_appian.sh 1 /APPIAN /APPIAN/Test/cimbi /APPIAN/Test 20181221-220648"
@@ -112,7 +112,7 @@ fi
 echo
 echo "     Launching APPIAN validation tests "
 echo "   -------------------------------------"
-echo Warning: You should have commited latest changes to current git branch
+echo Warning: You should have committed latest changes to current git branch
 
 ########################
 # Setup input vaiables #
@@ -149,7 +149,7 @@ if [[ ! -d $out_data_path ]]; then
 fi
 
 if [[ `ls crash*pklz ` ]]; then
-    echo Warning: Moving existin crash .pklz reports to `pwd`/crash_backup
+    echo Warning: Moving existing crash .pklz reports to `pwd`/crash_backup
     echo Test script requires that there be no crash reports in the current directory
     mkdir -p nipype_crash_backup
     mv `ls crash*pklz` nipype_crash_backup

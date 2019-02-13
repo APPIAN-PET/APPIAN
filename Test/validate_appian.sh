@@ -180,9 +180,9 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 
-run_appian "Dashboard" "--fwhm 6 6 6 --start-time 2.5 --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+#run_appian "Dashboard" "--fwhm 6 6 6 --start-time 2.5 --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 #TODO (1) Add surface testing
-exit 1
+#exit 1
 ### Minimal Inputs
 run_appian "Mininimum"
 

@@ -67,7 +67,6 @@ def get_pvc_workflow(name, infosource, opts):
         convertPVC=pe.Node(nii2mnc2Command(), name="convertPVC")
         convertPVC.inputs.truncate_path=True
         workflow.connect(pvcNode, 'out_file', convertPVC, 'in_file')
-        #workflow.connect(inputnode, 'in_file', convertPVC, 'like_file')
 
         pet_source = convertPET
         pet_file = "out_file"

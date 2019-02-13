@@ -12,9 +12,9 @@ class pvcInput(MINCCommandInputSpec):
     in_file = File(exists=True, position=1, argstr="-pet %s", desc="PET file")
     
     fwhm = traits.Float( argstr="-fwhm %f", desc="FWHM of PSF all axes") 
-    max_iterations = traits.Int(argstr="-max-iterations %d", desc="Maximum number of iterations")
-    tolerance = traits.Float( argstr="-tolerance %f", desc="Tolerance")
-    nvoxel_to_average = traits.Int( argstr="-nvoxel-to-average %f", default_value=64, use_default=True, desc="Number of voxels to average over.")
+    max_iterations = traits.Int(argstr="-max-iterations %d",usedefault=True,default_value=10, desc="Maximum number of iterations")
+    tolerance = traits.Float( argstr="-tolerance %f", desc="Tolerance", usedefault=True, default_value=0.001)
+    nvoxel_to_average = traits.Int( argstr="-nvoxel-to-average %f", default_value=64, usedefault=True, desc="Number of voxels to average over.")
 
 class pvcCommand(pvcCommand):
     input_spec =  pvcInput

@@ -1,10 +1,11 @@
 
-function deployPage(scan,id,stage){    
+function deployPage(tabScans,index,id,stage){    
         
     //$("#inner").innerHTML="";
     document.getElementById("inner").innerHTML = "";
 
     bbFiles=[];
+    scan=tabScans[index];
     $scan = $( scan );
     $node = $scan.find("node");
     $node.each(function(index, element) {
@@ -88,7 +89,7 @@ var jitterme = function(list,jitter) {
 
 
 
-var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,yaxis_title,title) {
+var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,yaxis_title,title_plot,titleDiv) {
 
     // window.PLOTLYENV={'BASE_URL': 'https://plotly.bic.mni.mcgill.ca'};
     var figure = {
@@ -105,7 +106,7 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
                 "autorange": true, 
                 "title": yaxis_title
             }, 
-            "title": title, 
+            "title": title_plot, 
             "showlegend": true, 
             "height": 795.062, 
             "width": 1200, 
@@ -160,7 +161,6 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
     document.getElementById("inner").innerHTML = "";
 
     idDiv="Plotly";
-    titleDiv="Quantitative QC";
     classDiv="plotly-graph-div";
     createDiv(idDiv,titleDiv,classDiv);
 

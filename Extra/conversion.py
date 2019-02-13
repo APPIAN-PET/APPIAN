@@ -566,7 +566,13 @@ class nii2mnc_shOutput(TraitedSpec):
 
 class nii2mnc_shInput(CommandLineInputSpec):
     out_file = File( argstr="%s", position=-1, desc="nii file")
-    in_file= File(exists=True, argstr="%s", position=-2, desc="minc file")
+    _xor_dtype=('dfloat', 'ddouble', 'dbyte', 'dint', 'dshort' )
+    dfloat = traits.Bool(argstr="-float", position=-3, desc="data type", xor=_xor_dtype )
+    ddouble = traits.Bool(argstr="-double", position=-3, desc="data type", xor=_xor_dtype )
+    dbyte = traits.Bool(argstr="-byte", position=-3, desc="data type", xor=_xor_dtype )
+    dint = traits.Bool(argstr="-int", position=-3, desc="data type", xor=_xor_dtype )
+    dshort = traits.Bool(argstr="-short", position=-3, desc="data type", xor=_xor_dtype )
+    in_file= File(exists=True, argstr="%s", position=-2, desc="minc file", xor=_xor_dtype)
     truncate_path = traits.Bool(  default=False, use_default=True, desc="truncate file path for output file")
 
 class nii2mnc_shCommand(CommandLine):
@@ -605,11 +611,13 @@ class nii2mnc2Command(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)
 
-
         temp_fn = os.getcwd()+"/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         convert = nii2mnc_shCommand()
         convert.inputs.in_file=self.inputs.in_file
         convert.inputs.out_file=temp_fn
+
+        convert.inputs.dfloat = self.inputs.dfloat 
+        convert.inputs.dint = self.inputs.dint
         print(convert.cmdline)
         convert.run()
 

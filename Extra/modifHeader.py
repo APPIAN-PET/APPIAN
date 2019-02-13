@@ -83,8 +83,7 @@ class FixHeaderInput(CommandLineInputSpec):
     header = traits.File(desc="MINC header for PET image stored in dictionary.")
     output_file = File(desc="Image after centering")
     in_file = File(argstr="%s", position=1, desc="Image after centering")
-    time_only = traits.Bool(use_default=True, default_value=False)
-#class FixHeaderCommand(ModifyHeaderCommand):
+    time_only = traits.Bool(usedefault=True, default_value=False)
 class FixHeaderCommand(CommandLine):
     input_spec = FixHeaderInput
     output_spec = FixHeaderOutput
@@ -104,9 +103,7 @@ class FixHeaderCommand(CommandLine):
 
         vol=pyminc.volumeFromFile(self.inputs.in_file)
         dims = vol.getDimensionNames()
-        #try :
         if 'time' in dims :
-
             #See if there is a start time defined, else set to 0
             try :
                 data["time"]["start"][0]

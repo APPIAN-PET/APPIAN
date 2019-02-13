@@ -21,29 +21,27 @@ def find(src, match):
 
 def nii2mnc_batch(sourceDir, clobber=False):
     t1_files = find(sourceDir, "*_T1w.nii*") 
-    pet_files= find(sourceDir, "*_pet.nii*")
-    nii_files = t1_files + pet_files
+    derived_files = find(sourceDir, "*variant-*nii*")
+    pet_files = find(sourceDir, "*_pet.nii*")
+    nii_files = t1_files + derived_files + pet_files
     ret = False
 
     for f in nii_files :
         f_out_mnc = re.sub('.gz', '', re.sub( '.nii', '.mnc', f) )
-        #f_out_mnc_gz = re.sub( '.nii', '.mnc', f) 
-        #f_out_mnc =  re.sub('.gz', '', f_out_mnc_gz)
-        #if not os.path.exists(f_out_mnc_gz) or clobber :
         if not os.path.exists(f_out_mnc) or clobber :
             nii2mnc =nii2mnc2Command()
-            nii2mnc.inputs.in_file = f 
+            nii2mnc.inputs.in_file = f
+            
+            #For t1 and pet files, set data type to float
+            #otherwise int for label images
+            if f in t1_files + pet_files :
+                nii2mnc.inputs.dfloat = True
+            else :
+                nii2mnc.inputs.dint = True
+
             nii2mnc.inputs.out_file=f_out_mnc
             nii2mnc.run()
             
-            #if os.path.exists(f_out_mnc):
-            #    with open(f_out_mnc, 'rb') as f_in, gzip.open(f_out_mnc_gz, 'wb') as f_out:
-            #            shutil.copyfileobj(f_in, f_out)
-            #    if os.path.exists(f_out_mnc_gz) :
-            #        os.remove(f_out_mnc)
-            #else :
-            #    print("Warning : could not find ", nii2mnc.inputs.out_file, "to gzip it.")
-
         ret = True
     return ret 	
 

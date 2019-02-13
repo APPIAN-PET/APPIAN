@@ -6,7 +6,7 @@ file_format="NIFTI"
 separate_labels=True
 
 class pvcCommand(petpvc4DCommand):
-    _suffix='VC'
+    _suffix='_VC'
 
 
 def check_options(pvcNode, opts):

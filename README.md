@@ -15,9 +15,10 @@ Table of Contents
 ## Introduction
 APPIAN (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest. 
 
-APPIAN also uses a structural brain image (e.g., T1 MRI), images derived from this structural image (e.g., brainmask), and linear transformation file from MRI native to MNI152 space.
-
 The APPIAN pipeline is implemented in Python using the [Nipype][nipype] library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, APPIAN is  language agnostic.
+
+### Cost
+APPIAN is 100% free and open-source, but in exchange we would greatly appreciate your feedback, whether it be as bug reports, pull requests to add new features, questions on our [mailing list](https://groups.google.com/forum/#!forum/appian-users), or suggestions on how to improve the documentation or the code. You can even just send us an email to let us know what kind of project you are working on!  
 
 ## Installation 
 

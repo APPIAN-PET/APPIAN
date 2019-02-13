@@ -35,7 +35,6 @@ def get_pvc_workflow(name, infosource, opts):
     mask_file="mask_file"
 
     ### Quantification module
-    print(os.path.dirname(os.path.abspath(__file__))+"/methods")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
     pvc_module_fn="pvc_method_"+opts.pvc_method #+".py"
 

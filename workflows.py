@@ -73,9 +73,14 @@ class Workflows:
         full APPIAN self.workflow. In this case some of the workflows have <return_early_flag> variables
         that can be set by the user when launching APPIAN and will result in APPIAN not initialzing
         any subsequent workflows'''
+        
+        if opts.verbose >= 2 :
+            print("\n\nWorkflow Initialization: ")
         for set_workflow_function, return_early_flag, run_flag in self.init_functions :
-            print(set_workflow_function, return_early_flag, run_flag ) 
+            #TODO : Use line below with verbose option
             if run_flag != None and run_flag != False :
+                if opts.verbose >= 2 :
+                    print "\t",set_workflow_function, return_early_flag, run_flag 
                 set_workflow_function( opts)
                 if return_early_flag :
                     return(0)
@@ -87,7 +92,7 @@ class Workflows:
         self.init_pet=init.get_workflow("initialization", self.infosource, opts)
         self.workflow.connect(self.datasource, 'pet', self.init_pet, "inputnode.pet")
         self.workflow.connect(self.datasource, 'json_header', self.init_pet, "inputnode.json_header")
-
+    
     #####################
     # MRI Preprocessing # 
     #####################
@@ -98,7 +103,7 @@ class Workflows:
         if opts.user_brainmask : 
             self.brain_mask_mni_node = self.datasourceAnat
             self.brain_mask_mni_file = 'brain_mask_mni'
-            self.workflow.connect(self.datasource, 'brain_mask_mni', self.mri_preprocess, 'inputnode.brain_mask_mni')    
+            self.workflow.connect(self.datasource, 'brain_mask_mni', self.mri_preprocess, 'inputnode.brain_mask_mni') 
         else : 
             self.brain_mask_mni_node = self.mri_preprocess
             self.brain_mask_mni_file='outputnode.brain_mask_mni'
@@ -181,7 +186,6 @@ class Workflows:
             print("Error: pvc_label_type is not valid:", opts.pvc_label_type)
             exit(1)
 
-        print(opts.results_label_type)
         if opts.results_label_type in [ 'atlas', 'atlas-template', 'user_cls'] :
             self.results_label_node = self.datasource
             self.results_label_file = 'results_label_img'
@@ -201,7 +205,8 @@ class Workflows:
         self.workflow.connect(self.pet2mri, "outputnode.mnipet_xfm", self.masking, "inputnode.LinMNIPETXfm")
         self.workflow.connect(self.mri_preprocess, "outputnode.xfmMNIT1", self.masking, "inputnode.LinMNIT1Xfm")
         self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.masking, "inputnode.mniT1")
-        self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brainmask")
+        self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brain_mask_stereo")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.masking, "inputnode.brain_mask_t1")
         if not opts.nopvc:
             #If PVC method has been set, define binary masks to contrain PVC
             self.workflow.connect(self.preinfosource, 'pvc_labels', self.masking, "inputnode.pvc_labels")
@@ -323,11 +328,10 @@ class Workflows:
             self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.resultsReport, "header")
             self.workflow.connect(node, img, self.resultsReport, 'in_file')
             if opts.use_surfaces :
-                self.workflow.connect(self.masking, 'surface_left_node.out_file', self.resultsReportSurf, "surf_left")
-                self.workflow.connect(self.datasourceSurf, 'mask_left', self.resultsReportSurf, 'mask_left')
-                self.workflow.connect(self.masking, 'surface_right_node.out_file', self.resultsReportSurf, "surf_right")
-                self.workflow.connect(self.datasourceSurf, 'mask_right', self.resultsReportSurf, 'mask_right')   
-                self.workflow.connect( self.resultsReportSurf, 'out_file_3d', self.datasink, "results"+os.sep+node_name )
+                self.workflow.connect(self.masking, 'surface_left_node.out_file', self.resultsReport, "surf_left")
+                self.workflow.connect(self.datasourceSurf, 'mask_left', self.resultsReport, 'mask_left')
+                self.workflow.connect(self.masking, 'surface_right_node.out_file', self.resultsReport, "surf_right")
+                self.workflow.connect(self.datasourceSurf, 'mask_right', self.resultsReport, 'mask_right')   
             else :
                 self.workflow.connect(self.masking, 'resultsLabels.out_file', self.resultsReport, 'mask')
 
@@ -343,7 +347,7 @@ class Workflows:
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.distance_metricNode, 'pet')
-            self.workflow.connect(self.masking,  'brain_mask.output_file', self.distance_metricNode, 't1_brain_mask')
+            self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.distance_metricNode, 't1_brain_mask')
             self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat',  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')
             self.workflow.connect(self.infosource, 'task', self.distance_metricNode, 'task')
@@ -353,7 +357,7 @@ class Workflows:
                 #Automated QC: PVC 
                 self.pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
                 self.pvc_qc_metricsNode.inputs.fwhm = list(opts.scanner_fwhm)
-                self.workflow.connect(self.pet_input_node, self.pet_input_file, self.pvc_qc_metricsNode, 'pve') ##CHANGE
+                self.workflow.connect(self.pet_input_node, self.pet_input_file, self.pvc_qc_metricsNode, 'pve') 
                 self.workflow.connect(self.pvc, "outputnode.out_file", self.pvc_qc_metricsNode, 'pvc'  )
                 self.workflow.connect(self.infosource, 'sid', self.pvc_qc_metricsNode, "sub")
                 self.workflow.connect(self.infosource, 'ses', self.pvc_qc_metricsNode, "ses")
@@ -382,8 +386,6 @@ class Workflows:
         if opts.tka_method != None:
             self.dashboard.inputs.tka_method = opts.tka_method;
             self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'tka')
-
-
     #####################
     ### Preinfosource ###
     #####################
@@ -428,7 +430,6 @@ class Workflows:
             self.workflow.connect(self.datasourceAnat, 'brain_mask_mni',self.datasource, 'brain_mask_mni' )
         self.workflow.connect(self.datasourceAnat, 'nativeT1',self.datasource, 'nativeT1' )
 
-        
         if opts.pvc_method != None and opts.pvc_label_type != "internal_cls"  :
             self.workflow.connect(self.datasourceAnat, 'pvc_label_img', self.datasource, 'pvc_label_img')
         
@@ -522,18 +523,19 @@ class Workflows:
 
         if opts.results_label_type != "internal_cls" :
             self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts)
+
         if opts.user_t1mni :
-            self.datasourceAnat = set_transform(opts)
+            self.set_transform(opts)
 
         if opts.user_brainmask :
-            set_brain_mask(opts)
+            self.set_brain_mask(opts)
         
         #Create connections bettween infosource and datasourceAnat
         self.workflow.connect([
             (self.infosource,self.datasourceAnat, [('sid', 'sid')]),
             (self.infosource,self.datasourceAnat, [('ses', 'ses')]),
             ])
-        #
+    #
     # Set Labels for datasourceAnat
     #
     def set_label(self, label_type, img, template, label_img, template_img, opts) :
@@ -559,7 +561,7 @@ class Workflows:
             exit(1)
         self.datasourceAnat.inputs.field_template.update( field_template )
         self.datasourceAnat.inputs.template_args.update( template_args )
-        print(self.datasourceAnat.inputs.template_args  )
+    
     #
     # Set Brain Mask for datasourceAnat
     #
@@ -572,12 +574,13 @@ class Workflows:
 
         brain_mask_template = brain_mask_template + "_T1w_space-mni"
 
-        if not coregistration_brain_mask : 
+        if not opts.coregistration_brain_mask : 
             brain_mask_template = brain_mask_template + '_skullmask.*'+opts.img_ext
         else :
             brain_mask_template = brain_mask_template + '_brainmask.*'+opts.img_ext
 
         field_template["brain_mask_mni"] = brain_mask_template
+        
 
         self.datasourceAnat.inputs.field_template.update(field_template)
 
@@ -598,8 +601,6 @@ class Workflows:
 
         self.datasourceAnat.inputs.field_template.update(field_template)
         self.datasourceAnat.inputs.template_args.update(template_args)
-
-
 
     ###########################
     # Datasource for Surfaces #
@@ -633,7 +634,7 @@ class Workflows:
             (self.infosource,self.datasourceSurf, [('run', 'run')]),
             ])
 
-        ##############
+    ##############
     ###Datasink###
     ##############
     def set_datasink(self, opts) :

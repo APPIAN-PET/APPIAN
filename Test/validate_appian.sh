@@ -201,6 +201,15 @@ done
 # Quantification with arterial
 run_appian "Quant-srtm-arterial" "--arterial --start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
+run_appian "Quant-idSURF-lp" "--start-time 2.5 --fwhm 6 6 6 --pvc-method idSURF --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+
+run_appian "Quant-idSURF-suvr" "--start-time 2.5 --fwhm 6 6 6  --pvc-method idSURF --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+
+run_appian "Quant-VC-lp" "--start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+
+run_appian "Quant-VC-suvr" "--start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+
+
 ### Analysis Space
 ## Stereotaxic space
 run_appian  "Space-Stereo" "--analysis-space stereo --tka-method suvr --tka-label 3 --tka-label-erosion 1"

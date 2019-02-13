@@ -1,1 +1,1 @@
-from .test_group_qc import *
+from . import *

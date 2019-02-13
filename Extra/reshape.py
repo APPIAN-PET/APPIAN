@@ -1,10 +1,7 @@
 import os
 import numpy as np
-
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
-
-
 
 
 class ReshapeOutput(TraitedSpec):

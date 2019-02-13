@@ -23,7 +23,6 @@ def get_workflow(name, opts):
     if opts.user_t1mni :
         in_fields += ['xfmT1MNI']
 
-    print("In Fields:", in_fields)
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
     label_imgs= [opts.tka_label_img, opts.results_label_img, opts.pvc_label_img ]
@@ -32,10 +31,8 @@ def get_workflow(name, opts):
 
     out_fields=['xfmMNIT1', 'xfmT1MNI',  'xfmT1MNI_invert',  'brain_mask_mni', 'brain_mask_t1', 't1_mni', 't1_nat' ]
     for stage, label_type in zip(stages, label_types):
-        print( stage, label_type )
         if 'internal_cls' == label_type :
             out_fields += [ stage+'_label_img']
-            print( stage+'_label_img' )
     
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
@@ -175,7 +172,6 @@ def get_workflow(name, opts):
     ###################################
     seg=None
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
-        print(img, seg)
         if 'antsAtropos' == img and seg == None :
             seg = pe.Node(interface=mincAtroposCommand(), name="segmentation_ants")
             seg.inputs.dimension=3

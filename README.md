@@ -1,19 +1,15 @@
 # APPIAN
 Table of Contents
 =================
-[Introduction](#introduction)
-
-[Installation](#installation)
-
-[Documentation](#documentation)
-
-[Publications](#publications)
-
-[Getting Help](#gettinghelp)
-
-[About us](#about-us)
-
-[Terms and Conditions](#terms-and-conditions)
+ 1. [Introduction](#introduction)
+ 2. [Installation](#installation)
+ 3. [Documentation](#documentation)\
+     3.1 [User Guide](https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md)\
+     3.2 [Developer Guide](link_contributing)
+ 4. [Publications](#publications)
+ 5. [Getting Help](#getting-help)
+ 6. [About us](#about-us)
+ 7. [Terms and Conditions](#terms-and-conditions)
 
 
 ## Introduction
@@ -50,9 +46,14 @@ Users seeking more information can check the [user guide][link_user_guide].
 
 ## Getting help
 
-If you get stuck or don't know how to get started please post on our google groups. We would be delighted to help in whatever way we can.
+If you get stuck or don't know how to get started please send a mail to the APPIAN mailing list :
+https://groups.google.com/forum/#!forum/appian-users
 
-https://groups.google.com/forum/#!forum/appian-pet
+For bugs, please post [here](#https://github.com/APPIAN-PET/APPIAN/issues) on the Github repository.
+
+To join the discussion for APPIAN development, join our developers mailing list : 
+https://groups.google.com/forum/#!forum/appian-dev
+
 
 ## About us
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\

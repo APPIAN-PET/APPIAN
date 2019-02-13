@@ -244,15 +244,7 @@ def mi(masked_pet_data, masked_mri_data):
     masked_pet_data = [int(round(x)) for x in masked_pet_data ]
     masked_mri_data = [int(round(x)) for x in masked_mri_data ]
     
-    #pet_nbins=find_nbins(masked_pet_data)
-    #mri_nbins=find_nbins(masked_mri_data)
     mi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
-    #p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
-    #mri_dist = np.histogram(masked_mri_data, mri_nbins)
-    #mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
-    #pet_dist = np.histogram(masked_pet_data, pet_nbins)
-    #pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
-    #mi=sum(p*np.log2(p/(pet_dist[pet_bins] * mri_dist[mri_bins]) ))
     
     print "MI:", mi
     return(mi)

@@ -20,6 +20,9 @@ _args_run01.task01.ses01.sid01  _args_run01.task01.ses01.sid02
 results_quantification/:
 _args_run01.task01.ses01.sid01  _args_run01.task01.ses01.sid02
 ```
+The .csv files in these subdirectories will have the following format : 
+
+![csv](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/csv_example.png)
 
 ####  Results reporting options:
     --no-group-stats    Don't calculate quantitative group-wise descriptive

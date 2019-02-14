@@ -92,31 +92,34 @@ echo " Threads : $threads"
 echo 
 
 pvcMethods="GTM idSURF VC"
-quantMethods="lp lp-roi pp pp-roi suv suvr srtm srtm-bf"
+#quantMethods="lp lp-roi pp pp-roi suv suvr srtm srtm-bf"
+quantMethods="lp  pp srtm "
 
 #Run Quant
+cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --results-label-img "label-displacementROI" --pvc-fwhm 2.5 2.5 2.5 "
 for quant in $quantMethods; do
-	
-	cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --results-label-img "label-displacementROI" --tka-method $quant --pvc-fwhm 2.5 2.5 2.5 "
+	cmd_quant="$cmd_base --tka-method $quant "
 	if [[ $use_docker != 0 ]]; then
 			# Run command in docker container
-		docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_base"
+		docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_quant"
 	else
 		# Assumes you are already in an environment that can run APPIAN
 		bash -c "$cmd"
 	fi 
+	continue
+
 	#Run PVC 
 	for pvc in $pvcMethods; do
 		echo Testing $pvc $quant	
 		# Setup command to run APPIAN
-		cmd="$cmdBase --pvc-method $pvc "
+		cmd_pvc="$cmd_quant --pvc-method $pvc "
 		
 		if [[ $use_docker != 0 ]]; then
 			# Run command in docker container
-			docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd"
+			docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
 		else
 			# Assumes you are already in an environment that can run APPIAN
-			bash -c "$cmd"
+			bash -c "$cmd_pvc"
 		fi 
 		exit 1 
 	done

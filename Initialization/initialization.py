@@ -417,22 +417,17 @@ class pet3DVolume(BaseInterface):
 
         rank=0.25
 
-        #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
         try :
             nFrames = infile.sizes[infile.dimnames.index("time")]
             first=int(floor(nFrames*rank) )
             last=nFrames
-            print(nFrames*rank, nFrames*3*rank)
-            print(first, last)
-            print(infile.data.shape)
             volume_subset=infile.data[first:last,:,:,:]
-            print(volume_subset.shape)
             volume_average=np.mean(volume_subset, axis=0)
-            print(volume_average.shape)
             outfile.data=volume_average
             outfile.writeFile()
             outfile.closeVolume()
         except ValueError :
+            #If there is no "time" dimension (i.e., in 3D file), just copy the PET file
             shutil.copy(self.inputs.in_file, self.inputs.out_file)
 
         return runtime

@@ -21,7 +21,7 @@ def find(src, match):
 
 def nii2mnc_batch(sourceDir, clobber=False):
     t1_files = find(sourceDir, "*_T1w.nii*") 
-    derived_files = find(sourceDir, "*variant-*nii*")
+    derived_files = [ f for f in find(sourceDir, "*nii*") if f not in t1_files and 'anat/' in f ]
     pet_files = find(sourceDir, "*_pet.nii*")
     nii_files = t1_files + derived_files + pet_files
     ret = False

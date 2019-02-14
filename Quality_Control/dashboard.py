@@ -181,7 +181,6 @@ def link_stats_qc(*args):
         lnk=os.path.join(opts.targetDir,'preproc/dashboard/public/',flag)
         if os.path.islink(lnk):
             os.remove(lnk)
-        print('Linking\t\t', os.path.join('../../../',flag), lnk )
         os.symlink(os.path.join('../../../',flag), lnk)
 
 
@@ -301,10 +300,9 @@ class concat_xml(BaseInterface):
             with open(filename, 'r') as f :
                 for l in f.readlines() : 
                     if (not '<qc>' in l) and (not '</qc>' in l) and (not 'xml version' in l) :
-                        print 'writing', l
                         out.write(l)
                     else :
-                        print 'skipping', l
+                        pass
 
         out.write('</qc>')
         return(runtime)

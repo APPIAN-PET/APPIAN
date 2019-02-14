@@ -244,7 +244,7 @@ def get_workflow(name, infosource, opts):
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
     in_list=["nativeT1","mniT1","brain_mask_stereo", "brain_mask_t1", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm','LinMNIT1Xfm',  "LinPETMNIXfm", "LinMNIPETXfm",'LinT1MNIXfm', "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
-    if not opts.nopvc:
+    if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
     if not opts.tka_method == None:
@@ -261,7 +261,7 @@ def get_workflow(name, infosource, opts):
     identity_transform.inputs.rotation="0 0 0"
     identity_transform.inputs.scales="1 1 1"
 
-    if not opts.nopvc and not opts.pvc_method == None:
+    if not opts.pvc_method == None and not opts.pvc_method == None:
         pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
 
     if not opts.tka_method == None:
@@ -327,7 +327,7 @@ def get_workflow(name, infosource, opts):
     workflow.connect(brain_mask_node,"output_file", resultsLabels, 'brain_mask')
     workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
 
-    if not opts.nopvc and not opts.pvc_method == None:
+    if not opts.pvc_method == None and not opts.pvc_method == None:
         pvcLabels = pe.Node(interface=Labels(), name="pvcLabels")
         pvcLabels.inputs.analysis_space = opts.analysis_space
         pvcLabels.inputs.label_type = opts.pvc_label_type
@@ -341,6 +341,7 @@ def get_workflow(name, infosource, opts):
         workflow.connect(inputnode, like_file, pvcLabels, 'like_file')
         workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brain_mask')
         workflow.connect(pvc_tfm_node, pvc_tfm_file, pvcLabels, "LinXfm")
+
     if not opts.tka_method == None:
         tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
         tkaLabels.inputs.analysis_space = opts.analysis_space

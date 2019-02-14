@@ -403,42 +403,37 @@ class pet3DVolume(BaseInterface):
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
-        #tmpDir = tempfile.mkdtemp()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = volumeFromFile(self.inputs.in_file)
+        
+        o=infile.dimnames.index("time")
+        dimnames=[ infile.dimnames[o+1], infile.dimnames[o+2],infile.dimnames[o+3] ]
+        sizes=[ infile.sizes[o+1], infile.sizes[o+2],infile.sizes[o+3] ]
+        starts=[ infile.starts[o+1], infile.starts[o+2],infile.starts[o+3] ]
+        separations=[ infile.separations[o+1], infile.separations[o+2],infile.separations[o+3] ]
+        
+        outfile = volumeFromDescription(self.inputs.out_file, dimnames, sizes, starts, separations)
+
         rank=0.25
 
         #If there is no "time" dimension (i.e., in 3D file), then set nFrames to 1
         try :
             nFrames = infile.sizes[infile.dimnames.index("time")]
+            first=int(floor(nFrames*rank) )
+            last=nFrames
+            print(nFrames*rank, nFrames*3*rank)
+            print(first, last)
+            print(infile.data.shape)
+            volume_subset=infile.data[first:last,:,:,:]
+            print(volume_subset.shape)
+            volume_average=np.mean(volume_subset, axis=0)
+            print(volume_average.shape)
+            outfile.data=volume_average
+            outfile.writeFile()
+            outfile.closeVolume()
         except ValueError :
-            nFrames = 1
-
-        first=int(floor(nFrames*rank) )
-        last=int(nFrames)-int(ceil(nFrames*3*rank))
-        if first >= last : 
-            count=1 
-        else :    
-            count=last-first
-        
-        run_mincreshape=ReshapeCommand()
-        run_mincreshape.inputs.dimrange = 'time='+str(first)+','+str(count)
-        run_mincreshape.inputs.in_file = self.inputs.in_file
-        run_mincreshape.run()
-        if self.inputs.verbose >= 2 :
-            print('Start', first, 'Last', last, 'Count', count) 
-            print(run_mincreshape.cmdline)
-
-        petAverage = minc.Average()
-        petAverage.inputs.avgdim = 'time'
-        petAverage.inputs.width_weighted = False
-        petAverage.inputs.clobber = True
-        petAverage.inputs.input_files = [ run_mincreshape.inputs.out_file ] 
-        petAverage.inputs.output_file = self.inputs.out_file
-        petAverage.run()
-        if self.inputs.verbose >= 2 :
-            print(petAverage.cmdline)
+            shutil.copy(self.inputs.in_file, self.inputs.out_file)
 
         return runtime
 

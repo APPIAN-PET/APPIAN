@@ -25,7 +25,7 @@ def get_workflow(name, opts):
 
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
-    label_imgs= [opts.tka_label_img, opts.results_label_img, opts.pvc_label_img ]
+    label_imgs= [opts.tka_label_img, opts.pvc_label_img, opts.results_label_img  ]
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
@@ -177,13 +177,12 @@ def get_workflow(name, opts):
             seg.inputs.dimension=3
             seg.inputs.number_of_tissue_classes=3 #... opts.
             seg.inputs.initialization = 'Otsu'
-            
             workflow.connect(t1_mni_node, t1_mni_file,  seg, 'intensity_images' )
             workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
-           
+        print(stage, img) 
         if 'antsAtropos' == img :
            workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
-   
+    
     ###############################
     # Pass results to output node #
     ###############################

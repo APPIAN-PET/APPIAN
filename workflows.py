@@ -207,7 +207,7 @@ class Workflows:
         self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.masking, "inputnode.mniT1")
         self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brain_mask_stereo")
         self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.masking, "inputnode.brain_mask_t1")
-        if not opts.nopvc:
+        if opts.pvc_method != None:
             #If PVC method has been set, define binary masks to contrain PVC
             self.workflow.connect(self.preinfosource, 'pvc_labels', self.masking, "inputnode.pvc_labels")
             self.workflow.connect(self.pvc_label_node, self.pvc_label_file, self.masking, "inputnode.pvc_label_img")
@@ -548,7 +548,8 @@ class Workflows:
         if label_type == 'user_cls' :
             label_img_template=opts.sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
             template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-            label_img_template +='*_variant-'+img+'_dtissue.'+opts.img_ext
+            label_img_template +='*'+img+'*.'+opts.img_ext
+            #label_img_template +='*_variant-'+img+'_dtissue.'+opts.img_ext
             field_template[label_img] = label_img_template
         elif label_type == 'atlas' or label_type == 'atlas-template' :
             field_template[label_img] = "%s"

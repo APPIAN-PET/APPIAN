@@ -157,7 +157,6 @@ def get_parser():
     # PVC options #
     ###############
     #group= OptionGroup(parser,"PVC Options")
-    parser.add_argument("--no-pvc",dest="nopvc",help="Don't run PVC.",action='store_true',default=False)
     parser.add_argument("--pvc-method",dest="pvc_method",help="Method for PVC.",type=str, default=None)
     parser.add_argument("--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type=str, default=None)
     parser.add_argument("--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type=float, nargs=3, default=None)

@@ -4,7 +4,7 @@ import json
 import shutil
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-
+import pyminc.volumes.factory as pyminc
 
 class ModifyHeaderOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
@@ -12,7 +12,6 @@ class ModifyHeaderOutput(TraitedSpec):
 class ModifyHeaderInput(CommandLineInputSpec):
     in_file = File(position=-1, argstr="%s", mandatory=True, desc="Image")
     out_file = File(desc="Image after centering")
-
     sinsert = traits.Bool(argstr="-sinsert", position=-3, default_value=False, desc="Insert a string attribute")
     dinsert = traits.Bool(argstr="-dinsert", position=-3, default_value=False, desc="Insert a double precision attribute")
     sappend = traits.Bool(argstr="-sappend", position=-3, default_value=False, desc="Append a string attribute")
@@ -35,24 +34,35 @@ class ModifyHeaderCommand(CommandLine):
         return outputs
 
 class FixCosinesOutput(TraitedSpec):
-    output_file = File(desc="Image with fixed cosines")
+    out_file = File(desc="Image with fixed cosines")
 
 #class FixHeaderInput(ModifyHeaderInput):
 class FixCosinesInput(CommandLineInputSpec):
-    output_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
-    input_file = File(argstr="%s", position=-2, desc="Image")
-    dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1", use_default=True, default=True)
+    out_file = File(argstr="%s", position=-1, desc="Image with fixed cosines")
+    in_file = File(argstr="%s", position=-2, desc="Image")
+    keep_real_range=traits.Bool(argstr="-keep_real_range",position=-4, use_default=False, default_value=True)
+    two=traits.Bool(argstr="-2",position=-5, use_default=True, default_value=True)
+    dircos=traits.Bool(argstr="-dircos 1 0 0 0 1 0 0 0 1",position=-3, use_default=True, default_value=True)
+
 #class FixHeaderCommand(ModifyHeaderCommand):
 class FixCosinesCommand(CommandLine):
     input_spec = FixCosinesInput
     output_spec = FixCosinesOutput
     _cmd = "mincresample"
 
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
+
+        return super( FixCosinesCommand, self)._parse_inputs(skip=skip)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        if not isdefined(self.inputs.output_file) :
-            self.inputs.output_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
-        outputs["output_file"] = self.inputs.output_file
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file = os.getcwd()+os.sep+os.path.splitext(os.path.basename(self.inputs.in_file))[0]+'_cosFixed.mnc'
+        outputs["out_file"] = self.inputs.out_file
         return outputs
 
 
@@ -73,8 +83,7 @@ class FixHeaderInput(CommandLineInputSpec):
     header = traits.File(desc="MINC header for PET image stored in dictionary.")
     output_file = File(desc="Image after centering")
     in_file = File(argstr="%s", position=1, desc="Image after centering")
-    time_only = traits.Bool(default_value=False)
-#class FixHeaderCommand(ModifyHeaderCommand):
+    time_only = traits.Bool(usedefault=True, default_value=False)
 class FixHeaderCommand(CommandLine):
     input_spec = FixHeaderInput
     output_spec = FixHeaderOutput
@@ -91,32 +100,31 @@ class FixHeaderCommand(CommandLine):
             skip = []
         data = json.load(open( header ,"rb"))
 
-        try : 
-            #There is a time dimension in header
-            data["time"]
-            
+
+        vol=pyminc.volumeFromFile(self.inputs.in_file)
+        dims = vol.getDimensionNames()
+        if 'time' in dims :
             #See if there is a start time defined, else set to 0
-            try: 
+            try :
                 data["time"]["start"][0]
                 self.inputs.tstart = data["time"]["start"][0]
-            except KeyError: 
+            except KeyError:
                 self.inputs.tstart = 0
 
             try :
                 data["time"]["start"][0]
                 self.inputs.tstep = data["time"]["step"][0]
-            except KeyError : 
+            except KeyError :
                 self.inputs.tstep = 1
-        except KeyError : pass
 
-        if not self.inputs.time_only :  
+        if not self.inputs.time_only :
             self.inputs.zstart = data["zspace"]["start"][0]
             self.inputs.ystart = data["yspace"]["start"][0]
             self.inputs.xstart = data["xspace"]["start"][0]
             self.inputs.zstep  = data["zspace"]["step"][0]
             self.inputs.ystep  = data["yspace"]["step"][0]
             self.inputs.xstep  = data["xspace"]["step"][0]
-        
+
         return super(FixHeaderCommand, self)._parse_inputs(skip=skip)
 
 
@@ -145,7 +153,7 @@ class FixHeaderLinkCommand(BaseInterface):
         self.inputs.output_file = os.getcwd() + os.sep + os.path.basename(self.inputs.in_file)
         #FIXME : Need a better solution for fixing file headers bc this uses a lot of memory
         shutil.copy(self.inputs.in_file, self.inputs.output_file)
-        
+
         fix_header_node = FixHeaderCommand()
         fix_header_node.inputs.in_file = self.inputs.output_file
         fix_header_node.inputs.header = self.inputs.header
@@ -160,8 +168,5 @@ class FixHeaderLinkCommand(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["output_file"] = self.inputs.output_file 
+        outputs["output_file"] = self.inputs.output_file
         return outputs
-
-
-

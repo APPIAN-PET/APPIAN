@@ -12,11 +12,11 @@ class ResampleInput(CommandLineInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="image to resample")
     out_file = File(position=1, argstr="%s", desc="resampled image")
     model_file = File(position=2, argstr="-like %s", mandatory=False, desc="model image")
-    
+
     transformation = File(argstr="-transformation %s", desc="image to resample")
     interpolation = traits.Enum('trilinear', 'tricubic', 'nearest_neighbour', 'sinc', argstr="-%s", desc="interpolation type", default='trilinear')
     invert = traits.Enum('invert_transformation', 'noinvert_transformation', argstr="-%s", desc="invert transfomation matrix", default='noinvert_transformation')
-    
+    keep_real_range=traits.Bool(argstr="-keep_real_range",  default_value=True, use_default=True, desc="Use sampling of input image")
     use_input_sampling = traits.Bool(argstr="-use_input_sampling",  default_value=False, desc="Use sampling of input image")
     tfm_input_sampling = traits.Bool(argstr="-tfm_input_sampling", default_value=False, desc="Use sampling of transformation")
     step = traits.Str(argstr="-step %s", desc="Step size in (X, Y, Z) dims.")
@@ -47,8 +47,8 @@ class ResampleCommand(CommandLine):
     def _gen_filename(self, basefile, suffix):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
-        dname = os.getcwd() 
-        return dname+ os.sep+fname_list[0] + suffix
+        dname = os.getcwd()
+        return dname+ os.sep+fname_list[0] + suffix + fname_list[1]
 
     #def _gen_filename(self, name):
     #    if name == "out_file":
@@ -61,7 +61,7 @@ class param2xfmOutput(TraitedSpec):
 
 class param2xfmInput(CommandLineInputSpec):
     out_file = File(position=-1, argstr="%s", desc="resampled image")
-  
+
     rotation = traits.Str(argstr="-rotation %s", mandatory=False, default=None, desc="image rotation x,y,z")
     translation = traits.Str(argstr="-translation %s", mandatory=False, default=None, desc="image translation x,y,z")
     shears = traits.Str(argstr="-shears %s",  mandatory=False, default=None, desc="image shears x,y,z")
@@ -75,7 +75,7 @@ class param2xfmCommand(CommandLine):
     _cmd = "param2xfm"
     input_spec = param2xfmInput
     output_spec = param2xfmOutput
-    
+
     def _gen_output(self):
         dname = os.getcwd()
         params="" #Create label for output file based on the parameters applied to image
@@ -141,17 +141,17 @@ class param2xfmInterfaceCommand(BaseInterface):
             transform_param = item[1]
             exec_params += transform_exec_dict[transform_type] + transform_param
             file_params += transform_file_dict[transform_type] + transform_param
-            
+
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file = self._gen_output(file_params)
-   
+
         paramNode = param2xfmCommand();
         paramNode.inputs.transformation = exec_params
         paramNode.inputs.out_file = self.inputs.out_file
         print paramNode.cmdline
         paramNode.run()
-        return runtime        
- 
+        return runtime
+
     def _gen_output(self, params):
         dname = os.getcwd()
         params = re.sub(" ", "", params)
@@ -165,5 +165,3 @@ class param2xfmInterfaceCommand(BaseInterface):
         #    self.inputs.out_file = self._gen_output(self.inputs.params)
         outputs["out_file"] = self.inputs.out_file
         return outputs
-
-

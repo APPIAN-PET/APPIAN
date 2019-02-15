@@ -17,6 +17,8 @@ class petpvcInput(MINCCommandInputSpec):
     mask_file = File(argstr="-m %s",  desc="Integer mask file")
     in_file = File(argstr="-i %s", exists=True, desc="PET file")
     pvc = traits.Str(argstr="--pvc %s", exists=True, desc="PVC type")
+    iterations = traits.Int(argstr="--iter %s", exists=True, desc="Number of iterations")
+    k = traits.Int(argstr="-k %d", exists=True, desc="Number of deconvolution iterations")
     x_fwhm = traits.Float( argstr="-x %f", desc="FWHM of PSF x axis") 
     y_fwhm = traits.Float( argstr="-y %f", desc="FWHM of PSF y axis") 
     z_fwhm = traits.Float( argstr="-z %f", desc="FWHM of PSF z axis") 
@@ -25,14 +27,13 @@ class petpvcInput(MINCCommandInputSpec):
 class petpvcCommand(CommandLine):
     input_spec =  petpvcInput
     output_spec = petpvcOutput
-    _cmd='petpvc --iter 1 -k 1'
-    #_cmd='petpvc'
+    #_cmd='petpvc --iter 1 -k 1'
+    _cmd='petpvc'
 
 
 class petpvc4DCommand(BaseInterface):
     input_spec =  petpvcInput
     output_spec = petpvcOutput
-    #_suffix='VC'
     #petpvc -i <PET> -m <MASK> -o <OUTPUT> --pvc IY -x 6.0 -y 6.0 -z 6.0 [--debug]
 
     def _run_interface(self, runtime) :
@@ -58,6 +59,8 @@ class petpvc4DCommand(BaseInterface):
                 petpvc4dNode.inputs.z_fwhm  = self.inputs.z_fwhm
                 petpvc4dNode.inputs.y_fwhm  = self.inputs.y_fwhm
                 petpvc4dNode.inputs.x_fwhm  = self.inputs.x_fwhm
+                petpvc4dNode.inputs.iterations  = self.inputs.iterations
+                petpvc4dNode.inputs.k = self.inputs.k
                 petpvc4dNode.inputs.in_file = temp_in_file
                 petpvc4dNode.inputs.out_file= temp_out_file
                 petpvc4dNode.inputs.pvc= self._suffix
@@ -80,9 +83,11 @@ class petpvc4DCommand(BaseInterface):
             petpvc4dNode.inputs.z_fwhm  = self.inputs.z_fwhm
             petpvc4dNode.inputs.y_fwhm  = self.inputs.y_fwhm
             petpvc4dNode.inputs.x_fwhm  = self.inputs.x_fwhm
+            petpvc4dNode.inputs.x_fwhm  = self.inputs.x_fwhm
+            petpvc4dNode.inputs.iterations  = self.inputs.iterations
             petpvc4dNode.inputs.in_file = self.inputs.in_file
             petpvc4dNode.inputs.out_file= self.inputs.out_file
-            petpvc4dNode.inputs.pvc= self.inputs._suffix
+            petpvc4dNode.inputs.pvc= self._suffix
             print(petpvcNode.cmdline)
             petpvc4dNode.run()
         return runtime
@@ -105,7 +110,11 @@ class petpvc4DCommand(BaseInterface):
         fname = ntpath.basename(basefile)
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd() 
-        out_fn = dname+ os.sep+fname_list[0] + self._suffix + fname_list[1]
+        suffix=self._suffix
+        if suffix[0] != '_' :
+            suffix = '_' + suffix
+        
+        out_fn = dname+ os.sep+fname_list[0] + suffix + fname_list[1]
         if '.gz' not in fname_list[1] :
             out_fn += '.gz'
 

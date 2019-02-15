@@ -20,21 +20,28 @@ def find(src, match):
     return(matches)
 
 def nii2mnc_batch(sourceDir, clobber=False):
-    nii_files = find(sourceDir, "*nii*") 
+    t1_files = find(sourceDir, "*_T1w.nii*") 
+    derived_files = [ f for f in find(sourceDir, "*nii*") if f not in t1_files and 'anat/' in f ]
+    pet_files = find(sourceDir, "*_pet.nii*")
+    nii_files = t1_files + derived_files + pet_files
     ret = False
 
     for f in nii_files :
-        f_out = re.sub( '.nii', '.mnc',  re.sub('.gz', '', f))
-        if not os.path.exists(f_out) or clobber :
-            if (f.endswith("gz")):
-                f_gunzip = re.sub('.gz','', f)
-                with gzip.open(f, 'r') as f_in, open(f_gunzip, 'wb') as f2:
-                    shutil.copyfileobj(f_in, f2)
-                f=f_gunzip
+        f_out_mnc = re.sub('.gz', '', re.sub( '.nii', '.mnc', f) )
+        if not os.path.exists(f_out_mnc) or clobber :
             nii2mnc =nii2mnc2Command()
-            nii2mnc.inputs.in_file = f 
-            nii2mnc.inputs.out_file=f_out
+            nii2mnc.inputs.in_file = f
+            
+            #For t1 and pet files, set data type to float
+            #otherwise int for label images
+            if f in t1_files + pet_files :
+                nii2mnc.inputs.dfloat = True
+            else :
+                nii2mnc.inputs.dint = True
+
+            nii2mnc.inputs.out_file=f_out_mnc
             nii2mnc.run()
+            
         ret = True
     return ret 	
 

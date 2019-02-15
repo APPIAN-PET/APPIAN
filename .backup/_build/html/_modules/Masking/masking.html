@@ -1,0 +1,463 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Masking.masking &#8212; APPIAN 0.1.1-alpha documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Masking.masking</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">ntpath</span> 
+
+<span class="kn">from</span> <span class="nn">pyminc.volumes.factory</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">nipype.pipeline.engine</span> <span class="k">as</span> <span class="nn">pe</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">niu</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="p">(</span><span class="n">TraitedSpec</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">traits</span><span class="p">,</span> <span class="n">InputMultiPath</span><span class="p">,</span> 
+                                    <span class="n">BaseInterface</span><span class="p">,</span> <span class="n">OutputMultiPath</span><span class="p">,</span> <span class="n">BaseInterfaceInputSpec</span><span class="p">,</span> <span class="n">isdefined</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">nipype.utils.filemanip</span> <span class="k">import</span> <span class="p">(</span><span class="n">load_json</span><span class="p">,</span> <span class="n">save_json</span><span class="p">,</span> <span class="n">split_filename</span><span class="p">,</span> <span class="n">fname_presuffix</span><span class="p">,</span> <span class="n">copyfile</span><span class="p">)</span>
+<span class="c1">#from nipype.interfaces.base import Info</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">import</span> <span class="n">Rename</span>
+
+<span class="kn">import</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">as</span> <span class="nn">minc</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">import</span> <span class="n">Calc</span> <span class="k">as</span> <span class="n">CalcCommand</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">import</span> <span class="n">Blur</span> <span class="k">as</span> <span class="n">SmoothCommand</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.minc</span> <span class="k">import</span> <span class="n">Resample</span> <span class="k">as</span> <span class="n">ResampleCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.xfmOp</span> <span class="k">import</span> <span class="n">InvertCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.morphomat</span> <span class="k">import</span> <span class="n">MorphCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.info</span> <span class="k">import</span> <span class="n">StatsCommand</span>
+<span class="kn">import</span> <span class="nn">Registration.registration</span> <span class="k">as</span> <span class="nn">reg</span>
+
+<div class="viewcode-block" id="LabelsInput"><a class="viewcode-back" href="../../code.html#Masking.masking.LabelsInput">[docs]</a><span class="k">class</span> <span class="nc">LabelsInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">nativeT1</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Native T1 image&quot;</span><span class="p">)</span>
+    <span class="n">mniT1</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;T1 image normalized into MNI space&quot;</span><span class="p">)</span>
+    <span class="n">LinMNIT1Xfm</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Inverted transformation matrix to register T1 image into MNI space&quot;</span><span class="p">)</span>
+    <span class="n">LinT1MNIXfm</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Transformation matrix to register T1 image into MNI space&quot;</span><span class="p">)</span>
+    <span class="n">nLinAtlasMNIXfm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Non-linear transformation matrix to register atlas template image into MNI space&quot;</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;label value(s) for label image.&quot;</span><span class="p">)</span>
+    <span class="c1">#_spaces = [&#39;native&#39;, &#39;icbm152&#39;, &#39;other&#39;]</span>
+    <span class="c1">#space = traits.Enum(*_spaces, mandatory=True, desc=&quot;Coordinate space of the label&quot;)</span>
+    <span class="n">space</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Coordinate space of the label&quot;</span><span class="p">)</span>
+    <span class="n">label_img</span>  <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Mask on the template&quot;</span><span class="p">)</span>
+    <span class="n">erode_times</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Int</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Number of times to erode image&quot;</span><span class="p">,</span> <span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">LabelsMNI</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reference mask in MNI space&quot;</span><span class="p">)</span>
+    <span class="n">LabelsT1</span>  <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reference mask in the T1 native space&quot;</span><span class="p">)</span>
+    
+    <span class="n">label_template</span><span class="o">=</span><span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">default_value</span><span class="o">=</span><span class="s1">&#39;NA&#39;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Template for stereotaxic atlas&quot;</span><span class="p">)</span>
+    <span class="n">brainmask_t1</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">default_value</span><span class="o">=</span><span class="s1">&#39;NA&#39;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Brain mask in T1 native space&quot;</span><span class="p">)</span>
+    <span class="n">brainmask_mni</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">default_value</span><span class="o">=</span><span class="s1">&#39;NA&#39;</span><span class="p">,</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Brain mask in MNI space&quot;</span><span class="p">)</span>
+    <span class="n">brain_only</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Flag to signal to use brainmask&quot;</span><span class="p">)</span>
+    <span class="n">ones_only</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Flag to signal threshold so that label image is only 1s and 0s&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LabelsOutput"><a class="viewcode-back" href="../../code.html#Masking.masking.LabelsOutput">[docs]</a><span class="k">class</span> <span class="nc">LabelsOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">LabelsMNI</span>  <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reference mask in MNI space&quot;</span><span class="p">)</span>
+    <span class="n">LabelsT1</span>  <span class="o">=</span> <span class="n">File</span><span class="p">(</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reference mask in the T1 native space&quot;</span><span class="p">)</span>
+    <span class="n">nLinAtlasMNIXfm</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Str</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Non-linear transformation matrix to register atlas template image into MNI space&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Labels"><a class="viewcode-back" href="../../code.html#Masking.masking.Labels">[docs]</a><span class="k">class</span> <span class="nc">Labels</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">LabelsInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">LabelsOutput</span>
+    <span class="n">_suffix</span> <span class="o">=</span> <span class="s2">&quot;_label&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">,</span> <span class="n">_suffix</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> 
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_suffix</span> <span class="o">+</span> <span class="n">fname_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span><span class="p">):</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="o">+</span><span class="s1">&#39;T1&#39;</span><span class="p">)</span> 
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span><span class="p">):</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="o">+</span><span class="s1">&#39;MNI&#39;</span><span class="p">)</span>
+        <span class="n">tmpDir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;tmp_label&#39;</span>  <span class="c1">#tempfile.mkdtemp()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">tmpDir</span><span class="p">)</span>
+
+        <span class="n">out_file_1</span> <span class="o">=</span><span class="n">temp_mask</span> <span class="o">=</span> <span class="n">tmpDir</span><span class="o">+</span><span class="s2">&quot;/mask.mnc&quot;</span>
+        <span class="n">temp_mask_clean</span> <span class="o">=</span> <span class="n">tmpDir</span><span class="o">+</span><span class="s2">&quot;/mask_clean.mnc&quot;</span>
+
+        <span class="c1"># 1) Select Labels</span>
+        <span class="n">run_calc</span> <span class="o">=</span> <span class="n">minc</span><span class="o">.</span><span class="n">Calc</span><span class="p">()</span> <span class="c1">#Extract the desired label from the atlas using minccalc.</span>
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">label_img</span> <span class="c1">#The ANIMAL or CIVET classified atlas</span>
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="n">temp_mask</span>  <span class="c1">#Output mask with desired label</span>
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="s2">&quot; || &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span> <span class="s1">&#39;(A[0] &gt; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;-0.1 &amp;&amp; A[0] &lt; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">label</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;+ 0.1 )&#39;</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">labels</span> <span class="p">])</span> <span class="o">+</span> <span class="s1">&#39; ? A[0] : 0&#39;</span>  
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Select Labels:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">run_calc</span><span class="o">.</span><span class="n">cmdline</span><span class="p">)</span>
+
+        <span class="c1">#shutil.copy(self.inputs.label_img, &#39;/data1/projects/scott/&#39; + os.path.basename(self.inputs.label_img) )</span>
+        <span class="c1">#shutil.copy(temp_mask, &#39;/data1/projects/scott/morph_&#39; + os.path.basename(self.inputs.label_img) )</span>
+        <span class="c1"># 2) Erode</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">erode_times</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">run_mincmorph</span> <span class="o">=</span> <span class="n">MorphCommand</span><span class="p">()</span>
+            <span class="n">run_mincmorph</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> <span class="o">=</span> <span class="n">temp_mask</span>
+            <span class="n">run_mincmorph</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">temp_mask_clean</span>
+            <span class="n">run_mincmorph</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">successive</span><span class="o">=</span><span class="s1">&#39;E&#39;</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">erode_times</span> 
+            <span class="n">run_mincmorph</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+            <span class="n">out_file_1</span> <span class="o">=</span> <span class="n">temp_mask_clean</span>
+
+        <span class="c1">#Copy temp_mask[_clean] to first output</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s1">&#39;native&#39;</span><span class="p">:</span> 
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">out_file_1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span><span class="p">)</span>
+            <span class="n">out_file_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s1">&#39;icbm152&#39;</span><span class="p">:</span> 
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">out_file_1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span><span class="p">)</span>
+            <span class="n">out_file_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span>
+        
+        <span class="c1"># 3) Co-registration</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;other&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nLinAtlasMNIXfm</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="n">sourceToModel_xfm</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;template2mni.xfm&#39;</span>
+                <span class="n">run_nlinreg</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">nLinRegRunning</span><span class="p">()</span>
+                <span class="n">run_nlinreg</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_source_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">label_template</span>
+                <span class="n">run_nlinreg</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_target_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mniT1</span>  <span class="c1">#self.inputs.model</span>
+                <span class="n">run_nlinreg</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file_xfm</span> <span class="o">=</span> <span class="n">sourceToModel_xfm</span> <span class="c1"># xfm file for the transformation from template to subject stereotaxic</span>
+                <span class="n">run_nlinreg</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nLinAtlasMNIXfm</span><span class="o">=</span><span class="n">sourceToModel_xfm</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">sourceToModel_xfm</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nLinAtlasMNIXfm</span>
+
+        <span class="c1"># 4) Apply transformation </span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;icbm152&quot;</span><span class="p">:</span>  
+            <span class="n">xfm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LinMNIT1Xfm</span>
+            <span class="n">like_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span>
+            <span class="n">out_file_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;other&quot;</span><span class="p">:</span>  
+            <span class="c1">#xfm = run_nlinreg.inputs.out_file_xfm</span>
+            <span class="n">xfm</span> <span class="o">=</span> <span class="n">sourceToModel_xfm</span> 
+            <span class="n">like_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mniT1</span>
+            <span class="n">out_file_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;native&quot;</span><span class="p">:</span> 
+            <span class="n">xfm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LinMNIT1Xfm</span>
+            <span class="n">like_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">mniT1</span>
+            <span class="n">out_file_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span>
+
+        <span class="n">run_resample</span> <span class="o">=</span> <span class="n">minc</span><span class="o">.</span><span class="n">Resample</span><span class="p">()</span> 
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="n">out_file_1</span>
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="n">out_file_2</span>
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">like</span> <span class="o">=</span> <span class="n">like_file</span>
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">transformation</span> <span class="o">=</span> <span class="n">xfm</span>
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nearest_neighbour_interpolation</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">run_resample</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;other&quot;</span><span class="p">:</span> 
+            <span class="c1"># 5) Resample &#39;other&#39; atlas into T1 native space </span>
+            <span class="n">run_resample</span> <span class="o">=</span> <span class="n">minc</span><span class="o">.</span><span class="n">Resample</span><span class="p">()</span> 
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="n">out_file_2</span>
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span>
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">like</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span>
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">transformation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LinMNIT1Xfm</span>
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nearest_neighbour_interpolation</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">print</span> <span class="n">run_resample</span><span class="o">.</span><span class="n">cmdline</span>
+            <span class="n">run_resample</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+        <span class="c1"># 6) Mask brain for T1 and MNI labels</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span><span class="p">],</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brainmask_t1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brainmask_mni</span> <span class="p">]):</span>
+            <span class="k">if</span> <span class="n">mask</span> <span class="o">!=</span> <span class="s1">&#39;NA&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brain_only</span> <span class="p">:</span>
+                    <span class="n">temp_mask</span> <span class="o">=</span> <span class="n">tmpDir</span><span class="o">+</span><span class="s2">&quot;/mask.mnc&quot;</span>
+                    <span class="n">run_calc</span> <span class="o">=</span> <span class="n">minc</span><span class="o">.</span><span class="n">Calc</span><span class="p">()</span> <span class="c1">#Extract the desired label from the atlas using minccalc.</span>
+                    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span> <span class="n">label</span><span class="p">,</span> <span class="n">mask</span><span class="p">]</span> <span class="c1">#The ANIMAL or CIVET classified atlas</span>
+                    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="n">temp_mask</span>  <span class="c1">#Output mask with desired label</span>
+                    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="s2">&quot; A[1] == 1 ? A[0] : 0 &quot;</span> 
+                    <span class="n">run_calc</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">run_calc</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                    <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">temp_mask</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+                    <span class="nb">print</span> <span class="s2">&quot;Warning: masking labeled image with brain mask.&quot;</span>
+                    <span class="nb">print</span> <span class="s2">&quot;Label: &quot;</span><span class="p">,</span> <span class="n">label</span>
+                    <span class="nb">print</span> <span class="s2">&quot;Mask: &quot;</span><span class="p">,</span> <span class="n">mask</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ones_only</span> <span class="p">:</span>
+		    <span class="n">temp_mask</span> <span class="o">=</span> <span class="n">tmpDir</span><span class="o">+</span><span class="s2">&quot;/mask.mnc&quot;</span>
+		    <span class="n">run_calc</span> <span class="o">=</span> <span class="n">minc</span><span class="o">.</span><span class="n">Calc</span><span class="p">()</span> <span class="c1">#Extract the desired label from the atlas using minccalc.</span>
+		    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span> <span class="n">label</span> <span class="p">]</span> <span class="c1">#The ANIMAL or CIVET classified atlas</span>
+		    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="n">temp_mask</span>  <span class="c1">#Output mask with desired label</span>
+		    <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="s2">&quot; A[0] &gt; 0.1 ? 1 : 0 &quot;</span> 
+		    <span class="n">run_calc</span><span class="o">.</span><span class="n">clobber</span> <span class="o">=</span> <span class="kc">True</span>
+		    <span class="n">run_calc</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+		    <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">temp_mask</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+	
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span><span class="p">):</span> 
+            <span class="nb">print</span> <span class="s1">&#39;Does not exist -- Labels T1:&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span>
+            <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span><span class="p">):</span> 
+            <span class="nb">print</span> <span class="s1">&#39;Does not exist -- Labels MNI:&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span>
+            <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1">#print &#39;\n&#39;,self.inputs.LabelsT1, os.path.exists(self.inputs.LabelsT1) ,&#39;\n&#39;</span>
+        <span class="c1">#print &#39;\n&#39;,self.inputs.LabelsMNI, os.path.exists(self.inputs.LabelsMNI) ,&#39;\n&#39;</span>
+        <span class="c1">#shutil.rmtree(tmpDir)</span>
+        <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span><span class="p">):</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="o">+</span><span class="s1">&#39;T1&#39;</span><span class="p">)</span> 
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span><span class="p">):</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nativeT1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="o">+</span><span class="s1">&#39;MNI&#39;</span><span class="p">)</span>
+
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;LabelsMNI&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsMNI</span> <span class="c1">#Masks in stereotaxic space</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;LabelsT1&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">LabelsT1</span> <span class="c1">#Masks in native space</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;nLinAtlasMNIXfm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">nLinAtlasMNIXfm</span> 
+        <span class="k">return</span> <span class="n">outputs</span>
+
+    <span class="k">def</span> <span class="nf">_parse_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">skip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">skip</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Labels</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_parse_inputs</span><span class="p">(</span><span class="n">skip</span><span class="o">=</span><span class="n">skip</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PETheadMaskingOutput"><a class="viewcode-back" href="../../code.html#Masking.masking.PETheadMaskingOutput">[docs]</a><span class="k">class</span> <span class="nc">PETheadMaskingOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span>  <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Headmask from PET volume&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PETheadMaskingInput"><a class="viewcode-back" href="../../code.html#Masking.masking.PETheadMaskingInput">[docs]</a><span class="k">class</span> <span class="nc">PETheadMaskingInput</span><span class="p">(</span><span class="n">BaseInterfaceInputSpec</span><span class="p">):</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET volume&quot;</span><span class="p">)</span>
+    <span class="n">in_json</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;PET json file&quot;</span><span class="p">)</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Head mask&quot;</span><span class="p">)</span>
+    <span class="n">slice_factor</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask&quot;</span><span class="p">)</span>
+    <span class="n">total_factor</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Float</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="mf">0.333</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. &quot;</span><span class="p">)</span>
+
+    <span class="n">clobber</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Overwrite output file&quot;</span><span class="p">)</span>
+    <span class="n">run</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Run the commands&quot;</span><span class="p">)</span>
+    <span class="n">verbose</span> <span class="o">=</span> <span class="n">traits</span><span class="o">.</span><span class="n">Bool</span><span class="p">(</span><span class="n">usedefault</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Write messages indicating progress&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PETheadMasking"><a class="viewcode-back" href="../../code.html#Masking.masking.PETheadMasking">[docs]</a><span class="k">class</span> <span class="nc">PETheadMasking</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">PETheadMaskingInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">PETheadMaskingOutput</span>
+    <span class="n">_suffix</span> <span class="o">=</span> <span class="s2">&quot;_headmask&quot;</span>
+
+    <span class="c1"># def _parse_inputs(self, skip=None):</span>
+    <span class="c1">#     if skip is None:</span>
+    <span class="c1">#         skip = []</span>
+    <span class="c1">#     if not isdefined(self.inputs.out_file):</span>
+    <span class="c1">#         self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)</span>
+    <span class="c1">#     return super(PETheadMasking, self)._parse_inputs(skip=skip)</span>
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">fname_presuffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+            <span class="c1">#Load PET 3D volume</span>
+        <span class="n">infile</span> <span class="o">=</span> <span class="n">volumeFromFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span>
+        <span class="n">zmax</span><span class="o">=</span><span class="n">infile</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="n">infile</span><span class="o">.</span><span class="n">dimnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;zspace&quot;</span><span class="p">)]</span>
+        <span class="c1">#Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)</span>
+        <span class="n">slice_thresholds</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">infile</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">slice_factor</span>
+        <span class="c1">#Get mean for all values above slice_max</span>
+        <span class="n">slice_mean_f</span><span class="o">=</span><span class="k">lambda</span> <span class="n">t</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">d</span><span class="p">[</span><span class="n">i</span><span class="p">,:,:]</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">[</span><span class="n">i</span><span class="p">]]))</span> 
+        <span class="n">slice_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">slice_mean_f</span><span class="p">(</span><span class="n">slice_thresholds</span><span class="p">,</span> <span class="n">infile</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">zmax</span><span class="p">)</span> <span class="p">])</span>
+        <span class="c1">#Remove nan from slice_mean</span>
+        <span class="n">slice_mean</span> <span class="o">=</span><span class="n">slice_mean</span><span class="p">[</span> <span class="o">~</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">slice_mean</span><span class="p">)</span> <span class="p">]</span>
+        <span class="c1">#Calculate overall mean from mean of thresholded slices</span>
+        <span class="n">overall_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">slice_mean</span><span class="p">)</span>
+        <span class="c1">#Calcuate threshold</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="n">overall_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">total_factor</span>
+        <span class="c1">#Apply threshold and create and write outputfile</span>
+        <span class="n">run_calc</span> <span class="o">=</span> <span class="n">CalcCommand</span><span class="p">();</span>
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span> 
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="n">run_calc</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">expression</span> <span class="o">=</span> <span class="s1">&#39;A[0] &gt;= &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; ? 1 : 0&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="n">run_calc</span><span class="o">.</span><span class="n">cmdline</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+            <span class="n">run_calc</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">fname_presuffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span></div>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: masking</span>
+<span class="sd">    :platform: Unix</span>
+<span class="sd">    :synopsis: Module to create labeled images. </span>
+<span class="sd">.. moduleauthor:: Thomas Funck &lt;tffunck@gmail.com&gt;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="get_workflow"><a class="viewcode-back" href="../../code.html#Masking.masking.get_workflow">[docs]</a><span class="k">def</span> <span class="nf">get_workflow</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">infosource</span><span class="p">,</span> <span class="n">datasink</span><span class="p">,</span> <span class="n">opts</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Create workflow to produce labeled images.</span>
+
+<span class="sd">        1. Invert T1 Native to MNI 152 transformation</span>
+<span class="sd">        2. Transform</span>
+<span class="sd">        3. Transform headmask from MNI 152 to T1 native</span>
+<span class="sd">        4. Transform brainmask from MNI 152 to T1 native</span>
+<span class="sd">        5. Create PVC labeled image</span>
+<span class="sd">        6. Create quantification labeled image</span>
+<span class="sd">        7. Create results labeled image</span>
+
+<span class="sd">        :param name: Name for workflow</span>
+<span class="sd">        :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)</span>
+<span class="sd">        :param datasink: Node in which output data is sent</span>
+<span class="sd">        :param opts: User options</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: workflow</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Workflow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">out_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pet_brainmask&quot;</span><span class="p">,</span> <span class="s2">&quot;brainmask_t1&quot;</span><span class="p">,</span> <span class="s2">&quot;brainmask_mni&quot;</span><span class="p">,</span> <span class="s2">&quot;headmask_t1&quot;</span><span class="p">,</span> <span class="s2">&quot;headmask_mni&quot;</span><span class="p">,</span> <span class="s2">&quot;results_label_img_t1&quot;</span><span class="p">,</span> <span class="s2">&quot;results_label_img_mni&quot;</span> <span class="p">]</span>
+    <span class="n">in_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;nativeT1&quot;</span><span class="p">,</span><span class="s2">&quot;mniT1&quot;</span><span class="p">,</span><span class="s2">&quot;brainmask&quot;</span><span class="p">,</span><span class="s2">&quot;headmask&quot;</span><span class="p">,</span> <span class="s2">&quot;pet_volume&quot;</span><span class="p">,</span><span class="s2">&quot;pet_header_json&quot;</span><span class="p">,</span> <span class="s2">&quot;results_labels&quot;</span><span class="p">,</span> <span class="s2">&quot;results_label_space&quot;</span><span class="p">,</span><span class="s2">&quot;results_label_template&quot;</span><span class="p">,</span><span class="s2">&quot;results_label_img&quot;</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="s1">&#39;pvc_erode_times&#39;</span><span class="p">,</span> <span class="s1">&#39;tka_erode_times&#39;</span><span class="p">,</span> <span class="s1">&#39;results_erode_times&#39;</span> <span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span> 
+        <span class="n">out_list</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;pvc_label_img_t1&quot;</span><span class="p">,</span> <span class="s2">&quot;pvc_label_img_mni&quot;</span><span class="p">]</span>
+        <span class="n">in_list</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;pvc_labels&quot;</span><span class="p">,</span> <span class="s2">&quot;pvc_label_space&quot;</span><span class="p">,</span> <span class="s2">&quot;pvc_label_img&quot;</span><span class="p">,</span><span class="s2">&quot;pvc_label_template&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> 
+        <span class="n">out_list</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;tka_label_img_t1&quot;</span><span class="p">,</span> <span class="s2">&quot;tka_label_img_mni&quot;</span><span class="p">]</span>
+        <span class="n">in_list</span> <span class="o">+=</span>  <span class="p">[</span><span class="s2">&quot;tka_labels&quot;</span><span class="p">,</span> <span class="s2">&quot;tka_label_space&quot;</span><span class="p">,</span><span class="s2">&quot;tka_label_template&quot;</span><span class="p">,</span><span class="s2">&quot;tka_label_img&quot;</span><span class="p">]</span>
+    <span class="c1">#Define input node that will receive input from outside of workflow</span>
+    <span class="n">inputnode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">in_list</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;inputnode&#39;</span><span class="p">)</span>
+    <span class="c1">#Define empty node for output</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;MNI2T1xfm&quot;</span>
+    <span class="n">invert_MNI2T1</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">minc</span><span class="o">.</span><span class="n">XfmInvert</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span><span class="n">invert_MNI2T1</span> <span class="p">,</span> <span class="s1">&#39;input_file&#39;</span><span class="p">)</span>
+    
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;headmask&quot;</span>
+    <span class="n">headmaskNode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Labels</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">headmaskNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="s2">&quot;icbm152&quot;</span>
+    <span class="n">headmaskNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;headmask&#39;</span><span class="p">,</span> <span class="n">headmaskNode</span><span class="p">,</span> <span class="s1">&#39;label_img&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="n">headmaskNode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span> <span class="n">headmaskNode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">,</span> <span class="n">headmaskNode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">invert_MNI2T1</span><span class="p">,</span> <span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="n">headmaskNode</span><span class="p">,</span> <span class="s1">&#39;LinMNIT1Xfm&#39;</span><span class="p">)</span>
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;brainmask&quot;</span>
+    <span class="n">brainmaskNode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Labels</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">brainmaskNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="s2">&quot;icbm152&quot;</span>
+    <span class="n">brainmaskNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;brainmask&#39;</span><span class="p">,</span> <span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;label_img&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">invert_MNI2T1</span><span class="p">,</span> <span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LinMNIT1Xfm&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span> <span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">,</span> <span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;pet_brainmask&quot;</span>
+    <span class="n">petMasking</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">PETheadMasking</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">petMasking</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">slice_factor</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">slice_factor</span>
+    <span class="n">petMasking</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">total_factor</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">total_factor</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;pet_volume&#39;</span><span class="p">,</span> <span class="n">petMasking</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;pet_header_json&#39;</span><span class="p">,</span> <span class="n">petMasking</span><span class="p">,</span> <span class="s1">&#39;in_json&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">nopvc</span><span class="p">:</span>
+        <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;pvcLabels&quot;</span>
+        <span class="n">pvcLabels</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Labels</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+        <span class="n">pvcLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_label_space</span>
+        <span class="n">pvcLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_erode_times</span>
+        <span class="n">pvcLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brain_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_labels_brain_only</span>
+        <span class="n">pvcLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ones_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">pvc_labels_ones_only</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;pvc_labels&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;pvc_label_img&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;label_img&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;pvc_label_template&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;label_template&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">invert_MNI2T1</span><span class="p">,</span> <span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;LinMNIT1Xfm&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsT1&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span> <span class="p">,</span> <span class="s1">&#39;brainmask_t1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsMNI&#39;</span><span class="p">,</span> <span class="n">pvcLabels</span><span class="p">,</span> <span class="s1">&#39;brainmask_mni&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;tkaLabels&quot;</span>
+        <span class="n">tkaLabels</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Labels</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+        <span class="n">tkaLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_label_space</span>
+        <span class="n">tkaLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_erode_times</span>
+        <span class="n">tkaLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brain_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_labels_brain_only</span>
+        <span class="n">tkaLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ones_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_labels_ones_only</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;tka_labels&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;tka_label_img&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;label_img&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;tka_label_template&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;label_template&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">invert_MNI2T1</span><span class="p">,</span> <span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;LinMNIT1Xfm&#39;</span><span class="p">)</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsT1&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span> <span class="p">,</span> <span class="s1">&#39;brainmask_t1&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsMNI&#39;</span><span class="p">,</span> <span class="n">tkaLabels</span><span class="p">,</span> <span class="s1">&#39;brainmask_mni&#39;</span><span class="p">)</span>
+
+    <span class="n">node_name</span><span class="o">=</span><span class="s2">&quot;resultsLabels&quot;</span>
+    <span class="n">resultsLabels</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">Labels</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">node_name</span><span class="p">)</span>
+    <span class="n">resultsLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_label_space</span>
+    <span class="n">resultsLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">erode_times</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_erode_times</span>
+    <span class="n">resultsLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">brain_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_labels_brain_only</span>
+    <span class="n">resultsLabels</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">ones_only</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">results_labels_ones_only</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;results_labels&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;results_label_img&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;label_img&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;results_label_template&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;label_template&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;nativeT1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;mniT1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;LinT1MNIXfm&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsT1&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span> <span class="p">,</span> <span class="s1">&#39;brainmask_t1&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">brainmaskNode</span><span class="p">,</span> <span class="s1">&#39;LabelsMNI&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;brainmask_mni&#39;</span><span class="p">)</span>
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">invert_MNI2T1</span><span class="p">,</span> <span class="s1">&#39;output_file&#39;</span><span class="p">,</span> <span class="n">resultsLabels</span><span class="p">,</span> <span class="s1">&#39;LinMNIT1Xfm&#39;</span><span class="p">)</span>
+    
+    <span class="k">return</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Thomas Funck, Kevin Larcher.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

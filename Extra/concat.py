@@ -23,6 +23,8 @@ class concat_df(BaseInterface):
 
         for f in self.inputs.in_list:
             dft = pd.read_csv(f)
+            print(f)
+            print(dft)
             if test :
                 s=f.split('/')
                 error = s[-3].split('.')[-1]

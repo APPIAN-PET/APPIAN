@@ -107,6 +107,7 @@ canvas.slice-display {
   margin-right: 0.6em;
   width: 40px;
   font-size: 10px;
+  color: black;
 }
 
 .volume-viewer-threshold, .volume-viewer-blend {

@@ -1,0 +1,464 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Tracer_Kinetic.tka &#8212; APPIAN 0.1.1-alpha documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Tracer_Kinetic.tka</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">nipype.pipeline.engine</span> <span class="k">as</span> <span class="nn">pe</span>
+<span class="kn">from</span> <span class="nn">pyminc.volumes.factory</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.io</span> <span class="k">as</span> <span class="nn">nio</span>
+<span class="kn">import</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">as</span> <span class="nn">niu</span>
+<span class="kn">import</span> <span class="nn">nipype.algorithms.misc</span> <span class="k">as</span> <span class="nn">misc</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.utility</span> <span class="k">import</span> <span class="n">Function</span>
+<span class="kn">from</span> <span class="nn">nipype.interfaces.base</span> <span class="k">import</span> <span class="p">(</span><span class="n">TraitedSpec</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">traits</span><span class="p">,</span> <span class="n">InputMultiPath</span><span class="p">,</span> 
+                                    <span class="n">BaseInterface</span><span class="p">,</span> <span class="n">OutputMultiPath</span><span class="p">,</span> <span class="n">BaseInterfaceInputSpec</span><span class="p">,</span> <span class="n">isdefined</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">nipype.utils.filemanip</span> <span class="k">import</span> <span class="p">(</span><span class="n">load_json</span><span class="p">,</span> <span class="n">save_json</span><span class="p">,</span> <span class="n">split_filename</span><span class="p">,</span> <span class="n">fname_presuffix</span><span class="p">,</span> <span class="n">copyfile</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">Extra.base</span> <span class="k">import</span> <span class="n">MINCCommand</span><span class="p">,</span> <span class="n">MINCCommandInputSpec</span>
+<span class="kn">from</span> <span class="nn">Extra.conversion</span> <span class="k">import</span> <span class="p">(</span><span class="n">ecat2mincCommand</span><span class="p">,</span> <span class="n">minc2ecatCommand</span><span class="p">,</span> <span class="n">ecattomincCommand</span><span class="p">,</span> <span class="n">minctoecatInterfaceCommand</span><span class="p">,</span> <span class="n">minctoecatWorkflow</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">Turku.dft</span> <span class="k">import</span> <span class="n">img2dftCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.extra</span> <span class="k">import</span> <span class="n">subject_parameterCommand</span>
+<span class="kn">from</span> <span class="nn">Extra.turku</span> <span class="k">import</span> <span class="n">imgunitCommand</span>
+<span class="kn">import</span> <span class="nn">ntpath</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<div class="viewcode-block" id="createImgFromROIOutput"><a class="viewcode-back" href="../../code.html#Tracer_Kinetic.tka.createImgFromROIOutput">[docs]</a><span class="k">class</span> <span class="nc">createImgFromROIOutput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>  
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reconstruced 3D image based on .dft ROI values&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="createImgFromROIInput"><a class="viewcode-back" href="../../code.html#Tracer_Kinetic.tka.createImgFromROIInput">[docs]</a><span class="k">class</span> <span class="nc">createImgFromROIInput</span><span class="p">(</span><span class="n">TraitedSpec</span><span class="p">):</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Reconstruced 3D image based on .dft ROI values&quot;</span><span class="p">)</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot; .dft ROI values&quot;</span><span class="p">)</span>
+    <span class="n">like_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;File that gives spatial coordinates for output volume&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="createImgFromROI"><a class="viewcode-back" href="../../code.html#Tracer_Kinetic.tka.createImgFromROI">[docs]</a><span class="k">class</span> <span class="nc">createImgFromROI</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">)</span> <span class="p">:</span>
+    <span class="n">input_spec</span> <span class="o">=</span> <span class="n">createImgFromROIInput</span>
+    <span class="n">output_spec</span> <span class="o">=</span> <span class="n">createImgFromROIOutput</span>
+
+
+    <span class="k">def</span> <span class="nf">_run_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runtime</span><span class="p">)</span> <span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isdefined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="n">volumeFromFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">like_file</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">volumeLikeFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">like_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span> <span class="p">)</span>
+        <span class="n">roi</span><span class="o">=</span><span class="p">[]</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">in_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span> <span class="p">:</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span> <span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;Mask&#39;</span> <span class="ow">in</span> <span class="n">l</span> <span class="p">:</span> 
+                    <span class="n">ll</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; |</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">l</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">ll</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">ll</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+                    <span class="n">roi</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">ll</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">ll</span><span class="p">[</span><span class="mi">3</span><span class="p">])])</span>
+
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">roi</span> <span class="p">:</span> 
+            <span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">ref</span> <span class="o">==</span> <span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">ref</span> <span class="o">==</span> <span class="n">label</span><span class="p">]))</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">writeFile</span><span class="p">()</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">closeVolume</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span> <span class="nf">_list_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_spec</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>
+        <span class="k">return</span> <span class="n">outputs</span>
+
+    <span class="k">def</span> <span class="nf">_gen_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basefile</span><span class="p">):</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">basefile</span><span class="p">)</span>
+        <span class="n">fname_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="c1"># [0]= base filename; [1] =extension</span>
+        <span class="n">dname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span> 
+        <span class="k">return</span> <span class="n">dname</span><span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">+</span><span class="n">fname_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.mnc&#39;</span></div>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">class suvOutput(TraitedSpec):</span>
+<span class="sd">    out_file = File(argstr=&quot;%s&quot;, position=-1, desc=&quot;Output SUV image.&quot;)</span>
+
+<span class="sd">class suvInput(MINCCommandInputSpec):</span>
+<span class="sd">    </span>
+<span class="sd">    in_file= File(exists=True, position=-6, argstr=&quot;%s&quot;, desc=&quot;PET file&quot;)</span>
+<span class="sd">    start_time=traits.String(argstr=&quot;%s&quot;, position=-5, desc=&quot;Start time (minutes).&quot;)</span>
+<span class="sd">    end_time=traits.String(argstr=&quot;%s&quot;, position=-4, desc=&quot;End time (minutes).&quot;)</span>
+<span class="sd">    radiotracer_dose=traits.String(argstr=&quot;%s&quot;, position=-3, desc=&quot;Injected radiotracer dose (MBq).&quot;)</span>
+<span class="sd">    body_weight=traits.String(argstr=&quot;%s&quot;, position=-2, desc=&quot;Patient weight (kg).&quot;)</span>
+<span class="sd">    out_file = File(argstr=&quot;%s&quot;, position=-1, desc=&quot;Output SUV image&quot;)</span>
+
+<span class="sd">class suvCommand(MINCCommand):</span>
+<span class="sd">    input_spec =  suvInput</span>
+<span class="sd">    output_spec = suvOutput</span>
+
+<span class="sd">    _cmd = &quot;imgsuv&quot; #input_spec.pvc_method </span>
+<span class="sd">    _suffix = &quot;_suv&quot; </span>
+
+<span class="sd">    def _list_outputs(self):</span>
+<span class="sd">        outputs = self.output_spec().get()</span>
+<span class="sd">        outputs[&quot;out_file&quot;] = self.inputs.out_file</span>
+<span class="sd">        return outputs</span>
+
+<span class="sd">    def _gen_filename(self, name):</span>
+<span class="sd">        if name == &quot;out_file&quot;:</span>
+<span class="sd">            return self._list_outputs()[&quot;out_file&quot;]</span>
+<span class="sd">        return None</span>
+
+<span class="sd">    def _gen_output(self, basefile, _suffix):</span>
+<span class="sd">        fname = ntpath.basename(basefile)</span>
+<span class="sd">        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension</span>
+<span class="sd">        dname = os.getcwd() </span>
+<span class="sd">        return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]</span>
+
+<span class="sd">    def _parse_inputs(self, skip=None):</span>
+<span class="sd">        if skip is None:</span>
+<span class="sd">            skip = []</span>
+<span class="sd">        if not isdefined(self.inputs.out_file):</span>
+<span class="sd">            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)</span>
+<span class="sd">        return super(suvCommand, self)._parse_inputs(skip=skip)</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">class patlakOutput(TraitedSpec):</span>
+<span class="sd">    out_file = File(argstr=&quot;-o %s&quot;,  desc=&quot;Patlak plot ki parametric image.&quot;)</span>
+
+<span class="sd">class patlakInput(MINCCommandInputSpec):</span>
+<span class="sd">    in_file= File(exists=True, position=-5, argstr=&quot;%s&quot;, desc=&quot;PET file&quot;)</span>
+<span class="sd">    reference = File(exists=True,  position=-4, argstr=&quot;%s&quot;, desc=&quot;Reference file&quot;)</span>
+<span class="sd">    start_time=traits.Float(argstr=&quot;%s&quot;, position=-3, desc=&quot;Start time for regression in mtga.&quot;)</span>
+<span class="sd">    end=traits.Float(argstr=&quot;%s&quot;, position=-2, desc=&quot;By default line is fit to the end of data. Use this option to enter the fit end time.&quot;)</span>
+<span class="sd">    out_file = File(argstr=&quot;%s&quot;, position=-1, desc=&quot;image to operate on&quot;)</span>
+<span class="sd">    Ca=traits.Float(argstr=&quot;-Ca=%f&quot;, desc=&quot;Concentration of native substrate in arterial plasma (mM).&quot;)</span>
+<span class="sd">    LC=traits.Float(argstr=&quot;-LC=%f&quot;, desc=&quot;Lumped constant in MR calculation; default is 1.0&quot;)</span>
+<span class="sd">    density=traits.Float(argstr=&quot;-density %f&quot;, desc=&quot;Tissue density in MR calculation; default is 1.0 g/ml&quot;)</span>
+<span class="sd">    thr=traits.Float(argstr=&quot;-thr=%f&quot;, desc=&quot;Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%&quot;)</span>
+<span class="sd">    Max=traits.Float(argstr=&quot;-max=%f&quot;, default=10000, use_default=True,desc=&quot;Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.&quot;)</span>
+<span class="sd">    #Min=traits.Float(argstr=&quot;-min %f&quot;, desc=&quot;Lower limit for Vt or DVR values, 0 by default&quot;)</span>
+<span class="sd">    Filter=traits.Bool(argstr=&quot;-filter&quot;,  desc=&quot;Remove parametric pixel values that over 4x higher than their closest neighbours.&quot;)</span>
+<span class="sd">    v=traits.Str(argstr=&quot;-v %s&quot;, desc=&quot;Y-axis intercepts time -1 are written as an image to specified file.&quot;)</span>
+<span class="sd">    n=traits.Str(argstr=&quot;-n %s&quot;, desc=&quot;Numbers of selected plot data points are written as an image.&quot;)</span>
+
+
+<span class="sd">class patlakCommand(MINCCommand):</span>
+<span class="sd">    input_spec =  patlakInput</span>
+<span class="sd">    output_spec = patlakOutput</span>
+
+<span class="sd">    _cmd = &quot;patlak&quot; #input_spec.pvc_method </span>
+<span class="sd">    _suffix = &quot;_pp&quot; </span>
+
+<span class="sd">    def _list_outputs(self):</span>
+<span class="sd">        outputs = self.output_spec().get()</span>
+<span class="sd">        outputs[&quot;out_file&quot;] = self.inputs.out_file</span>
+<span class="sd">        return outputs</span>
+
+<span class="sd">    def _gen_filename(self, name):</span>
+<span class="sd">        if name == &quot;out_file&quot;:</span>
+<span class="sd">            return self._list_outputs()[&quot;out_file&quot;]</span>
+<span class="sd">        return None</span>
+
+<span class="sd">    def _gen_output(self, basefile, _suffix):</span>
+<span class="sd">        fname = ntpath.basename(basefile)</span>
+<span class="sd">        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension</span>
+<span class="sd">        dname = os.getcwd() </span>
+<span class="sd">        return dname+ os.sep+fname_list[0] + _suffix + &#39;.dft&#39;</span>
+
+<span class="sd">    def _parse_inputs(self, skip=None):</span>
+<span class="sd">        if skip is None:</span>
+<span class="sd">            skip = []</span>
+<span class="sd">        if not isdefined(self.inputs.out_file):</span>
+<span class="sd">            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)</span>
+<span class="sd">        return super(patlakCommand, self)._parse_inputs(skip=skip)</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+
+
+<span class="n">standard_fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;in_file&quot;</span><span class="p">,</span> <span class="s2">&quot;header&quot;</span><span class="p">,</span>  <span class="s2">&quot;reference&quot;</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">,</span> <span class="s2">&quot;like_file&quot;</span><span class="p">]</span> <span class="c1">#NOTE: in_file and out_file must be defined in field</span>
+<span class="n">ecat_methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;lp&quot;</span><span class="p">,</span> <span class="s2">&quot;pp&quot;</span><span class="p">,</span> <span class="s2">&quot;lp-roi&quot;</span><span class="p">,</span> <span class="s2">&quot;pp-roi&quot;</span><span class="p">,</span> <span class="s2">&quot;srtm&quot;</span><span class="p">,</span> <span class="s2">&quot;suv&quot;</span><span class="p">]</span>
+<span class="n">tka_param</span><span class="o">=</span><span class="p">{}</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;lp&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">standard_fields</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;pp&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">standard_fields</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;pp-roi&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">standard_fields</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;lp-roi&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">standard_fields</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;srtm&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">standard_fields</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;suv&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;in_file&quot;</span><span class="p">,</span> <span class="s2">&quot;header&quot;</span><span class="p">]</span>
+<span class="n">tka_param</span><span class="p">[</span><span class="s2">&quot;suvr&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;in_file&quot;</span><span class="p">,</span> <span class="s2">&quot;header&quot;</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">,</span> <span class="s2">&quot;reference&quot;</span><span class="p">]</span>
+<span class="n">reference_methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pp-roi&quot;</span><span class="p">,</span><span class="s2">&quot;pp&quot;</span><span class="p">,</span> <span class="s2">&quot;lp-roi&quot;</span><span class="p">,</span> <span class="s2">&quot;lp&quot;</span><span class="p">,</span> <span class="s2">&quot;srtm&quot;</span><span class="p">,</span> <span class="s2">&quot;suvr&quot;</span><span class="p">]</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: tka</span>
+<span class="sd">    :platform: Unix</span>
+<span class="sd">    :synopsis: Module to perform for PET quantification </span>
+<span class="sd">.. moduleauthor:: Thomas Funck &lt;tffunck@gmail.com&gt;</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="get_tka_workflow"><a class="viewcode-back" href="../../code.html#Tracer_Kinetic.tka.get_tka_workflow">[docs]</a><span class="k">def</span> <span class="nf">get_tka_workflow</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">opts</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Nipype workflow that to perform PET quanfication. Requires conversion of PET file </span>
+<span class="sd">    and reference region mask to ECAT. Turku PET Centre tools are used to perform quantification.</span>
+<span class="sd">    Finally, ECAT images are converted back to MINC.</span>
+
+<span class="sd">    :param name: Name of workflow</span>
+<span class="sd">    :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)</span>
+<span class="sd">    :param datasink: Node in which output data is sent</span>
+<span class="sd">    :param opts: User options</span>
+
+<span class="sd">    .. aafig::</span>
+<span class="sd">                            +---------+</span>
+<span class="sd">                            |Reference|</span>
+<span class="sd">                +---+       +----+----+</span>
+<span class="sd">                |PET|            |</span>
+<span class="sd">                +-+-+       +----+</span>
+<span class="sd">                  |         |    |</span>
+<span class="sd">                  |         V    V</span>
+<span class="sd">            +---+ | +-------++  ++------+</span>
+<span class="sd">            |ROI| | |Ref Mask|  |Ref TAC|</span>
+<span class="sd">            +-+-+ | +-+------+  +-+-----+</span>
+<span class="sd">              |   |   |           |    </span>
+<span class="sd">              V   V   V           |</span>
+<span class="sd">            +-+---+---++          |</span>
+<span class="sd">            |MINC2ECAT +          |</span>
+<span class="sd">            +-+---+---++          |</span>
+<span class="sd">              |   |   |           | </span>
+<span class="sd">              | +-+-+ +-----+-----+</span>
+<span class="sd">              | |   |       |</span>
+<span class="sd">              | |   |       |</span>
+<span class="sd">              V V   V       | </span>
+<span class="sd">              +-+-+ +-----+ |</span>
+<span class="sd">              |ROI| |Voxel| |</span>
+<span class="sd">              +-+-+ +---+-+ |</span>
+<span class="sd">                ^       ^   | </span>
+<span class="sd">                |       |   |</span>
+<span class="sd">                +-------+---+</span>
+
+
+<span class="sd">    :returns: workflow</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">workflow</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Workflow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+    <span class="c1">#Define input node that will receive input from outside of workflow</span>
+    <span class="n">inputnode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sid&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">tka_param</span><span class="p">[</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;inputnode&#39;</span><span class="p">)</span>
+
+    <span class="n">out_files</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;out_file&quot;</span><span class="p">]</span>
+    <span class="c1">#Define empty node for output</span>
+    <span class="n">outputnode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="n">out_files</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;outputnode&#39;</span><span class="p">)</span>
+    
+
+    <span class="c1">### Quantification module</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span> <span class="p">)</span>
+    <span class="n">quant_module_fn</span><span class="o">=</span><span class="s2">&quot;quant_method_&quot;</span><span class="o">+</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="c1">#+&quot;.py&quot;</span>
+     
+    <span class="k">try</span> <span class="p">:</span>
+        <span class="n">quant_module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">quant_module_fn</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: Could not find source file&quot;</span><span class="p">,</span> <span class="n">quant_module_fn</span><span class="p">,</span> <span class="s2">&quot;corresponding to quantification method:&quot;</span><span class="p">,</span> <span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span> <span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="n">tkaNode</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">quant_module</span><span class="o">.</span><span class="n">quantCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="n">opts</span><span class="o">.</span><span class="n">tka_method</span><span class="p">)</span>
+    <span class="n">tkaNode</span> <span class="o">=</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">check_options</span><span class="p">(</span><span class="n">tkaNode</span><span class="p">,</span> <span class="n">opts</span><span class="p">)</span>
+ 
+    <span class="c1">#If the quantification node takes a header input, then pass it from inputnode</span>
+    <span class="k">try</span> <span class="p">:</span> 
+        <span class="n">tkaNode</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">header</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span> <span class="p">:</span>
+        <span class="k">pass</span>
+   
+    <span class="c1">### Setup input to quantification function</span>
+    <span class="k">if</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">in_file_format</span> <span class="o">==</span> <span class="s2">&quot;ECAT&quot;</span> <span class="p">:</span>
+        <span class="c1"># Node to convert ECAT to MINC</span>
+        <span class="n">convertPET</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">minc2ecatCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;convertPET&quot;</span><span class="p">)</span>
+        
+        <span class="c1">#Connect input node to conversion</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">,</span> <span class="n">convertPET</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">convertPET</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">)</span>
+
+        <span class="n">pet_source</span> <span class="o">=</span> <span class="n">convertPET</span>
+        <span class="n">pet_file</span> <span class="o">=</span> <span class="s2">&quot;out_file&quot;</span> 
+    <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">in_file_format</span> <span class="o">==</span> <span class="s2">&quot;MINC&quot;</span>  <span class="p">:</span>
+        <span class="n">pet_source</span> <span class="o">=</span> <span class="n">inputnode</span>
+        <span class="n">pet_file</span> <span class="o">=</span> <span class="s2">&quot;in_file&quot;</span> 
+    <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">in_file_format</span> <span class="o">==</span> <span class="s2">&quot;NIFTI&quot;</span> <span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: NIFTI not yet implemented for quantification&quot;</span><span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: not file format specified in module file.</span><span class="se">\n</span><span class="s2">In&quot;</span><span class="p">,</span> <span class="n">quant_module_fn</span><span class="p">,</span><span class="s2">&quot;include:</span><span class="se">\n</span><span class="s2">global file_format</span><span class="se">\n</span><span class="s2">file_format=&lt;MINC/ECAT&gt;&quot;</span><span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1">### Setup output from quantification function</span>
+    <span class="k">if</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">out_file_format</span> <span class="o">==</span> <span class="s2">&quot;ECAT&quot;</span> <span class="p">:</span>
+        <span class="c1"># Node to convert ECAT to MINC</span>
+        <span class="n">convertParametric</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">ecat2mincCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;convertParametric&quot;</span><span class="p">)</span>
+        
+        <span class="c1">#Connect quantification node to output node</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">convertParametric</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;like_file&#39;</span><span class="p">,</span> <span class="n">convertParametric</span><span class="p">,</span> <span class="s1">&#39;like_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">convertParametric</span><span class="p">,</span> <span class="s1">&#39;header&#39;</span><span class="p">)</span>
+
+        <span class="n">tka_source</span> <span class="o">=</span> <span class="n">convertParametric</span>
+    <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">out_file_format</span> <span class="o">==</span> <span class="s2">&quot;MINC&quot;</span>  <span class="p">:</span>
+        <span class="n">tka_source</span> <span class="o">=</span> <span class="n">tkaNode</span>
+    <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">out_file_format</span> <span class="o">==</span> <span class="s2">&quot;DFT&quot;</span>  <span class="p">:</span>
+        <span class="c1">#Create 3/4D volume based on ROI values</span>
+        <span class="n">roi2img</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span> <span class="n">createImgFromROI</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;img&#39;</span><span class="p">)</span> 
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mask&#39;</span><span class="p">,</span> <span class="n">roi2img</span><span class="p">,</span> <span class="s1">&#39;like_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">roi2img</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+        <span class="n">tka_source</span> <span class="o">=</span> <span class="n">roi2img</span>
+    <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">out_file_format</span> <span class="o">==</span> <span class="s2">&quot;NIFTI&quot;</span> <span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: NIFTI not yet implemented for quantification&quot;</span><span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: not file format specified in module file.</span><span class="se">\n</span><span class="s2">In&quot;</span><span class="p">,</span> <span class="n">quant_module_fn</span><span class="p">,</span><span class="s2">&quot;include:</span><span class="se">\n</span><span class="s2">global file_format</span><span class="se">\n</span><span class="s2">file_format=&lt;MINC/ECAT&gt;&quot;</span><span class="p">)</span>
+        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1">### ROI-based VS Voxel-wise quantification</span>
+
+    <span class="k">if</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">voxelwise</span> <span class="p">:</span>
+        <span class="c1">#Perform voxel-wise analysis</span>
+        <span class="c1">#Connect convertPET to quant node</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_source</span><span class="p">,</span> <span class="n">pet_file</span><span class="p">,</span> <span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+    <span class="k">else</span> <span class="p">:</span> 
+        <span class="n">convertROI</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">minc2ecatCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;minctoecat_roi&quot;</span><span class="p">)</span>
+        <span class="n">extractROI</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">img2dftCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;roimask_extract&quot;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;mask&#39;</span><span class="p">,</span> <span class="n">convertROI</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">convertROI</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">extractROI</span><span class="p">,</span> <span class="s1">&#39;mask_file&#39;</span><span class="p">)</span>
+        <span class="c1">#workflow.connect(tacReference, &#39;reference&#39;, tkaNode, &#39;reference&#39;)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_source</span><span class="p">,</span> <span class="n">pet_file</span><span class="p">,</span> <span class="n">extractROI</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">extractROI</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+
+
+    <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tka_source</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">outputnode</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">)</span>
+    
+    <span class="c1">### Reference Region / TAC</span>
+    <span class="k">if</span>  <span class="n">quant_module</span><span class="o">.</span><span class="n">reference</span> <span class="p">:</span>
+        <span class="c1">#Define an empty node for reference region</span>
+        <span class="n">tacReference</span> <span class="o">=</span> <span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">niu</span><span class="o">.</span><span class="n">IdentityInterface</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;reference&quot;</span><span class="p">]),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;tacReference&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">opts</span><span class="o">.</span><span class="n">arterial</span>  <span class="p">:</span>
+            <span class="c1">#Using arterial input file (which must be provided by user). </span>
+            <span class="c1">#No conversion or extraction necessary</span>
+            <span class="c1">#Extract TAC from input image using reference mask</span>
+            <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">,</span> <span class="n">tkaReference</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">)</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="k">if</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">in_file_format</span> <span class="o">==</span> <span class="s2">&quot;ECAT&quot;</span> <span class="p">:</span>
+                <span class="c1">#Convert reference mask from minc to ecat</span>
+                <span class="n">convertReference</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">minc2ecatCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;minctoecat_reference&quot;</span><span class="p">)</span> 
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">,</span> <span class="n">convertReference</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+                <span class="n">extractReference</span><span class="o">=</span><span class="n">pe</span><span class="o">.</span><span class="n">Node</span><span class="p">(</span><span class="n">interface</span><span class="o">=</span><span class="n">img2dftCommand</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;referencemask_extract&quot;</span><span class="p">)</span>
+                <span class="c1"># convertReference --&gt; extractReference </span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">convertReference</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">extractReference</span><span class="p">,</span> <span class="s1">&#39;mask_file&#39;</span><span class="p">)</span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">pet_source</span><span class="p">,</span> <span class="n">pet_file</span><span class="p">,</span> <span class="n">extractReference</span><span class="p">,</span> <span class="s1">&#39;in_file&#39;</span><span class="p">)</span>
+                <span class="c1"># extractReference --&gt; tacReference</span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">extractReference</span><span class="p">,</span> <span class="s1">&#39;out_file&#39;</span><span class="p">,</span> <span class="n">tacReference</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">quant_module</span><span class="o">.</span><span class="n">in_file_format</span> <span class="o">==</span> <span class="s2">&quot;MINC&quot;</span> <span class="p">:</span>
+                <span class="c1"># inputnode --&gt; tacReference</span>
+                <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">inputnode</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">,</span> <span class="n">tacReference</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">)</span>
+        
+        <span class="n">workflow</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">tacReference</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">,</span> <span class="n">tkaNode</span><span class="p">,</span> <span class="s1">&#39;reference&#39;</span><span class="p">)</span>
+
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        elif opts.tka_method == &#39;suv&#39;:</span>
+<span class="sd">            #Get Body Weight from header or .csv file</span>
+<span class="sd">            body_weightNode=pe.Node(interface=subject_parameterCommand(), name=&quot;body_weight&quot;)</span>
+<span class="sd">            body_weightNode.inputs.parameter_name=opts.body_weight</span>
+<span class="sd">            workflow.connect(inputnode, &#39;header&#39;, body_weightNode, &#39;header&#39;)</span>
+<span class="sd">            workflow.connect(inputnode, &#39;sid&#39;, body_weightNode, &#39;sid&#39;)</span>
+<span class="sd">            #Get radiotracer dose from header or .csv file</span>
+<span class="sd">            radiotracer_doseNode=pe.Node(interface=subject_parameterCommand(), name=&quot;radiotracer_dose&quot;)</span>
+<span class="sd">            radiotracer_doseNode.inputs.parameter_name=opts.radiotracer_dose</span>
+<span class="sd">            workflow.connect(inputnode, &#39;header&#39;, radiotracer_doseNode, &#39;header&#39;)</span>
+<span class="sd">            workflow.connect(inputnode, &#39;sid&#39;, radiotracer_doseNode, &#39;sid&#39;)</span>
+<span class="sd">            #Create a node for SUV</span>
+<span class="sd">            tkaNode = pe.Node(interface=suvCommand(), name=opts.tka_method)</span>
+<span class="sd">            tkaNode.inputs.start_time=opts.tka_start_time</span>
+<span class="sd">            tkaNode.inputs.end_time=opts.tka_end_time</span>
+<span class="sd">            workflow.connect(body_weightNode, &#39;parameter&#39;, tkaNode, &#39;body_weight&#39;)</span>
+<span class="sd">            workflow.connect(radiotracer_doseNode, &#39;parameter&#39;, tkaNode, &#39;radiotracer_dose&#39;)</span>
+<span class="sd">            workflow.connect(tkaNode, &#39;out_file&#39;, outputnode, &#39;out_file&#39;)</span>
+
+
+<span class="sd">        if opts.tka_method == &#39;srtm&#39;:</span>
+<span class="sd">            outputnode=pe.Node(niu.IdentityInterface(fields=[&quot;out_file&quot;,&quot;out_fit_file&quot;]), name=&#39;outputnode&#39;)</span>
+<span class="sd">            tkaNode = pe.Node(interface=srtmROICommand(), name=&#39;srmtROI&#39;)</span>
+<span class="sd">            workflow.connect(tkaNode, &#39;out_fit_file&#39;, outputnode, &#39;out_fit_file&#39;)</span>
+<span class="sd">        elif opts.tka_method == &#39;pp-roi&#39; :</span>
+<span class="sd">            tacROI = pe.Node(niu.IdentityInterface(fields=[&quot;mask&quot;]), name=&#39;tacROI&#39;)</span>
+<span class="sd">            outputnode=pe.Node(niu.IdentityInterface(fields=[&quot;out_file&quot;]), name=&#39;outputnode&#39;)</span>
+<span class="sd">            tkaNode = pe.Node(interface=patlakCommand(), name=&#39;patlakROI&#39;)</span>
+<span class="sd">            tkaNode.inputs.end=opts.tka_end_time</span>
+<span class="sd">            tkaNode.inputs.start_time=opts.tka_start_time</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+
+
+    <span class="k">return</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span></div>
+
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Thomas Funck, Kevin Larcher.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

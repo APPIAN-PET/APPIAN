@@ -1,19 +1,23 @@
 # APPIAN
 Table of Contents
 =================
-[Introduction](#introduction)
-[Installation](#installation)
-[Documentation](#documentation)
-[Publications](#publications)
-[Getting Help](#getting-help)
-[About us](#about-us)
-[Terms and Conditions](#terms-and-conditions)
+ 1. [Introduction](#introduction)
+ 2. [Installation](#installation)
+ 3. [Documentation](#documentation)\
+     3.1 [User Guide](https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md)\
+     3.2 [Developer Guide](link_contributing)
+ 4. [Publications](#publications)
+ 5. [Getting Help](#getting-help)
+ 6. [About us](#about-us)
+ 7. [Terms and Conditions](#terms-and-conditions)
+
 
 ## Introduction
+The APPIAN pipeline is implemented in Python using the [Nipype][nipype] library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, APPIAN is  language agnostic.
 
-``APPIAN`` (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of ``APPIAN`` is to facilitate reproducible research and to make PET tracer kinetic data analysis easier for users with moderate computing skills. 
 
-The pipeline starts from the reconstructed PET images and performs all analysis steps necessary to produce outputs that can be used to run statistical tests of interest.  The input to ``APPIAN`` relies on object (.obj) files that contain surface meshes representing cortical grey matter -- for instance, surfaces could be extracted using [``CIVET``][link_civet], which can be freely accessed through the [``CBRAIN``][link_cbrain] online platform (sign-up to ``CBRAIN`` is required, but free).
+#### Cost
+APPIAN is 100% free and open-source, but in exchange we would greatly appreciate your feedback, whether it be as bug reports, pull requests to add new features, questions on our [mailing list](https://groups.google.com/forum/#!forum/appian-users), or suggestions on how to improve the documentation or the code. You can even just send us an email to let us know what kind of project you are working on!  
 
 ## Installation 
 
@@ -29,6 +33,9 @@ docker pull tffunck/appian:latest
 That’s it, ``APPIAN`` is installed on your computer. 
 
 ## Documentation
+
+### Developers
+For those interested in extending or contributing to APPIAN please check out our [developer guide][link_contributing]. 
 
 ### Users
 For more information please read our [user guide][link_userguide]. 
@@ -53,9 +60,15 @@ For those interested in extending or contributing to APPIAN please check out our
 
 ## Getting help
 
-If you get stuck or don't know how to get started please post on our Google groups. We would be delighted to help in whatever way we can.
+If you get stuck or don't know how to get started please send a mail to the APPIAN mailing list :
+https://groups.google.com/forum/#!forum/appian-users
 
-https://groups.google.com/forum/#!forum/appian-pet
+For bugs, please post [here](#https://github.com/APPIAN-PET/APPIAN/issues) on the Github repository.
+
+To join the discussion for APPIAN development, join our developers mailing list : 
+https://groups.google.com/forum/#!forum/appian-dev
+
+
 
 ## About us
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\

@@ -13,7 +13,7 @@ class quantInput( CommandLineInputSpec):
     out_file = File(argstr="%s",  position=-1, desc="image to operate on")
     in_file= File(exists=True, mandatory=True, position=-3, argstr="%s", desc="PET file")
     reference = File(exists=True, mandatory=True,  position=-4, argstr="%s", desc="Reference file")
-    start_time=traits.Float(argstr="%s", mandatory=True, position=-2, desc="Start time for regression in mtga.")
+    start_time=traits.Float(argstr="%s",default_value=0, usedefault=True,  position=-2, desc="Start time for regression in mtga.")
     k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
     thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
     Max=traits.Float(argstr="-max=%f",default=10000, use_default=True, desc="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.")
@@ -23,11 +23,12 @@ class quantInput( CommandLineInputSpec):
     v=traits.Str(argstr="-v %s", desc="Y-axis intercepts time -1 are written as an image to specified file.")
     n=traits.Str(argstr="-n %s", desc="Numbers of selected plot data points are written as an image.")
     
+    
 class quantCommand(quantificationCommand):
-    input_spec = quantInput
+    input_spec =  quantInput
     output_spec = quantOutput
-    _cmd = "imgdv"
-    _suffix = "_lp"
+    _cmd = "imgdv" #input_spec.pvc_method 
+    _suffix = "_lp" 
 
 
 def check_options(tkaNode, opts):

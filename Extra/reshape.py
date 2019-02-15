@@ -1,10 +1,7 @@
 import os
 import numpy as np
-
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
-
-
 
 
 class ReshapeOutput(TraitedSpec):
@@ -21,7 +18,7 @@ class ReshapeInput(CommandLineInputSpec):
 
 class ReshapeCommand(CommandLine):
     _cmd = "mincreshape"
-    _suffix = "_mincreshape"
+    _suffix = "_reshape"
     input_spec = ReshapeInput
     output_spec = ReshapeOutput
 
@@ -29,7 +26,7 @@ class ReshapeCommand(CommandLine):
         if skip is None:
             skip = []
         if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_fname(self.inputs.in_file, suffix=self._suffix)
+            self.inputs.out_file = self._gen_filename(self.inputs.in_file, suffix=self._suffix)
 
         return super(ReshapeCommand, self)._parse_inputs(skip=skip)
 
@@ -38,9 +35,7 @@ class ReshapeCommand(CommandLine):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
+    def _gen_filename(self, in_file, suffix):
+        split_in_file = os.path.splitext(os.path.basename(self.inputs.in_file))
+        return os.getcwd() + os.sep + split_in_file[0] + suffix + split_in_file[1]
 

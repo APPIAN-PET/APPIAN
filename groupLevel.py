@@ -20,7 +20,7 @@ def run_group_level(opts,args):
             (qc, qc.group_level_qc, default, opts.group_qc ),
             (tqc, tqc.test_group_qc_groupLevel,default, opts.test_group_qc ),
             (results,results.group_level_descriptive_statistics, default ,opts.group_stats ),
-            (qc,dash.groupLevel_dashboard, default, True)
+            (qc,dash.groupLevel_dashboard, default, opts.dashboard)
             ]
     
     if len(args) > 1 :

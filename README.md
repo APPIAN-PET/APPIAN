@@ -13,37 +13,50 @@ Table of Contents
 
 
 ## Introduction
-APPIAN (Automated Pipeline for PET Image ANalysis) is an open-source automated software pipeline for analyzing PET images in conjunction with MRI. The goal of APPIAN is to make PET tracer kinetic data analysis easy for users with moderate computing skills and to facilitate reproducible research. The pipeline begins with the reconstructed PET image and performs all analysis steps necessary for the user to be able to take the outputs and run her statistical tests of interest. 
-
 The APPIAN pipeline is implemented in Python using the [Nipype][nipype] library. Although the core of the code is written in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that the tools must be capable of being run from a command line with well-defined inputs and outputs. In this sense, APPIAN is  language agnostic.
+
 
 #### Cost
 APPIAN is 100% free and open-source, but in exchange we would greatly appreciate your feedback, whether it be as bug reports, pull requests to add new features, questions on our [mailing list](https://groups.google.com/forum/#!forum/appian-users), or suggestions on how to improve the documentation or the code. You can even just send us an email to let us know what kind of project you are working on!  
 
 ## Installation 
 
-APPIAN is currently only available through Docker. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run and ensures that the software can always be run in the same environment. This means that all of the dependencies needed by APPIAN are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide to installing Docker on [Ubuntu][ubuntu_docker], [Debian][debian_docker], [Mac][mac_docker], [Windows][windows_docker].
+``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide on how to install Docker on Ubuntu, Debian, Mac, Windows, or other operating system, please [visit this link][link_dockerinstall].  
 
+The pipeline is implemented in Python using the [Nipype][link_nipypertd] library. Although the core is coded in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that these tools must be run from a command line, with well-defined inputs and outputs. In this sense, ``APPIAN`` is  language agnostic.
+Once Docker is installed, simply run the following command line on your terminal:
 
-Once docker is installed, simply run the following command on your command line terminal:
-
+```
 docker pull tffunck/appian:latest
+```
 
-That’s it, APPIAN is installed on your computer. 
-
+That’s it, ``APPIAN`` is installed on your computer. 
 
 ## Documentation
+
 ### Developers
 For those interested in extending or contributing to APPIAN please check out our [developer guide][link_contributing]. 
 
 ### Users
+For more information please read our [user guide][link_userguide]. 
 
-Users seeking more information can check the [user guide][link_user_guide].
+### Developers
+For those interested in extending or contributing to APPIAN please check out our [contributors guidelines][link_contributors].
 
 ## Publications
-1. Funck, T., Larcher K., Toussaint, P.J., Evans, A.C., Thiel, A. (2018). APPIAN: Automated Pipeline for PET Image Analysis. Frontiers in Neuroinformatics. 12, 64.  https://doi.org/10.3389/fninf.2018.00064 
+1. Funck T, Larcher K, Toussaint PJ, Evans AC, Thiel A (2018) APPIAN: Automated Pipeline for PET Image Analysis. *Front Neuroinform*. PMCID: [PMC6178989][link_pmcid], DOI: [10.3389/fninf.2018.00064][link_doi]
 
-2. APPIAN automated QC paper (coming soon)
+2. APPIAN automated QC (*in preparation*)
+
+[link_dockerinstall]: https://docs.docker.com/install/
+[link_civet]: https://mcin-cnim.ca/technology/civet/
+[link_cbrain]: https://github.com/aces/cbrain/wiki
+[link_nipypertd]: https://nipype.readthedocs.io/en/latest/
+[link_dockerhome]: https://docs.docker.com/
+[link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md
+[link_contributors]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md
+[link_pmcid]: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6178989/
+[link_doi]: https://doi.org/10.3389/fninf.2018.00064
 
 ## Getting help
 
@@ -56,10 +69,11 @@ To join the discussion for APPIAN development, join our developers mailing list 
 https://groups.google.com/forum/#!forum/appian-dev
 
 
+
 ## About us
 Thomas Funck, PhD Candidate (thomas.funck@mail.mcgill.ca)\
 Kevin Larcher, MSc Eng.\
-Paule Joanne Toussaint, PhD
+Paule-Joanne Toussaint, PhD
 
 ## Terms and Conditions
 Copyright 2017 Thomas Funck, Kevin Larcher
@@ -80,3 +94,4 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 [windows_docker]: https://docs.docker.com/docker-for-windows/install/
 [nipype]: http://nipype.readthedocs.io/en/latest/
 [cbrain]: https://mcin-cnim.ca/technology/cbrain/
+

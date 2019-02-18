@@ -19,8 +19,8 @@ def find(src, match):
             matches.append(os.path.join(root, filename))
     return(matches)
 
-def nii2mnc_batch(opts clobber=False):
-    for sub in opts.subjectList :
+def nii2mnc_batch(opts, clobber=False):
+    for sub in opts.args :
         for ses in opts.sessionList :
             sub_ses_dir = opts.sourceDir + os.sep + 'sub-' + sub + os.sep + '*ses-'+ses
             t1_files = find(sub_ses_dir, "*_T1w.nii*") 

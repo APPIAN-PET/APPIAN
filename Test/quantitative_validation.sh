@@ -91,10 +91,9 @@ fi
 echo " Threads : $threads"
 echo 
 
-pvcMethods="GTM idSURF VC"
+pvcMethods="idSURF VC"
 #quantMethods="lp lp-roi suv suvr srtm srtm-bf"
 quantMethods="lp  srtm "
-quantMethods="srtm "
 
 #Run Quant
 cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --results-label-img "label-displacementROI" --pvc-fwhm 2.5 2.5 2.5 "

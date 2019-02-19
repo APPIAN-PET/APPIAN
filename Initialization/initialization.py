@@ -248,7 +248,7 @@ class MincHdrInfoRunning(BaseInterface):
                 self.type_ = type_
 
         temp_out_file=os.getcwd()+os.sep+"temp.json"
-        
+
         try :
             img = pyezminc.Image(self.inputs.in_file, metadata_only=True)
             hd = img.get_MINC_header()
@@ -406,13 +406,16 @@ class pet3DVolume(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = volumeFromFile(self.inputs.in_file)
-        
-        o=infile.dimnames.index("time")
+
+        try :
+            o=infile.dimnames.index("time")
+        except ValueError :
+            o=0
         dimnames=[ infile.dimnames[o+1], infile.dimnames[o+2],infile.dimnames[o+3] ]
         sizes=[ infile.sizes[o+1], infile.sizes[o+2],infile.sizes[o+3] ]
         starts=[ infile.starts[o+1], infile.starts[o+2],infile.starts[o+3] ]
         separations=[ infile.separations[o+1], infile.separations[o+2],infile.separations[o+3] ]
-        
+
         outfile = volumeFromDescription(self.inputs.out_file, dimnames, sizes, starts, separations)
 
         rank=0.25
@@ -435,10 +438,10 @@ class pet3DVolume(BaseInterface):
     def _list_outputs(self):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
-        
+
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-        
+
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
         return outputs

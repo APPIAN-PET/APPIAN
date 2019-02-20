@@ -408,31 +408,40 @@ class pet3DVolume(BaseInterface):
         infile = volumeFromFile(self.inputs.in_file)
 
         try :
-            o=infile.dimnames.index("time")
+            t=infile.dimnames.index("time")
+            nFrames = infile.sizes[infile.dimnames.index("time")]
         except ValueError :
-            o=0
-        dimnames=[ infile.dimnames[o+1], infile.dimnames[o+2],infile.dimnames[o+3] ]
-        sizes=[ infile.sizes[o+1], infile.sizes[o+2],infile.sizes[o+3] ]
-        starts=[ infile.starts[o+1], infile.starts[o+2],infile.starts[o+3] ]
-        separations=[ infile.separations[o+1], infile.separations[o+2],infile.separations[o+3] ]
+            t=0
+            nFrames=1
 
-        outfile = volumeFromDescription(self.inputs.out_file, dimnames, sizes, starts, separations)
-
+        z=infile.dimnames.index("zspace")
+        y=infile.dimnames.index("yspace")
+        x=infile.dimnames.index("xspace")
         rank=0.25
 
-        try :
-            nFrames = infile.sizes[infile.dimnames.index("time")]
+        if nFrames > 1 :
+            dimnames=[ infile.dimnames[z], infile.dimnames[y],infile.dimnames[x] ]
+            sizes=[ infile.sizes[z], infile.sizes[y],infile.sizes[x] ]
+            starts=[ infile.starts[z], infile.starts[y],infile.starts[x] ]
+            separations=[ infile.separations[z], infile.separations[y],infile.separations[x] ]
+            outfile = volumeFromDescription(self.inputs.out_file, dimnames, sizes, starts, separations)
             first=int(floor(nFrames*rank) )
             last=nFrames
-            volume_subset=infile.data[first:last,:,:,:]
-            volume_average=np.mean(volume_subset, axis=0)
+            if t == 0 :
+                volume_subset=infile.data[first:last,:,:,:]
+            elif t == 1:
+                volume_subset=infile.data[:,first:last,:,:]
+            elif t == 2:
+                volume_subset=infile.data[:,:,first:last,:]
+            else:
+                volume_subset=infile.data[:,:,f:,irst:last]
+            volume_average=np.mean(volume_subset, axis=t)
             outfile.data=volume_average
             outfile.writeFile()
             outfile.closeVolume()
-        except ValueError :
+        else :
             #If there is no "time" dimension (i.e., in 3D file), just copy the PET file
             shutil.copy(self.inputs.in_file, self.inputs.out_file)
-
         return runtime
 
     def _list_outputs(self):

@@ -45,7 +45,10 @@ def get_pvc_workflow(name, infosource, opts):
         print("Error: Could not find source file", pvc_module_fn, "corresponding to pvcification method:", opts.pvc_method )
         exit(1)
 
-    pvcNode = pe.Node(interface=pvc_module.pvcCommand(), name=opts.pvc_method)
+    pvcNodeName=opts.pvc_method
+    if opts.pvc_label_name != None :
+        pvcNodeName += "_"+opts.pvc_label_name
+    pvcNode = pe.Node(interface=pvc_module.pvcCommand(), name=pvcNodeName)
     pvcNode = pvc_module.check_options(pvcNode, opts)
 
     fixHeaderNode = pe.Node(interface=FixHeaderLinkCommand(), name="fixHeaderNode")

@@ -355,6 +355,14 @@ class Workflows:
             if not extract : continue
             node_name="results_"+surf+ node.name
             dir_name = "results_"+surf_dir+ node.name
+            
+            if opts.pvc_label_name != None :
+                node_name += "_"+opts.pvc_label_name
+            if opts.quant_label_name != None :
+                node_name += "_"+opts.quant_label_name
+            if opts.results_label_name != None :
+                node_name += "_"+opts.results_label_name
+
             self.resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             self.resultsReport.inputs.dim = dim
             self.resultsReport.inputs.node = node.name

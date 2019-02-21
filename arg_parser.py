@@ -73,7 +73,7 @@ def get_parser():
     # Surface Options #
     ###################
     #group= OptionGroup(parser,"Surface options")
-    parser.add_argument("--surf",dest="use_surfaces",action='store_true', default=False,help="Uses surfaces")
+    parser.add_argument("--surf",dest="use_surfaces",action='store_true', default=False,help="Flag that signals APPIAN to find surfaces")
     parser.add_argument("--surf-label",dest="surface_label", default='*', help="Label string to identify surface ROI .txt file")
     parser.add_argument("--surf-space",dest="surface_space",type=str,default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
     parser.add_argument("--surf-ext",dest="surf_ext",type=str,help="Extension to use for surfaces",default='obj')
@@ -132,6 +132,7 @@ def get_parser():
     #Results
     #group= OptionGroup(parser,"Masking options","Results")
     parser.add_argument("--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
+    parser.add_argument("--results-label-name",dest="results_label_name",help="Extra label string that is used to create the directory with results: /<results_method>_<results_label>. Allows you to run same results node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
     parser.add_argument("--results-label-img", dest="results_label_img",help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
@@ -157,6 +158,7 @@ def get_parser():
     ###############
     #group= OptionGroup(parser,"PVC Options")
     parser.add_argument("--pvc-method",dest="pvc_method",help="Method for PVC.",type=str, default=None)
+    parser.add_argument("--pvc-label-name",dest="pvc_label_name",help="Extra label string that is used to create the directory with PVC results: /<pvc_method>_<pvc_label>. Allows you to run same PVC node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--pet-scanner",dest="pet_scanner",help="FWHM of PET scanner.",type=str, default=None)
     parser.add_argument("--fwhm","--pvc-fwhm",dest="scanner_fwhm",help="FWHM of PET scanner (z,y,x).",type=float, nargs=3, default=None)
     parser.add_argument("--pvc-max-iterations",dest="max_iterations",help="Maximum iterations for PVC method.",type=int, default=None)
@@ -169,6 +171,7 @@ def get_parser():
     #TKA Options
     #group= OptionGroup(parser,"Quantification options")
     parser.add_argument("--tka-method","--quant-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--tka-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
     parser.add_argument("--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
     parser.add_argument("--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
@@ -202,24 +205,17 @@ def get_parser():
     
 
     #Quality Control 
-    #parser = OptionGroup(parser,"Quality control options")
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
     parser.add_argument("--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
     parser.add_argument_group(parser)
 
     #Results reporting
-    #parser = OptionGroup(parser,"Results reporting options")
     parser.add_argument("--no-group-stats",dest="group_stats",help="Don't calculate quantitative group-wise descriptive statistics.", action='store_const', const=False, default=True)  #FIXME Add to options
     parser.add_argument_group(parser)
 
-    #
-    #group= OptionGroup(parser,"Command control")
     parser.add_argument("-v","--verbose",dest="verbose",help="Write messages indicating progress. 0=quiet, 1=normal, 2=debug",type=int,default=1)
     
-    #group= OptionGroup(parser,"Pipeline control")
-    parser.add_argument("--print-scan",dest="pscan",help="Print the pipeline parameters for the scan.",action='store_true',default=False)
-    parser.add_argument("--print-stages",dest="pstages",help="Print the pipeline stages.",action='store_true',default=False)
     
     return parser
 

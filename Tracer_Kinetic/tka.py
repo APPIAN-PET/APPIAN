@@ -136,8 +136,17 @@ def get_tka_workflow(name, opts):
     except ImportError :
         print("Error: Could not find source file",quant_module_fn,"corresponding to quantification method:",opts.tka_method)
         exit(1)
+   
     
-    tkaNode = pe.Node(interface=quant_module.quantCommand(), name=opts.tka_method)
+
+    tkaNodeName=opts.tka_method
+    
+    if opts.pvc_label_name != None :
+        tkaNodeName += "_"+opts.pvc_label_name
+    if opts.quant_label_name != None :
+        tkaNodeName += "_"+opts.quant_label_name
+
+    tkaNode = pe.Node(interface=quant_module.quantCommand(), name=tkaNodeName)
     tkaNode = quant_module.check_options(tkaNode, opts)
  
     #If the quantification node takes a header input, then pass it from inputnode

@@ -34,15 +34,17 @@ if __name__ == "__main__":
     #################
     # Launch APPIAN #
     #################
-    if opts.pscan:
-        printScan(opts,args)
-    elif opts.pstages:
-        printStages(opts,args)
-    else :
-        if opts.run_scan_level:
-            run_scan_level(opts,args)
-        if opts.run_group_level:
-            run_group_level(opts,args)
+    if opts.run_scan_level:
+        run_scan_level(opts,args)
+    if opts.run_group_level:
+        run_group_level(opts,args)
 
 
+
+#def validate_inputs(opts) :
+#    '''
+#    Check that user has specified required inputs
+#    '''
+#    if opts.labels_template_img != None and not os.path.exists(opts.labels_template_img
+#        pass
 

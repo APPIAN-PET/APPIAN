@@ -180,44 +180,52 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 
-#run_appian "Dashboard" "--fwhm 6 6 6 --start-time 2.5 --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Dashboard" "--fwhm 6 6 6 --start-time 2.5 --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1 --pvc-label-name foo --tka-label-name bar --results-label-name mar --acq rcl "
 #TODO (1) Add surface testing
-#exit 1
+exit 1
 
 
 for acq in fdg rcl; do
     if [[ "$acq" == "fdg" ]]; then
         echo ____Testing 3D PET Images____
+        tag="3D"
     else
         echo ____Testing 4D PET Images____
+        tag="4D"
     fi
+
     ### Minimal Inputs
-    run_appian "Mininimum" "--acq $acq "
+    run_appian "Mininimum-$tag" "--acq $acq "
 
     ### PVC
     pvc_methods="GTM idSURF VC"
     for pvc in $pvc_methods; do
-        run_appian "PVC-${pvc}" "--acq $acq --fwhm 6 6 6 --pvc-method ${pvc}"
+        run_appian "PVC-${pvc}-$tag" "--acq $acq --fwhm 6 6 6 --pvc-method ${pvc}"
     done
 
     ### Analysis Space
     ## Stereotaxic space
-    run_appian  "Space-Stereo" "--acq $acq --analysis-space stereo --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+    run_appian  "Space-Stereo-$tag" "--acq $acq --analysis-space stereo --tka-method suvr --tka-label 3 --tka-label-erosion 1"
 
     ## MRI space
-    run_appian  "Space-MRI" "--acq $acq --analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+    run_appian  "Space-MRI-$tag" "--acq $acq --analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
 
     ### Atlas / Templates
     ## DKA atlas in MNI 152 space
-    run_appian "Atlas-DKA" "--acq $acq --tka-label-img ${base_path}/Atlas/MNI152/dka.mnc --results-label-img ${base_path}/Atlas/MNI152/dka.mnc --tka-label 2,41 --tka-labels-ones-only"
+    run_appian "Atlas-DKA-$tag" "--acq $acq --tka-label-img ${base_path}/Atlas/MNI152/dka.mnc --results-label-img ${base_path}/Atlas/MNI152/dka.mnc --tka-label 2 41 --tka-labels-ones-only"
     
     ## AAL atlas with Colin 27 template
-    run_appian "Atlas-AAL" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+    run_appian "Atlas-AAL-$tag-" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+
+    run_appian "Stereo-Colin27-$tag" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+    
+    #TO DO: Fix stereotaxic template. Following command does not run
+    #run_appian "Stereo-Colin27-$tag" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+
     ### Quantification
     quant_methods="suvr suv"
-
     for quant in $quant_methods; do
-        run_appian "Quant-${quant}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+        run_appian "Quant-${quant}-${tag}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
     done
 
 
@@ -225,22 +233,22 @@ for acq in fdg rcl; do
 done
 
 acq="rcl"
-
+tag="4D"
 ### Quantification
 quant_methods="lp lp-roi pp pp-roi srtm srtm-bf" #suv srtm, roi
 
 for quant in $quant_methods; do
-    run_appian "Quant-${quant}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+    run_appian "Quant-${quant}-${tag}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 done
 
 # Quantification with arterial
-run_appian "Quant-srtm-arterial" "--acq $acq --arterial --start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-srtm-arterial-${tag}" "--acq $acq --arterial --start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-idSURF-lp" "--acq $acq --start-time 2.5 --fwhm 6 6 6 --pvc-method idSURF --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-idSURF-lp-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6 --pvc-method idSURF --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-idSURF-suvr" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method idSURF --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-idSURF-suvr-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method idSURF --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-VC-lp" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-VC-lp-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-VC-suvr" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-VC-suvr-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 

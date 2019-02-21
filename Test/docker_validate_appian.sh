@@ -11,4 +11,4 @@ qc=${6:-0}
 ts=${7:-`date +"%Y%m%d-%H%M%S"`}
 test_dir="${out_data_path}/appian_validation/test_$ts"
 
-docker run -v "$SCRIPTPATH":"/APPIAN" tffunck/appian:latest bash -c "/APPIAN/Test/validate_appian.sh $threads $base_path $test_data_path $out_data_path $exit_on_failure $qc $ts $test_dir"
+docker run -v "$SCRIPTPATH":"/APPIAN" --rm tffunck/appian:latest bash -c "/APPIAN/Test/validate_appian.sh $threads $base_path $test_data_path $out_data_path $exit_on_failure $qc $ts $test_dir"

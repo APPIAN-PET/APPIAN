@@ -250,16 +250,27 @@ Either method will give you the same results, it’s up to you and what you find
 ## 4. Pipeline Overview  <a name="overview"></a>
 
 ### 4.1 Base User Options  <a name="options"></a>
-APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`), the list of sessions during which the scans were acquired (`-sessions`). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
+APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and quantification algorithms. The only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`). 
 
-####  File options (mandatory):
+#####  Mandatory arguments:
     -s SOURCEDIR, --source=SOURCEDIR, --sourcedir=SOURCEDIR
                         Input file directory
     -t TARGETDIR, --target=TARGETDIR, --targetdir=TARGETDIR
                         Directory where output data will be saved in
+#### Data Formats
+By default, APPIAN accepts either Nifti or MINC input files. If Nifti files are used, they will be converted to MINC in the source directory. This means that you must have write permissions to your source directory. In the future, this may be changed so that files converted from Nifti to MINC are saved in the target directory because it may be preferable to only write to the target directory.
+
+The user can set whether files are output in Nifti or MINC with the ```--output-format <file format>``` option. In principal files could be converted to any format for which a converter is available and python savy users are encouraged to try to implement this. 
+```
+    --output-format=OUTPUT_FORMAT 
+    			The file format for outputs from APPIAN: minc, nifti (Default=nifti).
+```
+
+#### Running on a subset of data
+By default, APPIAN will run for all the PET scans located in the source directory. However, a more specific subset of subjects can be specified using the "--subjects", "--sessions", "--tasks", "--runs", "--acq", and "rec" option to specify specific subjects, sessions, tasks, runs, acquisitions (i.e., specific radiotracers), and reconstructions. 
 
 
-#### File options (Optional):
+#####  Optional arguments:
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
@@ -267,20 +278,48 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --sessions=SESSIONLIST List of sessions
     --tasks=TASKLIST    List of tasks
     --runs=RUNSLIST     List of runs
+    
+#### Scan Level Vs Group Level
+APPIAN runs in 2 steps: 1) scan-level; 2) group-level. The first step is called "scan level" analysis because APPIAN processes all the individual PET scans with their corresponding T1. The group-level analysis runs once all of the scans have finished processing and combines the outputs from each of these to calculate descriptive statistics, perform quality control, and generate the dashboard GUI. 
+
+Both the scan-level and the group-level analysis can be turned off using the "--no-scan-level" and "--no-group-level" options.
+
+#####  Optional arguments:
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
-    --img-ext=IMG_EXT   Extension to use for images.
+
+
+#### Analysis Space
+Users can select which coordinate space they wish to perfom their PET processing in. By default, APPIAN will run all analysis in native PET coordinate space. This can be manually specified as ```--analysis-space pet```. APPIAN can also perform the analysis in the T1 MRI native coordinate space (```--analysis-space t1```), or in stereotaxic space (```--analysis-space stereo```).
+
+By default the steortaxic coordinate space used by APPIAN is MNI 152. However, uses can set their own stereotaxic template image with the option ```--stereotaxic-template </path/to/your/template.mnc>``` (Warning: this feature is still experimental and has not yet been thoroughly tested).
+
+##### Optional arguments:
     --analysis-space=ANALYSIS_SPACE
                         Coordinate space in which PET processing will be
                         performed (Default=pet)
-    --threads=NUM_THREADS
-                        Number of threads to use. (defult=1)
     --stereotaxic-template=TEMPLATE
                         Template image in stereotaxic space
-####  Surface options:
-    --surf              Uses surfaces
+
+    --threads=NUM_THREADS
+                        Number of threads to use. (defult=1)
+#### Surface-based ROIs
+In addition to supporting ROIs defined in 3D volumes, APPIAN can also use ROIs defined on a cortical surface. Currently only obj surfaces are implemented in APPIAN, but users looking to use other formats can get in contact with developers to figure out a way to do this. APPIAN currently also assumes that the surfaces are in stereotaxic coordinate space. 
+
+Surface obj files and corresponding label .txt files should be stored in the anat/ directory for each subject. The ```--surf-label <string>```in order to identify the surface ROI mask. 
+
+Obj files and masks should have the format: 
+
+**obj**: ```anat/sub-<sub>_ses-<ses>_T1w_hemi-<L/R>_space-stereo_midthickness.surf.obj```
+
+**surf**: ```sub-<sub>/_ses-<ses>/anat/sub-<sub>_ses-<ses>_T1w_hemi-<L/R>_space-stereo_<label>.txt"```
+
+
+#### Optional Arguments:
+    --surf              	Flag that signals APPIAN to find surfaces
+    --surf-label <string>	Label string that identifies surface ROI
     --surf-space=SURFACE_SPACE
-                        Set space of surfaces from : "pet", "t1", "icbm152"
+                        Set space of surfaces from : "pet", "t1", "stereo"
                         (default=icbm152)
     --surf-ext=SURF_EXT
                         Extension to use for surfaces

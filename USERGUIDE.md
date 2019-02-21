@@ -261,6 +261,7 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
 By default, APPIAN accepts either Nifti or MINC input files. If Nifti files are used, they will be converted to MINC in the source directory. This means that you must have write permissions to your source directory. In the future, this may be changed so that files converted from Nifti to MINC are saved in the target directory because it may be preferable to only write to the target directory.
 
 The user can set whether files are output in Nifti or MINC with the ```--output-format <file format>``` option. In principal files could be converted to any format for which a converter is available and python savy users are encouraged to try to implement this. 
+#####  Optional arguments:
 ```
     --output-format=OUTPUT_FORMAT 
     			The file format for outputs from APPIAN: minc, nifti (Default=nifti).

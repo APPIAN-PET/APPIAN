@@ -39,7 +39,6 @@ def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
 
 def get_parser():
     parser = ArgumentParser(usage="useage: ")
-    #group= OptionGroup(parser,"File options (mandatory)")
     parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory", required=True)
     parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in", required=True)
     parser.add_argument("--preprocdir",dest="preproc_dir",type=str, default='preproc', help="Relative path (relative to targetDir) to preprocessing directory for intermediate files")
@@ -50,11 +49,11 @@ def get_parser():
     parser.add_argument("--subjects",dest="args",default=[], help="List of subjects",nargs='+')
     parser.add_argument("--tasks",dest="taskList",default=[],help="List of conditions or scans",nargs='+')
     parser.add_argument("--runs",dest="runList",default=[],help="List of runs",nargs='+')
+    parser.add_argument("--output-format",dest="output_format",type=str, default='nifti', help="Output file format for APPIAN (default=nifti, options=nifti,minc)")
 
     ###############
     # Information #
     ###############
-    #group= OptionGroup(parser,"Options to supplement PET header information")
     parser.add_argument("--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type=float,default=0)
           
     #############################
@@ -170,6 +169,7 @@ def get_parser():
     #TKA Options
     #group= OptionGroup(parser,"Quantification options")
     parser.add_argument("--tka-method","--quant-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
     parser.add_argument("--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
     parser.add_argument("--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
     parser.add_argument("--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)

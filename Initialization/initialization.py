@@ -333,7 +333,9 @@ class VolCenteringRunning(BaseInterface):
 
         node_name="fixIrregularDimension"
         fixIrregular = ModifyHeaderCommand()
-        fixIrregular.inputs.opt_string = " -sinsert time:spacing=\"regular__\" -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
+        fixIrregular.inputs.opt_string = " -sinsert time-width:spacing=\"regular__\" -sinsert xspace:spacing=\"regular__\" -sinsert yspace:spacing=\"regular__\" -sinsert zspace:spacing=\"regular__\""
+        if "time" in infile.dimnames : 
+            fixIrregular.inputs.opt_string += " -sinsert time:spacing=\"regular__\""
         fixIrregular.inputs.in_file = temp_fn
         if self.inputs.verbose >= 2:
             print( fixIrregular.cmdline )

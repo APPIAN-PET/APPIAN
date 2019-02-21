@@ -1,24 +1,27 @@
-import os
-import nipype.pipeline.engine as pe
 from pyminc.volumes.factory import *
-import nipype.interfaces.io as nio
-import nipype.interfaces.utility as niu
-import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined, CommandLineInputSpec)
-from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined
+from nipype.utils.filemanip import load_json, save_json, split_filename, fname_presuffix, copyfile
+
 from Extra.base import MINCCommand, MINCCommandInputSpec
 from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow, mincconvertCommand, ecattominc2Command)
 from Extra.modifHeader import FixHeaderLinkCommand
 from Turku.dft import img2dft_unit_conversion
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
+from nipype.interfaces.minc import Calc as CalcCommand
+import nipype.pipeline.engine as pe
+import nipype.interfaces.minc as minc
+import nipype.interfaces.io as nio
+import nipype.interfaces.utility as niu
+import nipype.algorithms.misc as misc
 import ntpath
 import numpy as np
+import os
 import re
 import importlib
 import sys
+
 
 class createImgFromROIOutput(TraitedSpec):  
     out_file = File(desc="Reconstruced 3D image based on .dft ROI values")
@@ -63,7 +66,7 @@ class createImgFromROI(BaseInterface) :
         return dname+ os.sep+fname_list[0] + '.mnc'
 
 
-standard_fields=["in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
+standard_fields=["stereo","tfm_to_stereo", "like_file", "in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
 
 """
 .. module:: tka
@@ -118,7 +121,7 @@ def get_tka_workflow(name, opts):
     #inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
     inputnode = pe.Node(niu.IdentityInterface(fields=standard_fields), name='inputnode')
 
-    out_files = ["out_file"]
+    out_files = ["out_file", "out_file_stereo"]
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
 
@@ -206,7 +209,16 @@ def get_tka_workflow(name, opts):
 
 
     workflow.connect(tka_source, 'out_file', outputnode, 'out_file')
-    
+   
+    if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
+        quant_to_stereo = pe.Node( minc.Resample(), name="quant_stereo"  )
+        workflow.connect(inputnode, 'tfm_to_stereo', quant_to_stereo, "transformation")
+        workflow.connect(inputnode, 'stereo', quant_to_stereo, "like")
+        workflow.connect(tka_source, 'out_file', quant_to_stereo, "input_file")
+        workflow.connect(quant_to_stereo, 'output_file', outputnode, 'out_file_stereo')
+        quant_to_stereo.inputs.tricubic_interpolation = True
+
+
     ### Reference Region / TAC
     if  quant_module.reference :
         #Define an empty node for reference region

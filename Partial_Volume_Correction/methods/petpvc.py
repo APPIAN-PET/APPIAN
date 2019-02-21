@@ -79,17 +79,17 @@ class petpvc4DCommand(BaseInterface):
             nib.save( out_vol, self.inputs.out_file)
             shutil.rmtree("tmp/") 
         else :
-            petpvc4dNode = petpvc()
-            petpvc4dNode.inputs.z_fwhm  = self.inputs.z_fwhm
-            petpvc4dNode.inputs.y_fwhm  = self.inputs.y_fwhm
-            petpvc4dNode.inputs.x_fwhm  = self.inputs.x_fwhm
-            petpvc4dNode.inputs.x_fwhm  = self.inputs.x_fwhm
-            petpvc4dNode.inputs.iterations  = self.inputs.iterations
-            petpvc4dNode.inputs.in_file = self.inputs.in_file
-            petpvc4dNode.inputs.out_file= self.inputs.out_file
-            petpvc4dNode.inputs.pvc= self._suffix
+            petpvcNode = petpvcCommand()
+            petpvcNode.inputs.z_fwhm  = self.inputs.z_fwhm
+            petpvcNode.inputs.y_fwhm  = self.inputs.y_fwhm
+            petpvcNode.inputs.x_fwhm  = self.inputs.x_fwhm
+            petpvcNode.inputs.x_fwhm  = self.inputs.x_fwhm
+            petpvcNode.inputs.iterations  = self.inputs.iterations
+            petpvcNode.inputs.in_file = self.inputs.in_file
+            petpvcNode.inputs.out_file= self.inputs.out_file
+            petpvcNode.inputs.pvc= self._suffix
             print(petpvcNode.cmdline)
-            petpvc4dNode.run()
+            petpvcNode.run()
         return runtime
 
     def _list_outputs(self):

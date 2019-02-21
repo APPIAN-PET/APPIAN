@@ -1,6 +1,11 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
 from Masking import masking as masking
+from Masking import surf_masking
+from MRI import normalize
+from Extra.resample import ResampleCommand
+from Extra.conversion import mnc2niiCommand
+import nipype.interfaces.minc as minc
 import Registration.registration as reg
 import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
@@ -9,14 +14,11 @@ import Tracer_Kinetic.tka as tka
 import Quality_Control.qc as qc
 import Quality_Control.dashboard as dash
 import Test.test_group_qc as tqc
-from Masking import surf_masking
-from MRI import normalize
-import nipype.interfaces.minc as minc
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
-from Extra.resample import ResampleCommand
+
 
 
 class Workflows:
@@ -25,7 +27,9 @@ class Workflows:
         self.out_node_list = [] 
         self.out_img_list = []
         self.out_img_dim = []
-
+        self.extract_values = []
+        self.datasink_dir_name = []
+        
         # Create Nipype workflow
         self.workflow = pe.Workflow(name=opts.preproc_dir)
         self.workflow.base_dir = opts.targetDir
@@ -42,7 +46,6 @@ class Workflows:
         (self.set_datasource_anat, False, True),
         (self.set_datasource_surf, False, opts.use_surfaces),
         (self.set_datasource_base, opts.datasource_exit, True),
-        (self.set_datasink, False, True),
         (self.set_init_pet, opts.initialize_exit, True ),
         (self.set_mri_preprocess, opts.mri_preprocess_exit, True),
         (self.set_pet2mri, opts.coregistration_exit, True),
@@ -50,6 +53,7 @@ class Workflows:
         (self.set_t1_analysis_space, False, True),
         (self.set_pvc, False, opts.pvc_method),
         (self.set_quant, False, opts.tka_method ),
+        (self.set_datasink, False, True),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
         (self.set_qc_metrics, False, True), 
@@ -107,7 +111,13 @@ class Workflows:
         else : 
             self.brain_mask_mni_node = self.mri_preprocess
             self.brain_mask_mni_file='outputnode.brain_mask_mni'
-            self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.datasink, 't1/brain_mask')
+
+
+        self.out_node_list += [self.brain_mask_mni_node] 
+        self.out_img_list += [self.brain_mask_mni_file]
+        self.out_img_dim += ['3']
+        self.extract_values += [False]
+        self.datasink_dir_name += ['t1/brainmask']
 
         #If user wants to input their own t1 space to mni space transform with the option --user-t1mni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
@@ -119,14 +129,19 @@ class Workflows:
         else : 
             self.t1mni_node = self.mri_preprocess
             self.t1mni_file='outputnode.xfmT1MNI'       
-            self.workflow.connect(self.t1mni_node, self.t1mni_file, self.datasink, 't1/stereotaxic')
 
         self.workflow.connect(self.datasourceAnat, 'nativeT1', self.mri_preprocess, 'inputnode.t1')   
 
+        self.out_node_list += [self.t1mni_node] 
+        self.out_img_list += ["outputnode.t1_mni"]
+        self.out_img_dim += ['3']
+        self.extract_values += [False]
+        self.datasink_dir_name += ['t1/stereotaxic']
+    
     #############################
     # PET-to-MRI Coregistration #
     #############################
-    def set_pet2mri(self, opts):
+    def set_pet2mri(self, opts) :
         self.pet2mri=reg.get_workflow("pet_coregistration", self.infosource, opts)
 
         if opts.analysis_space == 'pet' :
@@ -150,12 +165,14 @@ class Workflows:
             self.misregistration.iterables = ('error',tqc.errors)
             self.workflow.connect(self.misregistration, 'error', self.pet2mri, "inputnode.error")
 
-        self.workflow.connect(self.pet2mri, 'outputnode.petmri_img', self.datasink,'pet_coregistration' )
+        #self.workflow.connect(self.pet2mri, 'outputnode.petmri_img', self.datasink,'pet_coregistration' )
         #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.pet_input_node] 
         self.out_img_list += [self.pet_input_file]
         self.out_img_dim += ['4']
+        self.extract_values += [True]
+        self.datasink_dir_name += ['pet_coregistration']
 
     ###########
     # Masking #
@@ -266,9 +283,9 @@ class Workflows:
         self.out_node_list += [self.pvc]
         self.out_img_list += ['outputnode.out_file']
         self.out_img_dim += ['4']
-
-        self.workflow.connect(self.pvc, 'outputnode.out_file', self.datasink,'pvc' )
-
+        self.extract_values += [True]
+        self.datasink_dir_name += ['pvc']
+        print('set pvc')
 
     ###########################
     # Tracer kinetic analysis #
@@ -284,6 +301,16 @@ class Workflows:
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.quant, "inputnode.header")
         self.workflow.connect(self.masking, "resultsLabels.out_file", self.quant, "inputnode.mask") 
         self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "inputnode.in_file")
+        self.workflow.connect(self.mri_preprocess, "outputnode.brain_mask_mni", self.quant, "inputnode.stereo")
+       
+
+        if opts.analysis_space == "t1" :
+            self.workflow.connect(self.mri_preprocess, 'outputnode.xfmT1MNI', self.quant, 'inputnode.tfm_to_stereo')
+        elif opts.analysis_space == "pet" :
+            self.workflow.connect(self.pet2mri, "outputnode.petmni_xfm", self.quant, 'inputnode.tfm_to_stereo')
+        else :
+            pass
+        
         if opts.arterial :
             self.workflow.connect(self.datasource, 'arterial_file', self.quant, "inputnode.reference")
         else :     
@@ -294,8 +321,17 @@ class Workflows:
         self.out_node_list += [self.quant]
         self.out_img_list += ['outputnode.out_file']
         self.out_img_dim += ['3']
+        self.extract_values += [True]
+        self.datasink_dir_name += ['quant']
 
-        self.workflow.connect(self.quant, 'outputnode.out_file', self.datasink,'quant' )
+        if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
+            self.out_node_list += [self.quant]
+            self.out_img_list += ['outputnode.out_file']
+            self.out_img_dim += ['3']
+            self.extract_values += [False]
+            self.datasink_dir_name += ['quant/stereo']
+        print('set quant')
+        
 
     ##################
     # Results Report #
@@ -314,7 +350,9 @@ class Workflows:
         if surf != '' :
             surf_dir=surf+'_'
 
-        for node, img, dim in zip(self.out_node_list, self.out_img_list, self.out_img_dim):
+        for node, img, dim, extract in zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.extract_values):
+            print(node.name, extract, img, dim)
+            if not extract : continue
             node_name="results_"+surf+ node.name
             dir_name = "results_"+surf_dir+ node.name
             self.resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
@@ -338,6 +376,7 @@ class Workflows:
             self.workflow.connect( self.resultsReport, 'out_file_3d', self.datasink, "results"+os.sep+dir_name )
             if int(dim) == 4:
                 self.workflow.connect( self.resultsReport, 'out_file_4d', self.datasink, "results"+os.sep+dir_name +"_4d")
+
 
     ############################
     # Subject-level QC Metrics #
@@ -466,15 +505,16 @@ class Workflows:
         if len(opts.taskList) != 0: 
             pet_str = pet_str + '*task-%s'
             pet_list += ['task'] 
+        if len(opts.runList) != 0: 
+            pet_str = pet_str + '*run-%s'
+            pet_list += ['run']
         if opts.acq != '' :
             pet_str = pet_str + '*acq-%s'
             pet_list += ['acq']  
         if opts.rec != '':
             pet_str = pet_str + '*rec-%s'
             pet_list += ['rec']
-        if len(opts.runList) != 0: 
-            pet_str = pet_str + '*run-%s'
-            pet_list += ['run']
+
 
         pet_str = pet_str + '*_pet.'
 
@@ -641,7 +681,15 @@ class Workflows:
     def set_datasink(self, opts) :
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
         self.datasink.inputs.base_directory= opts.targetDir + '/' 
-        self.datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
-
+        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', '')]
+        for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
+            print(opts.output_format, node.name, dir_name)
+            if opts.output_format == 'nifti' :
+                convertOutput=pe.Node(mnc2niiCommand(), name="convert_output_"+str(i)+'_'+node.name)
+                self.workflow.connect(node, img, convertOutput, 'in_file')
+                self.workflow.connect(convertOutput, 'out_file', self.datasink, dir_name) 
+            else :
+                self.workflow.connect(node, img, self.datasink, dir_name) 
+        return 0
 
 

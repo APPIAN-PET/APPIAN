@@ -295,15 +295,17 @@ Users can select which coordinate space they wish to perfom their PET processing
 
 By default the steortaxic coordinate space used by APPIAN is MNI 152. However, uses can set their own stereotaxic template image with the option ```--stereotaxic-template </path/to/your/template.mnc>``` (Warning: this feature is still experimental and has not yet been thoroughly tested).
 
+Users will typically procude a quantitative or semi-quantitative output images (e.g., tracer-kinetic analysis or with the SUVR method). If the analysis space was set to "pet" or "t1", there is an additional option to transform these output images to stereotaxic coordinate space : ```--quant-to-stereo```
+
 ##### Optional arguments:
     --analysis-space=ANALYSIS_SPACE
                         Coordinate space in which PET processing will be
                         performed (Default=pet)
     --stereotaxic-template=TEMPLATE
                         Template image in stereotaxic space
+    --quant-to-stereo 
+    			Transform quantitative images to stereotaxic space
 
-    --threads=NUM_THREADS
-                        Number of threads to use. (defult=1)
 #### Surface-based ROIs
 In addition to supporting ROIs defined in 3D volumes, APPIAN can also use ROIs defined on a cortical surface. Currently only obj surfaces are implemented in APPIAN, but users looking to use other formats can get in contact with developers to figure out a way to do this. APPIAN currently also assumes that the surfaces are in stereotaxic coordinate space. 
 
@@ -324,6 +326,14 @@ Obj files and masks should have the format:
                         (default=icbm152)
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
+### Multithreading
+
+Nipype allows multithreading and therefore allows APPIAN to run multiple scans in parrallel. By default, APPIAN only runs using 1 thread, but this can be increased using the ```--threads``` option.
+
+#### Optional Arguments:
+    --threads=NUM_THREADS
+                        Number of threads to use. (defult=1)
+
 
 ### 4.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
 Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.

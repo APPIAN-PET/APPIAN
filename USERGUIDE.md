@@ -101,26 +101,26 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
     sub-01/
        _ses-01/
           pet/
-             	sub-01_ses-01_task-01_pet.nii
-	     	sub-01_ses-01_task-01_pet.json
-             	sub-01_ses-01_task-02_pet.nii
-	     	sub-01_ses-01_task-02_pet.json
+	  	sub-01_ses-01_task-01_pet.nii
+		sub-01_ses-01_task-01_pet.json
+		sub-01_ses-01_task-02_pet.nii
+		sub-01_ses-01_task-02_pet.json
              	...
           anat/ 
-              	sub-01_ses-01_T1w.nii
+	  	sub-01_ses-01_T1w.nii
       _ses-02/
                	...
 
     sub-02/
        _ses-01/
           pet/
-             	sub-02_ses-01_task-01_pet.nii
-	     	sub-02_ses-01_task-01_pet.json
-             	sub-02_ses-01_task-02_pet.nii
-	     	sub-02_ses-01_task-02_pet.json
+	  	sub-02_ses-01_task-01_pet.nii
+		sub-02_ses-01_task-01_pet.json
+		sub-02_ses-01_task-02_pet.nii
+		sub-02_ses-01_task-02_pet.json
              	...
           anat/ 
-             	sub-02_ses-01_T1w.nii
+	  	sub-02_ses-01_T1w.nii
         _ses-02/
              ...
 

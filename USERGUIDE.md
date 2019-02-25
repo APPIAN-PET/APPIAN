@@ -360,10 +360,14 @@ Quality control metrics are calculated for each image volume and each processing
 Web browser-based graphical-user interface for visualizing results.
 
 
-## 5 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+## 5. [APPIAN Outputs]
+Coming soon...
+
+
+## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
 
-## 6. Examples  <a name="example"></a>
+## 7. Examples  <a name="example"></a>
 
 ### Running APPIAN on subset of scans
 By default, APPIAN will run on all the scans it can identify in the source directory. However, you may want to run APPIAN on a subset of your scans. You can do this by setting which subjects, sessions, tasks, and runs you wish to process with APPIAN.

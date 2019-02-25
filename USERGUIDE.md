@@ -140,7 +140,7 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 `sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm`
 
 ##### Brain mask (stereotaxic space): 
-`sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc`
+`sub-%s/_ses-%s/anat/sub-%s_ses-%s*_T1w_space-mni_brainmask.mnc`
 
 ##### T1 Segmentation: 
 `sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc`

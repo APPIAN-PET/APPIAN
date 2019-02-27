@@ -53,7 +53,7 @@ def get_workflow(name, opts):
 
     if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
-            mri2template = pe.Node(interface=mincANTSCommand(args='--float',
+            mri2template = pe.Node(interface=Registration(args='--float',
                 collapse_output_transforms=True,
                 fixed_image=opts.template,
                 initial_moving_transform_com=True,

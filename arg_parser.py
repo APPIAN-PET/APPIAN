@@ -87,7 +87,7 @@ def get_parser():
     parser.add_argument("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Do not run group level analysis")
     parser.add_argument("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Do not run scan level analysis")
 
-    parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='mnc')
+    parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='nii')
     parser.add_argument("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
     parser.add_argument("--threads",dest="num_threads",type=int,help="Number of threads to use. (defult=1)",default=1)
     

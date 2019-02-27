@@ -361,7 +361,26 @@ Web browser-based graphical-user interface for visualizing results.
 
 
 ## 5. [APPIAN Outputs]
-Coming soon...
+APPIAN will create the target directory you specify with the "-t" or "--target" option. 
+
+Within the target directory you will find a subdirectory called "preproc". This contains all of the intermediate files produced by APPIAN. APPIAN is built using Nipype, which defines a network of nodes (also called a workflow). The ouputs of upstream nodes are passed as inputs to downstream nodes. A directory within preproc/ is created for each node that is run as a part of the workflow. Given that the nodes that APPIAN will run will change as a function of user inputs, the outputs you find in preproc will change accordingly. 
+
+For all nodes that are responsible for running a command in the terminal, there will be a text file called "commant.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
+
+Within preproc you will find directories named after each scan APPIAN has processed, with the form: _args_run<run>.task<task>.ses<ses>.sid<sub>. This will contain a variety of results including the results report, automated QC, dashboard xml for that particular scan. 
+
+You will also find several other important subdirectories in preproc/. In particular: 
+```
+	initialization --> centered version of initial PET image, 3D contatenated version of initial PET 
+	masking --> contains the labelled images used for the PVC, quantification, and results report stages, respectively
+	pet-coregistration --> transformation file from PET to MRI, and vice versa. 3D PET image in MRI space
+	mri --> mri normalized into icbm152 space, brain mask in stereotaxic and MRI native space, MRI segmentation
+	quantification  --> parametric image produced by quantification stage
+```
+
+The reason why there APPIAN stores the outputs in these two ways is a bit complicated and has to do with how Nipype works. Basically, the results that are stored in a subdirectory name after a processing stage, e.g., "pet-coregistration" or "quantification", are part of a sub-workflow within the larger APPIAN workflow and get their own subdirectory named after the sub-workflow.
+	
+When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
 
 
 ## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)

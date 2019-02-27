@@ -19,7 +19,7 @@ validation_qc(){
     qc_dir=${test_dir}/qc
     mkdir -p $qc_dir
 
-    for f in `find ${out_data_path}/validation_output -name "*.mnc"`; do
+    for f in `find ${out_data_path}/output -name "*.mnc"`; do
         var1=`stat $f | grep Modify | awk '{split($0,ar," "); print ar[2] ar[3] }'`
         f2=${qc_dir}/`basename $f | sed "s/.mnc/_${var1}.png/"`
         if [[ ! -f $f2 ]] ; then
@@ -43,7 +43,7 @@ run_appian() {
         printf "Test: $test_name -- "
 
         #Define variable with minimal command to launch APPIAN
-        minimal_options="python2.7 $base_path/Launcher.py -s ${test_data_path} -t ${out_data_path}/validation_output --threads ${threads}"
+        minimal_options="python2.7 $base_path/Launcher.py  --verbose 2 -s ${test_data_path} -t ${out_data_path}/output --threads ${threads}"
         bash -c "$minimal_options $extra_options" &> $log
         errorcode=$?
         #The number of errors produced by the APPIAN run is determined by the number of crash reports with
@@ -180,9 +180,9 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 
-run_appian "Dashboard" "--fwhm 6 6 6 --start-time 2.5 --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1 --pvc-label-name foo --tka-label-name bar --results-label-name mar --acq rcl "
+#run_appian "Dashboard" "--acq rcl --t1-normalize-method 'ants' --coregistration-exit "
+#exit 1
 #TODO (1) Add surface testing
-exit 1
 
 
 for acq in fdg rcl; do
@@ -195,8 +195,7 @@ for acq in fdg rcl; do
     fi
 
     ### Minimal Inputs
-    run_appian "Mininimum-$tag" "--acq $acq "
-
+    run_appian "Atlas-AAL-$tag-" "--subjects TauPET225 --coreg-method ants  --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc  --pvc-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --pvc-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc  --tka-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --tka-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc --pvc-method VC --quant-method suvr --fwhm 5 5 5 --quant-label 67 --mri-preprocess-exit"
     ### PVC
     pvc_methods="GTM idSURF VC"
     for pvc in $pvc_methods; do
@@ -205,7 +204,7 @@ for acq in fdg rcl; do
 
     ### Analysis Space
     ## Stereotaxic space
-    run_appian  "Space-Stereo-$tag" "--acq $acq --analysis-space stereo --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+    run_appian  "Space-Stereo-$tag" "--acq $acq --analysis-space stereo --tka-method suvr --quant-label 3 --tka-label-erosion 1"
 
     ## MRI space
     run_appian  "Space-MRI-$tag" "--acq $acq --analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
@@ -217,9 +216,7 @@ for acq in fdg rcl; do
     ## AAL atlas with Colin 27 template
     run_appian "Atlas-AAL-$tag-" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
 
-    run_appian "Stereo-Colin27-$tag" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
-    
-    #TO DO: Fix stereotaxic template. Following command does not run
+    #TODO: Fix stereotaxic template. Following command does not run
     #run_appian "Stereo-Colin27-$tag" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
 
     ### Quantification

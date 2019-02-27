@@ -101,6 +101,7 @@ cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --s
 cmd_quant="$cmd_base --tka-method srtm "
 cmd_pvc="$cmd_quant --pvc-method VC "
 echo docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
+docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
 exit 0
 
 for quant in $quantMethods; do

@@ -471,14 +471,13 @@ class mnc2niiCommand(BaseInterface):
         self.inputs.out_file = out_fn =  os.getcwd() +os.sep+ fn[0]+ '.nii'
 
         test = nib.minc2.load(in_fn)
-        print(test.shape)
+        
         if len(test.shape) >= 4 :
             tmax = test.shape[0]
             offset = 1
         else :
             tmax = 1
             offset = 0
-        print("tmax", tmax)
         zmax=test.shape[offset+0]
         ymax=test.shape[offset+1]
         xmax=test.shape[offset+2]

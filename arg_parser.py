@@ -60,6 +60,8 @@ def get_parser():
     # MRI Preprocessing Options #
     #############################
     #group= OptionGroup(parser,"MRI preprocessing options")
+    parser.add_argument("--t1-normalize-method", dest="t1_normalize_method",type=str,help="Coregistration method: minctracc, ants. (default=ants)", default="ants")
+    parser.add_argument("--t1-normalize-type", dest="t1_normalize_type",type=str,help="Coregistration method: nl, affine. (default=nl)", default="nl")
     parser.add_argument("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     #parser.add_argument("--beast-voxel-size", dest="beast_voxel_size", default=2, type=int, help="Voxel size for brain segmentation" ) 
@@ -113,7 +115,7 @@ def get_parser():
     parser.add_argument("--pvc-label-template",dest="pvc_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
     parser.add_argument("--pvc-label",dest="pvc_labels",help="Label values to use for pvc",default=[], nargs='+')
     parser.add_argument("--pvc-label-erosion",dest="pvc_erode_times",help="Number of times to erode label", type=int, default=0 )
-    parser.add_argument("--pvc-labels-brain-only",dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--pvc-labels-brain-only","--pvc-label-brain-only", dest="pvc_labels_brain_only",help="Mask pvc labels with brain mask",action='store_true',default=False)
     parser.add_argument("--pvc-labels-ones-only",dest="pvc_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     parser.add_argument("--pvc-labels-per-pet",dest="pvc_labels_per_pet",help="Mask pvc labels with brain mask",action='store_true',default=False)
     
@@ -125,7 +127,7 @@ def get_parser():
     parser.add_argument("--tka-label-template","--quant-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
     parser.add_argument("--tka-label","--quant-label",dest="tka_labels",help="Label values to use for TKA", default=[3], nargs='+' )
     parser.add_argument("--tka-label-erosion","--quant-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type=int, default=0 )
-    parser.add_argument("--tka-labels-brain-only","--quant-labels-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--tka-labels-brain-only","--quant-label-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
     parser.add_argument("--tka-labels-ones-only","--quant-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     
 
@@ -138,7 +140,7 @@ def get_parser():
     parser.add_argument("--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
     parser.add_argument("--results-label",dest="results_labels",help="Label values to use for results",default=[], nargs='+' )
     parser.add_argument("--results-label-erosion",dest="results_erode_times",help="Number of times to erode label", type=int,default=0 )
-    parser.add_argument("--results-labels-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--results-labels-brain-only","--results-label-brain-only",dest="results_labels_brain_only",help="Mask results labels with brain mask",action='store_true',default=False)
     parser.add_argument("--results-labels-ones-only",dest="results_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     
 

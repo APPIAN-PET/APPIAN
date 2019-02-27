@@ -322,6 +322,8 @@ class VolCenteringRunning(BaseInterface):
         shutil.copy(self.inputs.in_file, temp_fn)
         #infile = volumeFromFile(self.inputs.in_file)
         infile = nib.load(self.inputs.in_file)
+        #infile = volumeFromFile(self.inputs.in_file)
+        #infile = nib.load(self.inputs.in_file)
 
         for view in ['xspace','yspace','zspace']:
             dim = infile.dimnames.index( view )

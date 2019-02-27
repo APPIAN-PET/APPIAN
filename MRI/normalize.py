@@ -8,10 +8,11 @@ import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import os
 from MRI.mincbeast import mincbeastCommand, mincbeast_library, beast_normalize_with_conversion, mincbeast, create_alt_template
-from Extra.mincants import mincANTSCommand, mincAtroposCommand
+from nipype.interfaces.ants import Registration, ApplyTransforms
+from Extra.conversion import mnc2niiCommand
 from Extra.extra import copyCommand
 import nipype.interfaces.minc as minc
-from Registration.registration import PETtoT1LinRegRunning
+from Registration.registration import PETtoT1LinRegRunning, nLinRegRunning
 from nipype.interfaces.utility import Rename
 
 def get_workflow(name, opts):
@@ -50,12 +51,11 @@ def get_workflow(name, opts):
     ##########################################
     # T1 spatial (+ intensity) normalization #
     ##########################################
-
+    print opts.coreg_method
     if not opts.user_t1mni:
         if opts.coreg_method == 'ants' :
             mri2template = pe.Node(interface=Registration(args='--float',
                 collapse_output_transforms=True,
-                fixed_image=opts.template,
                 initial_moving_transform_com=True,
                 num_threads=1,
                 output_inverse_warped_image=True,
@@ -69,9 +69,12 @@ def get_workflow(name, opts):
                 convergence_window_size=[20, 20, 5],
                 metric=['Mattes', 'Mattes', ['Mattes', 'CC']],
                 metric_weight=[1.0, 1.0, [0.5, 0.5]],
-                number_of_iterations=[[10000, 11110, 11110],
-                    [10000, 11110, 11110],
-                    [100, 30, 20]],
+                #number_of_iterations=[[10000, 11110, 11110],
+                #    [10000, 11110, 11110],
+                #    [100, 30, 20]],
+                number_of_iterations=[[1, 1, 1],
+                    [1, 1, 1],
+                    [1, 1, 1]],
                 radius_or_number_of_bins=[32, 32, [32, 4]],
                 sampling_percentage=[0.3, 0.3, [None, None]],
                 sampling_strategy=['Regular',
@@ -92,12 +95,27 @@ def get_workflow(name, opts):
                 name="mincANTS_registration")
 
             mri2template.inputs.write_composite_transform=True
-            workflow.connect(inputnode, 't1', mri2template, 'moving_image')
+            
+            mnc2nii_moving = pe.Node(mnc2niiCommand(), name="mnc2nii_moving")
+            workflow.connect(inputnode, 't1', mnc2nii_moving, 'in_file')
+            workflow.connect(mnc2nii_moving, 'out_file', mri2template, 'moving_image')
+           
+            mnc2nii_fixed = pe.Node(mnc2niiCommand(), name="mnc2nii_fixed")
+            mnc2nii_fixed.inputs.in_file = fixed_image=opts.template
+            workflow.connect(mnc2nii_fixed, 'out_file', mri2template, 'fixed_image')
 
             t1_mni_file = 'warped_image'
             t1_mni_node=mri2template
             tfm_node= mri2template
             tfm_file='composite_transform'
+        elif opts.coreg_method == 'minctracc' :
+            mri2template = pe.Node(interface=nLinRegRunning(), name="mri_normalize")
+            mri2template.inputs.in_target_file=opts.template
+            workflow.connect(inputnode, 't1', mri2template, 'in_source_file')
+            t1_mni_file = 'out_file_img'
+            t1_mni_node=mri2template
+            tfm_node= mri2template
+            tfm_file='out_file_xfm'
         else :
             mri2template = pe.Node(interface=beast_normalize_with_conversion(), name="mri_normalize")
             template_name = os.path.splitext(os.path.basename(template_rsl))[0]
@@ -111,7 +129,7 @@ def get_workflow(name, opts):
             tfm_node= mri2template
             tfm_file='out_file_xfm'
     else :
-        transform_t1 = pe.Node(interface=minc.Resample(), name="transform_t1"  )
+        transform_t1 = pe.Node(interface=applyTransform(), name="transform_t1"  )
         transform_t1.inputs.two=True
         workflow.connect(inputnode, 't1', transform_t1, 'input_file')
         workflow.connect(inputnode, 'xfmT1MNI', transform_t1, 'transformation')
@@ -121,12 +139,6 @@ def get_workflow(name, opts):
         t1_mni_file = 'output_file'
         tfm_node = inputnode
         tfm_file = 'xfmT1MNI'
-
-    #
-    # Invert transformation from T1 to MNI space
-    #
-    xfmMNIT1 = pe.Node(interface=minc.XfmInvert(), name="MNIT1")
-    workflow.connect(tfm_node, tfm_file, xfmMNIT1 , 'input_file')
 
     #
     # T1 in native space will be part of the APPIAN target directory
@@ -159,7 +171,7 @@ def get_workflow(name, opts):
     #
     # Transform brain mask from stereotaxic to T1 native space
     #
-    transform_brain_mask = pe.Node(interface=minc.Resample(), name="transform_brain_mask"  )
+    transform_brain_mask = pe.Node(interface=applyTransform(), name="transform_brain_mask"  )
     transform_brain_mask.inputs.nearest_neighbour_interpolation = True
     transform_brain_mask.inputs.invert_transformation = True
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_file')

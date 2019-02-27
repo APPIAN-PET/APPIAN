@@ -11,6 +11,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 #from nipype.interfaces.base import Info
+
 from nipype.interfaces.utility import Rename
 from os.path import splitext
 import nipype.interfaces.minc as minc
@@ -22,6 +23,7 @@ from Extra.morphomat import MorphCommand
 from Extra.info import StatsCommand
 from Extra.resample import param2xfmCommand
 from Extra.obj import *
+from Extra.xfmOp import ConcatCommand, ConcatNLCommand
 import Registration.registration as reg
 import pyminc.volumes.factory as pyminc
 
@@ -30,6 +32,8 @@ class LabelsInput(BaseInterfaceInputSpec):
     petT1 = File(exists=True, desc="PET image transformed into PET space")
     LinXfm= File(exists=True, mandatory=True, desc="Transformation matrix to register PET image to T1 space")
     nLinAtlasMNIXfm = traits.Str(default='', desc="Non-linear transformation matrix to register atlas template image into MNI space")
+    template  = File(desc="Mask on the template")
+    warp = File(desc="Warp/deformation volume for NL transform")
     label_type = traits.Str(mandatory=True, desc="Type for label")
     labels = traits.List(desc="label value(s) for label image.")
     #_spaces = ['native', 'stereo', 'other']
@@ -112,7 +116,6 @@ class Labels(BaseInterface):
                 xfm = mni2target.inputs.out_file
                 self.inputs.nLinAtlasMNIXfm=mni2target.inputs.output_file
             else :
-                #sourceToModel_xfm=self.inputs.nLinAtlasMNIXfm
                 xfm=self.inputs.nLinAtlasMNIXfm
         else :
             xfm = self.inputs.LinXfm
@@ -313,6 +316,7 @@ def get_workflow(name, infosource, opts):
             workflow.connect(inputnode, "surf_left", surface_left_node, "output_file")
             workflow.connect(inputnode, "surf_right", surface_right_node, "output_file")
 
+
     resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
     resultsLabels.inputs.analysis_space = opts.analysis_space
     resultsLabels.inputs.label_type = opts.results_label_type
@@ -326,6 +330,21 @@ def get_workflow(name, infosource, opts):
     workflow.connect(inputnode, like_file, resultsLabels, 'like_file')
     workflow.connect(brain_mask_node,"output_file", resultsLabels, 'brain_mask')
     workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
+    
+    #Setup node for nonlinear alignment of results template to default (icbm152) template
+    if opts.results_label_template != None :
+        results_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="results_template_normalization")
+        results_template_norm.inputs.in_target_file = opts.template
+        results_template_norm.inputs.in_source_file = opts.results_label_template
+        
+        results_template_analysis_space = pe.Node(ConcatNLCommand(), name="results_template_analysis_space")
+        workflow.connect(results_template_norm, 'out_file_xfm', results_template_analysis_space, 'in_file' )
+        workflow.connect(results_template_norm, 'out_file_warp', results_template_analysis_space, 'in_warp' )
+        workflow.connect(results_tfm_node, results_tfm_file, results_template_analysis_space, 'in_file_2' )
+                
+        workflow.connect(results_template_analysis_space, 'out_file', resultsLabels, 'nLinAtlasMNIXfm')
+        workflow.connect(results_template_analysis_space, 'out_warp', resultsLabels, 'warp')
+        workflow.connect(results_template_norm, 'out_file_img', resultsLabels, 'template')
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
         pvcLabels = pe.Node(interface=Labels(), name="pvcLabels")
@@ -337,12 +356,27 @@ def get_workflow(name, infosource, opts):
         pvcLabels.inputs.ones_only = opts.pvc_labels_ones_only
         workflow.connect(inputnode, 'pvc_labels', pvcLabels, 'labels')
         workflow.connect(inputnode, 'pvc_label_img', pvcLabels, 'label_img')
-        workflow.connect(inputnode, 'pvc_label_template', pvcLabels, 'label_template')
         workflow.connect(inputnode, like_file, pvcLabels, 'like_file')
         workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brain_mask')
         workflow.connect(pvc_tfm_node, pvc_tfm_file, pvcLabels, "LinXfm")
 
-    if not opts.tka_method == None:
+
+        if opts.pvc_label_template != None :
+            pvc_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="pvc_template_normalization")
+            pvc_template_norm.inputs.in_target_file = opts.template
+            pvc_template_norm.inputs.in_source_file = opts.pvc_label_template
+            
+            pvc_template_analysis_space = pe.Node(ConcatNLCommand(), name="pvc_template_analysis_space")
+            workflow.connect(pvc_template_norm, 'out_file_xfm', pvc_template_analysis_space, 'in_file' )
+            workflow.connect(pvc_template_norm, 'out_file_warp', pvc_template_analysis_space, 'in_warp' )
+            workflow.connect(pvc_tfm_node, pvc_tfm_file, pvc_template_analysis_space, 'in_file_2' )
+                    
+            workflow.connect(pvc_template_analysis_space, 'out_file', pvcLabels, 'nLinAtlasMNIXfm')
+            workflow.connect(pvc_template_analysis_space, 'out_warp', pvcLabels, 'warp')
+            workflow.connect(pvc_template_norm, 'out_file_img', pvcLabels, 'template')
+
+
+    if not opts.tka_method == None :
         tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
         tkaLabels.inputs.analysis_space = opts.analysis_space
         tkaLabels.inputs.label_type = opts.tka_label_type
@@ -352,9 +386,23 @@ def get_workflow(name, infosource, opts):
         tkaLabels.inputs.ones_only = opts.tka_labels_ones_only
         workflow.connect(inputnode, 'tka_labels', tkaLabels, 'labels')
         workflow.connect(inputnode, 'tka_label_img', tkaLabels, 'label_img')
-        workflow.connect(inputnode, 'tka_label_template', tkaLabels, 'label_template')
         workflow.connect(inputnode, like_file, tkaLabels, 'like_file')
         workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brain_mask')
         workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
+
+
+        if opts.tka_label_template != None :
+            tka_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="tka_template_normalization")
+            tka_template_norm.inputs.in_source_file = opts.template
+            tka_template_norm.inputs.in_target_file = opts.tka_label_template
+            
+            tka_template_analysis_space = pe.Node(ConcatNLCommand(), name="tka_template_analysis_space")
+            workflow.connect(tka_template_norm, 'out_file_xfm', tka_template_analysis_space, 'in_file' )
+            workflow.connect(tka_template_norm, 'out_file_warp', tka_template_analysis_space, 'in_warp' )
+            workflow.connect(tka_tfm_node, tka_tfm_file, tka_template_analysis_space, 'in_file_2' )
+                    
+            workflow.connect(tka_template_analysis_space, 'out_file', tkaLabels, 'nLinAtlasMNIXfm')
+            workflow.connect(tka_template_analysis_space, 'out_warp', tkaLabels, 'warp')
+            workflow.connect(tka_template_norm, 'out_file_img', tkaLabels, 'template')
 
     return(workflow)

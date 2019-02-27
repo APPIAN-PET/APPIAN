@@ -58,7 +58,6 @@ class quantCommand(BaseInterface):
                 end_time=self.inputs.end_time
 
             try : 
-                #time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
                 time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] if s >= start_time and e <= end_time ]
             except ValueError :
                 time_frames = [1.]

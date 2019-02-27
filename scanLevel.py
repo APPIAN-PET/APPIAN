@@ -111,6 +111,8 @@ def unique_file(files, attributes, verbose=1):
         skip=False
         for a in attributes :
             if not a in f :
+                if verbose >= 2 : 
+                    print(a, "not in ", f)
                 skip=True
                 break
         if verbose >= 2 : 

@@ -241,9 +241,9 @@ class Workflows:
 
         # If <pvc/tka/results>_label_template has been set, this means that label_img[0] contains the file path
         # to stereotaxic atlas and label_template contains the file path to the template image for the atlas
-        if not opts.pvc_label_template == None: 
+        if not opts.pvc_label_template == None and opts.pvc_method != None: 
             self.workflow.connect(self.datasource, "pvc_label_template", self.masking, "inputnode.pvc_label_template")
-        if not opts.tka_label_template == None: 
+        if not opts.tka_label_template == None and opts.tka_method != None: 
             self.workflow.connect(self.datasource, "tka_label_template", self.masking, "inputnode.tka_label_template")
         if not opts.results_label_template == None: 
             self.workflow.connect(self.datasource, "results_label_template", self.masking, "inputnode.results_label_template")
@@ -381,9 +381,9 @@ class Workflows:
             else :
                 self.workflow.connect(self.masking, 'resultsLabels.out_file', self.resultsReport, 'mask')
 
-            self.workflow.connect( self.resultsReport, 'out_file_3d', self.datasink, "results"+os.sep+dir_name )
+            self.workflow.connect( self.resultsReport, 'out_file_3d', self.datasink, node_name+os.sep+dir_name )
             if int(dim) == 4:
-                self.workflow.connect( self.resultsReport, 'out_file_4d', self.datasink, "results"+os.sep+dir_name +"_4d")
+                self.workflow.connect( self.resultsReport, 'out_file_4d', self.datasink, node_name+os.sep+dir_name +"_4d")
 
 
     ############################
@@ -689,9 +689,8 @@ class Workflows:
     def set_datasink(self, opts) :
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
         self.datasink.inputs.base_directory= opts.targetDir + '/' 
-        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', '')]
+        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', ''), ('sid-','sub-'), ('task','task-'), ('ses','ses-')]
         for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
-            print(opts.output_format, node.name, dir_name)
             if opts.output_format == 'nifti' :
                 convertOutput=pe.Node(mnc2niiCommand(), name="convert_output_"+str(i)+'_'+node.name)
                 self.workflow.connect(node, img, convertOutput, 'in_file')

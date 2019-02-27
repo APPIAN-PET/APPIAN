@@ -1,4 +1,5 @@
 import nipype.interfaces.io as nio
+import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
@@ -7,10 +8,15 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.ants.base import ANTSCommandInputSpec
 from nipype.interfaces.ants.segmentation import Atropos
+from nipype.interfaces.ants import Registration, ApplyTransforms
 from Extra.conversion import mnc2nii_shCommand, nii2mnc_shCommand, nii2mnc2Command, mnc2niiCommand
 import scipy.io
 import os
 from nipype.interfaces.minc import Math
+
+
+class mincRegistration(Registration):
+    _cmd = 'antsRegistration --minc'
 
 
 class mincAtroposInputSpec(ANTSCommandInputSpec):
@@ -48,8 +54,8 @@ class mincAtroposInputSpec(ANTSCommandInputSpec):
     save_posteriors = traits.Bool()
     output_posteriors_name_template = traits.Str('POSTERIOR_%02d.nii.gz',
                                                  usedefault=True)
-
     classified_image = File()
+
 class mincAtroposOutputSpec(TraitedSpec):
     classified_image = File(exists=True)
     posteriors = OutputMultiPath(File(exist=True))
@@ -460,7 +466,7 @@ class mincANTSCommand(CommandLine):
 
 		mnc2nii_sh = pe.Node(interface=mnc2nii_shCommand(), name="mnc2nii_sh")
 		nii2mnc_sh = pe.Node(interface=nii2mnc_shCommand(), name="nii2mnc_sh")
-		reg = pe.Node(interface=registration, name="registration") 
+		reg = pe.Node(interface=Registration(), name="registration") 
 
 		mnc2nii_sh.inputs.in_file = self.inputs.moving_image 
 		mnc2nii_sh.run()

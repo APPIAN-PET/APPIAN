@@ -321,6 +321,8 @@ class VolCenteringRunning(BaseInterface):
         temp_fn="/tmp/tmp_mnc_"+ strftime("%Y%m%d%H%M%S", gmtime())+str(np.random.randint(9999999999))+".mnc"
         shutil.copy(self.inputs.in_file, temp_fn)
         infile = volumeFromFile(self.inputs.in_file)
+        #infile = nib.load(self.inputs.in_file)
+
         for view in ['xspace','yspace','zspace']:
             dim = infile.dimnames.index( view )
             start = infile.starts[dim]
@@ -357,33 +359,6 @@ class VolCenteringRunning(BaseInterface):
 
         return outputs
 
-class get_stepOutput(TraitedSpec):
-    step =traits.Str(desc="Step size (X, Y, Z)")
-
-class get_stepInput(BaseInterfaceInputSpec):
-    in_file = File(position=0, argstr="%s", mandatory=True, desc="Step size (X, Y, Z)")
-    step = traits.Str( desc="Image after centering")
-
-
-class get_stepCommand(BaseInterface):
-    input_spec = get_stepInput
-    output_spec = get_stepOutput
-
-    def _run_interface(self, runtime):
-        img = volumeFromFile(self.inputs.in_file)
-        zi=img.dimnames.index('zspace')
-        yi=img.dimnames.index('yspace')
-        xi=img.dimnames.index('xspace')
-        zstep = img.separations[zi]
-        ystep = img.separations[yi]
-        xstep = img.separations[xi]
-        self.inputs.step = str(xstep) +' ' + str(ystep) +' '+str(zstep)
-        return runtime
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["step"] = self.inputs.step
-        return outputs
 
 class pet3DVolumeOutput(TraitedSpec):
     out_file = File(desc="Image after centering")
@@ -408,7 +383,7 @@ class pet3DVolume(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = volumeFromFile(self.inputs.in_file)
-
+        #FIXME : infile = nib.load(self.inputs.in_file)
         try :
             t=infile.dimnames.index("time")
             nFrames = infile.sizes[infile.dimnames.index("time")]
@@ -438,6 +413,7 @@ class pet3DVolume(BaseInterface):
             else:
                 volume_subset=infile.data[:,:,f:,irst:last]
             volume_average=np.mean(volume_subset, axis=t)
+            #FIXME volume_average.to_file(self.inputs.in_)
             outfile.data=volume_average
             outfile.writeFile()
             outfile.closeVolume()

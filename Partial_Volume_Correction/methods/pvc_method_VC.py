@@ -1,6 +1,5 @@
 from petpvc import petpvc4DCommand
 from pvc_template import *
-import nibabel as nib
 
 file_format="NIFTI"
 separate_labels=True

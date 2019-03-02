@@ -52,7 +52,7 @@ class Workflows:
         (self.set_masking, opts.masking_exit, True),
         (self.set_t1_analysis_space, False, True),
         (self.set_pvc, False, opts.pvc_method),
-        (self.set_quant, False, opts.tka_method ),
+        (self.set_quant, False, opts.quant_method ),
         (self.set_datasink, False, True),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
@@ -95,7 +95,7 @@ class Workflows:
     def set_init_pet(self, opts):
         self.init_pet=init.get_workflow("initialization", self.infosource, opts)
         self.workflow.connect(self.datasource, 'pet', self.init_pet, "inputnode.pet")
-        self.workflow.connect(self.datasource, 'json_header', self.init_pet, "inputnode.json_header")
+        self.workflow.connect(self.datasource, 'json_header', self.init_pet, "inputnode.pet_header_json")
     
     #####################
     # MRI Preprocessing # 
@@ -152,11 +152,12 @@ class Workflows:
             self.pet_input_file='outputnode.pet_img_4d'
 
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, "inputnode.pet_volume")
+        self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.pet2mri, "inputnode.pet_brain_mask")
         self.workflow.connect(self.init_pet, 'outputnode.pet_center', self.pet2mri, "inputnode.pet_volume_4d")
         self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.pet2mri, 'inputnode.t1_brain_mask')
 
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.pet2mri, 'inputnode.header')
-        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat' , self.pet2mri,"inputnode.nativeT1nuc")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat' , self.pet2mri,"inputnode.t1_native_space")
         self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.pet2mri,"inputnode.T1Tal")
         self.workflow.connect(self.t1mni_node, self.t1mni_file, self.pet2mri,"inputnode.xfmT1MNI")
 
@@ -228,7 +229,7 @@ class Workflows:
             #If PVC method has been set, define binary masks to contrain PVC
             self.workflow.connect(self.preinfosource, 'pvc_labels', self.masking, "inputnode.pvc_labels")
             self.workflow.connect(self.pvc_label_node, self.pvc_label_file, self.masking, "inputnode.pvc_label_img")
-        if opts.tka_method != None :
+        if opts.quant_method != None :
             #If TKA method has been set, define binary masks for reference region
             self.workflow.connect(self.preinfosource, 'tka_labels', self.masking, "inputnode.tka_labels")
             self.workflow.connect(self.tka_label_node, self.tka_label_file, self.masking, "inputnode.tka_label_img")
@@ -243,7 +244,7 @@ class Workflows:
         # to stereotaxic atlas and label_template contains the file path to the template image for the atlas
         if not opts.pvc_label_template == None and opts.pvc_method != None: 
             self.workflow.connect(self.datasource, "pvc_label_template", self.masking, "inputnode.pvc_label_template")
-        if not opts.tka_label_template == None and opts.tka_method != None: 
+        if not opts.tka_label_template == None and opts.quant_method != None: 
             self.workflow.connect(self.datasource, "tka_label_template", self.masking, "inputnode.tka_label_template")
         if not opts.results_label_template == None: 
             self.workflow.connect(self.datasource, "results_label_template", self.masking, "inputnode.results_label_template")
@@ -430,8 +431,8 @@ class Workflows:
         if opts.pvc_method != None :
             self.dashboard.inputs.pvc_method = opts.pvc_method;
             self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
-        if opts.tka_method != None:
-            self.dashboard.inputs.tka_method = opts.tka_method;
+        if opts.quant_method != None:
+            self.dashboard.inputs.tka_method = opts.quant_method;
             self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'tka')
     #####################
     ### Preinfosource ###
@@ -480,7 +481,7 @@ class Workflows:
         if opts.pvc_method != None and opts.pvc_label_type != "internal_cls"  :
             self.workflow.connect(self.datasourceAnat, 'pvc_label_img', self.datasource, 'pvc_label_img')
         
-        if opts.tka_method != None and opts.tka_label_type != "internal_cls" :
+        if opts.quant_method != None and opts.tka_label_type != "internal_cls" :
             self.workflow.connect(self.datasourceAnat, 'tka_label_img', self.datasource, 'tka_label_img')
         
         if opts.results_label_type != "internal_cls" :
@@ -526,9 +527,8 @@ class Workflows:
 
         pet_str = pet_str + '*_pet.'
 
-        img_str = pet_str + opts.img_ext
+        img_str = pet_str + opts.img_ext + '*'
         header_str = pet_str + 'json'
-
         field_template_pet = dict( pet=img_str, json_header=header_str )
         template_args_pet =  dict( pet=[pet_list], json_header=[pet_list] )
 
@@ -559,7 +559,7 @@ class Workflows:
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
         self.datasourceAnat.inputs.field_template={
-                "nativeT1":opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.mnc'
+                "nativeT1":opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
                 }
         self.datasourceAnat.inputs.template_args = {"nativeT1":[[ 'sid', 'ses', 'sid', 'ses']]}
 
@@ -596,8 +596,7 @@ class Workflows:
         if label_type == 'user_cls' :
             label_img_template=opts.sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
             template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-            label_img_template +='*'+img+'*.'+opts.img_ext
-            #label_img_template +='*_variant-'+img+'_dtissue.'+opts.img_ext
+            label_img_template +='*'+img+'*.'+opts.img_ext+'*'
             field_template[label_img] = label_img_template
         elif label_type == 'atlas' or label_type == 'atlas-template' :
             field_template[label_img] = "%s"

@@ -180,8 +180,8 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 
-#run_appian "Dashboard" "--acq rcl --t1-normalize-method 'ants' --coregistration-exit "
-#exit 1
+run_appian "Dashboard" "--verbose 2  --mri-preprocess-exit --subjects TauPET225 --ants-atropos-prior-weighting 0.2 --n4-bspline-fitting-distance 200. --img-ext nii "
+exit 1
 #TODO (1) Add surface testing
 
 

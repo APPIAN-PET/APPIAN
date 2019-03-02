@@ -12,34 +12,7 @@ import os
 import numpy as np
 import pandas as pd
 
-global isotope_dict
-isotope_dict={
-        "C-11":100,
-        "F-18":200
-        }
 
-def recursive_dict_search(d, target):
-    for k,v  in zip(d.keys(), d.values()) :
-        d_type = type( v )
-        if type(k) == str :
-            if target.lower() == k.lower() :
-                return [k]
-        if d_type == dict :
-            return [k] + recursive_dict_search(d[k], target)
-        return [None]
-
-def fix_df(d, target):
-    dict_path = recursive_dict_search(d,target)
-    temp_d = d
-    value=None
-    for i in dict_path :
-        if i == None : break
-        temp_d = temp_d[i]
-    for key in temp_d.keys() :
-        if type(key) != str : continue
-        if key.lower() == target.lower() :
-            value = temp_d[key]
-    return value
 
 class imgunitInput(CommandLineInputSpec): #CommandLineInputSpec):
     in_file = File(argstr="%s", position=-1, desc="Input image.")

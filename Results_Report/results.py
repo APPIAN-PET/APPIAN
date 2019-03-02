@@ -121,7 +121,6 @@ class resultsCommand( BaseInterface):
         if  isdefined(self.inputs.surf_right) and isdefined(self.inputs.mask_right) :
             resultsReport.inputs.surf_right_roi = self.inputs.surf_right + ' ' + self.inputs.mask_right
         resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
-        print resultsReport.cmdline
        
         acq_list = [ re.sub('acq-','',f)  for f in self.inputs.in_file.split('_') if 'acq' in f ]
         rec_list = [ re.sub('rec-','',f)  for f in self.inputs.in_file.split('_') if 'rec' in f ]

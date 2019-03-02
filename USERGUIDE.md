@@ -101,26 +101,26 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
     sub-01/
        _ses-01/
           pet/
-             sub-01_ses-01_task-01_pet.nii
-	     	sub-01_ses-01_task-01_pet.json
-             sub-01_ses-01_task-02_pet.nii
-	     	sub-01_ses-01_task-02_pet.json
-             ...
+	  	sub-01_ses-01_task-01_pet.nii
+		sub-01_ses-01_task-01_pet.json
+		sub-01_ses-01_task-02_pet.nii
+		sub-01_ses-01_task-02_pet.json
+             	...
           anat/ 
-              sub-01_ses-01_pet.nii
+	  	sub-01_ses-01_T1w.nii
       _ses-02/
-               ...
+               	...
 
     sub-02/
        _ses-01/
           pet/
-             sub-02_ses-01_task-01_pet.nii
-	     	sub-02_ses-01_task-01_pet.json
-             sub-02_ses-01_task-02_pet.nii
-	     	sub-02_ses-01_task-02_pet.json
-             ...
+	  	sub-02_ses-01_task-01_pet.nii
+		sub-02_ses-01_task-01_pet.json
+		sub-02_ses-01_task-02_pet.nii
+		sub-02_ses-01_task-02_pet.json
+             	...
           anat/ 
-             sub-02_ses-01_pet.nii
+	  	sub-02_ses-01_T1w.nii
         _ses-02/
              ...
 
@@ -140,7 +140,7 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 `sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm`
 
 ##### Brain mask (stereotaxic space): 
-`sub-%s/_ses-%s/mask/sub-%s_ses-%s*_space-mni_brainmask.mnc`
+`sub-%s/_ses-%s/anat/sub-%s_ses-%s*_T1w_space-mni_brainmask.mnc`
 
 ##### T1 Segmentation: 
 `sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc`
@@ -250,16 +250,28 @@ Either method will give you the same results, it’s up to you and what you find
 ## 4. Pipeline Overview  <a name="overview"></a>
 
 ### 4.1 Base User Options  <a name="options"></a>
-APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and TKA algorithms. Here is a list of the available options, a more detailed explanation will be written up soon. Important to note is that the only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`), the list of sessions during which the scans were acquired (`-sessions`). While it may be useful to run APPIAN with the default options to confirm that it is running correctly on your system, this may not produce quantitatively accurate output values for your particular data set.
+APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and quantification algorithms. The only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`). 
 
-####  File options (mandatory):
+#####  Mandatory arguments:
     -s SOURCEDIR, --source=SOURCEDIR, --sourcedir=SOURCEDIR
                         Input file directory
     -t TARGETDIR, --target=TARGETDIR, --targetdir=TARGETDIR
                         Directory where output data will be saved in
+#### Data Formats
+By default, APPIAN accepts either Nifti or MINC input files. If Nifti files are used, they will be converted to MINC in the source directory. This means that you must have write permissions to your source directory. In the future, this may be changed so that files converted from Nifti to MINC are saved in the target directory because it may be preferable to only write to the target directory.
+
+The user can set whether files are output in Nifti or MINC with the ```--output-format <file format>``` option. In principal files could be converted to any format for which a converter is available and python savy users are encouraged to try to implement this. 
+#####  Optional arguments:
+```
+    --output-format=OUTPUT_FORMAT 
+    			The file format for outputs from APPIAN: minc, nifti (Default=nifti).
+```
+
+#### Running on a subset of data
+By default, APPIAN will run for all the PET scans located in the source directory. However, a more specific subset of subjects can be specified using the "--subjects", "--sessions", "--tasks", "--runs", "--acq", and "rec" option to specify specific subjects, sessions, tasks, runs, acquisitions (i.e., specific radiotracers), and reconstructions. 
 
 
-#### File options (Optional):
+#####  Optional arguments:
     --radiotracer=ACQ, --acq=ACQ
                         Radiotracer
     -r REC, --rec=REC   Reconstruction algorithm
@@ -267,23 +279,61 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     --sessions=SESSIONLIST List of sessions
     --tasks=TASKLIST    List of tasks
     --runs=RUNSLIST     List of runs
+    
+#### Scan Level Vs Group Level
+APPIAN runs in 2 steps: 1) scan-level; 2) group-level. The first step is called "scan level" analysis because APPIAN processes all the individual PET scans with their corresponding T1. The group-level analysis runs once all of the scans have finished processing and combines the outputs from each of these to calculate descriptive statistics, perform quality control, and generate the dashboard GUI. 
+
+Both the scan-level and the group-level analysis can be turned off using the "--no-scan-level" and "--no-group-level" options.
+
+#####  Optional arguments:
     --no-group-level    Run group level analysis
     --no-scan-level     Run scan level analysis
-    --img-ext=IMG_EXT   Extension to use for images.
+
+
+#### Analysis Space
+Users can select which coordinate space they wish to perfom their PET processing in. By default, APPIAN will run all analysis in native PET coordinate space. This can be manually specified as ```--analysis-space pet```. APPIAN can also perform the analysis in the T1 MRI native coordinate space (```--analysis-space t1```), or in stereotaxic space (```--analysis-space stereo```).
+
+By default the steortaxic coordinate space used by APPIAN is MNI 152. However, uses can set their own stereotaxic template image with the option ```--stereotaxic-template </path/to/your/template.mnc>``` (Warning: this feature is still experimental and has not yet been thoroughly tested).
+
+Users will typically procude a quantitative or semi-quantitative output images (e.g., tracer-kinetic analysis or with the SUVR method). If the analysis space was set to "pet" or "t1", there is an additional option to transform these output images to stereotaxic coordinate space : ```--quant-to-stereo```
+
+##### Optional arguments:
     --analysis-space=ANALYSIS_SPACE
                         Coordinate space in which PET processing will be
                         performed (Default=pet)
-    --threads=NUM_THREADS
-                        Number of threads to use. (defult=1)
     --stereotaxic-template=TEMPLATE
                         Template image in stereotaxic space
-####  Surface options:
-    --surf              Uses surfaces
+    --quant-to-stereo 
+    			Transform quantitative images to stereotaxic space
+
+#### Surface-based ROIs
+In addition to supporting ROIs defined in 3D volumes, APPIAN can also use ROIs defined on a cortical surface. Currently only obj surfaces are implemented in APPIAN, but users looking to use other formats can get in contact with developers to figure out a way to do this. APPIAN currently also assumes that the surfaces are in stereotaxic coordinate space. 
+
+Surface obj files and corresponding label .txt files should be stored in the anat/ directory for each subject. The ```--surf-label <string>```in order to identify the surface ROI mask. 
+
+Obj files and masks should have the format: 
+
+**obj**: ```anat/sub-<sub>_ses-<ses>_T1w_hemi-<L/R>_space-stereo_midthickness.surf.obj```
+
+**surf**: ```sub-<sub>/_ses-<ses>/anat/sub-<sub>_ses-<ses>_T1w_hemi-<L/R>_space-stereo_<label>.txt"```
+
+
+#### Optional Arguments:
+    --surf              	Flag that signals APPIAN to find surfaces
+    --surf-label <string>	Label string that identifies surface ROI
     --surf-space=SURFACE_SPACE
-                        Set space of surfaces from : "pet", "t1", "icbm152"
+                        Set space of surfaces from : "pet", "t1", "stereo"
                         (default=icbm152)
     --surf-ext=SURF_EXT
                         Extension to use for surfaces
+### Multithreading
+
+Nipype allows multithreading and therefore allows APPIAN to run multiple scans in parrallel. By default, APPIAN only runs using 1 thread, but this can be increased using the ```--threads``` option.
+
+#### Optional Arguments:
+    --threads=NUM_THREADS
+                        Number of threads to use. (defult=1)
+
 
 ### 4.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md)
 Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.
@@ -310,10 +360,33 @@ Quality control metrics are calculated for each image volume and each processing
 Web browser-based graphical-user interface for visualizing results.
 
 
-## 5 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+## 5. [APPIAN Outputs]
+APPIAN will create the target directory you specify with the "-t" or "--target" option. 
+
+Within the target directory you will find a subdirectory called "preproc". This contains all of the intermediate files produced by APPIAN. APPIAN is built using Nipype, which defines a network of nodes (also called a workflow). The ouputs of upstream nodes are passed as inputs to downstream nodes. A directory within preproc/ is created for each node that is run as a part of the workflow. Given that the nodes that APPIAN will run will change as a function of user inputs, the outputs you find in preproc will change accordingly. 
+
+For all nodes that are responsible for running a command in the terminal, there will be a text file called "commant.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
+
+Within preproc you will find directories named after each scan APPIAN has processed, with the form: _args_run<run>.task<task>.ses<ses>.sid<sub>. This will contain a variety of results including the results report, automated QC, dashboard xml for that particular scan. 
+
+You will also find several other important subdirectories in preproc/. In particular: 
+```
+	initialization --> centered version of initial PET image, 3D contatenated version of initial PET 
+	masking --> contains the labelled images used for the PVC, quantification, and results report stages, respectively
+	pet-coregistration --> transformation file from PET to MRI, and vice versa. 3D PET image in MRI space
+	mri --> mri normalized into icbm152 space, brain mask in stereotaxic and MRI native space, MRI segmentation
+	quantification  --> parametric image produced by quantification stage
+```
+
+The reason why there APPIAN stores the outputs in these two ways is a bit complicated and has to do with how Nipype works. Basically, the results that are stored in a subdirectory name after a processing stage, e.g., "pet-coregistration" or "quantification", are part of a sub-workflow within the larger APPIAN workflow and get their own subdirectory named after the sub-workflow.
+	
+When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
+
+
+## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
 
-## 6. Examples  <a name="example"></a>
+## 7. Examples  <a name="example"></a>
 
 ### Running APPIAN on subset of scans
 By default, APPIAN will run on all the scans it can identify in the source directory. However, you may want to run APPIAN on a subset of your scans. You can do this by setting which subjects, sessions, tasks, and runs you wish to process with APPIAN.

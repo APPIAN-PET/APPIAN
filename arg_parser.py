@@ -62,7 +62,7 @@ def get_parser():
     # MRI Preprocessing Options #
     #############################
     #MRI N4 Correction
-    parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=0)
+    parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=200)
     parser.add_argument("--n4-bspline-order", dest="n4_bspline_order",type=int,help="Order of BSpline interpolation for N4 correction", default=None)
     parser.add_argument("--n4-n-iterations", dest="n4_n_iterations",type=int,help="List with number of iterations to perform. Default=50 50 30 20 ", default=[50, 50, 30, 20], nargs='+')
     parser.add_argument("--n4-shrink-factor", dest="n4_shrink_factor",type=int,help="Order of BSpline interpolation for N4 correction", default=2)
@@ -70,7 +70,7 @@ def get_parser():
 
     parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
     parser.add_argument("--user-ants-normalization", dest="user_ants_normalization",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
-    parser.add_argument("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
+    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     
     parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS') 

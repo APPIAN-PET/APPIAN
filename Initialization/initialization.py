@@ -5,7 +5,6 @@ import shutil
 import json
 import ntpath
 import shutil
-
 import nibabel as nib
 import re
 import nipype.pipeline.engine as pe
@@ -18,6 +17,7 @@ from time import gmtime, strftime
 from glob import glob
 from os.path import basename
 from Extra.utils import splitext
+from sets import Set
 
 def pexit(pstring="Error", exitcode=1):
     print(pstring)
@@ -248,22 +248,24 @@ class pet3DVolume(BaseInterface):
         shape=infile.get_shape()
 
         if len(shape) >= 4 :
-            nFrames = shape[3]
-            z=shape[2]
-            y=shape[1]
-            x=shape[0]
+            affine=infile.get_affine()
+            data = infile.get_data()
+            ti=np.argmin(data.shape)
+            dims = list(data.shape) 
+            dims.remove(dims[ti])
+
+            nFrames = shape[ti]
             rank=0.20
 
-            first=int(floor(nFrames*rank) )
+            first=int(floor(nFrames*rank))
             last=nFrames
             
-            data = infile.get_data()
-
-            volume_subset=data[:,:,:,first:last]
-            volume_average=np.mean(volume_subset, axis=3)
+            volume_subsets=np.split(data, [first,last], axis=ti) 
+            volume_subset=volume_subsets[1]
+            
+            volume_average=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
-
-            outfile = nib.Nifti1Image(volume_average, infile.get_affine())
+            outfile = nib.Nifti1Image(volume_average, affine)
             nib.save(outfile, self.inputs.out_file)
         else :
             #If there is no "time" dimension (i.e., in 3D file), just copy the PET file
@@ -310,7 +312,7 @@ def get_workflow(name, infosource, opts):
     inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
 
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume"]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_header_json","pet_brain_mask"]), name='outputnode')
 
     petVolume = pe.Node(interface=pet3DVolume(), name="petVolume")
     petVolume.inputs.verbose = opts.verbose

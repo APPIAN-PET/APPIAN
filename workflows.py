@@ -1,4 +1,4 @@
-# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
+# vi: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
 from Masking import masking as masking
 from Masking import surf_masking
@@ -50,7 +50,7 @@ class Workflows:
         (self.set_mri_preprocess, opts.mri_preprocess_exit, True),
         (self.set_pet2mri, opts.coregistration_exit, True),
         (self.set_masking, opts.masking_exit, True),
-        (self.set_t1_analysis_space, False, True),
+        (self.set_mri_analysis_space, False, True),
         (self.set_pvc, False, opts.pvc_method),
         (self.set_quant, False, opts.quant_method ),
         (self.set_datasink, False, True),
@@ -105,32 +105,35 @@ class Workflows:
         #If user wants to input their own brain mask with the option --user-brainmask,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         if opts.user_brainmask : 
-            self.brain_mask_mni_node = self.datasourceAnat
-            self.brain_mask_mni_file = 'brain_mask_mni'
-            self.workflow.connect(self.datasource, 'brain_mask_mni', self.mri_preprocess, 'inputnode.brain_mask_mni') 
+            self.brain_mask_space_stx_node = self.datasourceAnat
+            self.brain_mask_space_stx_file = 'brain_mask_space_stx'
+            self.workflow.connect(self.datasource, 'brain_mask_space_space_stx', self.mri_preprocess, 'inputnode.brain_mask_space_stx') 
         else : 
-            self.brain_mask_mni_node = self.mri_preprocess
-            self.brain_mask_mni_file='outputnode.brain_mask_mni'
+            self.brain_mask_space_stx_node = self.mri_preprocess
+            self.brain_mask_space_stx_file='outputnode.brain_mask_space_stx'
 
 
-        self.out_node_list += [self.brain_mask_mni_node] 
-        self.out_img_list += [self.brain_mask_mni_file]
+        self.out_node_list += [self.brain_mask_space_stx_node] 
+        self.out_img_list += [self.brain_mask_space_stx_file]
         self.out_img_dim += ['3']
         self.extract_values += [False]
-        self.datasink_dir_name += ['t1/brainmask']
+        self.datasink_dir_name += ['mri/brainmask']
 
-        #If user wants to input their own t1 space to mni space transform with the option --user-t1mni,
+        #If user wants to input their own mri space to mni space transform with the option --user-mrimni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         #stereotaxic space in self.mri_preprocess
-        if opts.user_t1mni : 
+        if opts.user_mri_stx : 
             self.t1mni_node = self.datasource
-            self.t1mni_file = 'xfmT1MNI'
-            self.workflow.connect(self.datasourceAnat, 'xfmT1MNI', self.mri_preprocess, 'inputnode.xfmT1MNI')    
+            self.t1mni_file = 'tfm_mri_stx'
+            self.mnit1_file = 'tfm_stx_mri'
+            self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx')    
+            self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri')    
         else : 
             self.t1mni_node = self.mri_preprocess
-            self.t1mni_file='outputnode.xfmT1MNI'       
+            self.t1mni_file='outputnode.tfm_mri_stx'       
+            self.mnit1_file='outputnode.tfm_stx_mri'       
 
-        self.workflow.connect(self.datasourceAnat, 'nativeT1', self.mri_preprocess, 'inputnode.t1')   
+        self.workflow.connect(self.datasourceAnat, 'mri', self.mri_preprocess, 'inputnode.mri')   
 
         self.out_node_list += [self.t1mni_node] 
         self.out_img_list += ["outputnode.t1_mni"]
@@ -152,14 +155,16 @@ class Workflows:
             self.pet_input_file='outputnode.pet_img_4d'
 
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, "inputnode.pet_volume")
-        self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.pet2mri, "inputnode.pet_brain_mask")
-        self.workflow.connect(self.init_pet, 'outputnode.pet_center', self.pet2mri, "inputnode.pet_volume_4d")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.pet2mri, 'inputnode.t1_brain_mask')
+        if opts.pet_brain_mask :
+            self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.pet2mri, "inputnode.pet_brain_mask")
+        self.workflow.connect(self.datasource, 'pet', self.pet2mri, "inputnode.pet_volume_4d")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.pet2mri, 'inputnode.t1_brain_mask')
 
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.pet2mri, 'inputnode.header')
-        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat' , self.pet2mri,"inputnode.t1_native_space")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.pet2mri,"inputnode.T1Tal")
-        self.workflow.connect(self.t1mni_node, self.t1mni_file, self.pet2mri,"inputnode.xfmT1MNI")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_nat' , self.pet2mri,"inputnode.mri_space_nat")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_stx', self.pet2mri,"inputnode.mri_space_stx")
+        self.workflow.connect(self.t1mni_node, self.t1mni_file, self.pet2mri,"inputnode.tfm_mri_stx")
+        self.workflow.connect(self.t1mni_node, self.mnit1_file, self.pet2mri,"inputnode.tfm_stx_mri")
 
         if opts.test_group_qc :
             self.misregistration = pe.Node(interface=niu.IdentityInterface(fields=['error']), name="misregistration")
@@ -214,17 +219,18 @@ class Workflows:
             print("Error: results_label_type is not valid:", opts.pvc_label_type)
             exit(1)
 
-        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat', self.masking, "inputnode.nativeT1")
-        self.workflow.connect(self.t1mni_node, self.t1mni_file, self.masking, "inputnode.LinT1MNIXfm")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_native', self.masking, "inputnode.mri_space_native")
+        self.workflow.connect(self.t1mni_node, self.t1mni_file, self.masking, "inputnode.tfm_mri_stx")
+        self.workflow.connect(self.t1mni_node, self.mnit1_file, self.masking, "inputnode.tfm_stx_mri")
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.masking, 'inputnode.pet_header_json')
-        self.workflow.connect(self.pet2mri, "outputnode.petmri_xfm", self.masking, "inputnode.LinPETT1Xfm")
-        self.workflow.connect(self.pet2mri, "outputnode.mripet_xfm", self.masking, "inputnode.LinT1PETXfm")
-        self.workflow.connect(self.pet2mri, "outputnode.petmni_xfm", self.masking, "inputnode.LinPETMNIXfm")
-        self.workflow.connect(self.pet2mri, "outputnode.mnipet_xfm", self.masking, "inputnode.LinMNIPETXfm")
-        self.workflow.connect(self.mri_preprocess, "outputnode.xfmMNIT1", self.masking, "inputnode.LinMNIT1Xfm")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.t1_mni', self.masking, "inputnode.mniT1")
-        self.workflow.connect(self.brain_mask_mni_node, self.brain_mask_mni_file, self.masking, "inputnode.brain_mask_stereo")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.masking, "inputnode.brain_mask_t1")
+        self.workflow.connect(self.pet2mri, "outputnode.tfm_pet_mri", self.masking, "inputnode.tfm_pet_mri")
+        self.workflow.connect(self.pet2mri, "outputnode.tfm_mri_pet", self.masking, "inputnode.tfm_mri_pet")
+        self.workflow.connect(self.pet2mri, "outputnode.tfm_pet_stx", self.masking, "inputnode.tfm_pet_stx")
+        self.workflow.connect(self.pet2mri, "outputnode.tfm_stx_pet", self.masking, "inputnode.tfm_stx_pet")
+        self.workflow.connect(self.mri_preprocess, "outputnode.tfm_stx_mri", self.masking, "inputnode.tfm_stx_mri")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_stx', self.masking, "inputnode.mri_space_stx")
+        self.workflow.connect(self.brain_mask_space_stx_node, self.brain_mask_space_stx_file, self.masking, "inputnode.brain_mask_stx")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_mri', self.masking, "inputnode.brain_mask_mri")
         if opts.pvc_method != None:
             #If PVC method has been set, define binary masks to contrain PVC
             self.workflow.connect(self.preinfosource, 'pvc_labels', self.masking, "inputnode.pvc_labels")
@@ -239,6 +245,7 @@ class Workflows:
 
         self.workflow.connect(self.results_label_node, self.results_label_file, self.masking, "inputnode.results_label_img")
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.masking, "inputnode.pet_volume")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_stx', self.masking, "inputnode.mri_space_stx")
 
         # If <pvc/tka/results>_label_template has been set, this means that label_img[0] contains the file path
         # to stereotaxic atlas and label_template contains the file path to the template image for the atlas
@@ -256,14 +263,14 @@ class Workflows:
             self.workflow.connect(self.datasourceSurf, 'surf_left', self.masking, 'inputnode.surf_left')
             self.workflow.connect(self.datasourceSurf, 'surf_right', self.masking, 'inputnode.surf_right')
 
-    def set_t1_analysis_space(self, opts):
+    def set_mri_analysis_space(self, opts):
         workflow = pe.Workflow(name=opts.preproc_dir)
         self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["t1_analysis_space"]),name="t1_analysis_space")
         if opts.analysis_space == "pet":
             t1_pet_space = pe.Node( ResampleCommand(), name="t1_pet_space" )
             t1_pet_space.inputs.tfm_input_sampling = True
             self.workflow.connect(self.mri_preprocess,'outputnode.t1_nat',t1_pet_space,"in_file")
-            self.workflow.connect(self.pet2mri, "outputnode.mripet_xfm", t1_pet_space,"transformation")
+            self.workflow.connect(self.pet2mri, "outputnode.mripet_tfm", t1_pet_space,"transformation")
             #self.workflow.connect(self.init_pet, 'outputnode.pet_volume', t1_pet_space,"model_file")
             self.workflow.connect(t1_pet_space,"out_file",self.t1_analysis_space,"t1_analysis_space")
         elif opts.analysis_space == "t1":
@@ -302,13 +309,13 @@ class Workflows:
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.quant, "inputnode.header")
         self.workflow.connect(self.masking, "resultsLabels.out_file", self.quant, "inputnode.mask") 
         self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "inputnode.in_file")
-        self.workflow.connect(self.mri_preprocess, "outputnode.brain_mask_mni", self.quant, "inputnode.stereo")
+        self.workflow.connect(self.mri_preprocess, "outputnode.brain_mask_space_stx", self.quant, "inputnode.stereo")
        
 
         if opts.analysis_space == "t1" :
-            self.workflow.connect(self.mri_preprocess, 'outputnode.xfmT1MNI', self.quant, 'inputnode.tfm_to_stereo')
+            self.workflow.connect(self.mri_preprocess, 'outputnode.tfm_mri_stx', self.quant, 'inputnode.tfm_to_stx')
         elif opts.analysis_space == "pet" :
-            self.workflow.connect(self.pet2mri, "outputnode.petmni_xfm", self.quant, 'inputnode.tfm_to_stereo')
+            self.workflow.connect(self.pet2mri, "outputnode.tfm_pet_stx", self.quant, 'inputnode.tfm_to_stx')
         else :
             pass
         
@@ -395,7 +402,7 @@ class Workflows:
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.distance_metricNode, 'pet')
-            self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_t1', self.distance_metricNode, 't1_brain_mask')
+            self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.distance_metricNode, 'brain_mask_space_mri')
             self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat',  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')
             self.workflow.connect(self.infosource, 'task', self.distance_metricNode, 'task')
@@ -424,7 +431,7 @@ class Workflows:
         self.workflow.connect(self.infosource, 'task', self.dashboard, "task")
         self.workflow.connect(self.infosource, 'run', self.dashboard, "run")
         self.workflow.connect(self.infosource, 'cid', self.dashboard, "cid")
-        self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.dashboard, 'pet_t1_space')
+        self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.dashboard, 'pet_mri_space')
         self.workflow.connect(self.t1_analysis_space, 't1_analysis_space',  self.dashboard, 't1_analysis_space')
         self.workflow.connect(self.mri_preprocess, 'outputnode.t1_nat' , self.dashboard,"t1_nat")
         self.workflow.connect(self.pet_input_node, self.pet_input_file, self.dashboard, "pet")
@@ -472,11 +479,12 @@ class Workflows:
             self.workflow.connect(self.datasourcePET, 'arterial_file', self.datasource, 'arterial_file')
 
         # connect datasourceAnat files
-        if opts.user_t1mni :
-            self.workflow.connect(self.datasourceAnat, 'xfmT1MNI',self.datasource, 'xfmT1MNI' )
+        if opts.user_mri_stx :
+            self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx',self.datasource, 'tfm_mri_stx' )
+            self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri',self.datasource, 'tfm_stx_mri' )
         if opts.user_brainmask :
-            self.workflow.connect(self.datasourceAnat, 'brain_mask_mni',self.datasource, 'brain_mask_mni' )
-        self.workflow.connect(self.datasourceAnat, 'nativeT1',self.datasource, 'nativeT1' )
+            self.workflow.connect(self.datasourceAnat, 'brain_mask_space_stx',self.datasource, 'brain_mask_space_stx' )
+        self.workflow.connect(self.datasourceAnat, 'mri',self.datasource, 'mri' )
 
         if opts.pvc_method != None and opts.pvc_label_type != "internal_cls"  :
             self.workflow.connect(self.datasourceAnat, 'pvc_label_img', self.datasource, 'pvc_label_img')
@@ -554,14 +562,14 @@ class Workflows:
     ###################
     def set_datasource_anat(self, opts) :  
         ### Use DataGrabber to get key input files
-        self.base_anat_outputs  = ['nativeT1', 'xfmT1MNI','brain_mask_mni', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
+        self.base_anat_outputs  = ['mri', 'tfm_mri_stx','brain_mask_space_stx', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
         self.datasourceAnat = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_anat_outputs, raise_on_empty=True, sort_filelist=False), name="datasourceAnat")
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
         self.datasourceAnat.inputs.field_template={
-                "nativeT1":opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
+                "mri":opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
                 }
-        self.datasourceAnat.inputs.template_args = {"nativeT1":[[ 'sid', 'ses', 'sid', 'ses']]}
+        self.datasourceAnat.inputs.template_args = {"mri":[[ 'sid', 'ses', 'sid', 'ses']]}
 
         if opts.pvc_label_type != "internal_cls" :
             self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts)
@@ -572,7 +580,7 @@ class Workflows:
         if opts.results_label_type != "internal_cls" :
             self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts)
 
-        if opts.user_t1mni :
+        if opts.user_mri_stx :
             self.set_transform(opts)
 
         if opts.user_brainmask :
@@ -618,7 +626,7 @@ class Workflows:
         template_args={}
 
         brain_mask_template = opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*'
-        template_args["brain_mask_mni"]=[['sid' ,'ses','sid', 'ses']]
+        template_args["brain_mask_space_stx"]=[['sid' ,'ses','sid', 'ses']]
 
         brain_mask_template = brain_mask_template + "_T1w_space-mni"
 
@@ -627,7 +635,7 @@ class Workflows:
         else :
             brain_mask_template = brain_mask_template + '_brainmask.*'+opts.img_ext
 
-        field_template["brain_mask_mni"] = brain_mask_template
+        field_template["brain_mask_space_mni"] = brain_mask_template
         
 
         self.datasourceAnat.inputs.field_template.update(field_template)
@@ -641,11 +649,20 @@ class Workflows:
         field_template={}
         template_args={}
         label_template = opts.sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
-        template_args["xfmT1MNI"] = [['sid', 'ses', 'sid', 'ses' ]]
-
-        label_template = label_template + '*target-MNI_affine.xfm'
-
-        field_template["xfmT1MNI"] = label_template
+        template_args["tfm_mri_stx"] = [['sid', 'ses', 'sid', 'ses' ]]
+        template_args["tfm_mri_stx"] = [['sid', 'ses', 'sid', 'ses' ]]
+    
+        if opts.user_mri_stx == 'nl' :
+            label_template = label_template + '*target-MNI_warp.nii*' 
+            inv_label_template = label_template + '*target-T1_warp.nii*'
+        elif opts.use_mrimni == 'lin' : 
+            label_template = label_template + '*target-MNI_affine.h5' 
+            inv_label_template = label_template + '*target-T1_affine.h5'
+        else :
+            print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
+            exit(1)
+        field_template["tfm_mri_stx"] = label_template
+        field_template["tfmMNIMNI"] = inv_label_template
 
         self.datasourceAnat.inputs.field_template.update(field_template)
         self.datasourceAnat.inputs.template_args.update(template_args)

@@ -255,6 +255,9 @@ def groupLevel_dashboard(opts, args):
     workflow = pe.Workflow(name="concat_dashboard_xml")
     workflow.base_dir = opts.targetDir + '/preproc'
   
+    #Check for valid data sources
+    sources=glob.glob(opts.targetDir+os.sep+opts.preproc_dir+'*'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml')
+    if len(sources) == 0 : return 0
 
     if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
         os.makedirs(opts.targetDir+"/preproc/dashboard/");

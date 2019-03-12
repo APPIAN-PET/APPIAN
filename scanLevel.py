@@ -73,7 +73,8 @@ def gen_args(opts, subjects):
                     if opts.verbose >= 2: print( "Arguments for indentifying images:", arg_list );
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list, opts.verbose )
-                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext+'.gz' )
+
+                    mri_list=glob(opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext+'.gz' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
 
@@ -109,26 +110,22 @@ def unique_file(files, attributes, verbose=1):
     out_files=[]
     
     for f in files :
-        print(f, attributes)
         missing_attributes=[]
-        skip=False
         for a in attributes :
-            print(a)
             if not a in f :
                 if verbose >= 2 : 
                     print(a, "not in ", f)
                 missing_attributes.append(a)
-                skip=True
                 break
         if verbose >= 2 : 
-            if skip :
+            if len(missing_attributes) == 0 :
                 print("Valid file", f)
             else :
                 print("File missing attributes " +";".join(missing_attributes) +" skipping:",f)
 
-        if not skip :
+        if  len(missing_attributes) == 0 :
             out_files.append(f)
-
+    print("out files", out_files)
     if attributes == [] or len(out_files) == 0 : return ''
 
     if len(out_files) > 1 :

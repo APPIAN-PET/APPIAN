@@ -3,27 +3,22 @@
 import os
 import re
 import numpy as np
-
 import tempfile
 import shutil
 import Extra.resample as rsl
-from Test.test_group_qc import myIdent
-from os.path import basename
-
-from pyminc.volumes.factory import *
-import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+import nipype.pipeline.engine as pe
+import nipype.interfaces.minc as minc
+from Registration.ants_mri_normalize import APPIANRegistration, APPIANCompositeTransformUtil, APPIANConcatenateTransforms
+
+from os.path import basename
+from pyminc.volumes.factory import *
+from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath
 from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
 from nipype.interfaces.utility import Rename
-
-
 from Extra.tracc import TraccCommand
-
-import nipype.interfaces.minc as minc
 from Extra.xfmOp import ConcatCommand
-
+from nipype.interfaces.ants import ApplyTransforms
 
 """
 .. module:: registration
@@ -34,33 +29,33 @@ from Extra.xfmOp import ConcatCommand
 
 
 #def misalign_pet(workflow, inputnode, pet2mri ) :
-#    ###Create rotation xfm files based on transform error
-#    transformNode = pe.Node(interface=rsl.param2xfmInterfaceCommand(), name='transformNode')
+#    ###Create rotation tfm files based on transform error
+#    transformNode = pe.Node(interface=rsl.param2tfmInterfaceCommand(), name='transformNode')
 #    workflow.connect(inputnode, 'error', transformNode, 'transformation')
 #
-#    ### Concatenate pet2mri and misalignment xfm
-#    pet2misalign_xfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_xfm")
-#    workflow.connect(pet2mri,'out_file_xfm', pet2misalign_xfm, 'in_file')
-#    workflow.connect(transformNode,'out_file', pet2misalign_xfm, 'in_file_2')
+#    ### Concatenate pet2mri and misalignment tfm
+#    pet2misalign_tfm=pe.Node(interface=ConcatCommand(), name="pet2misalign_tfm")
+#    workflow.connect(pet2mri,'composite_transform', pet2misalign_tfm, 'in_file')
+#    workflow.connect(transformNode,'out_file', pet2misalign_tfm, 'in_file_2')
 #
 #    ###Apply transformation to PET file
 #    transform_resampleNode=pe.Node(interface=rsl.ResampleCommand(),name="transform_resampleNode")
 #    transform_resampleNode.inputs.use_input_sampling=True;
 #    workflow.connect(transformNode, 'out_file', transform_resampleNode, 'transformation')
-#    workflow.connect(pet2mri, 'out_file_img', transform_resampleNode, 'in_file')
+#    workflow.connect(pet2mri, 'warped_image', transform_resampleNode, 'in_file')
 #
 #    ###Rotate brain mask
 #    transform_brainmaskNode=pe.Node(interface=rsl.ResampleCommand(), name="transform_brainmaskNode" )
 #    transform_brainmaskNode.inputs.interpolation='nearest_neighbour'
-#    workflow.connect(pet2misalign_xfm, 'out_file', transform_brainmaskNode, 'transformation')
+#    workflow.connect(pet2misalign_tfm, 'out_file', transform_brainmaskNode, 'transformation')
 #    workflow.connect(transform_resampleNode, 'out_file', transform_brainmaskNode, 'model_file')
 #
-#    invert_concat_pet2misalign_xfm=pe.Node(interface=minc.XfmInvert(),name="invert_concat_pet2misalign_xfm")
-#    workflow.connect(pet2misalign_xfm,'out_file',invert_concat_pet2misalign_xfm,'input_file')
-#    pet2mri = final_pet2mri = pe.Node(interface=niu.IdentityInterface(fields=["out_file_img", "out_file_xfm", "out_file_xfm_invert"]), name="pet2mri_misaligned")
-#    workflow.connect(transform_resampleNode, "out_file", final_pet2mri, "out_file_img")
-#    workflow.connect(pet2misalign_xfm, "out_file", final_pet2mri, "out_file_xfm")
-#    workflow.connect(invert_concat_pet2misalign_xfm, "output_file", final_pet2mri, "out_file_xfm_invert")
+#    invert_concat_pet2misalign_tfm=pe.Node(interface=minc.Invert(),name="invert_concat_pet2misalign_tfm")
+#    workflow.connect(pet2misalign_tfm,'out_file',invert_concat_pet2misalign_tfm,'input_file')
+#    pet2mri = final_pet2mri = pe.Node(interface=niu.IdentityInterface(fields=["warped_image", "composite_transform", "composite_transform_invert"]), name="pet2mri_misaligned")
+#    workflow.connect(transform_resampleNode, "out_file", final_pet2mri, "warped_image")
+#    workflow.connect(pet2misalign_tfm, "out_file", final_pet2mri, "composite_transform")
+#    workflow.connect(invert_concat_pet2misalign_tfm, "output_file", final_pet2mri, "composite_transform_invert")
 #    t1_brain_mask_img = 'out_file'
 
 def get_workflow(name, infosource, opts):
@@ -79,83 +74,53 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     #bnDefine input node that will receive input from outside of workflow
-    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","t1_native_space","t1_headMask","tka_label_img_t1","results_label_img_t1","pvc_label_img_t1", "pet_brain_mask", "t1_brain_mask", "xfmT1MNI", "T1Tal", "error", "header" ]), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","mri_space_nat","mri_space_stx","t1_headMask", "pet_brain_mask", "t1_brain_mask", "tfm_mri_stx", "tfm_stx_mri", "mri_space_stx", "error", "header" ]), name='inputnode')
     #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "pet_img_4d","petmri_xfm","mripet_xfm",'petmni_xfm', 'mnipet_xfm' ]), name='outputnode')
+    outputnode = pe.Node(niu.IdentityInterface(fields=["petmri_img", "pet_img_4d","tfm_pet_mri","tfm_mri_pet",'tfm_pet_stx', 'tfm_stx_pet' ]), name='outputnode')
 
     node_name="pet2mri"
-    pet2mri = pe.Node(interface=Registration(args='--float',
-            verbose=1,
-            collapse_output_transforms=True,
-            initial_moving_transform_com=True,
-            num_threads=1,
-            output_inverse_warped_image=True,
-            output_warped_image=True,
-            sigma_units=['vox']*3,
-            transforms=['Rigid'],
-            terminal_output='file',
-            winsorize_lower_quantile=0.005,
-            winsorize_upper_quantile=0.995,
-            convergence_threshold=[1e-08],
-            convergence_window_size=[20],
-            metric=['Mattes'],
-            metric_weight=[1.0],
-            #number_of_iterations=[[10000, 11110, 11110],
-            #    [10000, 11110, 11110],
-            #    [100, 30, 20]],
-            number_of_iterations=[[1, 1, 1]],
-            radius_or_number_of_bins=[32],
-            sampling_percentage=[0.3 ],
-            sampling_strategy=['Regular'],
-            shrink_factors=[[3, 2, 1]],
-            smoothing_sigmas=[[4.0, 2.0, 1.0]],
-            transform_parameters=[(0.1)],
-            use_estimate_learning_rate_once=[True],
-            use_histogram_matching=[False],
-            write_composite_transform=True),
-            name="pet2mri")
-    pet2mri.inputs.clobber = True
-    pet2mri.inputs.verbose = opts.verbose
-    pet2mri.inputs.lsq="lsq6"
-    pet2mri.inputs.metric="mi"
-
-    workflow.connect(inputnode,'pet_volume', pet2mri, 'in_source_file')
-    workflow.connect(inputnode,'t1_native_space', pet2mri, 'in_target_file')#,
-    
+    pet2mri = pe.Node(interface=APPIANRegistration(), name="pet2mri")
+    pet2mri.inputs.normalization_type='rigid'
+    if opts.pet_brain_mask :
+        workflow.connect(inputnode, 'pet_brain_mask', pet2mri, 'moving_image_mask')
+    workflow.connect(inputnode, 't1_brain_mask', pet2mri, 'fixed_image_mask')
+    workflow.connect(inputnode, 'pet_volume', pet2mri, 'moving_image')
+    workflow.connect(inputnode, 'mri_space_nat', pet2mri, 'fixed_image')
 
     #if opts.test_group_qc : misalign_pet(workflow, inputnode, pet2mri )
 
 
-    PETMNIXfm_node = pe.Node( interface=ConcatCommand(), name="PETMNIXfm_node")
-    workflow.connect(pet2mri, "out_file_xfm", PETMNIXfm_node, "in_file")
-    workflow.connect(inputnode, "xfmT1MNI", PETMNIXfm_node, "in_file_2")
+    pet_stx_node = pe.Node( interface=APPIANConcatenateTransforms(), name="pet_stx_node")
+    workflow.connect(pet2mri, "out_matrix", pet_stx_node, "transform_1")
+    workflow.connect(inputnode, "tfm_mri_stx", pet_stx_node, "transform_2")
+    workflow.connect(inputnode, "mri_space_stx", pet_stx_node, "reference_image")
 
-    MNIPETXfm_node = pe.Node(interface=minc.XfmInvert(), name="MNIPETXfm_node")
-    workflow.connect( PETMNIXfm_node, "out_file", MNIPETXfm_node, 'input_file'  )
+    stx_pet_node = pe.Node(interface=APPIANConcatenateTransforms(), name="stx_pet_node")
+    workflow.connect( inputnode, "tfm_stx_mri", stx_pet_node, 'transform_2' )
+    workflow.connect( pet2mri, "out_matrix_inverse", stx_pet_node, 'transform_1' )
+    workflow.connect(inputnode, "pet_volume", stx_pet_node, "reference_image")
 
-    workflow.connect(PETMNIXfm_node, 'out_file', outputnode, 'petmni_xfm' )
-    workflow.connect(MNIPETXfm_node, 'output_file', outputnode, 'mnipet_xfm' )
+    workflow.connect(pet_stx_node, 'out_file', outputnode, 'tfm_pet_stx' )
+    workflow.connect(stx_pet_node, 'out_file', outputnode, 'tfm_stx_pet' )
 
     #Resample 4d PET image to T1 space
     if opts.analysis_space == 't1':
-        pettot1_4d = pe.Node(interface=minc.Resample(), name='pet_t1_4d')
-        pettot1_4d.inputs.keep_real_range=True
-        workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_file')
-        workflow.connect(pet2mri, 'out_file_xfm', pettot1_4d, 'transformation')
-        workflow.connect(inputnode, 't1_native_space', pettot1_4d, 'like')
+        pettot1_4d = pe.Node(interface=ApplyTransforms(), name='pet_space_mri')
+        workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_image')
+        workflow.connect(pet2mri, 'composite_transform', pettot1_4d, 'transforms')
+        workflow.connect(inputnode, 'mri_space_nat', pettot1_4d, 'reference_image')
         workflow.connect(pettot1_4d,'output_file', outputnode, 'pet_img_4d')
 
-        workflow.connect(inputnode, 't1_native_space', outputnode, 't1_analysis_space')
+        workflow.connect(inputnode, 'mri_space_nat', outputnode, 't1_analysis_space')
     elif opts.analysis_space == "stereo" :
         #Resample 4d PET image to MNI space
-        pettomni_4d = pe.Node(interface=minc.Resample(), name='pet_mni_4d')
-        pettomni_4d.inputs.keep_real_range=True
-        workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_file')
-        workflow.connect(PETMNIXfm_node, "out_file", pettomni_4d, 'transformation')
-        workflow.connect(inputnode, 'T1Tal',pettomni_4d, 'like')
+        pettomni_4d = pe.Node(interface=ApplyTransforms(), name='pet_space_stx')
+        workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_image')
+        workflow.connect(pet_stx_node, "out_file", pettomni_4d, 'transforms')
+        workflow.connect(inputnode, 't1_space_stx',pettomni_4d, 'reference_image')
         workflow.connect(pettomni_4d,'output_file', outputnode, 'pet_img_4d')
     
-    workflow.connect(pet2mri, 'out_file_xfm', outputnode, 'petmri_xfm')
-    workflow.connect(pet2mri, 'out_file_xfm_invert', outputnode, 'mripet_xfm')
-    workflow.connect(pet2mri, 'out_file_img', outputnode, 'petmri_img')
+    workflow.connect(pet2mri, 'composite_transform', outputnode, 'tfm_pet_mri')
+    workflow.connect(pet2mri, 'inverse_composite_transform', outputnode, 'tfm_mri_pet')
+    workflow.connect(pet2mri, 'warped_image', outputnode, 'petmri_img')
     return workflow

@@ -1,7 +1,7 @@
 from quantification_template import *
 
-in_file_format="ECAT"
-out_file_format="ECAT"
+in_file_format="NIFTI"
+out_file_format="NIFTI"
 reference=True
 voxelwise=True
 
@@ -13,6 +13,7 @@ class quantInput( CommandLineInputSpec):
     out_file = File(argstr="%s",  position=-1, desc="image to operate on")
     in_file= File(exists=True, mandatory=True, position=-3, argstr="%s", desc="PET file")
     reference = File(exists=True, mandatory=True,  position=-4, argstr="%s", desc="Reference file")
+    sif = File(desc="Sif file for Nifti PET input")
     start_time=traits.Float(argstr="%s",default_value=0, usedefault=True,  position=-2, desc="Start time for regression in mtga.")
     k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
     thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
@@ -27,8 +28,14 @@ class quantInput( CommandLineInputSpec):
 class quantCommand(quantificationCommand):
     input_spec =  quantInput
     output_spec = quantOutput
-    _cmd = "imgdv" #input_spec.pvc_method 
+    _cmd = "imgdv"  
     _suffix = "_lp" 
+
+
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 
 
 def check_options(tkaNode, opts):

@@ -1,12 +1,13 @@
-from quantification_template import *
-from pyminc.volumes.factory import volumeLikeFile, volumeFromFile
 import numpy as np
 import json
+import nibabel as nib
+from Extra.utils import splitext
+from quantification_template import *
 from scipy.integrate import simps
 ### Required for a quantification node:
-in_file_format="MINC"
+in_file_format="NIFTI"
 ### Required for a quantification node:
-out_file_format="MINC"
+out_file_format="NIFTI"
 ### Required for a quantification node:
 reference=True
 ### Required for a quantification node:
@@ -36,16 +37,13 @@ class quantCommand(BaseInterface):
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         header = json.load(open(self.inputs.header, "r") )
-        pet = volumeFromFile(self.inputs.in_file)
-        reference = volumeFromFile(self.inputs.reference)
-        out = volumeLikeFile(self.inputs.reference, self.inputs.out_file )
-        ndim = len(pet.data.shape)
+        pet = nib.load(self.inputs.in_file).get_data()
+        reference_vol = nib.load(self.inputs.reference)
+        reference = reference_vol.get_data()
+        ndim = len(pet.shape)
         
-        vol = pet.data
+        vol = pet
         if ndim > 3 :
-
-            dims = pet.getDimensionNames()
-            i = dims.index('time')
 
             if not isdefined(self.inputs.start_time) : 
                 start_time=0
@@ -61,16 +59,15 @@ class quantCommand(BaseInterface):
                 time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] if s >= start_time and e <= end_time ]
             except ValueError :
                 time_frames = [1.]
-            vol = simps( pet.data, time_frames, axis=i)
+            vol = simps( pet, time_frames, axis=3)
         
-        idx = reference.data > 0
+        idx = reference > 0
         ref = np.mean(vol[idx])
-        print "SUVR Reference = ", ref
+        print("SUVR Reference = ", ref)
         vol = vol / ref
-        out.data=vol
-        out.writeFile()
-        out.closeVolume()
-
+        
+        out = nib.Nifti1Image(vol, reference_vol.affine)
+        out.to_filename(self.inputs.out_file)
 
         return runtime
 
@@ -79,10 +76,9 @@ class quantCommand(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-
     def _gen_output(self, basefile, _suffix):
         fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        fname_list = splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd() 
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 

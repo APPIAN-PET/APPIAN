@@ -96,9 +96,9 @@ pvcMethods="idSURF VC"
 quantMethods="lp  srtm "
 
 #Run Quant
-cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.mnc --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --results-label-img "label-displacementROI" --pvc-fwhm 2.5 2.5 2.5 "
+cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.nii --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --results-label-img "label-displacementROI" --pvc-fwhm 2.5 2.5 2.5 "
 
-cmd_quant="$cmd_base --tka-method srtm "
+cmd_quant="$cmd_base --tka-method suvr "
 cmd_pvc="$cmd_quant --pvc-method VC "
 echo docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
 docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"

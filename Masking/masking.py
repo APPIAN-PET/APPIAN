@@ -4,56 +4,73 @@ import tempfile
 import shutil
 import pickle
 import ntpath
-
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
+import nipype.interfaces.minc as minc
+import Registration.registration as reg
+import pyminc.volumes.factory as pyminc
+import nibabel as nib
+import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-#from nipype.interfaces.base import Info
-
+from arg_parser import file_dir
 from nipype.interfaces.utility import Rename
-from os.path import splitext
-import nipype.interfaces.minc as minc
-from nipype.interfaces.minc import Calc as CalcCommand
-from nipype.interfaces.minc import Blur as SmoothCommand
-from nipype.interfaces.minc import Resample as ResampleCommand
+from Extra.utils import splitext, gz
 from Extra.xfmOp import InvertCommand
 from Extra.morphomat import MorphCommand
 from Extra.info import StatsCommand
 from Extra.resample import param2xfmCommand
 from Extra.obj import *
-from Extra.xfmOp import ConcatCommand, ConcatNLCommand
-import Registration.registration as reg
-import pyminc.volumes.factory as pyminc
+from scipy.ndimage.morphology import binary_erosion
+from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
+
+
+icbm_default_brain=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii"
+
+class IdentityTransformInput(BaseInterfaceInputSpec):
+    out_file  = File(desc="Labels in analysis space")
+
+class IdentityTransformOutput(TraitedSpec):
+    out_file  = File(desc="Labels in analysis space")
+
+class IdentityTransform(BaseInterface):
+    input_spec = IdentityTransformInput
+    output_spec = IdentityTransformOutput
+
+    def _gen_output(self):
+        dname = os.getcwd()
+        return dname+ os.sep+'identity_transform.txt'
+
+    def _run_interface(self, runtime):
+        self.inputs.out_file = self._gen_output() 
+        identity = sitk.Transform(3, sitk.sitkIdentity)
+        sitk.WriteTransform(identity, str(self.inputs.out_file))
+        return runtime
+
+    def _list_outputs(self):
+	outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+
 
 class LabelsInput(BaseInterfaceInputSpec):
-    mniT1 = File(exists=True, desc="T1 image normalized into MNI space")
-    petT1 = File(exists=True, desc="PET image transformed into PET space")
-    LinXfm= File(exists=True, mandatory=True, desc="Transformation matrix to register PET image to T1 space")
-    nLinAtlasMNIXfm = traits.Str(default='', desc="Non-linear transformation matrix to register atlas template image into MNI space")
-    template  = File(desc="Mask on the template")
-    warp = File(desc="Warp/deformation volume for NL transform")
-    label_type = traits.Str(mandatory=True, desc="Type for label")
+    #tfm= traits.File(desc="Transformation matrix to register PET image to T1 space") #
+    transform_3 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
+    transform_2 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
+    transform_1 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
+    warp = traits.File(desc="Warp/deformation volume for NL transform")
     labels = traits.List(desc="label value(s) for label image.")
-    #_spaces = ['native', 'stereo', 'other']
-    #space = traits.Enum(*_spaces, mandatory=True, desc="Coordinate space of the label")
-    space = traits.Str(desc="Coordinate space of the label")
-    analysis_space = traits.Str(mandatory=True, desc="Analysis space")
-    label_img  = File(mandatory=True, desc="Mask on the template")
+    label_img  = traits.File(mandatory=True, desc="Mask on the template")
     erode_times = traits.Int(desc="Number of times to erode image", usedefault=True, default=0)
-    mni2target = File(desc="Transformation from stereotaxic to analysis space")
-    like_file = File(desc="Target img")
-    label_template=traits.Str(usedefault=True,default_value='NA',desc="Template for stereotaxic atlas")
+    like_file = traits.File(desc="Target img")
+    analysis_space=traits.Str()
     brain_mask = traits.Str(usedefault=True,default_value='NA',desc="Brain mask in T1 native space")
     brain_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal to use brain_mask")
     ones_only = traits.Bool(usedefault=True, default=False, desc="Flag to signal threshold so that label image is only 1s and 0s")
-    surf = File(desc="Obj surface")
-    out_file  = File(desc="Labels in analysis space")
+    out_file  = traits.File(desc="Labels in analysis space")
 
 class LabelsOutput(TraitedSpec):
-    out_file  = File(desc="Labels in analysis space")
-    nLinAtlasMNIXfm = traits.Str(desc="Non-linear transformation matrix to register atlas template image into MNI space")
+    out_file  = traits.File(desc="Labels in analysis space")
 
 class Labels(BaseInterface):
     input_spec = LabelsInput
@@ -62,102 +79,72 @@ class Labels(BaseInterface):
 
     def _gen_output(self, basefile, _suffix):
         fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        fname_list = splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
     def _run_interface(self, runtime):
-        self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
-
-        tmpDir = os.getcwd() + os.sep + 'tmp_label'  #tempfile.mkdtemp()
-        os.mkdir(tmpDir)
-
-        out_file_1 =temp_mask = tmpDir+"/mask.mnc"
-        temp_mask_clean = tmpDir+"/mask_clean.mnc"
-        if self.inputs.labels == [] :
-            mask= pyminc.volumeFromFile(self.inputs.label_img)
-            mask_flat=mask.data.flatten()
-            labels=[ str(int(round(i))) for i in np.unique(mask_flat) ]
-            if '0' in labels :  labels.remove('0')
-        else :
-            labels = self.inputs.labels
-        # 1) Select Labels
-        run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-        run_calc.inputs.input_files = self.inputs.label_img #The ANIMAL or CIVET classified atlas
-        run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-        run_calc.inputs.expression = " || ".join([ '(A[0] > ' + str(label) + '-0.1 && A[0] < '+str(label)+'+ 0.1 )' for label in  labels ]) + ' ? A[0] : 0'
-        run_calc.run()
-
-        # 2) Erode
-        if int(self.inputs.erode_times) > 0:
-            run_mincmorph = MorphCommand()
-            run_mincmorph.inputs.in_file = temp_mask
-            run_mincmorph.inputs.out_file = temp_mask_clean
-            run_mincmorph.inputs.successive='E' * self.inputs.erode_times
-            run_mincmorph.run()
-            out_file_1 = temp_mask_clean
-        else :
-            out_file_1 = temp_mask #self.inputs.out_file
-
-        # 3) Co-registration
-        if self.inputs.space == "stereo" and self.inputs.label_type == "atlas-template"    :
-            if self.inputs.nLinAtlasMNIXfm == '':
-                sourceToModel_xfm = os.getcwd() + os.sep + 'template2mni.xfm'
-                run_nlinreg = reg.nLinRegRunning()
-                run_nlinreg.inputs.in_source_file = self.inputs.label_template
-                run_nlinreg.inputs.in_target_file = self.inputs.mniT1
-                run_nlinreg.inputs.out_file_xfm = sourceToModel_xfm # xfm file for the transformation from template to subject stereotaxic
-                run_nlinreg.run()
-
-                mni2target = minc.XfmConcat()
-                mni2target.inputs.input_file_1 = sourceToModel_xfm
-                mni2target.inputs.input_file_2 = self.inputs.mni2target
-                mni2target.run()
-                xfm = mni2target.inputs.out_file
-                self.inputs.nLinAtlasMNIXfm=mni2target.inputs.output_file
-            else :
-                xfm=self.inputs.nLinAtlasMNIXfm
-        else :
-            xfm = self.inputs.LinXfm
-
-        # 4) Apply transformation
-        like_file = self.inputs.like_file
-        base=splitext(out_file_1)
-        out_file_2=base[0]+self.inputs.analysis_space+base[1]
-
-        run_resample = minc.Resample()
-        run_resample.inputs.input_file = out_file_1 # self.inputs.label_img
-        run_resample.inputs.output_file = out_file_2
-        run_resample.inputs.like = like_file
-        run_resample.inputs.transformation = xfm
-        run_resample.inputs.nearest_neighbour_interpolation = True
-        run_resample.run()
-
-        label = run_resample.inputs.output_file
-
-        #Copy to output
-        shutil.copy(label, self.inputs.out_file)
-
-        # 6) Mask brain for T1 and MNI labels
-        if self.inputs.brain_only :
-            temp_mask = tmpDir+"/mask.mnc"
-            run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-            run_calc.inputs.input_files = [ label, self.inputs.brain_mask]
-            run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-            run_calc.inputs.expression = " A[1] == 1 ? A[0] : 0 "
-            run_calc.clobber = True
-            run_calc.run()
-            shutil.copy(temp_mask,  self.inputs.out_file)
-            label = self.inputs.out_file
+        #1. load label image
+        img = nib.load(self.inputs.label_img)
+        label_img = img.get_data()
+        
+        print("1", np.sum(label_img)) 
+        print(self.inputs.labels)
+        _labels =[ int(i) for i in self.inputs.labels ]
+        #2. Remove labels not specified by user, if any have been provided
+        if self.inputs.labels != [] :
+            labels_to_remove =[ i for i in np.unique(label_img) if int(i) not in _labels ]
+            for i in labels_to_remove :
+                label_img[ label_img == i ] = 0
+        print(np.unique(label_img))
+        print("2", np.sum(label_img)) 
+        #3. concatenate all labels to 1
         if self.inputs.ones_only :
-            temp_mask = tmpDir+"/mask.mnc"
-            run_calc = minc.Calc() #Extract the desired label from the atlas using minccalc.
-            run_calc.inputs.input_files = [ label ] #The ANIMAL or CIVET classified atlas
-            run_calc.inputs.output_file = temp_mask  #Output mask with desired label
-            run_calc.inputs.expression = " A[0] > 0.1 ? 1 : 0 "
-            run_calc.clobber = True
-            run_calc.run()
-            shutil.copy(temp_mask, self.inputs.out_file)
+            label_img[label_img != 0 ] = 1
+
+        #4. erode all labels
+        label_img_eroded=np.zeros(label_img.shape)
+        if self.inputs.erode_times != 0 :
+            for i in np.unique(label_img) :
+                if i != 0 :
+                    temp=np.zeros(label_img.shape)
+                    temp[ label_img == i ] = 1
+                    temp = binary_erosion(temp, iterations=self.inputs.erode_times)
+                    label_img_eroded += temp
+            label_img=label_img_eroded
+
+        #5.
+        if self.inputs.brain_only :
+            brain_mask = nib.load(self.inputs.brain_mask).get_data()
+            label_img *= brain_mask
+
+        tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine())
+        tmp_label_img.to_filename("tmp_label_img.nii")
+
+        #6. Apply transformation
+        transformLabels = APPIANApplyTransforms()
+        transformLabels.inputs.input_image ="tmp_label_img.nii"
+        transformLabels.inputs.reference_image = self.inputs.like_file
+        transformLabels.inputs.transform_1 = self.inputs.transform_1
+        transformLabels.inputs.transform_2 = self.inputs.transform_2
+        transformLabels.inputs.transform_3 = self.inputs.transform_3
+        transformLabels.inputs.interpolation = 'NearestNeighbor'
+        transformLabels.run()
+        output_image = transformLabels._list_outputs()['output_image']
+        print(transformLabels._list_outputs() ) 
+        #7. Copy to output
+
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
+        print(output_image, self.inputs.out_file)
+        if '.gz' in splitext(self.inputs.out_file)[1] : 
+            print('Gzip')
+            gz(output_image, self.inputs.out_file)
+            nib.load(output_image)
+            nib.load(self.inputs.out_file)
+        else : 
+            print('Copy')
+            shutil.copy(output_image, self.inputs.out_file)
 
         return runtime
 
@@ -166,12 +153,13 @@ class Labels(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
         outputs["out_file"] = self.inputs.out_file #Masks in stereotaxic space
-        outputs["nLinAtlasMNIXfm"] = self.inputs.nLinAtlasMNIXfm
         return outputs
 
     def _parse_inputs(self, skip=None):
         if skip is None:
             skip = []
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
         return super(Labels, self)._parse_inputs(skip=skip)
 
 """
@@ -182,60 +170,79 @@ class Labels(BaseInterface):
 """
 
 def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
-    if label_space == "stereo" :
-        if analysis_space == "t1":
-            tfm_node=inputnode
-            transform_file="LinMNIT1Xfm"
-            target_file="nativeT1"
-        elif analysis_space == "pet":
-            tfm_node=inputnode
-            transform_file='LinMNIPETXfm'
-            target_file="pet_volume"
-        else :
-            tfm_node=identity
-            transform_file="out_file"
-            target_file="mniT1"
-    elif label_space == "t1":
-        if analysis_space == "stereo":
-            tfm_node=inputnode
-            transform_file="LinT1MNIXfm"
-            target_file="mniT1"
-        elif analysis_space == "pet":
-            tfm_node=inputnode
-            transform_file="LinT1PETXfm"
-            target_file="pet_volume"
-        else :
-            tfm_node=identity
-            transform_file="out_file"
-            target_file="t1"
-    elif label_space == "pet":
-        if analysis_space == "stereo":
-            tfm_node=inputnode
-            transform_file="LinPETMNIXfm"
-            target_file="mniT1"
-        elif analysis_space == "t1":
-            tfm_node=inputnode
-            transform_file="LinPETT1Xfm"
-            target_file="nativeT1"
-        else :
-            tfm_node=identity
-            transform_file="out_file"
-            target_file="pet"
+    if label_space == analysis_space :
+        tfm_node=[identity]
+        transform_file=["out_file"]
+    else : 
+        if label_space == "stereo" :
+            if analysis_space == "t1":
+                transform_file=["tfm_stx_mri"]
+            elif analysis_space == "pet":
+                transform_file=['tfm_mri_pet', 'tfm_stx_mri']
+        elif label_space == "t1":
+            if analysis_space == "stereo":
+                transform_file=["tfm_mri_stx"]
+            elif analysis_space == "pet":
+                transform_file=["tfm_mri_pet"]
+        elif label_space == "pet":
+            if analysis_space == "stereo":
+                transform_file=["tfm_mri_stx", "tfm_pet_mri"]
+            elif analysis_space == "t1":
+                transform_file=["tfm_pet_mri"]
 
-    return([tfm_node, transform_file, target_file])
+        tfm_node=[inputnode]*len(transform_file)
 
+    return([tfm_node, transform_file])
 
+def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_only, tfm_node_list, tfm_file_list,label_template, default_template, normalization_type, like_file, brain_mask_node, workflow,inputnode, kind):
+    LabelNode = pe.Node(interface=Labels(), name=kind+"Labels")
+    LabelNode.inputs.analysis_space = analysis_space
+    LabelNode.inputs.erode_times = erode_times
+    LabelNode.inputs.brain_only = brain_only
+    LabelNode.inputs.ones_only = ones_only
+    workflow.connect(inputnode, kind+'_labels', LabelNode, 'labels')
+    workflow.connect(inputnode, kind+'_label_img', LabelNode, 'label_img')
+    workflow.connect(inputnode, like_file, LabelNode, 'like_file')
+
+    if label_space == 'pet':
+        label_brain_mask_node = brain_mask_node
+        label_brain_mask_file = 'output_image'
+    elif label_space == 'stereo' :
+        label_brain_mask_node = inputnode
+        label_brain_mask_file = 'brain_mask_space_stx'
+    elif label_space == 'mri' :
+        label_brain_mask_node = inputnode
+        label_brain_mask_file = 'brain_mask_space_mri'
+
+    workflow.connect(label_brain_mask_node, label_brain_mask_file, LabelNode, 'brain_mask')
+  
+    #Setup node for nonlinear alignment of results template to default (icbm152) template
+    if label_template != None :
+        template_norm = pe.Node(interface=APPIANRegistration(), name="template_normalization")
+        template_norm.inputs.interpolation='NearestNeighbor'
+        template_norm.inputs.normalization_type = normalization_type
+        workflow.connect(inputnode, kind+'_label_template', template_norm, 'moving_image')
+        template_norm.inputs.fixed_image = default_template
+        template_norm.inputs.fixed_image_mask = icbm_default_brain
+        tfm_node_list.append(template_norm)
+        if normalization_type == 'nl' :
+            template_tfm = 'composite_transform'
+        else : 
+            template_tfm = 'out_matrix'
+        tfm_file_list.append(template_tfm)
+    
+    tfm_index=1
+    print(tfm_node_list)
+    print(tfm_file_list)
+    for node, tfm in zip(tfm_node_list, tfm_file_list) :
+        print(node, tfm)
+        workflow.connect(node, tfm, LabelNode,'transform_'+str(tfm_index))
+        tfm_index += 1
+    return LabelNode
 
 def get_workflow(name, infosource, opts):
     '''
         Create workflow to produce labeled images.
-
-        1. Invert T1 Native to MNI 152 transformation
-        2. Transform
-        4. Transform brain_mask from MNI 152 to T1 native
-        5. Create PVC labeled image
-        6. Create quantification labeled image
-        7. Create results labeled image
 
         :param name: Name for workflow
         :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
@@ -246,7 +253,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["nativeT1","mniT1","brain_mask_stereo", "brain_mask_t1", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'LinT1MNIXfm','LinMNIT1Xfm',  "LinPETMNIXfm", "LinMNIPETXfm",'LinT1MNIXfm', "LinT1PETXfm", "LinPETT1Xfm", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx','tfm_stx_mri',  "tfm_pet_stx", "tfm_stx_pet",'tfm_mri_stx', "tfm_mri_pet", "tfm_pet_mri", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -255,45 +262,47 @@ def get_workflow(name, infosource, opts):
         in_list +=  ["tka_labels", "tka_label_space","tka_label_template","tka_label_img"]
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
-    outputnode = pe.Node(niu.IdentityInterface(fields=out_list), name='outputnode')
     #Define empty node for output
+    outputnode = pe.Node(niu.IdentityInterface(fields=out_list), name='outputnode')
+    
+    identity_transform = pe.Node(IdentityTransform(), name="identity_transform")
 
-    #Create Identity Transform
-    identity_transform = pe.Node(param2xfmCommand(), name="identity_transform")
-    identity_transform.inputs.translation="0 0 0"
-    identity_transform.inputs.rotation="0 0 0"
-    identity_transform.inputs.scales="1 1 1"
+    if opts.normalization_type == 'nl' :
+        template_tfm='composite_transform'
+    else :
+        template_tfm='out_matrix'
+
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file, pvc_target_file = get_transforms_for_stage( inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
+        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
 
     if not opts.tka_method == None:
-       tka_tfm_node, tka_tfm_file, tka_target_file = get_transforms_for_stage(  inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
+       tka_tfm_node, tka_tfm_file = get_transforms_for_stage(inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
 
-    results_tfm_node, results_tfm_file, results_target_file = get_transforms_for_stage(  inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
-
+    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
+    
     ###################
     # Brain Mask Node #
     ###################
     if opts.analysis_space == "stereo"  :
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
-        workflow.connect(inputnode, "brain_mask_stereo", brain_mask_node, "output_file")
-        like_file="mniT1"
+        workflow.connect(inputnode, "brain_mask_space_stx", brain_mask_node, "output_file")
+        like_file="mri_space_stx"
     elif opts.analysis_space == "t1" :
         brain_mask_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "brain_mask")
-        workflow.connect(inputnode, "brain_mask_t1", brain_mask_node, "output_file")
-        like_file="nativeT1"
+        workflow.connect(inputnode, "brain_mask_space_mri", brain_mask_node, "output_file")
+        like_file="mri_space_nat"
     elif opts.analysis_space == "pet" :
-        brain_mask_node = pe.Node(minc.Resample(), "brain_mask")
-        brain_mask_node.inputs.nearest_neighbour_interpolation = True
-        workflow.connect(inputnode, "brain_mask_stereo", brain_mask_node, "input_file")
-        workflow.connect(inputnode, "LinMNIPETXfm", brain_mask_node, "transformation")
-        workflow.connect(inputnode, "pet_volume", brain_mask_node, "like")
+        brain_mask_node = pe.Node(APPIANApplyTransforms(), "brain_mask_space_pet")
+        workflow.connect(inputnode, 'brain_mask_space_stx', brain_mask_node, 'input_image')
+        workflow.connect(inputnode, "tfm_stx_mri", brain_mask_node, 'transform_3')
+        workflow.connect(inputnode, "tfm_mri_pet", brain_mask_node, 'transform_2')
+        workflow.connect(inputnode, 'pet_volume', brain_mask_node, 'reference_image')
+        brain_mask_node.inputs.interpolation = 'NearestNeighbor'
         like_file="pet_volume"
     else :
         print("Error: Analysis space must be one of pet,stereo,t1 but is",opts.analysis_space)
         exit(1)
-
 
     #################
     # Surface masks #
@@ -305,104 +314,28 @@ def get_workflow(name, infosource, opts):
             workflow.connect(inputnode, 'surf_left', surface_left_node, 'in_file')
             workflow.connect(inputnode, 'surf_right', surface_right_node, 'in_file')
             if opts.analysis_space == "t1" :
-                workflow.connect(inputnode, "LinMNIT1Xfm", surface_left_node, 'tfm_file')
-                workflow.connect(inputnode, "LinMNIT1Xfm", surface_right_node, 'tfm_file')
+                workflow.connect(inputnode, "tfm_stx_mri", surface_left_node, 'tfm_file')
+                workflow.connect(inputnode, "tfm_stx_mri", surface_right_node, 'tfm_file')
             elif opts.analysis_space == "pet" :
-                workflow.connect(inputnode, 'LinMNIPETXfm', surface_left_node, 'tfm_file')
-                workflow.connect(inputnode, 'LinMNIPETXfm', surface_right_node, 'tfm_file')
+                workflow.connect(inputnode, 'tfm_stx_pet', surface_left_node, 'tfm_file')
+                workflow.connect(inputnode, 'tfm_stx_pet', surface_right_node, 'tfm_file')
         else :
             surface_left_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_left_node")
             surface_right_node = pe.Node(niu.IdentityInterface(fields=["output_file"]), "surf_right_node")
             workflow.connect(inputnode, "surf_left", surface_left_node, "output_file")
             workflow.connect(inputnode, "surf_right", surface_right_node, "output_file")
+   
+    print(results_tfm_file)
+    resultsLabels = set_label_node(opts.analysis_space, opts.results_label_space, opts.results_erode_times, opts.results_labels_brain_only, opts.results_labels_ones_only, results_tfm_node, results_tfm_file, opts.results_label_template, opts.template, opts.normalization_type,like_file, brain_mask_node,workflow,inputnode, "results")
 
+    if not opts.pvc_method == None :
+        pvcLabels = set_label_node(opts.analysis_space,opts.pvc_label_space, opts.pvc_erode_times, opts.pvc_labels_brain_only, opts.pvc_labels_ones_only, pvc_tfm_node, pvc_tfm_file, opts.pvc_label_template, opts.template, opts.normalization_type,like_file, brain_mask_node,workflow,inputnode, "pvc")
 
-    resultsLabels = pe.Node(interface=Labels(), name="resultsLabels")
-    resultsLabels.inputs.analysis_space = opts.analysis_space
-    resultsLabels.inputs.label_type = opts.results_label_type
-    resultsLabels.inputs.space = opts.results_label_space
-    resultsLabels.inputs.erode_times = opts.results_erode_times
-    resultsLabels.inputs.brain_only = opts.results_labels_brain_only
-    resultsLabels.inputs.ones_only = opts.results_labels_ones_only
-    workflow.connect(inputnode, 'results_labels', resultsLabels, 'labels')
-    workflow.connect(inputnode, 'results_label_img', resultsLabels, 'label_img')
-    workflow.connect(inputnode, 'results_label_template', resultsLabels, 'label_template')
-    workflow.connect(inputnode, like_file, resultsLabels, 'like_file')
-    workflow.connect(brain_mask_node,"output_file", resultsLabels, 'brain_mask')
-    workflow.connect(results_tfm_node, results_tfm_file, resultsLabels, "LinXfm")
-    
-    #Setup node for nonlinear alignment of results template to default (icbm152) template
-    if opts.results_label_template != None :
-        results_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="results_template_normalization")
-        results_template_norm.inputs.in_target_file = opts.template
-        results_template_norm.inputs.in_source_file = opts.results_label_template
         
-        results_template_analysis_space = pe.Node(ConcatNLCommand(), name="results_template_analysis_space")
-        workflow.connect(results_template_norm, 'out_file_xfm', results_template_analysis_space, 'in_file' )
-        workflow.connect(results_template_norm, 'out_file_warp', results_template_analysis_space, 'in_warp' )
-        workflow.connect(results_tfm_node, results_tfm_file, results_template_analysis_space, 'in_file_2' )
-                
-        workflow.connect(results_template_analysis_space, 'out_file', resultsLabels, 'nLinAtlasMNIXfm')
-        workflow.connect(results_template_analysis_space, 'out_warp', resultsLabels, 'warp')
-        workflow.connect(results_template_norm, 'out_file_img', resultsLabels, 'template')
-
-    if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvcLabels = pe.Node(interface=Labels(), name="pvcLabels")
-        pvcLabels.inputs.analysis_space = opts.analysis_space
-        pvcLabels.inputs.label_type = opts.pvc_label_type
-        pvcLabels.inputs.space = opts.pvc_label_space
-        pvcLabels.inputs.erode_times = opts.pvc_erode_times
-        pvcLabels.inputs.brain_only = opts.pvc_labels_brain_only
-        pvcLabels.inputs.ones_only = opts.pvc_labels_ones_only
-        workflow.connect(inputnode, 'pvc_labels', pvcLabels, 'labels')
-        workflow.connect(inputnode, 'pvc_label_img', pvcLabels, 'label_img')
-        workflow.connect(inputnode, like_file, pvcLabels, 'like_file')
-        workflow.connect(brain_mask_node, "output_file", pvcLabels, 'brain_mask')
-        workflow.connect(pvc_tfm_node, pvc_tfm_file, pvcLabels, "LinXfm")
-
-
-        if opts.pvc_label_template != None :
-            pvc_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="pvc_template_normalization")
-            pvc_template_norm.inputs.in_target_file = opts.template
-            pvc_template_norm.inputs.in_source_file = opts.pvc_label_template
-            
-            pvc_template_analysis_space = pe.Node(ConcatNLCommand(), name="pvc_template_analysis_space")
-            workflow.connect(pvc_template_norm, 'out_file_xfm', pvc_template_analysis_space, 'in_file' )
-            workflow.connect(pvc_template_norm, 'out_file_warp', pvc_template_analysis_space, 'in_warp' )
-            workflow.connect(pvc_tfm_node, pvc_tfm_file, pvc_template_analysis_space, 'in_file_2' )
-                    
-            workflow.connect(pvc_template_analysis_space, 'out_file', pvcLabels, 'nLinAtlasMNIXfm')
-            workflow.connect(pvc_template_analysis_space, 'out_warp', pvcLabels, 'warp')
-            workflow.connect(pvc_template_norm, 'out_file_img', pvcLabels, 'template')
-
-
     if not opts.tka_method == None :
-        tkaLabels = pe.Node(interface=Labels(), name="tkaLabels")
-        tkaLabels.inputs.analysis_space = opts.analysis_space
-        tkaLabels.inputs.label_type = opts.tka_label_type
-        tkaLabels.inputs.space = opts.tka_label_space
-        tkaLabels.inputs.erode_times = opts.tka_erode_times
-        tkaLabels.inputs.brain_only = opts.tka_labels_brain_only
-        tkaLabels.inputs.ones_only = opts.tka_labels_ones_only
-        workflow.connect(inputnode, 'tka_labels', tkaLabels, 'labels')
-        workflow.connect(inputnode, 'tka_label_img', tkaLabels, 'label_img')
-        workflow.connect(inputnode, like_file, tkaLabels, 'like_file')
-        workflow.connect(brain_mask_node, "output_file", tkaLabels, 'brain_mask')
-        workflow.connect(tka_tfm_node, tka_tfm_file, tkaLabels, "LinXfm")
+        tkaLabels = set_label_node(opts.analysis_space, opts.tka_label_space, opts.tka_erode_times, opts.tka_labels_brain_only, opts.tka_labels_ones_only, tka_tfm_node, tka_tfm_file, opts.tka_label_template, opts.template, opts.normalization_type, like_file, brain_mask_node,workflow,inputnode, "tka")
 
 
-        if opts.tka_label_template != None :
-            tka_template_norm = pe.Node(interface=reg.nLinRegRunning(), name="tka_template_normalization")
-            tka_template_norm.inputs.in_source_file = opts.template
-            tka_template_norm.inputs.in_target_file = opts.tka_label_template
-            
-            tka_template_analysis_space = pe.Node(ConcatNLCommand(), name="tka_template_analysis_space")
-            workflow.connect(tka_template_norm, 'out_file_xfm', tka_template_analysis_space, 'in_file' )
-            workflow.connect(tka_template_norm, 'out_file_warp', tka_template_analysis_space, 'in_warp' )
-            workflow.connect(tka_tfm_node, tka_tfm_file, tka_template_analysis_space, 'in_file_2' )
-                    
-            workflow.connect(tka_template_analysis_space, 'out_file', tkaLabels, 'nLinAtlasMNIXfm')
-            workflow.connect(tka_template_analysis_space, 'out_warp', tkaLabels, 'warp')
-            workflow.connect(tka_template_norm, 'out_file_img', tkaLabels, 'template')
+
 
     return(workflow)

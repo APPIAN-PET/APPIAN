@@ -8,8 +8,15 @@ import time
 import sys
  
 global spaces
+global file_dir
+global icbm_default_template
+
 spaces=['pet', 't1', 'stereo']
 internal_cls_methods=["antsAtropos"]
+
+file_dir, fn =os.path.split( os.path.abspath(__file__) )
+
+icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -51,30 +58,28 @@ def get_parser():
     parser.add_argument("--runs",dest="runList",default=[],help="List of runs",nargs='+')
     parser.add_argument("--output-format",dest="output_format",type=str, default='nifti', help="Output file format for APPIAN (default=nifti, options=nifti,minc)")
 
-    ###############
-    # Information #
-    ###############
-    parser.add_argument("--halflife",dest="halflife",help="Half-life of radio isotope (in seconds).",type=float,default=0)
-          
     #############################
     # MRI Preprocessing Options #
     #############################
-    #group= OptionGroup(parser,"MRI preprocessing options")
-    parser.add_argument("--t1-normalize-method", dest="t1_normalize_method",type=str,help="Coregistration method: minctracc, ants. (default=ants)", default="ants")
-    parser.add_argument("--t1-normalize-type", dest="t1_normalize_type",type=str,help="Coregistration method: nl, affine. (default=nl)", default="nl")
-    parser.add_argument("--user-t1mni", dest="user_t1mni", default=False, action='store_true', help="Use user provided transform from MRI to MNI space" ) 
+    #MRI N4 Correction
+    parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=200)
+    parser.add_argument("--n4-bspline-order", dest="n4_bspline_order",type=int,help="Order of BSpline interpolation for N4 correction", default=None)
+    parser.add_argument("--n4-n-iterations", dest="n4_n_iterations",type=int,help="List with number of iterations to perform. Default=50 50 30 20 ", default=[50, 50, 30, 20], nargs='+')
+    parser.add_argument("--n4-shrink-factor", dest="n4_shrink_factor",type=int,help="Order of BSpline interpolation for N4 correction", default=2)
+    parser.add_argument("--n4-convergence-threshold", dest="n4_convergence_threshold",type=float,help="Convergence threshold for N4 correction", default=1e-6)
+
+    parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
+    parser.add_argument("--user-ants-normalization", dest="user_ants_normalization",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
+    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
-    #parser.add_argument("--beast-voxel-size", dest="beast_voxel_size", default=2, type=int, help="Voxel size for brain segmentation" ) 
-    parser.add_argument("--beast-no-median", dest="beast_median", default=True, action='store_false', help="Use median filter" ) 
-    parser.add_argument("--coregistration-method",dest="mri_coreg_method", help="Method to use to register MRI to stereotaxic template", type=str, default="minctracc")  
-    parser.add_argument("--brain-extraction-method",dest="mri_brain_extract_method", help="Method to use to extract brain mask from MRI", type=str, default="beast")  
-    parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS' ) 
-    parser.add_argument("--beast-library-dir", dest="beast_library_dir",type=str,help="Directory to Beast library",default="/opt/beast-library-1.0")
+    
+    parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS') 
+    parser.add_argument("--ants-atropos-priors",dest="ants_atropos_priors", help="Anatomics label images to use as priors for Atropos segmentation. By default, if not set by user and template is the default ICBM152c, then APPIAN uses the GM/WM/CSF probabilistic segmentations of ICBM152c template. Users providing their own templates can specify their own priors", type=str, default=[] ) 
+    parser.add_argument("--ants-atropos-prior-weighting",dest="ants_atropos_prior_weighting", help="Weight to give to priors in Atropos segmentation", type=float, default=0.5 ) 
           
     ###################
     # Surface Options #
     ###################
-    #group= OptionGroup(parser,"Surface options")
     parser.add_argument("--surf",dest="use_surfaces",action='store_true', default=False,help="Flag that signals APPIAN to find surfaces")
     parser.add_argument("--surf-label",dest="surface_label", default='*', help="Label string to identify surface ROI .txt file")
     parser.add_argument("--surf-space",dest="surface_space",type=str,default="icbm152", help="Set space of surfaces from : \"pet\", \"t1\", \"icbm152\" (default=icbm152)")
@@ -84,22 +89,21 @@ def get_parser():
     ######################
     # Additional Options #
     ######################
-    #group= OptionGroup(parser,"File options (Optional)")
     parser.add_argument("--test",dest="test",action='store_true', default=False, help="Run tests on APPIAN")
     parser.add_argument("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Do not run group level analysis")
     parser.add_argument("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Do not run scan level analysis")
 
-    parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='mnc')
+    parser.add_argument("--img-ext",dest="img_ext",type=str,help="Extension to use for images.",default='nii')
     parser.add_argument("--analysis-space",dest="analysis_space",help="Coordinate space in which PET processing will be performed (Default=pet)",default='pet', choices=spaces)
     parser.add_argument("--threads",dest="num_threads",type=int,help="Number of threads to use. (defult=1)",default=1)
     
-    file_dir, fn =os.path.split( os.path.abspath(__file__) )
-    parser.add_argument("--stereotaxic-template", dest="template",type=str,help="Template image in stereotaxic space",default=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.mnc")
+    parser.add_argument("--stereotaxic-template", dest="template",type=str,help="Template image in stereotaxic space",default=icbm_default_template)
     parser.add_argument("--datasource-exit",dest="datasource_exit",help="Stop scan level processing after initialization of datasources", action='store_true', default=False)
     parser.add_argument("--initialize-exit",dest="initialize_exit",help="Stop scan level processing after PET initialization", action='store_true', default=False)
     parser.add_argument("--coregistration-exit",dest="coregistration_exit",help="Stop scan level processing after coregistration", action='store_true', default=False)
     parser.add_argument("--masking-exit",dest="masking_exit",help="Stop scan level processing after masking", action='store_true', default=False)
     parser.add_argument("--mri-preprocess-exit",dest="mri_preprocess_exit",help="Stop scan level processing after MRI preprocessing", action='store_true', default=False)
+    parser.add_argument("--pvc-exit",dest="pvc_exit",help="Stop scan level processing after PVC", action='store_true', default=False)
           
 
 
@@ -150,6 +154,7 @@ def get_parser():
     #group= OptionGroup(parser,"Coregistation options")
     parser.add_argument("--coreg-method", dest="coreg_method",type=str,help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
     parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
+    parser.add_argument("--pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_true', default=False)
     parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
     parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
     parser.add_argument("--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type=float, default=0.333)
@@ -285,7 +290,6 @@ def modify_opts(opts) :
         
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
-    opts.extension='mnc'
     
     ##########################################################
     # Check inputs to make sure there are no inconsistencies #
@@ -323,6 +327,9 @@ def modify_opts(opts) :
 
 
     printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
+    #FIXME Depreceating tka_method in favor of quant_method
+    #Creating the opts.quant_method to start transition away from using tka_method
+    opts.quant_method = opts.tka_method
     return opts
 
 

@@ -1,7 +1,7 @@
 from quantification_template import *
 import json 
 
-in_file_format="ECAT"
+in_file_format="NIFTI"
 out_file_format="DFT"
 reference=True
 voxelwise=False
@@ -15,6 +15,7 @@ class quantInput( MINCCommandInputSpec):
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
     in_file= File(exists=True, position=-4, argstr="%s", desc="PET file")
     reference = File(exists=True,  position=-5, argstr="%s", desc="Reference file")
+    sif = File(desc="Sif file for Nifti PET input")
     start_time=traits.Float( argstr="%s",default_value=0, usedefault=True, position=-3, desc="Start time for regression in mtga.")
     end_time=traits.Float(argstr="%f", position=-2, desc="By default line is fit to the end of data. Use this option to enter the fit end time.")
     Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
@@ -61,6 +62,11 @@ class quantCommand(quantificationCommand):
 
 
         return super(quantCommand, self)._parse_inputs(skip=skip)
+
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
     #Define node for patlak plot analysis 

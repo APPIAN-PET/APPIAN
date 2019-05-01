@@ -5,12 +5,12 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-#from nipype.interfaces.base import CommandLine, CommandLineInputSpec
+from Extra.utils import splitext
+import nibabel as nib
 import ntpath
 import pandas as pd
 import os
 import shutil
-from pyminc.volumes.factory import *
 import numpy as np 
 
 
@@ -116,26 +116,29 @@ class separate_mask_labelsCommand(BaseInterface ):
     output_spec = separate_mask_labelsOutput
    
     def _run_interface(self, runtime):
-        vol = volumeFromFile(self.inputs.in_file)
-        
-        #-1 because 0 doesn't need to be included
-        n = len(np.unique(vol.data))-1
-        sizes = [n] + list(vol.data.shape)
-        starts = [0] + list(vol.starts)
-        steps = [1] + list(vol.separations)         
-        
+        vol = nib.load(self.inputs.in_file)
+        data = vol.get_data()
+
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file = self._gen_outputs(self.inputs.in_file)
-        out = volumeFromDescription(self.inputs.out_file, ["time","zspace","yspace","xspace"], sizes , starts, steps)        
-        for t,i in zip( range(n), np.unique( vol.data )) :
-            out.data[t, vol.data == i ] = 1 
         
-        out.writeFile()
-        out.closeVolume()
-	return(runtime)
+        unique = np.unique( data )
+
+        nUnique = len(unique)-1
+
+        out = np.zeros( [data.shape[0], data.shape[1], data.shape[2], nUnique] )
+
+        for t,i in enumerate( unique ) :
+            if i != 0 :
+                print(t, i )
+                out[ data == i, t-1 ] = 1 
+        
+        out_file=nib.Nifti1Image(out, vol.get_affine())
+	out_file.to_filename(self.inputs.out_file)
+        return(runtime)
 
     def _gen_outputs(self, fn) :
-        fn_split = os.path.splitext(fn)
+        fn_split = splitext(fn)
         return os.getcwd() + os.sep +  os.path.basename( fn_split[0] ) + "_4d" + fn_split[1]
 
     def _list_outputs(self):

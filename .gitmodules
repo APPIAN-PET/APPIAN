@@ -1,0 +1,3 @@
+[submodule "Dashboard"]
+	path = Dashboard
+	url = https://github.com/APPIAN-PET/Dashboard

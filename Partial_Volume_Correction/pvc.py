@@ -38,11 +38,10 @@ def get_pvc_workflow(name, infosource, opts):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
     pvc_module_fn="pvc_method_"+opts.pvc_method #+".py"
 
-    #pvc_module = importlib.import_module(pvc_module_fn)
     try :
         pvc_module = importlib.import_module(pvc_module_fn)
     except ImportError :
-        print("Error: Could not find source file", pvc_module_fn, "corresponding to pvcification method:", opts.pvc_method )
+        print("Error: Could not find source file", pvc_module_fn, "corresponding to pvc method:", opts.pvc_method )
         exit(1)
 
     pvcNodeName=opts.pvc_method
@@ -51,45 +50,17 @@ def get_pvc_workflow(name, infosource, opts):
     pvcNode = pe.Node(interface=pvc_module.pvcCommand(), name=pvcNodeName)
     pvcNode = pvc_module.check_options(pvcNode, opts)
 
-    fixHeaderNode = pe.Node(interface=FixHeaderLinkCommand(), name="fixHeaderNode")
-    fixHeaderNode.inputs.time_only=True
-
     if pvc_module.separate_labels :
         separate_mask_labelsNode = pe.Node( separate_mask_labelsCommand(), name="separate_mask_labels")
         workflow.connect(inputnode, 'mask_file', separate_mask_labelsNode, 'in_file' )
         mask_source=separate_mask_labelsNode
         mask_file="out_file"
 
-    if pvc_module.file_format == "NIFTI" :
-        convertPET=pe.Node(mnc2niiCommand(), name="convertPET")
-        workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
-
-        convertMask=pe.Node(interface=mnc2niiCommand(), name="convertMask")
-        workflow.connect(mask_source, mask_file, convertMask, 'in_file')
-
-        convertPVC=pe.Node(nii2mnc2Command(), name="convertPVC")
-        convertPVC.inputs.truncate_path=True
-        workflow.connect(pvcNode, 'out_file', convertPVC, 'in_file')
-
-        pet_source = convertPET
-        pet_file = "out_file"
-        mask_source = convertMask
-        mask_file="out_file"
-        output_pvc_node = convertPVC
-    elif pvc_module.file_format == "MINC"  :
-        pet_source = inputnode
-        pet_file = "in_file"
-        output_pvc_node = pvcNode
-    else :
-        print("Error: not file format specified in module file.\nIn", pvc_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
-        exit(1)
-
+    pet_source = inputnode
+    pet_file = "in_file"
+    
     workflow.connect(pet_source, pet_file, pvcNode, 'in_file')
     workflow.connect(mask_source, mask_file, pvcNode, 'mask_file')
 
-    workflow.connect(output_pvc_node, 'out_file', fixHeaderNode, 'in_file')
-    workflow.connect(inputnode, 'header', fixHeaderNode, 'header')
-
-    workflow.connect(fixHeaderNode, 'output_file', outputnode, 'out_file')
-
+    workflow.connect(pvcNode, 'out_file', outputnode, 'out_file')
     return(workflow)

@@ -3,8 +3,8 @@ from quantification_template import *
 global quant_format
 global reference
 global voxelwise
-in_file_format="ECAT"
-out_file_format="ECAT"
+in_file_format="NIFTI"
+out_file_format="NIFTI"
 reference=True
 voxelwise=True
 
@@ -19,6 +19,7 @@ class quantInput(MINCCommandInputSpec):
 
     srtm2 = traits.Bool(argstr="-srtm2", desc="STRM2 method is applied; in brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2" )
     R1=traits.File(argstr="-R1 %s", desc="Programs computes also an R1 image.")
+    sif = File(desc="Sif file for Nifti PET input")
     k2=traits.File(argstr="-k2 %s", desc="Programs computes also a k2 image." )
     k2s=traits.File(argstr="-k2s %s", desc="Programs computes also a k2 image." )
     theta3=traits.File(argstr="-theta3 %s", desc="Programs computes also a k2 image." )
@@ -34,6 +35,11 @@ class quantCommand(quantificationCommand):
     output_spec = quantOutput
     _cmd = "imgsrtm"  
     _suffix = "_srtm" 
+
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
     if opts.tka_R1 != None: tkaNode.inputs.R1=opts.tka_R1

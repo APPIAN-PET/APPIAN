@@ -6,40 +6,15 @@ from nipype.interfaces.base import (TraitedSpec, CommandLine,  CommandLineInputS
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
+from Extra.utils import splitext
 import json
 import ntpath
 import os
+import datetime
 import numpy as np
 import pandas as pd
+import nibabel as nib
 
-global isotope_dict
-isotope_dict={
-        "C-11":100,
-        "F-18":200
-        }
-
-def recursive_dict_search(d, target):
-    for k,v  in zip(d.keys(), d.values()) :
-        d_type = type( v )
-        if type(k) == str :
-            if target.lower() == k.lower() :
-                return [k]
-        if d_type == dict :
-            return [k] + recursive_dict_search(d[k], target)
-        return [None]
-
-def fix_df(d, target):
-    dict_path = recursive_dict_search(d,target)
-    temp_d = d
-    value=None
-    for i in dict_path :
-        if i == None : break
-        temp_d = temp_d[i]
-    for key in temp_d.keys() :
-        if type(key) != str : continue
-        if key.lower() == target.lower() :
-            value = temp_d[key]
-    return value
 
 class imgunitInput(CommandLineInputSpec): #CommandLineInputSpec):
     in_file = File(argstr="%s", position=-1, desc="Input image.")
@@ -179,7 +154,7 @@ class sifCommand(BaseInterface):
 
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
-        fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
+        fname_list =splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd() 
         return dname+ os.sep+fname_list[0] + "_frames.sif"
 
@@ -217,4 +192,48 @@ class sifCommand(BaseInterface):
         df=pd.DataFrame(data={ "Start" : start, "Duration" : duration})
         df=df.reindex_axis(["Start", "Duration"], axis=1)
         df.to_csv(out_file, sep=" ", header=True, index=False )
+        return runtime
+
+
+class JsonToSifOutput(TraitedSpec):
+    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
+
+class JsonToSifInput(CommandLineInputSpec):
+    out_file = File(argstr="%s",  desc="SIF text file with correct time frames.")
+    pet = File(exists=True, argstr="%s",  desc="Minc PET image.")
+    pet_header_json = traits.File(exists=True, argstr="%s", desc="PET header file")
+
+
+class JsonToSifCommand(BaseInterface):
+    input_spec =  JsonToSifInput
+    output_spec = JsonToSifOutput
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+        return outputs
+
+
+
+    def _run_interface(self, runtime):
+        img_fn=self.inputs.pet
+        json_fn=self.inputs.pet_header_json
+
+        out_fn= splitext(img_fn)[0] + '.sif' 
+
+        img = nib.load(img_fn).get_data()
+
+        d = json.load(open(json_fn)) 
+        nframes=len(d["Time"]["FrameTimes"]["Values"])
+        date_string = datetime.datetime.now().strftime("%d/%m/%Y %H:%m:%S")
+        lines=date_string+"  "+str(nframes)+" 4 1 sub "+d['Info']['Tracer']['Isotope'][0] + "\n"
+        for i, vals in enumerate(d["Time"]["FrameTimes"]["Values"]) : 
+            lines += "{}\t{}\t{}\t{}\n".format(vals[0], vals[1], str(np.sum(img[:,:,:,i])), str(np.sum(img[:,:,:,i])) )
+
+        
+        with open(out_fn, 'w') as f:
+            f.write(lines)
+
+        self.inputs.out_file = out_fn
+        print('Creating SIF')
         return runtime

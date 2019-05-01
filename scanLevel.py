@@ -61,8 +61,8 @@ def gen_args(opts, subjects):
                     pet_fn=mri_fn=""
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
-                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc'
-                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.mnc.gz'
+                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext
+                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext+'.gz'
                     pet_list=glob(pet_string) + glob(pet_string_gz)
                     arg_list = ['sub-'+sub, 'ses-'+ses]
                     mri_arg_list = ['sub-'+sub, 'ses-'+ses]
@@ -73,7 +73,8 @@ def gen_args(opts, subjects):
                     if opts.verbose >= 2: print( "Arguments for indentifying images:", arg_list );
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list, opts.verbose )
-                    mri_list=glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc' ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.mnc.gz' )
+
+                    mri_list=glob(opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext+'.gz' )
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
 
@@ -107,38 +108,29 @@ def gen_args(opts, subjects):
 def unique_file(files, attributes, verbose=1):
 
     out_files=[]
+    
     for f in files :
-        skip=False
+        missing_attributes=[]
         for a in attributes :
             if not a in f :
                 if verbose >= 2 : 
                     print(a, "not in ", f)
-                skip=True
+                missing_attributes.append(a)
                 break
         if verbose >= 2 : 
-            if skip :
+            if len(missing_attributes) == 0 :
                 print("Valid file", f)
             else :
-                print("File missing attribute, skipping:",f)
+                print("File missing attributes " +";".join(missing_attributes) +" skipping:",f)
 
-        if not skip :
+        if  len(missing_attributes) == 0 :
             out_files.append(f)
-
+    print("out files", out_files)
     if attributes == [] or len(out_files) == 0 : return ''
 
-    #Check if out_files contains gzip compressed and uncompressed versions of the same file
-    #if len(out_files) == 2 :
-    #    if out_files[0] == out_files[1]+'.gz' or out_files[1] == out_files[0]+'.gz':
-    #        #Check if '.gz' is in the path extension for the located file.
-    #        #If so remove the file without .gz in the extension from the list of out_files
-    #        if '.gz' in os.path.splitext(out_files[1])[1] :
-    #            out_files.remove(out_files[0])
-    #        else :
-    #            out_files.remove(out_files[1])
-
     if len(out_files) > 1 :
-        print("Error: PET files are not uniquely specified. Multiple files found for the attributes ", attributes)
-        print("You can used --acq and --rec to specify the acquisition and receptor")
+        print("Error: File is not uniquely specified. Multiple files found for the attributes ", attributes)
+        print("For PET images, you can used --acq and --rec to specify the acquisition and receptor")
         print(out_files)
         exit(1)
 

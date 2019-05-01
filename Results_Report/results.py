@@ -1,21 +1,23 @@
 import os
 import re
 import nipype
+import json
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                      BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from Extra.base import MINCCommand, MINCCommandInputSpec, Info
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 from scipy.integrate import simps
+from Extra.concat import concat_df
+from Extra.utils import splitext
+from Quality_Control.qc import metric_columns
 import pandas as pd
 import numpy as np
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
+import nibabel as nib
 
-import json
-from Extra.concat import concat_df
-from Quality_Control.qc import metric_columns
 
 results_columns = metric_columns + ['frame']
 """
@@ -74,15 +76,14 @@ def group_level_descriptive_statistics(opts, args):
 
 class resultsInput(TraitedSpec):   
     in_file = traits.File(desc="Input file ")
+    out_file = traits.File(desc="Output file ")
     mask = traits.File(desc="ROI PET mask ")
     surf_left = traits.File(desc="Left Surface mesh (.obj) ")
     mask_left = traits.File(desc="Left Surface mask (.txt) ")
     surf_right = traits.File(desc="Right Surface mesh (.obj) ")
     mask_right = traits.File(desc="Right Surface mask (.txt) ")
 
-    header = traits.File(desc="PET Header")
-    out_file_3d = traits.File(desc="3d Output file ")
-    out_file_4d = traits.File(desc="4d Output file ")
+    pet_header_json = traits.File(desc="PET Header")
     dim = traits.Str("Number of dimensions")
     sub = traits.Str("Subject ID")
     task = traits.Str(default_value='NA',usedefault=True)
@@ -93,200 +94,104 @@ class resultsInput(TraitedSpec):
     node  = traits.Str(mandatory=True, desc="Node name")
 
 class resultsOutput(TraitedSpec):
-    out_file_3d = traits.File(desc="3D Output file ")
-    out_file_4d = traits.File(desc="4D Output file ")
+    out_file = traits.File(desc="Output file ")
 
 class resultsCommand( BaseInterface):
     input_spec = resultsInput
     output_spec = resultsOutput
     
     def _gen_output(self, in_file, suffix):
-        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        ii =  splitext(os.path.basename(in_file))[0]
         out_file = os.getcwd() + os.sep + ii + suffix +".csv"
         return out_file
 
     def _run_interface(self, runtime):
-        print '\n\n', self.inputs.in_file, '\n\n'
-        if not isdefined(self.inputs.out_file_3d) :
-           self.inputs.out_file_3d=self._gen_output(self.inputs.in_file, '_3d')
+        header = json.load(open(self.inputs.pet_header_json, 'r'))
+        frames = header['Time']['FrameTimes']['Values']
+
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file=self._gen_output(self.inputs.in_file, '_results')
         
-        if not isdefined(self.inputs.out_file_4d) and self.inputs.dim == '4':
-            self.inputs.out_file_4d=self._gen_output(self.inputs.in_file, '_4d')
-
-        resultsReport = groupstatsCommand()
-        resultsReport.inputs.image = self.inputs.in_file
-        resultsReport.inputs.vol_roi = self.inputs.mask
-        if  isdefined(self.inputs.surf_left) and isdefined(self.inputs.mask_left) :
-            resultsReport.inputs.surf_left_roi = self.inputs.surf_left + ' ' + self.inputs.mask_left
-        if  isdefined(self.inputs.surf_right) and isdefined(self.inputs.mask_right) :
-            resultsReport.inputs.surf_right_roi = self.inputs.surf_right + ' ' + self.inputs.mask_right
-        resultsReport.inputs.out_file = os.getcwd()+os.sep+'temp.csv'
-       
-        acq_list = [ re.sub('acq-','',f)  for f in self.inputs.in_file.split('_') if 'acq' in f ]
-        rec_list = [ re.sub('rec-','',f)  for f in self.inputs.in_file.split('_') if 'rec' in f ]
+        #Load PET image
+        image = nib.load(self.inputs.in_file).get_data()
+        #Load Label image
+        labels_all = np.round(nib.load(self.inputs.mask).get_data()).astype(int).reshape(-1,)
         
-        resultsReport.run()
-        add_csvInfoNode = add_csvInfoCommand()
-        add_csvInfoNode.inputs.in_file = resultsReport.inputs.out_file
-        add_csvInfoNode.inputs.sub = self.inputs.sub
-        add_csvInfoNode.inputs.ses = self.inputs.ses
-        add_csvInfoNode.inputs.task =self.inputs.task
+        #Time Dimensions
+        ti=np.argmin(image.shape) #FIXME : Not a good way to identify time dimension
+
+        #Keep only voxel values above 0
+        idx = labels_all > 0
+        labels = labels_all[ idx ]
+
+        #Create a replacement label image with continuous label values
+        #Example : 10,15,20 --> 1,2,3
+        labels_cont = np.zeros(labels.shape).astype(int)
+        #Find unique values in labels
+        unique_labels = np.unique(labels)
+        for i, val in enumerate(unique_labels) :
+            labels_cont[ labels == val ] = i
+
+        #Define number of labels
+        n=len(unique_labels)
         
-        if isdefined(self.inputs.run):
-            add_csvInfoNode.inputs.run =self.inputs.run
+        #Find number of counts for each label
+        counts = np.bincount(labels_cont)
         
-        if isdefined(self.inputs.rec):
-            add_csvInfoNode.inputs.rec =self.inputs.rec
-        elif len(rec_list) > 0 :
-            add_csvInfoNode.inputs.rec = rec_list[0]
-
-        if isdefined(self.inputs.acq):
-            add_csvInfoNode.inputs.acq =self.inputs.acq
-        elif len(acq_list) > 0 :
-            add_csvInfoNode.inputs.acq = acq_list[0]
-
-        add_csvInfoNode.inputs.node =self.inputs.node
-        if self.inputs.dim == '4': add_csvInfoNode.inputs.out_file = self.inputs.out_file_4d
-        else : add_csvInfoNode.inputs.out_file = self.inputs.out_file_3d
-        add_csvInfoNode.run()
-       
-        if self.inputs.dim == '4':
-            integrate_resultsReport = integrate_TACCommand()
-            integrate_resultsReport.inputs.header = self.inputs.header
-            integrate_resultsReport.inputs.in_file = add_csvInfoNode.inputs.out_file
-            integrate_resultsReport.inputs.out_file = self.inputs.out_file_3d
-            integrate_resultsReport.run()   
-
-        return runtime
-
-    def _list_outputs(self):
-        if not isdefined(self.inputs.out_file_3d) :
-           self.inputs.out_file_3d=self._gen_output(self.inputs.in_file, '_3d')
-        
-        if not isdefined(self.inputs.out_file_4d) and self.inputs.dim == '4':
-            self.inputs.out_file_4d=self._gen_output(self.inputs.in_file, '_4d')
-        
-        outputs = self.output_spec().get()
-        outputs['out_file_4d'] = self.inputs.out_file_4d
-        outputs['out_file_3d'] = self.inputs.out_file_3d
-        return outputs
-
-
-
-class groupstatsInput(MINCCommandInputSpec):   
-    image    = traits.File(argstr="-i %s", mandatory=True, desc="Image")  
-    vol_roi  = traits.File(argstr="-v %s", desc="Volumetric image containing ROI")  
-    #surf_roi = traits.File(argstr="-s %s", desc="obj and txt files containing surface ROI")
-    out_file = traits.File(argstr="-o %s", desc="Output csv file")
-    label = traits.Str(desc="Label for output file")
-    surf_left_roi = traits.Str(argstr="-s -g Left %s",desc="string argument for left hemisphere obj and mesh")
-    surf_right_roi = traits.Str(argstr="-s -g Right %s",desc="string argument for left hemisphere obj and mesh")
-class groupstatsOutput(TraitedSpec):
-    out_file = File(desc="Extract values from PET images based on ROI")
-
-class groupstatsCommand(MINCCommand, Info):
-    _cmd = "mincgroupstats"
-    input_spec = groupstatsInput
-    output_spec = groupstatsOutput
-    _suffix='results'
-    
-    def _parse_inputs(self, label=None, skip=None):
-        if skip is None:
-            skip = []
-
-        if not isdefined(self.inputs.out_file):
-            if label == None: label_str=''
-            else : label_str=label + '_'
-            self.inputs.out_file = os.getcwd() + os.sep + label_str +  "results.csv" #fname_presuffix(self.inputs.image, suffix=self._suffix)
-
-        return super(groupstatsCommand, self)._parse_inputs(skip=skip)
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs["out_file"] = self.inputs.out_file
-        return outputs
-
-    def _gen_filename(self, name):
-        if name == "out_file":
-            return self._list_outputs()["out_file"]
-        return None
-
-class add_csvInfoInput(MINCCommandInputSpec):   
-    in_file = File(mandatory=True, desc="Input file")
-    ses  = traits.Str(mandatory=True, desc="Session",usedefault=True,default_value="NA")
-    task = traits.Str(mandatory=True, desc="Task",usedefault=True,default_value="NA")
-    sub  = traits.Str(mandatory=True, desc="Subject")
-    run  = traits.Str(mandatory=False, desc="Run",usedefault=True,default_value="NA")
-    acq  = traits.Str(mandatory=False, desc="Radiotracer",usedefault=True,default_value="NA")
-    rec  = traits.Str(mandatory=False, desc="Reconstruction",usedefault=True,default_value="NA")
-    node  = traits.Str(mandatory=True, desc="Node name")
-    out_file = File(desc="Output file")
-
-class add_csvInfoOutput(TraitedSpec):
-    out_file = File(desc="Output file")
-
-class add_csvInfoCommand(BaseInterface):
-    input_spec = add_csvInfoInput
-    output_spec = add_csvInfoOutput
-    
-    def _run_interface(self, runtime):
-        #print(self.inputs); exit(1)
-        sub = self.inputs.sub
-        task= self.inputs.task
-        ses= self.inputs.ses
-        node = self.inputs.node
-        run = self.inputs.run
-        acq = self.inputs.acq
-        rec = self.inputs.rec
-        
-        df = pd.read_csv( self.inputs.in_file, header=None    ) 
-        groupstat_columns= ['ndim', 'roi', 'frame', 'mean','sd','max','min','vol']
-        if len(df.columns) > len( groupstat_columns) :
-            groupstat_columns=['hemisphere'] + groupstat_columns
-        df.columns=groupstat_columns
-      
-        dfo =pd.DataFrame( columns=results_columns)
-        dfo["analysis"] = [node] * df.shape[0]
-        dfo["sub"] = [sub] * df.shape[0]
-        dfo["ses"] = [ses] * df.shape[0]
-        dfo["task"] = [task] * df.shape[0]
-        dfo["run"] = [run] * df.shape[0]
-        dfo["acq"] = [acq] * df.shape[0]
-        dfo["rec"] = [rec] * df.shape[0]
-        dfo["roi"] =  df['roi']
-        dfo['metric'] = ['mean'] * df.shape[0]
-        dfo['value'] = df['mean']
-        
-        if 'hemisphere' in groupstat_columns:
-            dfo['hemisphere']=df['hemisphere']
-        
-        if 'frame' in df.columns:
-            dfo['frame'] = df['frame']
-        else: dfo['frame'] = [0] * df.shape[0]
-        
-        if 'hemisphere' in df.columns:
-            dfo = dfo[ ['hemisphere']+results_columns ]
+        #Determine if 3D/4D PET image
+        if len(image.shape) == 4 :
+            nFrames=int(image.shape[3])
         else :
-            dfo = dfo[ results_columns ]
-        
-        print(dfo)
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-        dfo.to_csv(self.inputs.out_file, index=False)
-        
+            nFrames=1
+
+        df_list=[]
+        for f in range(nFrames) :
+            #Get 3D Frames
+            if nFrames != 1 :
+                frame_img_all = image[:,:,:,f]
+            else :
+                frame_img_all = image
+            
+            #Reshape image and get rid of voxels with 0 values
+            frame_img = frame_img_all.reshape(-1,)[ idx ]
+            
+            #Get weighted sum for each label in the PET image frame
+            sums = np.bincount(labels_cont, weights=frame_img )
+
+            #Calculate averages from weighted sum and count
+            averages = sums / counts
+
+            #Calculate mid frame
+            mid_frame = (float(frames[f][0])+float(frames[f][1]))/2.
+
+            #Create frame
+            frame_df=pd.DataFrame({
+                'analysis': [self.inputs.node] * n,
+                'sub': [self.inputs.sub] * n,
+                'ses': [self.inputs.ses] * n,
+                'task': [self.inputs.task] * n,
+                'run': [self.inputs.run] * n,
+                'acq': [self.inputs.acq] * n,
+                'rec': [self.inputs.rec] * n,
+                'roi': unique_labels,
+                'metric': ['mean'] * n,
+                'value': averages,
+                'frame':  [mid_frame] * n
+                })
+            df_list.append(frame_df)
+        df=pd.concat(df_list)
+        df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
+        df.to_csv(self.inputs.out_file)
         return runtime
 
-    def _gen_output(self, basename):
-        sbasename = os.path.splitext(basename)
-        return sbasename[0]+'_withInfo'+sbasename[1]
-
     def _list_outputs(self):
+        if not isdefined(self.inputs.out_file) :
+            self.inputs.out_file=self._gen_output(self.inputs.in_file, '_results')
+        
         outputs = self.output_spec().get()
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file)
-        outputs["out_file"] = self.inputs.out_file
-
+        outputs['out_file'] = self.inputs.out_file
         return outputs
+
 
 class descriptive_statisticsInput(MINCCommandInputSpec):   
     in_file = traits.File(desc="Input file ")
@@ -348,7 +253,7 @@ class descriptive_statisticsCommand( BaseInterface):
         return outputs
 
     def _gen_output(self, in_file, label):
-        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        ii =  splitext(os.path.basename(in_file))[0]
         out_file = os.getcwd() + os.sep + ii + "_"+label+".csv"
         return out_file
 
@@ -366,7 +271,7 @@ class integrate_TACCommand( BaseInterface):
     output_spec = integrate_TACOutput
 
     def _gen_output(self, in_file):
-        ii =  os.path.splitext(os.path.basename(in_file))[0]
+        ii =  splitext(os.path.basename(in_file))[0]
         out_file = os.getcwd() + os.sep + ii + "_int.csv"
         return out_file 
 

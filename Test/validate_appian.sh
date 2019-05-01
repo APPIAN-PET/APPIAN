@@ -180,72 +180,59 @@ echo Docker Container / Hostname: $current_docker_container
 echo
 
 
-#run_appian "Dashboard" "--acq rcl --t1-normalize-method 'ants' --coregistration-exit "
-#exit 1
 #TODO (1) Add surface testing
 
+if [[ "$acq" == "fdg" ]]; then
+    echo ____Testing 3D PET Images____
+    tag="3D"
+else
+    echo ____Testing 4D PET Images____
+    tag="4D"
+fi
 
-for acq in fdg rcl; do
-    if [[ "$acq" == "fdg" ]]; then
-        echo ____Testing 3D PET Images____
-        tag="3D"
-    else
-        echo ____Testing 4D PET Images____
-        tag="4D"
-    fi
+### Minimal Inputs
+run_appian "Atlas-AAL" "--subjects 000101 --coreg-method ants --sessions baseline  --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.nii --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.nii  --normalization-type affine  --fwhm 6 6 6 --pvc-method VC --pvc-max-iterations 1 --tka-method suv --start-time 5 --quant-label 3 " #   
+exit 0 
+#    --pvc-method VC --quant-method suvr --fwhm 5 5 5 # --pvc-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --pvc-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc  --tka-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --tka-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc
 
-    ### Minimal Inputs
-    run_appian "Atlas-AAL-$tag-" "--subjects 000101 --coreg-method ants  --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc  --pvc-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --pvc-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc  --tka-label-img ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --tka-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc --pvc-method VC --quant-method suvr --fwhm 5 5 5 --quant-label 67 --normalization-type affine --coregistration-exit "
-    ### PVC
-    pvc_methods="GTM idSURF VC"
-    for pvc in $pvc_methods; do
-        run_appian "PVC-${pvc}-$tag" "--acq $acq --fwhm 6 6 6 --pvc-method ${pvc}"
-    done
-
-    ### Analysis Space
-    ## Stereotaxic space
-    run_appian  "Space-Stereo-$tag" "--acq $acq --analysis-space stereo --tka-method suvr --quant-label 3 --tka-label-erosion 1"
-
-    ## MRI space
-    run_appian  "Space-MRI-$tag" "--acq $acq --analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
-
-    ### Atlas / Templates
-    ## DKA atlas in MNI 152 space
-    run_appian "Atlas-DKA-$tag" "--acq $acq --tka-label-img ${base_path}/Atlas/MNI152/dka.mnc --results-label-img ${base_path}/Atlas/MNI152/dka.mnc --tka-label 2 41 --tka-labels-ones-only"
-    
-    ## AAL atlas with Colin 27 template
-    run_appian "Atlas-AAL-$tag-" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
-
-    #TODO: Fix stereotaxic template. Following command does not run
-    #run_appian "Stereo-Colin27-$tag" "--acq $acq --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
-
-    ### Quantification
-    quant_methods="suvr suv"
-    for quant in $quant_methods; do
-        run_appian "Quant-${quant}-${tag}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
-    done
-
-
-
+### PVC
+pvc_methods="GTM idSURF VC"
+for pvc in $pvc_methods; do
+    run_appian "PVC-${pvc}" "--subjects 000101 --sessions baseline  --fwhm 6 6 6 --pvc-method ${pvc}"
 done
 
-acq="rcl"
-tag="4D"
-### Quantification
-quant_methods="lp lp-roi pp pp-roi srtm srtm-bf" #suv srtm, roi
+### Analysis Space
+## Stereotaxic space
+run_appian  "Space-Stereo" "--subjects 000101 --sessions baseline  --analysis-space stereo --tka-method suvr --quant-label 3 --tka-label-erosion 1"
+
+## MRI space
+run_appian  "Space-MRI" "--subjects 000101 --sessions baseline  --analysis-space t1 --tka-method suvr --tka-label 3 --tka-label-erosion 1"
+
+### Atlas / Templates
+## DKA atlas in MNI 152 space
+run_appian "Atlas-DKA" "--subjects 000101 --sessions baseline  --tka-label-img ${base_path}/Atlas/MNI152/dka.mnc --results-label-img ${base_path}/Atlas/MNI152/dka.mnc --tka-label 2 41 --tka-labels-ones-only"
+
+## AAL atlas with Colin 27 template
+run_appian "Atlas-AAL" "--subjects 000101 --sessions baseline  --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --results-label-template ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+
+#TODO: Fix stereotaxic template. Following command does not run
+#run_appian "Stereo-Colin27" " --results-label-img  ${base_path}/Atlas/COLIN27/ROI_MNI_AAL_V5_UBYTE_round.mnc --stereotaxic-template  ${base_path}/Atlas/COLIN27/colin27_t1_tal_lin_ubyte.mnc "
+
+## Quantification
+quant_methods="lp lp-roi pp pp-roi srtm srtm-bf suvr suv" #suv srtm, roi
 
 for quant in $quant_methods; do
-    run_appian "Quant-${quant}-${tag}" "--acq $acq --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+    run_appian "Quant-${quant}" " --subjects 000101 --sessions baseline --start-time 2.5 --tka-method ${quant} --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 done
-
+exit 0
 # Quantification with arterial
-run_appian "Quant-srtm-arterial-${tag}" "--acq $acq --arterial --start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-srtm-arterial" " --subjects 000101 --sessions baseline --arterial --start-time 2.5 --tka-method srtm --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-idSURF-lp-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6 --pvc-method idSURF --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-idSURF-lp" "--subjects 000101 --sessions baseline --start-time 2.5 --fwhm 6 6 6 --pvc-method idSURF --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-idSURF-suvr-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method idSURF --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-idSURF-suvr" "--subjects 000101 --sessions baseline --start-time 2.5 --fwhm 6 6 6  --pvc-method idSURF --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-VC-lp-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-VC-lp" "--subjects 000101 --sessions baseline --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method lp --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 
-run_appian "Quant-VC-suvr-${tag}" "--acq $acq --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
+run_appian "Quant-VC-suvr" "--subjects 000101 --sessions baseline --start-time 2.5 --fwhm 6 6 6  --pvc-method VC --tka-method suvr --tka-label 3 --tka-labels-ones-only --tka-label-erosion 1"
 

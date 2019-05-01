@@ -4,29 +4,15 @@ import json
 import subprocess
 import sys
 import importlib
-
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-
-from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-from nipype.utils.filemanip import loadcrash
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
-from xml.dom import minidom
 import h5py
-import minc2volume_viewer as minc2volume
-import distutils
-from distutils import dir_util
-
 import nipype.interfaces.minc as minc
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
-from nipype.interfaces.utility import Rename
-
-from Extra.conversion import  nii2mncCommand
-
-from Masking import masking as masking
+import minc2volume_viewer as minc2volume
+import distutils
+import nibabel as nib
 import Registration.registration as reg
 import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
@@ -34,6 +20,19 @@ import Results_Report.results as results
 import Tracer_Kinetic.tka as tka
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+from nipype.utils.filemanip import loadcrash
+from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+from xml.dom import minidom
+from Extra.utils import splitext
+from distutils import dir_util
+from nipype.interfaces.utility import Rename
+from Extra.conversion import  nii2mncCommand
+from Masking import masking as masking
+
 from Masking import surf_masking
 global path
 path = os.path.dirname(os.path.abspath(__file__))
@@ -48,8 +47,8 @@ importlib.import_module("quant_method_lp")
 def cmd(command):
     return subprocess.check_output(command.split(), universal_newlines=True).strip()
 
-def adjust_hdr(mincfile):
-    f = h5py.File(mincfile,'r')
+def adjust_hdr(niftifile):
+    f = h5py.File(niftifile,'r')
     n_dims = len(f['minc-2.0/dimensions'])
     # list_dims = ['xspace', 'yspace', 'zspace', 'time']
     # list_dims.pop() if ndims == 3 else False
@@ -60,22 +59,22 @@ def adjust_hdr(mincfile):
             "yspace" : '0.,1.,0.',
             "zspace" : '0.,0.,1.',
         } [str(dim)]
-        cmd("minc_modify_header -sinsert {}:direction_cosines='{}' {}".format(dim, dir_cosine, mincfile))
+        cmd("minc_modify_header -sinsert {}:direction_cosines='{}' {}".format(dim, dir_cosine, niftifile))
     if n_dims == 4:
-        cmd("minc_modify_header -dinsert time:start=0 {}".format(mincfile))
-        cmd("minc_modify_header -dinsert time:step=1 {}".format(mincfile))
+        cmd("minc_modify_header -dinsert time:start=0 {}".format(niftifile))
+        cmd("minc_modify_header -dinsert time:step=1 {}".format(niftifile))
 
-def mnc2vol(mincfile):
-    if not os.path.exists(mincfile) :
-        print('Warning: could not find file', mincfile)
+def mnc2vol(niftifile):
+    if not os.path.exists(niftifile) :
+        print('Warning: could not find file', niftifile)
         exit(1)
 
-    f = h5py.File(mincfile, 'r')
-    datatype = str(f['minc-2.0/image/0']['image'].dtype)
-    rawfile = mincfile+'.raw'
-    headerfile = mincfile+'.header'
-    minc2volume.make_raw(mincfile, datatype, rawfile)
-    minc2volume.make_header(mincfile, datatype, headerfile)
+    datatype = nib.load(niftifile).get_data().dtype
+    basename = os.getcwd()+os.sep+ splitext(os.path.basename(niftifile))[0]
+    rawfile = basename +'.raw'
+    headerfile = basename +'.header'
+    minc2volume.make_raw(niftifile, datatype, rawfile)
+    minc2volume.make_header(niftifile, datatype, headerfile)
 
 
 def prettify(elem):
@@ -164,10 +163,10 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,
         f.write(prettify(xmlQC))
 
     # Perform conversion to raw
-    for mincfile in listVolumes:
-        rawfile = mincfile+'.raw'
-        headerfile = mincfile+'.header'
-        mnc2vol(mincfile)
+    for niftifile in listVolumes:
+        rawfile = niftifile+'.raw'
+        headerfile = niftifile+'.header'
+        mnc2vol(niftifile)
 
 
 def link_stats_qc(*args):
@@ -194,8 +193,8 @@ class deployDashInput(BaseInterfaceInputSpec):
     tka_method = traits.Str(desc="TKA method")
     analysis_space = traits.Str(desc="Analysis Space")
     pet = traits.File(exists=True, mandatory=True, desc="PET image")
-    pet_t1_space = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
-    t1_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
+    pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
+    mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
     t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
     pvc = traits.File(exists=True, desc="Output PVC image")
     tka = traits.File(exists=True, desc="Output TKA image")
@@ -225,7 +224,7 @@ class deployDashCommand(BaseInterface):
         info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
         #Create dictionary with file paths and names for volumes that we want to display in dashboard
-        images={"pet2mri":{"v1":self.inputs.t1_nat, "v2":self.inputs.pet_t1_space}}
+        images={"pet2mri":{"v1":self.inputs.mri_space_nat, "v2":self.inputs.pet_space_mri}}
 
         # If PVC method is defined, then add PVC images
         if isdefined(self.inputs.pvc_method) :

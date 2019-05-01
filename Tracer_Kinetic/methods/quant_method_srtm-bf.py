@@ -3,8 +3,8 @@ from quantification_template import *
 global quant_format
 global reference
 global voxelwise
-in_file_format="ECAT"
-out_file_format="ECAT"
+in_file_format="NIFTI"
+out_file_format="NIFTI"
 reference=True
 voxelwise=True
 
@@ -14,9 +14,8 @@ class quantOutput(TraitedSpec):
 class quantInput(MINCCommandInputSpec):
     in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
     reference = File(exists=True,  position=-2, argstr="%s", desc="Reference file")
-    out_file = File(argstr="%s", position=-1, desc="image to operate on")
-
-    
+    out_file = File(argstr="%s", position=-1, desc="image to operate on") 
+    sif = File(desc="Sif file for Nifti PET input")
     R1=traits.File(argstr="-R1 %s", desc="Programs computes also an R1 image.")
     k2=traits.File(argstr="-k2 %s", desc="Programs computes also a k2 image." )
     Min=traits.Float(argstr="-min %f", desc="<value (1/min)>  Set minimum value for theta3; it must be >= k2min/(1+BPmax)+lambda.  Default is 0.06 min-1. Lambda for F-18 is 0.0063 and for C-11 0.034.")
@@ -36,6 +35,12 @@ class quantCommand(quantificationCommand):
     output_spec = quantOutput
     _cmd = "imgbfbp"  
     _suffix = "_srtm-bf" 
+
+
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
     if opts.tka_R1 != None: tkaNode.inputs.R1=opts.tka_R1

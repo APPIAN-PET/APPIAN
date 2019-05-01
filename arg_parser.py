@@ -103,6 +103,7 @@ def get_parser():
     parser.add_argument("--coregistration-exit",dest="coregistration_exit",help="Stop scan level processing after coregistration", action='store_true', default=False)
     parser.add_argument("--masking-exit",dest="masking_exit",help="Stop scan level processing after masking", action='store_true', default=False)
     parser.add_argument("--mri-preprocess-exit",dest="mri_preprocess_exit",help="Stop scan level processing after MRI preprocessing", action='store_true', default=False)
+    parser.add_argument("--pvc-exit",dest="pvc_exit",help="Stop scan level processing after PVC", action='store_true', default=False)
           
 
 
@@ -289,7 +290,6 @@ def modify_opts(opts) :
         
         print("Warning : No run variables. Will process all runs found in source directory "+ opts.sourceDir)
         print("Runs:", ' '.join( opts.runList))
-    opts.extension='mnc'
     
     ##########################################################
     # Check inputs to make sure there are no inconsistencies #

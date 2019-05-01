@@ -9,9 +9,9 @@ from Extra.modifHeader import FixHeaderLinkCommand
 from Turku.dft import img2dft_unit_conversion
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
-from nipype.interfaces.minc import Calc as CalcCommand
+from Extra.turku import JsonToSifCommand
+from Registration.ants_mri_normalize import APPIANApplyTransforms
 import nipype.pipeline.engine as pe
-import nipype.interfaces.minc as minc
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
@@ -38,8 +38,9 @@ class createImgFromROI(BaseInterface) :
 
     def _run_interface(self, runtime) :
         if not isdefined(self.inputs.out_file) : self.inputs.out_file = self._gen_output(self.inputs.in_file)
-        ref = volumeFromFile(self.inputs.like_file)
-        out = volumeLikeFile(self.inputs.like_file, self.inputs.out_file )
+        ref = nib.load(self.inputs.like_file)
+        ref_data = ref.get_data()
+        out_data = np.zeros(ref_data.shape)
         roi=[]
         with open(self.inputs.in_file) as f :
             for l in f.readlines() :
@@ -48,9 +49,10 @@ class createImgFromROI(BaseInterface) :
                     roi.append([int(ll[1]), float(ll[3])])
 
         for label, value in roi : 
-            out.data[ref.data == label] = value
-        out.writeFile()
-        out.closeVolume()
+            out_data[ref_data == label] = value
+        
+        out = nib.Nifti1Image(out_data, ref.get_affine())
+        out.to_filename(self.inputs.out_file )
 
         return runtime
 
@@ -64,9 +66,6 @@ class createImgFromROI(BaseInterface) :
         fname_list = os.path.splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd() 
         return dname+ os.sep+fname_list[0] + '.mnc'
-
-
-standard_fields=["stereo","tfm_to_stereo", "like_file", "in_file", "header",  "reference", "mask", "like_file"] #NOTE: in_file and out_file must be defined in field
 
 """
 .. module:: tka
@@ -118,16 +117,15 @@ def get_tka_workflow(name, opts):
     '''
     workflow = pe.Workflow(name=name)
     #Define input node that will receive input from outside of workflow
-    #inputnode = pe.Node(niu.IdentityInterface(fields=['sid']+tka_param[opts.tka_method]), name='inputnode')
-    inputnode = pe.Node(niu.IdentityInterface(fields=standard_fields), name='inputnode')
+    inputnode = pe.Node(niu.IdentityInterface(fields=["stereo","tfm_mri_stx", "tfm_pet_mri", "like_file", "in_file", "header",  "reference", "mask", "like_file"] ), name='inputnode')
 
     out_files = ["out_file", "out_file_stereo"]
     #Define empty node for output
     outputnode = pe.Node(niu.IdentityInterface(fields=out_files), name='outputnode')
 
     ### Quantification module
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
-    #quant_module_fn="Tracer_Kinetic.methods.quant_method_"+opts.tka_method +".py"
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods/" )
+    print(os.path.dirname(os.path.abspath(__file__))+"/methods/") 
     quant_module_fn="quant_method_"+opts.tka_method #+".py"
 
     #quant_module = importlib.import_module(quant_module_fn)
@@ -136,8 +134,6 @@ def get_tka_workflow(name, opts):
     except ImportError :
         print("Error: Could not find source file",quant_module_fn,"corresponding to quantification method:",opts.tka_method)
         exit(1)
-   
-    
 
     tkaNodeName=opts.tka_method
     
@@ -146,7 +142,11 @@ def get_tka_workflow(name, opts):
     if opts.quant_label_name != None :
         tkaNodeName += "_"+opts.quant_label_name
 
-    tkaNode = pe.Node(interface=quant_module.quantCommand(), name=tkaNodeName)
+    try :
+        tkaNode = pe.Node(interface=quant_module.QuantCommandWrapper(), name=tkaNodeName)
+    except AttributeError :
+        tkaNode = pe.Node(interface=quant_module.quantCommand(), name=tkaNodeName)
+
     tkaNode = quant_module.check_options(tkaNode, opts)
  
     #If the quantification node takes a header input, then pass it from inputnode
@@ -156,27 +156,9 @@ def get_tka_workflow(name, opts):
     except AttributeError :
         pass
    
-    ### Setup input to quantification function
-    if quant_module.in_file_format == "ECAT" :
-        # Node to convert ECAT to MINC
-        convertPET=pe.Node(minc2ecatCommand(), name="convertPET")
-        
-        #Connect input node to conversion
-        workflow.connect(inputnode, 'in_file', convertPET, 'in_file')
-        workflow.connect(inputnode, 'header', convertPET, 'header')
-
-        pet_source = convertPET
-        pet_file = "out_file" 
-    elif quant_module.in_file_format == "MINC"  :
-        pet_source = inputnode
-        pet_file = "in_file" 
-    elif quant_module.in_file_format == "NIFTI" :
-        print("Error: NIFTI not yet implemented for quantification")
-        exit(1)
-    else :
-        print("Error: not file format specified in module file.\nIn", quant_module_fn,"include:\nglobal file_format\nfile_format=<MINC/ECAT>")
-        exit(1)
-
+    pet_source = inputnode
+    pet_file = "in_file" 
+    
     ### Setup output from quantification function
     if quant_module.out_file_format == "ECAT" :
         # Node to convert ECAT to MINC
@@ -187,7 +169,7 @@ def get_tka_workflow(name, opts):
         workflow.connect(inputnode, 'header', convertParametric, 'header')
 
         tka_source = convertParametric
-    elif quant_module.out_file_format == "MINC"  :
+    elif quant_module.out_file_format == "NIFTI"  :
         tka_source = tkaNode
     elif quant_module.out_file_format == "DFT"  :
         #Create 3/4D volume based on ROI values
@@ -195,7 +177,7 @@ def get_tka_workflow(name, opts):
         workflow.connect(inputnode, 'mask', roi2img, 'like_file')
         workflow.connect(tkaNode, 'out_file', roi2img, 'in_file')
         tka_source = roi2img
-    elif quant_module.out_file_format == "NIFTI" :
+    elif quant_module.out_file_format == "MINC" :
         print("Error: NIFTI not yet implemented for quantification")
         exit(1)
     else :
@@ -209,22 +191,30 @@ def get_tka_workflow(name, opts):
         #Connect convertPET to quant node
         workflow.connect(pet_source, pet_file, tkaNode, 'in_file')
     else : 
-        convertROI=pe.Node(interface=minc2ecatCommand(), name="minctoecat_roi")
         extractROI=pe.Node(interface=img2dft_unit_conversion(), name="roimask_extract")
-        workflow.connect(inputnode, 'mask', convertROI, 'in_file')
-        workflow.connect(convertROI, 'out_file', extractROI, 'mask_file')
+        workflow.connect(inputnode, 'mask', extractROI, 'mask_file')
+        workflow.connect(inputnode, 'header', extractROI, 'pet_header_json')
         workflow.connect(pet_source, pet_file, extractROI, 'in_file')
         workflow.connect(extractROI, 'out_file', tkaNode, 'in_file')
 
+    turku_methods = [ 'lp', 'lp-roi', 'pp', 'pp-roi', 'srtm', 'srtm-roi' ]
+    #If the Quantification method is from the Turku PET Centre tools, need to create .sif
+    if opts.tka_method in turku_methods:
+        JsonToSifNode = pe.Node( JsonToSifCommand(), 'sif'  )
+        workflow.connect(pet_source, pet_file, JsonToSifNode, 'pet')
+        workflow.connect(inputnode, 'header', JsonToSifNode, 'pet_header_json')
+        workflow.connect(JsonToSifNode, 'out_file', tkaNode, 'sif' )
 
     workflow.connect(tka_source, 'out_file', outputnode, 'out_file')
    
     if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
-        quant_to_stereo = pe.Node( minc.Resample(), name="quant_stereo"  )
-        workflow.connect(inputnode, 'tfm_to_stereo', quant_to_stereo, "transformation")
-        workflow.connect(inputnode, 'stereo', quant_to_stereo, "like")
-        workflow.connect(tka_source, 'out_file', quant_to_stereo, "input_file")
-        workflow.connect(quant_to_stereo, 'output_file', outputnode, 'out_file_stereo')
+        quant_to_stereo = pe.Node( APPIANApplyTransforms(), name="quant_stereo"  )
+        workflow.connect(inputnode, 'tfm_mri_stx', quant_to_stereo, "transform_2")
+        if opts.analysis_space=='pet' :
+            workflow.connect(inputnode, 'tfm_pet_mri', quant_to_stereo, "transform_3")
+        workflow.connect(inputnode, 'stereo', quant_to_stereo, "reference_image")
+        workflow.connect(tka_source, 'out_file', quant_to_stereo, "input_image")
+        workflow.connect(quant_to_stereo, 'output_image', outputnode, 'out_file_stereo')
         quant_to_stereo.inputs.tricubic_interpolation = True
 
 
@@ -239,17 +229,15 @@ def get_tka_workflow(name, opts):
             #Extract TAC from input image using reference mask
             workflow.connect(inputnode, 'reference', tacReference, 'reference')
         else :
-            if quant_module.in_file_format == "ECAT" :
+            if quant_module.in_file_format == "NIFTI" and opts.tka_method in turku_methods :
                 #Convert reference mask from minc to ecat
-                convertReference=pe.Node(interface=minc2ecatCommand(), name="minctoecat_reference") 
-                workflow.connect(inputnode, 'reference', convertReference, 'in_file')
                 extractReference=pe.Node(interface=img2dft_unit_conversion(), name="referencemask_extract")
+                workflow.connect(inputnode, 'header', extractReference, 'pet_header_json')
                 # convertReference --> extractReference 
-                workflow.connect(convertReference, 'out_file', extractReference, 'mask_file')
+                workflow.connect(inputnode, 'reference', extractReference, 'mask_file')
                 workflow.connect(pet_source, pet_file, extractReference, 'in_file')
-                # extractReference --> tacReference
                 workflow.connect(extractReference, 'out_file', tacReference, 'reference')
-            elif quant_module.in_file_format == "MINC" :
+            else : # quant_module.in_file_format == "NIFTI" :
                 # inputnode --> tacReference
                 workflow.connect(inputnode, 'reference', tacReference, 'reference')
         

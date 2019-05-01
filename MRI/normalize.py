@@ -5,7 +5,6 @@ from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from MRI.mincbeast import SegmentationToBrainMask, beast, mincbeast_library, create_alt_template
-from Extra.conversion import mnc2niiCommand
 from Extra.extra import copyCommand
 from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms
 from nipype.interfaces.utility import Rename
@@ -93,14 +92,12 @@ def get_workflow(name, opts):
             exit(1)
     else :
         transform_mri = pe.Node(interface=APPIANApplyTransforms(), name="transform_mri"  )
-        transform_mri.inputs.two=True
-        transform_mri.inputs.transforms = []
         workflow.connect(inputnode, 'mri', transform_mri, 'input_image')
-        workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'transformation_1')
-        transform_mri.inputs.like = opts.template
+        workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'transform_1')
+        transform_mri.inputs.reference_image = opts.template
 
         mri_stx_node = transform_mri
-        mri_stx_file = 'output_file'
+        mri_stx_file = 'output_image'
         tfm_node = inputnode
         tfm_file = 'tfm_mri_stx'
         tfm_inv_node=inputnode
@@ -182,13 +179,11 @@ def get_workflow(name, opts):
     #
     # Transform brain mask from stereotaxic to T1 native space
     #
-    transform_brain_mask = pe.Node(interface=APPIANApplyTransforms(), name="transform_brain_mask"  )
+    transform_brain_mask = pe.Node(interface=APPIANApplyTransforms(),name="transform_brain_mask")
     transform_brain_mask.inputs.interpolation = 'NearestNeighbor'
-    transform_brain_mask.inputs.transforms=[]
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_image')
-    workflow.connect(inputnode, 'mri', transform_brain_mask, 'reference_image')
     workflow.connect(tfm_node, tfm_inv_file, transform_brain_mask, 'transform_1')
-    
+    workflow.connect(copy_mri_nat,'output_file', transform_brain_mask,'reference_image') 
     ###############################
     # Pass results to output node #
     ###############################

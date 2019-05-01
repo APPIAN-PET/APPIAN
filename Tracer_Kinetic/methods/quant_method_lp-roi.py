@@ -1,7 +1,7 @@
 from quantification_template import *
 import json 
 
-in_file_format="ECAT"
+in_file_format="NIFTI"
 out_file_format="DFT"
 reference=True
 voxelwise=False
@@ -16,6 +16,7 @@ class quantInput( MINCCommandInputSpec):
     reference = File(exists=True, mandatory=True, position=-4, argstr="%s", desc="Reference file")
     BPnd = traits.Bool(argstr="-BPnd", position=1, usedefault=True, default_value=True)
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
+    sif = File(desc="Sif file for Nifti PET input")
     C = traits.Bool(argstr="-C", position=2, usedefault=True, default_value=True)
     start_time=traits.Float(argstr="%f",default_value=0, usedefault=True,position=-3, desc="Start time for regression in mtga.")
     k2=  traits.Float(argstr="-k2=%f", desc="With reference region input it may be necessary to specify also the population average for regerence region k2")
@@ -53,6 +54,10 @@ class quantCommand(quantificationCommand):
 
         return super(quantCommand, self)._parse_inputs(skip=skip)
 
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 def check_options(tkaNode, opts):
     #Define node for logan plot analysis 
     if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2

@@ -29,6 +29,9 @@ import os.path
 import argparse
 import subprocess
 import json
+import nibabel as nib
+import numpy as np
+from Extra.utils import check_gz, splitext
 
 required_minc_cmdline_tools = ['mincinfo', 'minctoraw']
 
@@ -74,56 +77,72 @@ def get_space(mincfile, space):
 def make_header(mincfile, datatype, headerfile):
     header = {}
 
-    header["datatype"] = datatype;
 
     # find dimension order
-    order = cmd("mincinfo -attval image:dimorder {}".format(mincfile))
-    order = order.split(",")
+    #order = cmd("mincinfo -attval image:dimorder {}".format(mincfile))
+    #order = order.split(",")
 
-    if len(order) < 3 or len(order) > 4:
-        order = cmd("mincinfo -dimnames {}".format(mincfile))
-        order = order.split(" ")
+    #if len(order) < 3 or len(order) > 4:
+    #    order = cmd("mincinfo -dimnames {}".format(mincfile))
+    #    order = order.split(" ")
 
-    header["order"] = order
+    
+    img = nib.load(mincfile)
+    shape = img.get_shape()
+    affine = img.get_affine()
+    dims=len(shape)
+    
+    order = ['xspace','yspace','zspace']
+    
+    datatype=type(img.get_data().dtype.type(0).item())
+    if datatype == int :
+        header["datatype"] = 'int' 
+    else :
+        header["datatype"] = 'float' 
 
-    if len(order) == 4:
-        time_start  = cmd("mincinfo -attval time:start {}".format(mincfile))
-        time_length = cmd("mincinfo -dimlength time {}".format(mincfile))
 
-        header["time"] = { "start" : float(time_start),
-                           "space_length" : float(time_length) }
+    if dims > 3 :
+        ti=np.argmin(shape)
+        order.insert(ti, 'time')
+    
+        header["time"] = {'start':0,'step':1,'space_length':shape[ti]} #get_space(mincfile,"xspace")
 
     # find space
-    header["xspace"] = get_space(mincfile,"xspace")
-    header["yspace"] = get_space(mincfile,"yspace")
-    header["zspace"] = get_space(mincfile,"zspace")
-
-    if len(order) > 3:
-        header["time"] = get_space(mincfile,"time")
+    header["xspace"] = {'start':affine[0][3],'step':affine[0][0],'space_length':shape[0]} #get_space(mincfile,"xspace")
+    header["yspace"] = {'start':affine[1][3],'step':affine[1][1],'space_length':shape[1]} #get_space(mincfile,"yspace")
+    header["zspace"] = {'start':affine[2][3],'step':affine[2][2],'space_length':shape[2]} #get_space(mincfile,"zspace")
 
     # write out the header
+    print(headerfile)
+    print(header)
     open(headerfile,"w").write(json.dumps(header))
 
 def make_raw(mincfile, datatype, rawfile):
-    raw = open(rawfile, "wb")
-    args = ["-normalize", mincfile]
-    opts = {
-        "int8":   ["-byte",  "-signed"],
-        "uint8":  ["-byte",  "-unsigned"],
-        "int16":  ["-short", "-signed"],
-        "uint16": ["-short", "-unsigned"],
-        "int32":  ["-int",   "-signed"],
-        "uint32": ["-int",   "-unsigned"],
-        "int32":  ["-int",   "-signed"],
-        "uint32": ["-int",   "-unsigned"],
-        "float32":["-float"],
-        "float64":["-double"],
-    }[datatype]
-    for opt in opts:
-        args.insert(0, opt)
-    args.insert(0, "minctoraw")
-    raw.write(
-        subprocess.check_output(args))
+    print(mincfile)
+    print(rawfile)
+    img = nib.load(mincfile).get_data()
+    img.astype('int16').tofile(rawfile)
+    
+    return 0
+    #raw = open(rawfile, "wb")
+    #args = ["-normalize", mincfile]
+    #opts = {
+    #    "int8":   ["-byte",  "-signed"],
+    #    "uint8":  ["-byte",  "-unsigned"],
+    #    "int16":  ["-short", "-signed"],
+    #    "uint16": ["-short", "-unsigned"],
+    #    "int32":  ["-int",   "-signed"],
+    #    "uint32": ["-int",   "-unsigned"],
+    #    "int32":  ["-int",   "-signed"],
+    #    "uint32": ["-int",   "-unsigned"],
+    #    "float32":["-float"],
+    #    "float64":["-double"],
+    #}[datatype]
+    #for opt in opts:
+    #    args.insert(0, opt)
+    #args.insert(0, "minctoraw")
+    #raw.write(
+    #    subprocess.check_output(args))
 
 def main(filename, datatype):
     if not os.path.isfile(filename):
@@ -131,7 +150,7 @@ def main(filename, datatype):
 
     check_minc_tools_installed()
 
-    basename = os.path.basename(filename)
+    basename = splitext(os.path.basename(filename))
     dirname = os.path.dirname(filename)
     headername = "{}/{}.header".format(dirname, basename)
     rawname = "{}/{}.raw".format(dirname, basename)

@@ -3,7 +3,6 @@ import matplotlib
 matplotlib.use('Agg')
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu 
-import pyminc.volumes.factory as pyminc
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
@@ -19,19 +18,19 @@ from os.path import basename
 from sys import argv, exit
 from glob import glob
 from Quality_Control.outlier import lof, kde, MAD, lcf
-from pyminc.volumes.factory import *
+from Extra.concat import concat_df
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+from scipy.ndimage.filters import gaussian_filter
+from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+import nibabel as nib
 import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 import nipype.interfaces.io as nio
-from Extra.concat import concat_df
 import matplotlib.pyplot as plt
 import seaborn as sns
 import inspect
-from scipy.ndimage.filters import gaussian_filter
 ######################
 #   Group-level QC   #
 ######################
@@ -152,8 +151,10 @@ def group_level_qc(opts, args):
 __NBINS=-1
 import copy
 def pvc_mse(pvc_fn, pve_fn, fwhm):
-    pvc = pyminc.volumeFromFile(pvc_fn)
-    pve = pyminc.volumeFromFile(pve_fn)
+    pvc = nib.load(pvc_fn)
+    pvc.data = pvc.get_data()
+    pve = nib.load(pve_fn)
+    pve.data = pve.get_data()
     mse = 0 
     if len(pvc.data.shape) > 3 :#if volume has more than 3 dimensions
         t = int(pvc.sizes[0]/2)
@@ -190,11 +191,17 @@ def temp_qc(vol0, mask0, vol1, mask1, out_fn):
 
 #def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
 def distance(pet_fn, mri_fn, t1_brain_fn, dist_f_list):
-    pet = pyminc.volumeFromFile(pet_fn)
-    mri = pyminc.volumeFromFile(mri_fn)
-    t1_mask= pyminc.volumeFromFile(t1_brain_fn)
-    #pet_mask= pyminc.volumeFromFile(pet_brain_fn)
+    pet = nib.load(pet_fn)
+    pet.data = pet.get_data()
 
+    mri = nib.load(mri_fn)
+    mri.data = mri.get_data()
+
+    t1_mask= nib.load(t1_brain_fn)
+    t1_mask.data = t1_mask.get_data()
+
+    pet_mask= nib.load(pet_brain_fn)
+    pet_mask.data = pet_mask.get_data()
 
     pet_data=pet.data.flatten()
     mri_data=mri.data.flatten()
@@ -489,7 +496,7 @@ class coreg_qc_metricsOutput(TraitedSpec):
 class coreg_qc_metricsInput(BaseInterfaceInputSpec):
     pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
     t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
-    t1_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    brain_mask_space_mri = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     #pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     sid = traits.Str(desc="Subject")
     ses = traits.Str(desc="Session")
@@ -524,7 +531,7 @@ class coreg_qc_metricsCommand(BaseInterface):
         rec = self.inputs.rec
         acq = self.inputs.acq
 
-        t1_brain_mask = self.inputs.t1_brain_mask
+        brain_mask_space_mri = self.inputs.brain_mask_space_mri
         #pet_brain_mask = self.inputs.pet_brain_mask
 
         path, ext = os.path.splitext(pet)
@@ -534,8 +541,8 @@ class coreg_qc_metricsCommand(BaseInterface):
           
         distance_metric_methods=distance_metrics.values()
         distance_metric_names=distance_metrics.keys()
-        #mis_metric=distance(pet, t1, t1_brain_mask, pet_brain_mask, distance_metric_methods )
-        mis_metric=distance(pet, t1, t1_brain_mask,  distance_metric_methods )
+        #mis_metric=distance(pet, t1, brain_mask_space_mri, pet_brain_mask, distance_metric_methods )
+        mis_metric=distance(pet, t1, brain_mask_space_mri,  distance_metric_methods )
 
         df=pd.DataFrame(columns=metric_columns )
         for m,metric_name,metric_func in zip(mis_metric, distance_metric_names, distance_metric_methods):

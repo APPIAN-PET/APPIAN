@@ -8,17 +8,14 @@ import shutil
 import Extra.resample as rsl
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
-import nipype.interfaces.minc as minc
-from Registration.ants_mri_normalize import APPIANRegistration, APPIANCompositeTransformUtil, APPIANConcatenateTransforms
+from Registration.ants_mri_normalize import APPIANRegistration, APPIANConcatenateTransforms, APPIANApplyTransforms
 
 from os.path import basename
-from pyminc.volumes.factory import *
 from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath
 from nipype.utils.filemanip import fname_presuffix, split_filename, copyfile
 from nipype.interfaces.utility import Rename
 from Extra.tracc import TraccCommand
 from Extra.xfmOp import ConcatCommand
-from nipype.interfaces.ants import ApplyTransforms
 
 """
 .. module:: registration
@@ -58,7 +55,7 @@ from nipype.interfaces.ants import ApplyTransforms
 #    workflow.connect(invert_concat_pet2misalign_tfm, "output_file", final_pet2mri, "composite_transform_invert")
 #    t1_brain_mask_img = 'out_file'
 
-def get_workflow(name, infosource, opts):
+def get_workflow(workflow, infosource, opts):
     '''
         Create workflow to perform PET to T1 co-registration.
 
@@ -72,7 +69,7 @@ def get_workflow(name, infosource, opts):
 
         :returns: workflow
     '''
-    workflow = pe.Workflow(name=name)
+    #workflow = pe.Workflow(name=name)
     #bnDefine input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_volume_4d","mri_space_nat","mri_space_stx","t1_headMask", "pet_brain_mask", "t1_brain_mask", "tfm_mri_stx", "tfm_stx_mri", "mri_space_stx", "error", "header" ]), name='inputnode')
     #Define empty node for output
@@ -89,38 +86,37 @@ def get_workflow(name, infosource, opts):
 
     #if opts.test_group_qc : misalign_pet(workflow, inputnode, pet2mri )
 
+    #pet_stx_node = pe.Node( interface=APPIANConcatenateTransforms(), name="pet_stx_node")
+    #workflow.connect(pet2mri, "out_matrix", pet_stx_node, "transform_1")
+    #workflow.connect(inputnode, "tfm_mri_stx", pet_stx_node, "transform_2")
 
-    pet_stx_node = pe.Node( interface=APPIANConcatenateTransforms(), name="pet_stx_node")
-    workflow.connect(pet2mri, "out_matrix", pet_stx_node, "transform_1")
-    workflow.connect(inputnode, "tfm_mri_stx", pet_stx_node, "transform_2")
-    workflow.connect(inputnode, "mri_space_stx", pet_stx_node, "reference_image")
+    #stx_pet_node = pe.Node(interface=APPIANConcatenateTransforms(), name="stx_pet_node")
+    #workflow.connect( inputnode, "tfm_stx_mri", stx_pet_node, 'transform_2' )
+    #workflow.connect( pet2mri, "out_matrix_inverse", stx_pet_node, 'transform_1' )
 
-    stx_pet_node = pe.Node(interface=APPIANConcatenateTransforms(), name="stx_pet_node")
-    workflow.connect( inputnode, "tfm_stx_mri", stx_pet_node, 'transform_2' )
-    workflow.connect( pet2mri, "out_matrix_inverse", stx_pet_node, 'transform_1' )
-    workflow.connect(inputnode, "pet_volume", stx_pet_node, "reference_image")
-
-    workflow.connect(pet_stx_node, 'out_file', outputnode, 'tfm_pet_stx' )
-    workflow.connect(stx_pet_node, 'out_file', outputnode, 'tfm_stx_pet' )
 
     #Resample 4d PET image to T1 space
     if opts.analysis_space == 't1':
-        pettot1_4d = pe.Node(interface=ApplyTransforms(), name='pet_space_mri')
+        pettot1_4d = pe.Node(interface=APPIANApplyTransforms(), name='pet_space_mri')
         workflow.connect(inputnode, 'pet_volume_4d', pettot1_4d, 'input_image')
-        workflow.connect(pet2mri, 'composite_transform', pettot1_4d, 'transforms')
+        workflow.connect(pet2mri, 'composite_transform', pettot1_4d, 'transform_2')
         workflow.connect(inputnode, 'mri_space_nat', pettot1_4d, 'reference_image')
         workflow.connect(pettot1_4d,'output_file', outputnode, 'pet_img_4d')
 
         workflow.connect(inputnode, 'mri_space_nat', outputnode, 't1_analysis_space')
     elif opts.analysis_space == "stereo" :
         #Resample 4d PET image to MNI space
-        pettomni_4d = pe.Node(interface=ApplyTransforms(), name='pet_space_stx')
+        pettomni_4d = pe.Node(interface=APPIANApplyTransforms(), name='pet_space_stx')
         workflow.connect(inputnode, 'pet_volume_4d', pettomni_4d, 'input_image')
-        workflow.connect(pet_stx_node, "out_file", pettomni_4d, 'transforms')
+        workflow.connect(pet2mri, "out_matrix", pettomni_4d, 'transform_1')
+        workflow.connect(inputnode, "out_mri_stx", pettomni_4d, 'transform_2')
         workflow.connect(inputnode, 't1_space_stx',pettomni_4d, 'reference_image')
         workflow.connect(pettomni_4d,'output_file', outputnode, 'pet_img_4d')
-    
-    workflow.connect(pet2mri, 'composite_transform', outputnode, 'tfm_pet_mri')
-    workflow.connect(pet2mri, 'inverse_composite_transform', outputnode, 'tfm_mri_pet')
+    if opts.normalization_type == 'nl' : 
+        workflow.connect(pet2mri, 'composite_transform', outputnode, 'tfm_pet_mri')
+        workflow.connect(pet2mri, 'inverse_composite_transform', outputnode, 'tfm_mri_pet')
+    else :
+        workflow.connect(pet2mri, 'out_matrix', outputnode, 'tfm_pet_mri')
+        workflow.connect(pet2mri, 'out_matrix_inverse', outputnode, 'tfm_mri_pet')
     workflow.connect(pet2mri, 'warped_image', outputnode, 'petmri_img')
     return workflow

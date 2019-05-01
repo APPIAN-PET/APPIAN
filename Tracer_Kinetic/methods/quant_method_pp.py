@@ -1,7 +1,7 @@
 from quantification_template import *
 
-in_file_format="ECAT"
-out_file_format="ECAT"
+in_file_format="NIFTI"
+out_file_format="NIFTI"
 reference=True
 voxelwise=True
 
@@ -14,6 +14,7 @@ class quantInput(MINCCommandInputSpec):
     reference = File(exists=True, mandatory=True,  position=-4, argstr="%s", desc="Reference file")
     start_time=traits.Float(argstr="%f",default_value=0, usedefault=True, position=-2, desc="Start time for regression in mtga.")
     Ca=traits.Float(argstr="-Ca=%f", desc="Concentration of native substrate in arterial plasma (mM).")
+    sif = File(desc="Sif file for Nifti PET input")
     LC=traits.Float(argstr="-LC=%f", desc="Lumped constant in MR calculation; default is 1.0")
     density=traits.Float(argstr="-density %f", desc="Tissue density in MR calculation; default is 1.0 g/ml")
     thr=traits.Float(argstr="-thr=%f", desc="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%")
@@ -29,6 +30,11 @@ class quantCommand(quantificationCommand):
     output_spec = quantOutput
     _cmd = "imgki" #input_spec.pvc_method 
     _suffix = "_pp" 
+
+class QuantCommandWrapper(QuantificationCommandWrapper):
+    input_spec =  quantInput
+    output_spec = quantOutput
+    _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
     #Define node for logan plot analysis 

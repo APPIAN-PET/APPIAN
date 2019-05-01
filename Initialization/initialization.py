@@ -57,7 +57,7 @@ class pet_brain_mask(BaseInterface):
         slice_thresholds=np.amax(data, axis=(1,2)) * self.inputs.slice_factor
         #Get mean for all values above slice_max
         slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]]))
-        slice_mean = np.array([ slice_mean_f(slice_thresholds, data, i)  for i in range(zmax) ])
+        slice_mean = np.array([slice_mean_f(slice_thresholds, data, i) for i in range(zmax) ])
         #Remove nan from slice_mean
         slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
         #Calculate overall mean from mean of thresholded slices
@@ -325,7 +325,7 @@ def get_workflow(name, infosource, opts):
     workflow.connect(inputnode, 'pet_header_json', petHeader, 'in_file')
     
     workflow.connect(inputnode, 'pet', petVolume, 'in_file')
-    
+   
     if opts.pet_brain_mask :
         petBrainMask=pe.Node(pet_brain_mask(), "pet_brain_mask")
         workflow.connect(petVolume, 'out_file', petBrainMask, 'in_file')

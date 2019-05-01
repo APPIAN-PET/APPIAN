@@ -4,8 +4,8 @@ from quantification_template import *
 from scipy.integrate import simps
 import json
 
-in_file_format="MINC"
-out_file_format="MINC"
+in_file_format="NIFTI"
+out_file_format="NIFTI"
 reference=True
 voxelwise=True
 

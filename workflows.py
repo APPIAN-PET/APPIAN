@@ -111,7 +111,6 @@ class Workflows:
             self.brain_mask_space_stx_node = self.mri_preprocess
             self.brain_mask_space_stx_file='outputnode.brain_mask_space_stx'
 
-
         self.out_node_list += [self.brain_mask_space_stx_node] 
         self.out_img_list += [self.brain_mask_space_stx_file]
         self.out_img_dim += ['3']
@@ -473,7 +472,7 @@ class Workflows:
             self.workflow.connect(self.datasourcePET, 'arterial_file', self.datasource, 'arterial_file')
 
         # connect datasourceAnat files
-        if opts.user_mri_stx :
+        if opts.user_mri_stx != '' :
             self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx',self.datasource, 'tfm_mri_stx' )
             self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri',self.datasource, 'tfm_stx_mri' )
         if opts.user_brainmask :
@@ -574,7 +573,7 @@ class Workflows:
         if opts.results_label_type != "internal_cls" :
             self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts)
 
-        if opts.user_mri_stx :
+        if opts.user_mri_stx != '' :
             self.set_transform(opts)
 
         if opts.user_brainmask :
@@ -629,7 +628,7 @@ class Workflows:
         else :
             brain_mask_template = brain_mask_template + '_brainmask.*'+opts.img_ext
 
-        field_template["brain_mask_space_mni"] = brain_mask_template
+        field_template["brain_mask_space_stx"] = brain_mask_template
         self.datasourceAnat.inputs.field_template.update(field_template)
         self.datasourceAnat.inputs.template_args.update(template_args)
 
@@ -645,15 +644,15 @@ class Workflows:
     
         if opts.user_mri_stx == 'nl' :
             label_template = label_template + '*target-MNI_warp.nii*' 
-            inv_label_template = label_template + '*target-T1_warp.nii*'
-        elif opts.use_mrimni == 'lin' : 
+            #inv_label_template = label_template + '*target-T1_warp.nii*'
+        elif opts.user_mri_stx == 'lin' : 
             label_template = label_template + '*target-MNI_affine.h5' 
-            inv_label_template = label_template + '*target-T1_affine.h5'
+            #inv_label_template = label_template + '*target-T1_affine.h5'
         else :
             print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
             exit(1)
         field_template["tfm_mri_stx"] = label_template
-        field_template["tfmMNIMNI"] = inv_label_template
+        #field_template["tfmMNIMNI"] = inv_label_template
 
         self.datasourceAnat.inputs.field_template.update(field_template)
         self.datasourceAnat.inputs.template_args.update(template_args)

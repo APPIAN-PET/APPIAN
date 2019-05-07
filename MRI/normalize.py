@@ -23,10 +23,10 @@ global icbm_default_csf
 global icbm_default_gm
 global icbm_default_wm 
 
-icbm_default_csf=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_csf_tal_nlin_asym_09c.nii"
-icbm_default_gm=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_gm_tal_nlin_asym_09c.nii"
-icbm_default_wm=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_wm_tal_nlin_asym_09c.nii"
-icbm_default_brain=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii"
+icbm_default_csf=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_csf_tal_nlin_asym_09c.nii.gz"
+icbm_default_gm=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_gm_tal_nlin_asym_09c.nii.gz"
+icbm_default_wm=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_wm_tal_nlin_asym_09c.nii.gz"
+icbm_default_brain=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
 
 def get_workflow(name, opts):
     workflow = pe.Workflow(name=name)

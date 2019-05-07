@@ -106,7 +106,7 @@ class Workflows:
         if opts.user_brainmask : 
             self.brain_mask_space_stx_node = self.datasourceAnat
             self.brain_mask_space_stx_file = 'brain_mask_space_stx'
-            self.workflow.connect(self.datasource, 'brain_mask_space_space_stx', self.mri_preprocess, 'inputnode.brain_mask_space_stx') 
+            self.workflow.connect(self.datasource, 'brain_mask_space_stx', self.mri_preprocess, 'inputnode.brain_mask_space_stx') 
         else : 
             self.brain_mask_space_stx_node = self.mri_preprocess
             self.brain_mask_space_stx_file='outputnode.brain_mask_space_stx'
@@ -120,21 +120,23 @@ class Workflows:
         #If user wants to input their own mri space to mni space transform with the option --user-mrimni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         #stereotaxic space in self.mri_preprocess
-        if opts.user_mri_stx : 
+        if opts.user_mri_stx == '' : 
             self.t1mni_node = self.datasource
             self.t1mni_file = 'tfm_mri_stx'
             self.mnit1_file = 'tfm_stx_mri'
             self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx')    
             self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri')    
+            self.out_img_list += ["transform_mri.output_image"]
         else : 
             self.t1mni_node = self.mri_preprocess
             self.t1mni_file='outputnode.tfm_mri_stx'       
             self.mnit1_file='outputnode.tfm_stx_mri'       
+            self.out_img_list += [ "mri_spatial_normalized.warped_image" ]
 
         self.workflow.connect(self.datasourceAnat,'mri',self.mri_preprocess, 'inputnode.mri')   
 
+
         self.out_node_list += [self.t1mni_node] 
-        self.out_img_list += ["outputnode.mri_space_stx"]
         self.out_img_dim += ['3']
         self.extract_values += [False]
         self.datasink_dir_name += ['t1/stereotaxic']

@@ -177,7 +177,7 @@ class APPIANRegistration(BaseInterface):
 
         ### Rigid
         cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 10x5x2, 1e-08, 20 ] --smoothing-sigmas 3.0x2.0x1.0vox --shrink-factors 3x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
-        output = " --output [ transform ] "
+        #output = " --output [ transform ] "
 
         ### Affine
         if self.inputs.normalization_type == 'affine' or self.inputs.normalization_type == 'nl':
@@ -186,7 +186,8 @@ class APPIANRegistration(BaseInterface):
         ### Non-linear
         if  self.inputs.normalization_type == 'nl':
             cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 1x1x1x1, 1e-6,10 ] --smoothing-sigmas 3.0x2.0x1.0x0.0vox --shrink-factors 8x4x2x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
-            output = " --output [ transform, "+self.inputs.warped_image+", "+self.inputs.inverse_warped_image+" ] "
+        
+        output = " --output [ transform, "+self.inputs.warped_image+", "+self.inputs.inverse_warped_image+" ] "
         
         cmdline += output
 

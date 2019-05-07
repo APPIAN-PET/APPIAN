@@ -53,7 +53,6 @@ def get_workflow(name, opts):
     ##########################################
     # T1 spatial (+ intensity) normalization #
     ##########################################
-    
     if opts.n4_bspline_fitting_distance != 0 :
         n4 =  pe.Node(N4BiasFieldCorrection(), "mri_intensity_normalized" )
         workflow.connect(inputnode, 'mri', n4, 'input_image')
@@ -66,7 +65,7 @@ def get_workflow(name, opts):
         n4 = pe.Node(niu.IdentityInterface(fields=["output_image"]), name='mri_no_intensity_normalization')
         workflow.connect(inputnode, 'mri', n4, 'output_image')
 
-    if not opts.user_mri_stx:
+    if opts.user_mri_stx != '':
         mri2template = pe.Node(interface=APPIANRegistration(), name="mri_spatial_normalized")
         mri2template.inputs.fixed_image_mask = icbm_default_brain
         mri2template.inputs.fixed_image = opts.template
@@ -77,7 +76,7 @@ def get_workflow(name, opts):
             mri2template.inputs.normalization_type = opts.normalization_type
 
         mri_stx_file = 'warped_image'
-        mri_stx_node=mri2template
+        mri_stx_node = mri2template
         
         tfm_node= mri2template
         tfm_inv_node= mri2template
@@ -191,7 +190,7 @@ def get_workflow(name, opts):
     workflow.connect(tfm_node, tfm_file, outputnode, 'tfm_mri_stx' )
     workflow.connect(tfm_node, tfm_inv_file, outputnode, 'tfm_stx_mri' )
     workflow.connect(transform_brain_mask, 'output_image', outputnode, 'brain_mask_space_mri')
-    workflow.connect(mri_stx_node, mri_stx_file, outputnode, 'mri_space_stx')
+    #workflow.connect(mri_stx_node, mri_stx_file, outputnode, 'mri_space_stx')
     workflow.connect(copy_mri_nat, 'output_file', outputnode, 'mri_space_nat')
     return(workflow)
 

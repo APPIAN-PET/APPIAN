@@ -17,7 +17,7 @@ The APPIAN pipeline is implemented in Python using the [Nipype][nipype] library.
 
 
 #### Cost
-APPIAN is 100% free and open-source, but in exchange we would greatly appreciate your feedback, whether it be as bug reports, pull requests to add new features, questions on our [mailing list](https://groups.google.com/forum/#!forum/appian-users), or suggestions on how to improve the documentation or the code. You can even just send us an email to let us know what kind of project you are working on!  
+APPIAN is 100% free and open-source, but in exchange we would greatly appreciate your feedback, whether it be as bug reports, pull requests to add new features, questions on our [mailing list](https://groups.google.com/forum/#!forum/appian-users), or suggestions on how to improve the documentation or the code. You can even just send us an email to let us know what kind of project you are working on!   
 
 ## Installation 
 

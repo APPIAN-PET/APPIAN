@@ -17,6 +17,7 @@ import Test.test_group_qc as tqc
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
+import re
 import nipype.interfaces.utility as util
 
 
@@ -519,7 +520,7 @@ class Workflows:
         if len(opts.sessionList) != 0: 
             pet_str = pet_str + '*ses-%s'
             pet_str=re.sub('/pet/','/ses-%s/pet/',pet_str)
-            pet_list.insert('ses',1)
+            pet_list.insert(1, 'ses')
             pet_list += ['ses'] 
         if len(opts.taskList) != 0: 
             pet_str = pet_str + '*task-%s'
@@ -569,14 +570,13 @@ class Workflows:
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
 
-
         mri_str = opts.sourceDir+os.sep+'sub-%s/anat/sub-%s' #Testing without ses- as mandatory field
         mri_list = ['sid', 'sid' ]
 
         if len(opts.sessionList) != 0: 
             mri_str = mri_str + '*ses-%s'
             mri_str=re.sub('/anat/','/ses-%s/anat/',mri_str)
-            mri_list.insert('ses',1)
+            mri_list.insert(1, 'ses')
             mri_list += ['ses'] 
 
         self.datasourceAnat.inputs.field_template={

@@ -32,6 +32,6 @@ def run_group_level(opts,args):
                 raise
             except:
                 pass
-        elif  len(args) > min_args :
+        elif  len(args) < min_args :
             print "Warning: only one subject, cannot run group level analysis."
 

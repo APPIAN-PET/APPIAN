@@ -49,8 +49,8 @@ def group_level_descriptive_statistics(opts, args):
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
         #Datagrabber
-        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_3d.csv')
-        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results'+surf+'*'+os.sep+'*_3d.csv')
+        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')
+        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')
 
         
         datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)

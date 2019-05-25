@@ -120,19 +120,21 @@ class Workflows:
         #If user wants to input their own mri space to mni space transform with the option --user-mrimni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         #stereotaxic space in self.mri_preprocess
-        if opts.user_mri_stx == '' : 
+        
+        if opts.user_mri_stx != '' : 
             self.t1mni_node = self.datasource
             self.t1mni_file = 'tfm_mri_stx'
             self.mnit1_file = 'tfm_stx_mri'
             self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx')    
             self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri')    
             self.out_img_list += ["transform_mri.output_image"]
+            self.mri_space_stx_name="transform_mri.output_image"
         else : 
             self.t1mni_node = self.mri_preprocess
             self.t1mni_file='outputnode.tfm_mri_stx'       
             self.mnit1_file='outputnode.tfm_stx_mri'       
             self.out_img_list += [ "mri_spatial_normalized.warped_image" ]
-
+            self.mri_space_stx_name = "mri_spatial_normalized.warped_image" 
         self.workflow.connect(self.datasourceAnat,'mri',self.mri_preprocess, 'inputnode.mri')   
 
 
@@ -166,7 +168,7 @@ class Workflows:
                 #Resample 4d PET image to MNI space
                 self.workflow.connect(self.pet2mri, "out_matrix", pet_analysis_space, 'transform_1')
                 self.workflow.connect(self.t1mni_node, self.t1mni_file, pet_analysis_space, 'transform_2')
-                self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_stx',  pet_analysis_space, 'reference_image')
+                self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name,  pet_analysis_space, 'reference_image')
         else : 
             self.pet_input_node=self.datasource
             self.pet_input_file='pet'
@@ -229,7 +231,7 @@ class Workflows:
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.masking, 'inputnode.pet_header_json')
         self.workflow.connect(self.pet2mri, "out_matrix", self.masking, "inputnode.tfm_pet_mri")
         self.workflow.connect(self.pet2mri, "out_matrix_inverse", self.masking, "inputnode.tfm_mri_pet")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_stx', self.masking, "inputnode.mri_space_stx")
+        self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name, self.masking, "inputnode.mri_space_stx")
         self.workflow.connect(self.brain_mask_space_stx_node, self.brain_mask_space_stx_file, self.masking, "inputnode.brain_mask_space_stx")
         self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.masking, "inputnode.brain_mask_space_mri")
         if opts.pvc_method != None:
@@ -512,8 +514,13 @@ class Workflows:
         self.datasourcePET.inputs.field_template = {}
         self.datasourcePET.inputs.template_args = {}
 
-        pet_str = opts.sourceDir+os.sep+'sub-%s/*ses-%s/pet/sub-%s_ses-%s'
-        pet_list = ['sid', 'ses', 'sid', 'ses']
+        pet_str = opts.sourceDir+os.sep+'sub-%s/pet/sub-%s' #Testing without ses- as mandatory field
+        pet_list = ['sid', 'sid' ]
+        if len(opts.sessionList) != 0: 
+            pet_str = pet_str + '*ses-%s'
+            pet_str=re.sub('/pet/','/ses-%s/pet/',pet_str)
+            pet_list.insert('ses',1)
+            pet_list += ['ses'] 
         if len(opts.taskList) != 0: 
             pet_str = pet_str + '*task-%s'
             pet_list += ['task'] 
@@ -561,10 +568,22 @@ class Workflows:
         self.datasourceAnat = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_anat_outputs, raise_on_empty=True, sort_filelist=False), name="datasourceAnat")
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
+
+
+        mri_str = opts.sourceDir+os.sep+'sub-%s/anat/sub-%s' #Testing without ses- as mandatory field
+        mri_list = ['sid', 'sid' ]
+
+        if len(opts.sessionList) != 0: 
+            mri_str = mri_str + '*ses-%s'
+            mri_str=re.sub('/anat/','/ses-%s/anat/',mri_str)
+            mri_list.insert('ses',1)
+            mri_list += ['ses'] 
+
         self.datasourceAnat.inputs.field_template={
-                "mri":opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
+                "mri":mri_str+"*_T1w.nii*"
+                #opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
                 }
-        self.datasourceAnat.inputs.template_args = {"mri":[[ 'sid', 'ses', 'sid', 'ses']]}
+        self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 
         if opts.pvc_label_type != "internal_cls" :
             self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts)

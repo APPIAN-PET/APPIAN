@@ -55,26 +55,38 @@ def gen_args(opts, subjects):
                 if opts.verbose >= 2: print("Task:",task)
                 for run in run_ids:
                     sub_arg='sub-'+sub
-                    ses_arg='ses-'+ses
                     rec_arg=acq_arg=""
 
                     pet_fn=mri_fn=""
+                    if  ses == '': ses_arg='ses-'+ses
                     if  acq == '': acq_arg='acq-'+acq
                     if  rec == '': rec_arg='rec-'+rec
-                    pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext
-                    pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext+'.gz'
-                    pet_list=glob(pet_string) + glob(pet_string_gz)
-                    arg_list = ['sub-'+sub, 'ses-'+ses]
-                    mri_arg_list = ['sub-'+sub, 'ses-'+ses]
+                    if ses == '' :
+                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.nii*'
+                        mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + 'anat/*_T1w.nii*'
+                    else :
+                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.nii*'
+                        mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.nii*'
+                    #pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext+'.gz'
+                    pet_list=glob(pet_string) 
+                    print(pet_string)
+                    mri_arg_list = ['sub-'+sub]
+                    arg_list = ['sub-'+sub ]
+                    if not ses == '' :
+                        arg_list += ['ses-'+ses]
+                        mri_arg_list += ['ses-'+ses]
                     if not task == '': arg_list += ['task-'+task]
                     if not acq == '': arg_list += ['acq-'+acq]
                     if not rec == '': arg_list += ['rec-'+rec]
                     if not run == '': arg_list += ['run-'+run]
                     if opts.verbose >= 2: print( "Arguments for indentifying images:", arg_list );
+                    print(pet_list)
                     if pet_list != []:
                         pet_fn = unique_file(pet_list, arg_list, opts.verbose )
-
-                    mri_list=glob(opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext ) + glob(opts.sourceDir+os.sep+ sub_arg + os.sep + '*/anat/*_T1w.'+opts.img_ext+'.gz' )
+                
+                    print("mri_string :", mri_string)
+                    mri_list=glob(mri_string )
+                    print(mri_list)
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
 
@@ -90,7 +102,7 @@ def gen_args(opts, subjects):
                         if not os.path.exists(pet_fn) and opts.verbose >= 1:
                             print "Could not find PET for ", sub, ses, task, pet_fn
                         if not os.path.exists(mri_fn) and opts.verbose >= 1:
-                            print "Could not find T1 for ", sub, ses, task, mri_fn
+                            print "Could not find T1 for ", sub, mri_fn
 
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses})
@@ -127,6 +139,15 @@ def unique_file(files, attributes, verbose=1):
             out_files.append(f)
     print("out files", out_files)
     if attributes == [] or len(out_files) == 0 : return ''
+
+    # If there are 2 out_files, check if one is a compressed version of the other
+    # If so keep the compressed version
+    if len(out_files) == 2  :
+        if out_files[0] == out_files[1] + '.gz' :
+            out_files=[out_files[1]+'.gz']
+        elif out_files[1] == out_files[0] + '.gz' : 
+            out_files=[out_files[0]+'.gz']
+		
 
     if len(out_files) > 1 :
         print("Error: File is not uniquely specified. Multiple files found for the attributes ", attributes)

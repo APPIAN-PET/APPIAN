@@ -16,7 +16,7 @@ internal_cls_methods=["antsAtropos"]
 
 file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
-icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii"
+icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -70,7 +70,7 @@ def get_parser():
 
     parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
     parser.add_argument("--user-ants-normalization", dest="user_ants_normalization",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
-    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='lin', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
+    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     
     parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS') 

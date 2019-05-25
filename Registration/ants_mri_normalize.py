@@ -235,14 +235,15 @@ class APPIANRegistration(BaseInterface):
 
     def _set_inputs(self):
         self.inputs.warped_image=os.getcwd()+os.sep+'transform_Warped.nii.gz'
+        self.inputs.inverse_warped_image=os.getcwd()+os.sep+'transform_InverseWarped.nii.gz'
         if self.inputs.normalization_type == 'nl' :
-            self.inputs.inverse_warped_image=os.getcwd()+os.sep+'transform_InverseWarped.nii.gz'
             self.inputs.composite_transform=os.getcwd()+os.sep+'transformComposite.h5'
             self.inputs.inverse_composite_transform=os.getcwd()+os.sep+'transformInverseComposite.h5'
         else :
             self.inputs.out_matrix=os.getcwd()+os.sep+'transform0GenericAffine.mat'
             self.inputs.out_matrix_inverse=os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat'
-
+        #print(self.inputs)
+        #exit(0)
 
 
     def _list_outputs(self):

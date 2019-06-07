@@ -1,5 +1,5 @@
 import os
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
@@ -15,13 +15,13 @@ import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
 from nipype.interfaces.ants import N4BiasFieldCorrection
-from Extra.utils import splitext 
+from Extra.utils import splitext
 from nipype.interfaces.ants.segmentation import BrainExtraction
 from arg_parser import icbm_default_template, file_dir
 
-global icbm_default_csf  
+global icbm_default_csf
 global icbm_default_gm
-global icbm_default_wm 
+global icbm_default_wm
 
 icbm_default_csf=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_csf_tal_nlin_asym_09c.nii.gz"
 icbm_default_gm=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_gm_tal_nlin_asym_09c.nii.gz"
@@ -33,13 +33,13 @@ def get_workflow(name, opts):
     in_fields = ['mri']
     if opts.user_brainmask :
         in_fields += ['brain_mask_space_stx']
-    
+
     if opts.user_mri_stx :
         in_fields += ['tfm_mri_stx', 'tfm_stx_mri']
 
     label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
     stages = ['tka', 'pvc', 'results']
-    label_imgs= [opts.tka_label_img, opts.pvc_label_img, opts.results_label_img  ]
+    label_imgs = [opts.tka_label_img, opts.pvc_label_img, opts.results_label_img]
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
@@ -47,7 +47,7 @@ def get_workflow(name, opts):
     for stage, label_type in zip(stages, label_types):
         if 'internal_cls' == label_type :
             out_fields += [ stage+'_label_img']
-    
+
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
     ##########################################
@@ -56,8 +56,8 @@ def get_workflow(name, opts):
     if opts.n4_bspline_fitting_distance != 0 :
         n4 =  pe.Node(N4BiasFieldCorrection(), "mri_intensity_normalized" )
         workflow.connect(inputnode, 'mri', n4, 'input_image')
-        n4.inputs.dimension = 3 
-        n4.inputs.bspline_fitting_distance = opts.n4_bspline_fitting_distance 
+        n4.inputs.dimension = 3
+        n4.inputs.bspline_fitting_distance = opts.n4_bspline_fitting_distance
         n4.inputs.shrink_factor = opts.n4_shrink_factor
         n4.inputs.n_iterations = opts.n4_n_iterations
         n4.inputs.convergence_threshold = opts.n4_convergence_threshold
@@ -77,8 +77,8 @@ def get_workflow(name, opts):
 
         mri_stx_file = 'warped_image'
         mri_stx_node = mri2template
-        
-        tfm_node= mri2template
+
+        tfm_node = mri2template
         tfm_inv_node= mri2template
         if opts.normalization_type == 'nl' :
             tfm_file='composite_transform'
@@ -90,25 +90,24 @@ def get_workflow(name, opts):
             print("Error: --normalization-type should be either rigid, lin, or nl")
             exit(1)
     else :
-        transform_mri = pe.Node(interface=APPIANApplyTransforms(), name="transform_mri"  )
+        transform_mri = pe.Node(interface=APPIANApplyTransforms(), name="transform_mri")
         workflow.connect(inputnode, 'mri', transform_mri, 'input_image')
-        workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'transform_1')
+        workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'output_image')
         transform_mri.inputs.reference_image = opts.template
 
         mri_stx_node = transform_mri
-        mri_stx_file = 'output_image'
+        mri_stx_file = 'transform_mri.output_image'
         tfm_node = inputnode
         tfm_file = 'tfm_mri_stx'
-        tfm_inv_node=inputnode
-        tfm_inv_file='tfm_stx_mri'
-    
+        tfm_inv_file = 'tfm_stx_mri'
+
     #
     # T1 in native space will be part of the APPIAN target directory
     # and hence it won't be necessary to link to the T1 in the source directory.
     #
     copy_mri_nat = pe.Node(interface=copyCommand(), name="mri_nat"  )
     workflow.connect(inputnode, 'mri', copy_mri_nat, 'input_file')
-    
+
     ###################################
     # Segment T1 in Stereotaxic space #
     ###################################
@@ -134,10 +133,10 @@ def get_workflow(name, opts):
             workflow.connect(mri_stx_node, mri_stx_file,  seg, 'intensity_images' )
             seg.inputs.mask_image = icbm_default_brain
             #workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
-        print(stage, img) 
+        print(stage, img)
         if 'antsAtropos' == img :
            workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
-    
+
     ####################
     # T1 Brain masking #
     ####################
@@ -157,7 +156,7 @@ def get_workflow(name, opts):
 
        #      brain_mask_node = mriMNI_brain_mask
        #      brain_mask_file = 'out_file'
-       #  else : 
+       #  else :
             #mriMNI_brain_mask = pe.Node(interface=BrainExtraction(), name="mri_stx_brain_mask")
             #mriMNI_brain_mask.inputs.dimension = 3
             #mriMNI_brain_mask.inputs.brain_template = opts.template
@@ -171,10 +170,10 @@ def get_workflow(name, opts):
         brain_mask_node = mriMNI_brain_mask
         brain_mask_file = 'output_image'
 
-    else :			
+    else :
         brain_mask_node = inputnode
         brain_mask_file = 'brain_mask_space_stx'
-    
+
     #
     # Transform brain mask from stereotaxic to T1 native space
     #
@@ -182,7 +181,7 @@ def get_workflow(name, opts):
     transform_brain_mask.inputs.interpolation = 'NearestNeighbor'
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_image')
     workflow.connect(tfm_node, tfm_inv_file, transform_brain_mask, 'transform_1')
-    workflow.connect(copy_mri_nat,'output_file', transform_brain_mask,'reference_image') 
+    workflow.connect(copy_mri_nat,'output_file', transform_brain_mask,'reference_image')
     ###############################
     # Pass results to output node #
     ###############################
@@ -193,5 +192,3 @@ def get_workflow(name, opts):
     #workflow.connect(mri_stx_node, mri_stx_file, outputnode, 'mri_space_stx')
     workflow.connect(copy_mri_nat, 'output_file', outputnode, 'mri_space_nat')
     return(workflow)
-
-

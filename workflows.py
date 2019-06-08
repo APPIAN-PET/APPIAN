@@ -120,12 +120,11 @@ class Workflows:
         #If user wants to input their own mri space to mni space transform with the option --user-mrimni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         #stereotaxic space in self.mri_preprocess
-        
         if opts.user_mri_stx != '' : 
             self.t1mni_node = self.datasource
             self.t1mni_file = 'tfm_mri_stx'
             self.mnit1_file = 'tfm_stx_mri'
-            self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx')    
+            self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx') 
             self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri')    
             self.out_img_list += ["transform_mri.output_image"]
             self.mri_space_stx_name="transform_mri.output_image"

@@ -1,6 +1,7 @@
 #vim: set tabstop=4 expandtab shgftwidth=4 softtabstop=4 mouse=a autoindent hlsearch
 #vim: filetype plugin indent on
 from glob import glob
+import re
 import os
 import sys
 import argparse
@@ -58,13 +59,13 @@ def gen_args(opts, subjects):
                     rec_arg=acq_arg=""
 
                     pet_fn=mri_fn=""
-                    if  ses == '': ses_arg='ses-'+ses
-                    if  acq == '': acq_arg='acq-'+acq
-                    if  rec == '': rec_arg='rec-'+rec
+                    if  not acq == '': acq_arg='acq-'+acq
+                    if  not rec == '': rec_arg='rec-'+rec
                     if ses == '' :
                         pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.nii*'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + 'anat/*_T1w.nii*'
                     else :
+                        ses_arg='ses-'+ses
                         pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.nii*'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.nii*'
                     #pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext+'.gz'

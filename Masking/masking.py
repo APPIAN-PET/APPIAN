@@ -58,6 +58,9 @@ class LabelsInput(BaseInterfaceInputSpec):
     transform_3 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
     transform_2 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
     transform_1 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
+    invert_1 = traits.Bool(default_value=False, usedefault=True)
+    invert_2 = traits.Bool(default_value=False, usedefault=True)
+    invert_3 = traits.Bool(default_value=False, usedefault=True)
     warp = traits.File(desc="Warp/deformation volume for NL transform")
     labels = traits.List(desc="label value(s) for label image.")
     label_img  = traits.File(mandatory=True, desc="Mask on the template")
@@ -128,6 +131,9 @@ class Labels(BaseInterface):
         transformLabels.inputs.transform_1 = self.inputs.transform_1
         transformLabels.inputs.transform_2 = self.inputs.transform_2
         transformLabels.inputs.transform_3 = self.inputs.transform_3
+        transformLabels.inputs.invert_1 = self.inputs.invert_1
+        transformLabels.inputs.invert_2 = self.inputs.invert_2
+        transformLabels.inputs.invert_3 = self.inputs.invert_3
         transformLabels.inputs.interpolation = 'NearestNeighbor'
         transformLabels.run()
         output_image = transformLabels._list_outputs()['output_image']
@@ -194,7 +200,7 @@ def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
 
     return([tfm_node, transform_file])
 
-def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_only, tfm_node_list, tfm_file_list,label_template, default_template, normalization_type, like_file, brain_mask_node, workflow,inputnode, kind):
+def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_only, tfm_node_list, tfm_file_list, label_template, default_template, normalization_type, like_file, brain_mask_node, workflow,inputnode, kind):
     LabelNode = pe.Node(interface=Labels(), name=kind+"Labels")
     LabelNode.inputs.analysis_space = analysis_space
     LabelNode.inputs.erode_times = erode_times
@@ -232,10 +238,8 @@ def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_o
         tfm_file_list.append(template_tfm)
     
     tfm_index=1
-    print(tfm_node_list)
-    print(tfm_file_list)
     for node, tfm in zip(tfm_node_list, tfm_file_list) :
-        print(node, tfm)
+        print("Label masking node:", node, "Transformation :", tfm)
         workflow.connect(node, tfm, LabelNode,'transform_'+str(tfm_index))
         tfm_index += 1
     return LabelNode
@@ -253,7 +257,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx','tfm_stx_mri',  "tfm_pet_stx", "tfm_stx_pet",'tfm_mri_stx', "tfm_mri_pet", "tfm_pet_mri", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -295,8 +299,8 @@ def get_workflow(name, infosource, opts):
     elif opts.analysis_space == "pet" :
         brain_mask_node = pe.Node(APPIANApplyTransforms(), "brain_mask_space_pet")
         workflow.connect(inputnode, 'brain_mask_space_stx', brain_mask_node, 'input_image')
-        workflow.connect(inputnode, "tfm_stx_mri", brain_mask_node, 'transform_3')
-        workflow.connect(inputnode, "tfm_mri_pet", brain_mask_node, 'transform_2')
+        workflow.connect(inputnode, "tfm_mri_stx", brain_mask_node, 'transform_3')
+        workflow.connect(inputnode, "tfm_pet_mri", brain_mask_node, 'transform_2')
         workflow.connect(inputnode, 'pet_volume', brain_mask_node, 'reference_image')
         brain_mask_node.inputs.interpolation = 'NearestNeighbor'
         like_file="pet_volume"
@@ -325,7 +329,6 @@ def get_workflow(name, infosource, opts):
             workflow.connect(inputnode, "surf_left", surface_left_node, "output_file")
             workflow.connect(inputnode, "surf_right", surface_right_node, "output_file")
    
-    print(results_tfm_file)
     resultsLabels = set_label_node(opts.analysis_space, opts.results_label_space, opts.results_erode_times, opts.results_labels_brain_only, opts.results_labels_ones_only, results_tfm_node, results_tfm_file, opts.results_label_template, opts.template, opts.normalization_type,like_file, brain_mask_node,workflow,inputnode, "results")
 
     if not opts.pvc_method == None :

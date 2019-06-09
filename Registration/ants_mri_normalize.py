@@ -36,6 +36,9 @@ class APPIANApplyTransformsInputSpec(BaseInterfaceInputSpec) :
     transform_1 = traits.File()
     transform_2 = traits.File()
     transform_3 = traits.File()
+    invert_1 = traits.Bool(default_value=False, usedefault=True)
+    invert_2 = traits.Bool(default_value=False, usedefault=True)
+    invert_3 = traits.Bool(default_value=False, usedefault=True)
     reference_image=traits.File()
     input_image=traits.File()
     output_image = traits.File()
@@ -50,22 +53,26 @@ class APPIANApplyTransforms(BaseInterface):
 
     def _run_interface(self, runtime):
         transforms = [] 
+        invert_transform_flags = []
         if isdefined(self.inputs.transform_1) :
             transforms.append(self.inputs.transform_1)
+            invert_transform_flags.append(self.inputs.invert_1)
 
         if isdefined(self.inputs.transform_2) :
             transforms.append(self.inputs.transform_2)
+            invert_transform_flags.append(self.inputs.invert_2)
         
         if isdefined(self.inputs.transform_3) :
             transforms.append(self.inputs.transform_3)
+            invert_transform_flags.append(self.inputs.invert_3)
         
         cmd = ApplyTransforms()
         cmd.inputs.transforms=transforms
+        cmd.inputs.invert_transform_flags = invert_transform_flags
         cmd.inputs.reference_image = self.inputs.reference_image
         cmd.inputs.input_image = self.inputs.input_image
         cmd.inputs.interpolation = self.inputs.interpolation
         cmd.run()
-        print(cmd.cmdline)
         split =splitext(os.path.basename( self.inputs.input_image))
         self.inputs.output_image =os.getcwd() + os.sep + split[0] + '_trans' + split[1] 
         print(os.listdir(os.getcwd()))

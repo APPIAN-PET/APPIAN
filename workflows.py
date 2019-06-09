@@ -1,5 +1,6 @@
 # vi: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
+import re
 from Masking import masking as masking
 from Masking import surf_masking
 from MRI import normalize
@@ -121,23 +122,26 @@ class Workflows:
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
         #stereotaxic space in self.mri_preprocess
         if opts.user_mri_stx != '' : 
-            self.t1mni_node = self.datasource
-            self.t1mni_file = 'tfm_mri_stx'
-            self.mnit1_file = 'tfm_stx_mri'
+            #USER PROVIDED TFM
+            self.tfm_node = self.datasource
+            self.mri_stx_tfm = 'tfm_mri_stx'
+            self.stx_mri_tfm = 'tfm_stx_mri'
             self.workflow.connect(self.datasourceAnat, 'tfm_mri_stx', self.mri_preprocess, 'inputnode.tfm_mri_stx') 
-            self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri')    
+            self.workflow.connect(self.datasourceAnat, 'tfm_stx_mri', self.mri_preprocess, 'inputnode.tfm_stx_mri') 
             self.out_img_list += ["transform_mri.output_image"]
             self.mri_space_stx_name="transform_mri.output_image"
         else : 
-            self.t1mni_node = self.mri_preprocess
-            self.t1mni_file='outputnode.tfm_mri_stx'       
-            self.mnit1_file='outputnode.tfm_stx_mri'       
+            #ANTS TFM
+            self.tfm_node = self.mri_preprocess
+            self.mri_stx_tfm='outputnode.tfm_mri_stx'       
+            self.stx_mri_tfm='outputnode.tfm_stx_tfm'       
+            
             self.out_img_list += [ "mri_spatial_normalized.warped_image" ]
             self.mri_space_stx_name = "mri_spatial_normalized.warped_image" 
         self.workflow.connect(self.datasourceAnat,'mri',self.mri_preprocess, 'inputnode.mri')   
 
 
-        self.out_node_list += [self.t1mni_node] 
+        self.out_node_list += [self.mri_preprocess] 
         self.out_img_dim += ['3']
         self.extract_values += [False]
         self.datasink_dir_name += ['t1/stereotaxic']
@@ -166,7 +170,7 @@ class Workflows:
             else : 
                 #Resample 4d PET image to MNI space
                 self.workflow.connect(self.pet2mri, "out_matrix", pet_analysis_space, 'transform_1')
-                self.workflow.connect(self.t1mni_node, self.t1mni_file, pet_analysis_space, 'transform_2')
+                self.workflow.connect(self.tfm_node, self.mri_stx_tfm, pet_analysis_space, 'transform_2')
                 self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name,  pet_analysis_space, 'reference_image')
         else : 
             self.pet_input_node=self.datasource
@@ -225,11 +229,10 @@ class Workflows:
             exit(1)
 
         self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_nat', self.masking, "inputnode.mri_space_nat")
-        self.workflow.connect(self.t1mni_node, self.t1mni_file, self.masking, "inputnode.tfm_mri_stx")
-        self.workflow.connect(self.t1mni_node, self.mnit1_file, self.masking, "inputnode.tfm_stx_mri")
+        self.workflow.connect(self.tfm_node, self.mri_stx_tfm, self.masking, "inputnode.tfm_mri_stx")
+        self.workflow.connect(self.tfm_node, self.stx_mri_tfm, self.masking, "inputnode.tfm_stx_mri")
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.masking, 'inputnode.pet_header_json')
         self.workflow.connect(self.pet2mri, "out_matrix", self.masking, "inputnode.tfm_pet_mri")
-        self.workflow.connect(self.pet2mri, "out_matrix_inverse", self.masking, "inputnode.tfm_mri_pet")
         self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name, self.masking, "inputnode.mri_space_stx")
         self.workflow.connect(self.brain_mask_space_stx_node, self.brain_mask_space_stx_file, self.masking, "inputnode.brain_mask_space_stx")
         self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.masking, "inputnode.brain_mask_space_mri")
@@ -513,12 +516,12 @@ class Workflows:
         self.datasourcePET.inputs.field_template = {}
         self.datasourcePET.inputs.template_args = {}
 
-        pet_str = opts.sourceDir+os.sep+'sub-%s/pet/sub-%s' #Testing without ses- as mandatory field
+        pet_str = opts.sourceDir+os.sep+'sub-%s/pet/sub-%s' 
         pet_list = ['sid', 'sid' ]
         if len(opts.sessionList) != 0: 
             pet_str = pet_str + '*ses-%s'
             pet_str=re.sub('/pet/','/ses-%s/pet/',pet_str)
-            pet_list.insert('ses',1)
+            pet_list.insert(1, 'ses')
             pet_list += ['ses'] 
         if len(opts.taskList) != 0: 
             pet_str = pet_str + '*task-%s'
@@ -563,20 +566,22 @@ class Workflows:
     ###################
     def set_datasource_anat(self, opts) :  
         ### Use DataGrabber to get key input files
-        self.base_anat_outputs  = ['mri', 'tfm_mri_stx','brain_mask_space_stx', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
+        self.base_anat_outputs  = ['mri', 'tfm_mri_stx','tfm_stx_mri','brain_mask_space_stx', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
         self.datasourceAnat = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_anat_outputs, raise_on_empty=True, sort_filelist=False), name="datasourceAnat")
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
 
-
-        mri_str = opts.sourceDir+os.sep+'sub-%s/anat/sub-%s' #Testing without ses- as mandatory field
-        mri_list = ['sid', 'sid' ]
+        base_label_template=opts.sourceDir+os.sep+'sub-%s/DIR/sub-%s'
+        base_template_args=['sid','sid']
 
         if len(opts.sessionList) != 0: 
-            mri_str = mri_str + '*ses-%s'
-            mri_str=re.sub('/anat/','/ses-%s/anat/',mri_str)
-            mri_list.insert('ses',1)
-            mri_list += ['ses'] 
+            base_label_template = re.sub('DIR', '*ses-%s/DIR/', base_label_template)
+            base_label_template +=  '*ses-%s' 
+            base_template_args.insert(1, 'ses')
+            base_template_args += ['ses'] 
+        
+        mri_list = base_template_args
+        mri_str = re.sub('DIR', 'anat', base_label_template)
 
         self.datasourceAnat.inputs.field_template={
                 "mri":mri_str+"*_T1w.nii*"
@@ -585,19 +590,20 @@ class Workflows:
         self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 
         if opts.pvc_label_type != "internal_cls" :
-            self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts)
+            self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts, base_label_template, base_template_args)
 
         if opts.tka_label_type != "internal_cls" :
-            self.set_label(opts.tka_label_type , opts.tka_label_img, opts.tka_label_template, 'tka_label_img', 'tka_label_template', opts)
+            self.set_label(opts.tka_label_type , opts.tka_label_img, opts.tka_label_template, 'tka_label_img', 'tka_label_template', opts, base_label_template, base_template_args)
 
         if opts.results_label_type != "internal_cls" :
-            self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts)
+            self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts, base_label_template, base_template_args)
 
         if opts.user_mri_stx != '' :
-            self.set_transform(opts)
+            tfm_label_template=re.sub('DIR', 'transforms', base_label_template )
+            self.set_transform(opts, tfm_label_template, base_template_args)
 
         if opts.user_brainmask :
-            self.set_brain_mask(opts)
+            self.set_brain_mask(opts, mri_str, base_template_args)
         
         #Create connections bettween infosource and datasourceAnat
         self.workflow.connect([
@@ -607,7 +613,7 @@ class Workflows:
     #
     # Set Labels for datasourceAnat
     #
-    def set_label(self, label_type, img, template, label_img, template_img, opts) :
+    def set_label(self, label_type, img, template, label_img, template_img, opts, base_label_template, base_template_args) :
         '''
         updates datasourceT1 with the appropriate field_template and template_args to find the desired
         3D image volume with labels for particular processing stage (pvc, tka/quant, results)
@@ -615,10 +621,8 @@ class Workflows:
         field_template={}
         template_args={}
         if label_type == 'user_cls' :
-            label_img_template=opts.sourceDir+os.sep+'*sub-%s/*ses-%s/anat/sub-%s_ses-%s'
-            template_args[label_img]=[['sid', 'ses', 'sid', 'ses'] ] 
-            label_img_template +='*'+img+'*.'+opts.img_ext+'*'
-            field_template[label_img] = label_img_template
+            template_args[label_img]=[ base_template_args + [img] ] 
+            field_template[label_img] = base_label_template + '*%s*'
         elif label_type == 'atlas' or label_type == 'atlas-template' :
             field_template[label_img] = "%s"
             template_args[label_img] = [[img]]       
@@ -634,7 +638,7 @@ class Workflows:
     #
     # Set Brain Mask for datasourceAnat
     #
-    def set_brain_mask(self, opts) :
+    def set_brain_mask(self, opts, base_label_template, base_template_args) :
         field_template={}
         template_args={}
 
@@ -655,24 +659,24 @@ class Workflows:
     #
     # Set transformation files for datasourceAnat
     #
-    def set_transform(self, opts):
+    def set_transform(self, opts, base_label_template, base_template_args):
         field_template={}
         template_args={}
-        label_template = opts.sourceDir+os.sep+'sub-%s/*ses-%s/transforms/sub-%s_ses-%s'
-        template_args["tfm_mri_stx"] = [['sid', 'ses', 'sid', 'ses' ]]
-        template_args["tfm_mri_stx"] = [['sid', 'ses', 'sid', 'ses' ]]
-    
-        if opts.user_mri_stx == 'nl' :
-            label_template = label_template + '*target-MNI_warp.nii*' 
-            #inv_label_template = label_template + '*target-T1_warp.nii*'
-        elif opts.user_mri_stx == 'lin' : 
-            label_template = label_template + '*target-MNI_affine.h5' 
-            #inv_label_template = label_template + '*target-T1_affine.h5'
-        else :
-            print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
-            exit(1)
-        field_template["tfm_mri_stx"] = label_template
-        #field_template["tfmMNIMNI"] = inv_label_template
+        label_template = base_label_template
+        template_args["tfm_mri_stx"] = [base_template_args]
+        template_args["tfm_stx_mri"] = [base_template_args]
+        
+        mri_stx_template = label_template + '*to-MNI152*mode-image_xfm.h5' 
+        stx_mri_template = label_template + '*to-T1w*mode-image_xfm.h5' 
+        #if opts.user_mri_stx == 'nl' :
+        #    label_template = label_template + '*_xfm.h5' 
+        #elif opts.user_mri_stx == 'lin' : 
+        #    label_template = label_template + '*_xfm.h5' 
+        #else :
+        #    print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
+        #    exit(1)
+        field_template["tfm_mri_stx"] = mri_stx_template
+        field_template["tfm_stx_mri"] = stx_mri_template
 
         self.datasourceAnat.inputs.field_template.update(field_template)
         self.datasourceAnat.inputs.template_args.update(template_args)

@@ -34,7 +34,7 @@ def get_pvc_workflow(name, infosource, opts):
     mask_source=inputnode
     mask_file="mask_file"
 
-    ### Quantification module
+    ### Add partial-volume correction module
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))+"/methods" )
     pvc_module_fn="pvc_method_"+opts.pvc_method #+".py"
 
@@ -55,7 +55,6 @@ def get_pvc_workflow(name, infosource, opts):
         workflow.connect(inputnode, 'mask_file', separate_mask_labelsNode, 'in_file' )
         mask_source=separate_mask_labelsNode
         mask_file="out_file"
-
     pet_source = inputnode
     pet_file = "in_file"
     

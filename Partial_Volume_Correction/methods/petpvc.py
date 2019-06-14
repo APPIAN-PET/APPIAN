@@ -87,6 +87,7 @@ class petpvc4DCommand(BaseInterface):
             petpvcNode.inputs.iterations  = self.inputs.iterations
             petpvcNode.inputs.in_file = self.inputs.in_file
             petpvcNode.inputs.out_file= self.inputs.out_file
+            petpvcNode.inputs.mask_file= self.inputs.mask_file
             petpvcNode.inputs.pvc= self._suffix
             print(petpvcNode.cmdline)
             petpvcNode.run()

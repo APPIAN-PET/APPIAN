@@ -1,0 +1,5 @@
+antsRegistration --verbose 1 --float --collapse-output-transforms 1 --dimensionality 3 --initial-moving-transform [ fixed_image, moving_image, 1 ] --initialize-transforms-per-stage 0 --interpolation interpolation_method 
+    --transform Rigid[ 0.1 ] --metric Mattes[ fixed_image, moving_image, 1, 32, Regular, 0.3 ] --convergence [ 250x200x100, 1e-08, 20 ] --smoothing-sigmas 4.0x2.0x1.0vox --shrink-factors 4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 
+    --transform Affine[ 0.1 ] --metric Mattes[ fixed_image, moving_image, 1, 32, Regular, 0.3 ] --convergence [ 500x250x200 , 1e-08, 20 ] --smoothing-sigmas 4.0x2.0x1.0vox --shrink-factors 4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 
+    --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ fixed_image, moving_image, 0.75, 64, None ]  --convergence [ 500x400x300x200x100, 1e-6,10 ] --smoothing-sigmas 4.0x3.0x2.0x1.0x0.0vox --shrink-factors 8x6x4x2x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1
+    --output [ transform, warped_image, inverse_warped_image ] 

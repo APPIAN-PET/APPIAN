@@ -134,7 +134,7 @@ class Workflows:
             #ANTS TFM
             self.tfm_node = self.mri_preprocess
             self.mri_stx_tfm='outputnode.tfm_mri_stx'       
-            self.stx_mri_tfm='outputnode.tfm_stx_tfm'       
+            self.stx_mri_tfm='outputnode.tfm_stx_mri'       
             
             self.out_img_list += [ "mri_spatial_normalized.warped_image" ]
             self.mri_space_stx_name = "mri_spatial_normalized.warped_image" 

@@ -257,7 +257,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "tfm_mri_pet", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]

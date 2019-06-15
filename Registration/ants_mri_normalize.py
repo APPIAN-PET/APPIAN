@@ -15,6 +15,7 @@ from scipy.io import loadmat
 import nipype.pipeline.engine as pe
 import SimpleITK as sitk
 import os
+import re
 
 
 class APPIANCompositeTransformUtilInputSpec(CompositeTransformUtilInputSpec) :
@@ -158,20 +159,31 @@ class APPIANRegistration(BaseInterface):
 
     def user_command_line(self) :
         cmdline=''
-        if os.path.exits(self.inputs.user_ants_normalization) :
+        if not os.path.exists(self.inputs.user_ants_normalization) :
+            print("Error : could not read --user-ants-normalization file specified by user ", self.inputs.user_ants_normalization)
+            exit(1)
+        else :
             with open(self.inputs.user_ants_normalization) as f:
                 for l in f.readlines():
-                    if not l.startswith('#') :
-                        cmdline += ' ' + l  
-        replacement=[   ['<fixed_image>',self.inputs.fixed_image], 
-                        ['<moving_image>',self.inputs.moving_image],
-                        ['<fixed_image_mask>', self.inputs.fixed_image_mask], 
-                        ['<moving_image_mask>', self.inputs.moving_image_mask], 
-                        ['<composite_transform>', self.inputs.composite_transform], 
-                        ['<inverse_composite_transform>', self.inputs.inverse_composite_transform]
+                    print('read', l)
+                    cmdline += ' ' + l.rstrip("\n")  
+
+        replacement=[   ['fixed_image',self.inputs.fixed_image], 
+                        ['moving_image',self.inputs.moving_image],
+                        ['fixed_image_mask', self.inputs.fixed_image_mask], 
+                        ['moving_image_mask', self.inputs.moving_image_mask], 
+                        ['composite_transform', self.inputs.composite_transform], 
+                        ['inverse_composite_transform', self.inputs.inverse_composite_transform],
+                        ['inverse_warped_image', self.inputs.inverse_warped_image], 
+                        #Warning, inverse_warped_image must be subsituted before warped_image
+                        ['warped_image', self.inputs.warped_image],
+                        ['interpolation_method', self.inputs.interpolation]
                         ]
         for string, variable in replacement :
-            cmdline = re.sub(string, variable, cmdline)
+            if isdefined(variable) :
+                cmdline = re.sub(string, variable, cmdline) 
+        
+        print("User provided ANTs command line")
         return cmdline
 
     def default_command_line(self):
@@ -192,7 +204,7 @@ class APPIANRegistration(BaseInterface):
        
         ### Non-linear
         if  self.inputs.normalization_type == 'nl':
-            cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 1x1x1x1, 1e-6,10 ] --smoothing-sigmas 3.0x2.0x1.0x0.0vox --shrink-factors 8x4x2x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
+            cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 500x400x300x200, 1e-6,10 ] --smoothing-sigmas 3.0x2.0x1.0x0.0vox --shrink-factors 8x4x2x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
         
         output = " --output [ transform, "+self.inputs.warped_image+", "+self.inputs.inverse_warped_image+" ] "
         
@@ -225,9 +237,8 @@ class APPIANRegistration(BaseInterface):
             cmdline = self.user_command_line()
         else :
             cmdline = self.default_command_line()
-        
         #Run antsRegistration on command line
-        print(cmdline)
+        print("Ants command line:\n", cmdline)
         p = cmd(cmdline)	
          
         if self.inputs.normalization_type in ['rigid', 'affine']:
@@ -240,18 +251,23 @@ class APPIANRegistration(BaseInterface):
 
         return runtime
 
+    def _create_output_file(self, fn, space):
+        basefn = os.path.basename(fn) 
+        if not '_space-' in basefn :
+            basefn_split = splitext(basefn)
+            return basefn_split[0] + '_space-' + space + basefn_split[1]
+        else : 
+            return '_'.join( [ f  if not 'space-' in f else 'space-'+space for f in basefn.split('_') ] )
+
     def _set_inputs(self):
-        self.inputs.warped_image=os.getcwd()+os.sep+'transform_Warped.nii.gz'
-        self.inputs.inverse_warped_image=os.getcwd()+os.sep+'transform_InverseWarped.nii.gz'
+        self.inputs.warped_image=os.getcwd()+os.sep+ self._create_output_file(self.inputs.moving_image,'stx' )
+        self.inputs.inverse_warped_image=os.getcwd()+os.sep+self._create_output_file(self.inputs.fixed_image, 'T1w' )
         if self.inputs.normalization_type == 'nl' :
             self.inputs.composite_transform=os.getcwd()+os.sep+'transformComposite.h5'
             self.inputs.inverse_composite_transform=os.getcwd()+os.sep+'transformInverseComposite.h5'
         else :
             self.inputs.out_matrix=os.getcwd()+os.sep+'transform0GenericAffine.mat'
             self.inputs.out_matrix_inverse=os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat'
-        #print(self.inputs)
-        #exit(0)
-
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

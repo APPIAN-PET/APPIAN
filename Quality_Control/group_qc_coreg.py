@@ -34,7 +34,6 @@ import nipype.interfaces.io as nio
 import Quality_Control.pvc_qc as pvc_qc
 import Quality_Control.tka_qc as tka_qc
 import Results_Report.results as results
-import Registration.registration as reg
 from Extra.concat import concat_df
 
 ######################

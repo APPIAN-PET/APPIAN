@@ -220,7 +220,7 @@ def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_o
     elif label_space == 'stereo' :
         label_brain_mask_node = inputnode
         label_brain_mask_file = 'brain_mask_space_stx'
-    elif label_space == 'mri' :
+    elif label_space == 't1' :
         label_brain_mask_node = inputnode
         label_brain_mask_file = 'brain_mask_space_mri'
 

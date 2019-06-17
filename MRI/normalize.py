@@ -37,9 +37,9 @@ def get_workflow(name, opts):
     if opts.user_mri_stx :
         in_fields += ['tfm_mri_stx', 'tfm_stx_mri']
 
-    label_types = [opts.tka_label_type, opts.pvc_label_type, opts.results_label_type]
-    stages = ['tka', 'pvc', 'results']
-    label_imgs= [opts.tka_label_img, opts.pvc_label_img, opts.results_label_img  ]
+    label_types = [opts.quant_label_type, opts.pvc_label_type, opts.results_label_type]
+    stages = ['quant', 'pvc', 'results']
+    label_imgs= [opts.quant_label_img, opts.pvc_label_img, opts.results_label_img  ]
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
@@ -66,11 +66,13 @@ def get_workflow(name, opts):
         workflow.connect(inputnode, 'mri', n4, 'output_image')
     if opts.user_mri_stx == '':
         mri2template = pe.Node(interface=APPIANRegistration(), name="mri_spatial_normalized")
+        mri2template.inputs.moving_image_space="T1w"
+        mri2template.inputs.fixed_image_space="stx"
         mri2template.inputs.fixed_image_mask = icbm_default_brain
         mri2template.inputs.fixed_image = opts.template
         workflow.connect(n4, 'output_image', mri2template, 'moving_image')
-        if opts.user_ants_normalization != None :
-            mri2template.inputs.user_ants_normalization = opts.user_ants_normalization
+        if opts.user_ants_command != None :
+            mri2template.inputs.user_ants_command = opts.user_ants_command
         if opts.normalization_type :
             mri2template.inputs.normalization_type = opts.normalization_type
 

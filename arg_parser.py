@@ -17,6 +17,7 @@ internal_cls_methods=["antsAtropos"]
 file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
 icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
+icbm_default_brain_mask=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -69,7 +70,7 @@ def get_parser():
     parser.add_argument("--n4-convergence-threshold", dest="n4_convergence_threshold",type=float,help="Convergence threshold for N4 correction", default=1e-6)
 
     parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
-    parser.add_argument("--user-ants-normalization", dest="user_ants_normalization",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
+    parser.add_argument("--user-ants-command", dest="user_ants_command",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
     parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     
@@ -98,6 +99,7 @@ def get_parser():
     parser.add_argument("--threads",dest="num_threads",type=int,help="Number of threads to use. (defult=1)",default=1)
     
     parser.add_argument("--stereotaxic-template", dest="template",type=str,help="Template image in stereotaxic space",default=icbm_default_template)
+    parser.add_argument("--stereotaxic-template-brain-mask", dest="template_brain_mask",type=str,help="Template image in stereotaxic space",default=icbm_default_brain_mask)
     parser.add_argument("--datasource-exit",dest="datasource_exit",help="Stop scan level processing after initialization of datasources", action='store_true', default=False)
     parser.add_argument("--initialize-exit",dest="initialize_exit",help="Stop scan level processing after PET initialization", action='store_true', default=False)
     parser.add_argument("--coregistration-exit",dest="coregistration_exit",help="Stop scan level processing after coregistration", action='store_true', default=False)
@@ -126,13 +128,13 @@ def get_parser():
 
     # Quantification
     #group= OptionGroup(parser,"Masking options","Quantification")
-    parser.add_argument("--tka-label-space","--quant-label-space", dest="tka_label_space",help=label_space_help,default='stereo', choices=spaces)
-    parser.add_argument("--tka-label-img","--quant-label-img",dest="tka_label_img", help=label_img_help, type=str,default='antsAtropos')
-    parser.add_argument("--tka-label-template","--quant-label-template",dest="tka_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
-    parser.add_argument("--tka-label","--quant-label",dest="tka_labels",help="Label values to use for TKA", default=[3], nargs='+' )
-    parser.add_argument("--tka-label-erosion","--quant-label-erosion",dest="tka_erode_times",help="Number of times to erode label", type=int, default=0 )
-    parser.add_argument("--tka-labels-brain-only","--quant-label-brain-only",dest="tka_labels_brain_only",help="Mask tka labels with brain mask",action='store_true',default=False)
-    parser.add_argument("--tka-labels-ones-only","--quant-labels-ones-only",dest="tka_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
+    parser.add_argument("--quant-label-space","--quant-label-space", dest="quant_label_space",help=label_space_help,default='stereo', choices=spaces)
+    parser.add_argument("--quant-label-img","--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--quant-label-template","--quant-label-template",dest="quant_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
+    parser.add_argument("--quant-label","--quant-label",dest="quant_labels",help="Label values to use for TKA", default=[], nargs='+' )
+    parser.add_argument("--quant-label-erosion","--quant-label-erosion",dest="quant_erode_times",help="Number of times to erode label", type=int, default=0 )
+    parser.add_argument("--quant-labels-brain-only","--quant-label-brain-only",dest="quant_labels_brain_only",help="Mask quant labels with brain mask",action='store_true',default=False)
+    parser.add_argument("--quant-labels-ones-only","--quant-labels-ones-only",dest="quant_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
     
 
     #Results
@@ -177,38 +179,38 @@ def get_parser():
 
     #TKA Options
     #group= OptionGroup(parser,"Quantification options")
-    parser.add_argument("--tka-method","--quant-method",dest="tka_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
-    parser.add_argument("--tka-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
+    parser.add_argument("--quant-method","--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
-    parser.add_argument("--k2",dest="tka_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
-    parser.add_argument("--k2s",dest="tka_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
-    parser.add_argument("--thr",dest="tka_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
-    parser.add_argument("--max",dest="tka_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type=float, default=None)
+    parser.add_argument("--k2",dest="quant_k2",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
+    parser.add_argument("--k2s",dest="quant_k2s",help="With reference region input it may be necessary to specify also the population average for regerence region k2",type=float, default=None)
+    parser.add_argument("--thr",dest="quant_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
+    parser.add_argument("--max",dest="quant_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type=float, default=None)
     
-    parser.add_argument("--R1",dest="tka_R1",help="Program computes also an R1 image.",type=str, default=None)
-    parser.add_argument("--rp",dest="tka_rp",help="Program writes regression parameters in the specified image file.",type=str, default=None)
-    parser.add_argument("--dual",dest="tka_dual",help="Instead of BP, program saves the DVR (=BP+1) values.",type=str, default=None)
-    parser.add_argument("--DVR",dest="tka_DVR",help="Program writes number of i in set p in NNLS dual solution vector in the specified image file",action='store_const', const=True, default=False)
-    parser.add_argument("--no-srtm2",dest="tka_srtm2",help="STRM2 method is applied by default, this option will turn it off. In brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
-    parser.add_argument("--bf",dest="tka_bf",help="Basis function curves are written in specified file.",type=str, default=None)
-    parser.add_argument("--err",dest="tka_err",help="Errors are written in specified file.",type=str, default=None)
-    parser.add_argument("--noneg",dest="tka_noneg",help="Pixels with negative BP values are set to zero.", action='store_const', const=True, default=None)
-    parser.add_argument("--wss",dest="tka_wss",help="Weighted sum-of-squares are written in specified image file.",type=str, default=None)
-    parser.add_argument("--min",dest="tka_min",help="Lower limit for Vt or DVR values, 0 by default",type=float, default=None)
-    parser.add_argument("--t3max",dest="tka_t3max",help="Upper limit for theta3, 0.01 by default",type=float, default=None)
-    parser.add_argument("--t3min",dest="tka_t3min",help="Lower limit for theta3, 0.001 by default",type=float, default=None)
-    parser.add_argument("--nBF",dest="tka_nBF",help="Number of basis functions.",type=int, default=None)
-    parser.add_argument("--filter",dest="tka_filter",help="Remove parametric pixel values that over 4x higher than their closest neighbours.",action='store_const',const=True, default=None)
-    parser.add_argument("--reg-end",dest="tka_end",help="By default line is fit to the end of data. Use this option to enter the fit end time (in min).",type=float, default=None)
-    parser.add_argument("--y-int",dest="tka_v",help="Y-axis intercepts time -1 are written as an image to specified file.",type=str, default=None)
-    parser.add_argument("--num",dest="tka_n",help="Numbers of selected plot data points are written as an image.",type=str, default=None)
-    parser.add_argument("--Ca",dest="tka_Ca",help="Concentration of native substrate in arterial plasma (mM).",type=float, default=None)
-    parser.add_argument("--LC",dest="tka_LC",help="Lumped constant in MR calculation; default is 1.0.",type=float, default=None)
-    parser.add_argument("--density",dest="tka_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type=float, default=None)
+    parser.add_argument("--R1",dest="quant_R1",help="Program computes also an R1 image.",type=str, default=None)
+    parser.add_argument("--rp",dest="quant_rp",help="Program writes regression parameters in the specified image file.",type=str, default=None)
+    parser.add_argument("--dual",dest="quant_dual",help="Instead of BP, program saves the DVR (=BP+1) values.",type=str, default=None)
+    parser.add_argument("--DVR",dest="quant_DVR",help="Program writes number of i in set p in NNLS dual solution vector in the specified image file",action='store_const', const=True, default=False)
+    parser.add_argument("--no-srtm2",dest="quant_srtm2",help="STRM2 method is applied by default, this option will turn it off. In brief, traditional SRTM method is used first to calculate median k2 from all pixels where BPnd>0; then SRTM is run another time with fixed k2.",action='store_const', const=False, default=True)
+    parser.add_argument("--bf",dest="quant_bf",help="Basis function curves are written in specified file.",type=str, default=None)
+    parser.add_argument("--err",dest="quant_err",help="Errors are written in specified file.",type=str, default=None)
+    parser.add_argument("--noneg",dest="quant_noneg",help="Pixels with negative BP values are set to zero.", action='store_const', const=True, default=None)
+    parser.add_argument("--wss",dest="quant_wss",help="Weighted sum-of-squares are written in specified image file.",type=str, default=None)
+    parser.add_argument("--min",dest="quant_min",help="Lower limit for Vt or DVR values, 0 by default",type=float, default=None)
+    parser.add_argument("--t3max",dest="quant_t3max",help="Upper limit for theta3, 0.01 by default",type=float, default=None)
+    parser.add_argument("--t3min",dest="quant_t3min",help="Lower limit for theta3, 0.001 by default",type=float, default=None)
+    parser.add_argument("--nBF",dest="quant_nBF",help="Number of basis functions.",type=int, default=None)
+    parser.add_argument("--filter",dest="quant_filter",help="Remove parametric pixel values that over 4x higher than their closest neighbours.",action='store_const',const=True, default=None)
+    parser.add_argument("--reg-end",dest="quant_end",help="By default line is fit to the end of data. Use this option to enter the fit end time (in min).",type=float, default=None)
+    parser.add_argument("--y-int",dest="quant_v",help="Y-axis intercepts time -1 are written as an image to specified file.",type=str, default=None)
+    parser.add_argument("--num",dest="quant_n",help="Numbers of selected plot data points are written as an image.",type=str, default=None)
+    parser.add_argument("--Ca",dest="quant_Ca",help="Concentration of native substrate in arterial plasma (mM).",type=float, default=None)
+    parser.add_argument("--LC",dest="quant_LC",help="Lumped constant in MR calculation; default is 1.0.",type=float, default=None)
+    parser.add_argument("--density",dest="quant_density",help="Tissue density in MR calculation; default is 1.0 g/ml.",type=float, default=None)
     parser.add_argument("--arterial",dest="arterial",help="Use arterial input input.", action='store_true', default=False)
-    parser.add_argument("--start-time",dest="tka_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type=float, default=None)
-    parser.add_argument("--end-time",dest="tka_end_time",help="End time for quantification.",type=float, default=None)
-    parser.add_argument("--tka-type",dest="tka_type",help="Type of tka analysis: voxel or roi.",type=str, default="voxel")
+    parser.add_argument("--start-time",dest="quant_start_time",help="Start time of either regression in MTGA or averaging time for SUV.",type=float, default=None)
+    parser.add_argument("--end-time",dest="quant_end_time",help="End time for quantification.",type=float, default=None)
+    parser.add_argument("--quant-type",dest="quant_type",help="Type of quant analysis: voxel or roi.",type=str, default="voxel")
     
 
     #Quality Control 
@@ -302,11 +304,11 @@ def modify_opts(opts) :
     #Check inputs for PVC masking 
     opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_template, opts.pvc_label_space)
     #Check inputs for TKA masking
-    opts.tka_label_type, opts.tka_label_space = check_masking_options(opts, opts.tka_label_img, opts.tka_label_template, opts.tka_label_space)
+    opts.quant_label_type, opts.quant_label_space = check_masking_options(opts, opts.quant_label_img, opts.quant_label_template, opts.quant_label_space)
     #Check inputs for results masking
     opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_template, opts.results_label_space)
     #Set default label for atlas ROI
-    masks={ "tka":[opts.tka_label_type, opts.tka_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
+    masks={ "quant":[opts.quant_label_type, opts.quant_label_img], "pvc":[opts.pvc_label_type, opts.pvc_label_img], "results": [opts.results_label_type, opts.results_label_img] }
 
     ###Check PVC options and set defaults if necessary
     if opts.pvc_method != None : 
@@ -327,9 +329,9 @@ def modify_opts(opts) :
 
 
     printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
-    #FIXME Depreceating tka_method in favor of quant_method
-    #Creating the opts.quant_method to start transition away from using tka_method
-    opts.quant_method = opts.tka_method
+    #FIXME Depreceating quant_method in favor of quant_method
+    #Creating the opts.quant_method to start transition away from using quant_method
+    opts.quant_method = opts.quant_method
     return opts
 
 

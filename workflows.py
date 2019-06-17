@@ -7,11 +7,10 @@ from MRI import normalize
 from Extra.conversion import nii2mnc2Command
 from Registration.ants_mri_normalize import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
 import nipype.interfaces.minc as minc
-import Registration.registration as reg
 import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
-import Tracer_Kinetic.tka as tka
+import Quantification.quantification as quant
 import Quality_Control.qc as qc
 import Quality_Control.dashboard as dash
 import Test.test_group_qc as tqc
@@ -49,6 +48,7 @@ class Workflows:
         (self.set_datasource_base, opts.datasource_exit, True),
         (self.set_init_pet, opts.initialize_exit, True ),
         (self.set_mri_preprocess, opts.mri_preprocess_exit, True),
+        (self.set_template_normalization, False, True),
         (self.set_pet2mri, opts.coregistration_exit, True),
         (self.set_masking, opts.masking_exit, True),
         (self.set_pvc, opts.pvc_exit, opts.pvc_method),
@@ -89,6 +89,46 @@ class Workflows:
                 if return_early_flag :
                     return(0)
 
+    ##########################
+    # Template normalization #
+    ##########################
+    def set_template_normalization(self, opts):
+
+        #Setup node for nonlinear alignment of results template to default (icbm152) template
+        self.pvc_template_normalization = pe.Node(interface=APPIANRegistration(), name="pvc_template_normalizationalization")
+        self.quant_template_normalization = pe.Node(interface=APPIANRegistration(), name="quant_template_normalizationalization")
+        self.results_template_normalization = pe.Node(interface=APPIANRegistration(), name="results_template_normalizationalization")
+
+        #name of label type
+        names=["quant", "pvc", "results"]
+        #type of label
+        types=[opts.quant_label_type, opts.pvc_label_type, opts.results_label_type]
+        #nipype nodes that need to be initialized with appropriate parameters
+        nodes=[self.quant_template_normalization, self.pvc_template_normalization, self.results_template_normalization]
+        #user defined template images that will be normalized to standard stereotaxic template
+        moving_images=[opts.quant_label_template, opts.pvc_label_template, opts.results_label_template]
+
+        for label_name, label_type, node, moving_image in zip(names, types, nodes, moving_images ) : 
+            if label_type == "atlas-template" :
+                print label_name + "_template_normalization"
+                print label_name, label_type, moving_image
+                node.inputs.fixed_image_space='stx'
+                node.inputs.moving_image_space='template'
+                node.inputs.interpolation='Linear'
+                node.inputs.normalization_type = 'lin' #opts.normalization_type
+                node.inputs.moving_image = moving_image
+                node.inputs.fixed_image = opts.template 
+                node.inputs.fixed_image_mask = opts.template_brain_mask 
+
+                if opts.user_ants_command != None :
+                    node.inputs.user_ants_command = opts.user_ants_command
+
+                self.out_node_list += [node]
+                self.out_img_list += ['warped_image']
+                self.out_img_dim += ['3']
+                self.extract_values += [False]
+                self.datasink_dir_name += ['template_normalization/'+label_name]
+
     ######################
     # PET Initialization #
     ######################
@@ -112,11 +152,11 @@ class Workflows:
             self.brain_mask_space_stx_node = self.mri_preprocess
             self.brain_mask_space_stx_file='outputnode.brain_mask_space_stx'
 
-        self.out_node_list += [self.brain_mask_space_stx_node] 
-        self.out_img_list += [self.brain_mask_space_stx_file]
-        self.out_img_dim += ['3']
-        self.extract_values += [False]
-        self.datasink_dir_name += ['mri/brainmask']
+        self.out_node_list += [self.brain_mask_space_stx_node, self.mri_preprocess, self.mri_preprocess] 
+        self.out_img_list += [self.brain_mask_space_stx_file, 'mri_spatial_normalized.warped_image','mri_spatial_normalized.inverse_warped_image']
+        self.out_img_dim += ['3','3','3']
+        self.extract_values += [False,False,False]
+        self.datasink_dir_name += ['mri/mri_brain_mask', 'mri/mri2stx','mri/stx2mri']
 
         #If user wants to input their own mri space to mni space transform with the option --user-mrimni,
         #then the source node for the brain mask is datasource. Otherwise it is derived in 
@@ -151,6 +191,8 @@ class Workflows:
     #############################
     def set_pet2mri(self, opts) :
         self.pet2mri = pe.Node(interface=APPIANRegistration(), name="pet2mri")
+        self.pet2mri.inputs.moving_image_space='pet'
+        self.pet2mri.inputs.fixed_image_space='T1w'
         self.pet2mri.inputs.normalization_type='rigid'
         if opts.pet_brain_mask:
             workflow.connect(self.init_pet, 'pet_brain_mask',self.pet2mri, 'moving_image_mask')
@@ -180,14 +222,13 @@ class Workflows:
         #    self.misregistration = pe.Node(interface=niu.IdentityInterface(fields=['error']), name="misregistration")
         #    self.misregistration.iterables = ('error',tqc.errors)
         #    self.workflow.connect(self.misregistration, 'error', self.pet2mri, "inputnode.error")
-
         #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
-        self.out_node_list += [self.pet_input_node] 
-        self.out_img_list += [self.pet_input_file]
-        self.out_img_dim += ['4']
-        self.extract_values += [True]
-        self.datasink_dir_name += ['pet_coregistration']
+        self.out_node_list += [self.pet_input_node, self.pet2mri] 
+        self.out_img_list += [self.pet_input_file, 'inverse_warped_image']
+        self.out_img_dim += ['4', '3']
+        self.extract_values += [True, False]
+        self.datasink_dir_name += ['pet_coregistration', 't1']
 
     ###########
     # Masking #
@@ -198,12 +239,12 @@ class Workflows:
         # and for the source for the labels                                 
         #
         self.masking=masking.get_workflow("masking", self.infosource, opts)
-        if opts.tka_label_type in ['atlas', 'atlas-template', 'user_cls'] :
-            self.tka_label_node = self.datasource
-            self.tka_label_file = 'tka_label_img'
-        elif opts.tka_label_type == 'internal_cls' :
-            self.tka_label_node = self.mri_preprocess
-            self.tka_label_file = 'outputnode.tka_label_img'
+        if opts.quant_label_type in ['atlas', 'atlas-template', 'user_cls'] :
+            self.quant_label_node = self.datasource
+            self.quant_label_file = 'quant_label_img'
+        elif opts.quant_label_type == 'internal_cls' :
+            self.quant_label_node = self.mri_preprocess
+            self.quant_label_file = 'outputnode.quant_label_img'
         else :
             print("Error: pvc_label_type is not valid:", opts.pvc_label_type)
             exit(1)
@@ -228,6 +269,17 @@ class Workflows:
             print("Error: results_label_type is not valid:", opts.pvc_label_type)
             exit(1)
 
+        #If labels are being transformed from a non-standard template, pass the transform from the template coordinate
+        #space to the standard (MNI152) coordinate space.
+        if opts.pvc_label_type == 'atlas-template' :
+            self.workflow.connect(self.pvc_template_normalization, 'composite_transform', self.masking, 'inputnode.tfm_pvc_tmp_stx' )
+
+        if opts.quant_label_type == 'atlas-template':
+            self.workflow.connect(self.quant_template_normalization, 'composite_transform', self.masking, 'inputnode.tfm_quant_tmp_stx' )
+        
+        if opts.results_label_type == 'atlas-template':
+            self.workflow.connect(self.results_template_normalization, 'composite_transform', self.masking, 'inputnode.tfm_results_tmp_stx' )
+        
         self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_nat', self.masking, "inputnode.mri_space_nat")
         self.workflow.connect(self.tfm_node, self.mri_stx_tfm, self.masking, "inputnode.tfm_mri_stx")
         self.workflow.connect(self.tfm_node, self.stx_mri_tfm, self.masking, "inputnode.tfm_stx_mri")
@@ -242,8 +294,8 @@ class Workflows:
             self.workflow.connect(self.pvc_label_node, self.pvc_label_file, self.masking, "inputnode.pvc_label_img")
         if opts.quant_method != None :
             #If TKA method has been set, define binary masks for reference region
-            self.workflow.connect(self.preinfosource, 'tka_labels', self.masking, "inputnode.tka_labels")
-            self.workflow.connect(self.tka_label_node, self.tka_label_file, self.masking, "inputnode.tka_label_img")
+            self.workflow.connect(self.preinfosource, 'quant_labels', self.masking, "inputnode.quant_labels")
+            self.workflow.connect(self.quant_label_node, self.quant_label_file, self.masking, "inputnode.quant_label_img")
 
         #Results labels are always set
         self.workflow.connect(self.preinfosource, 'results_labels', self.masking, "inputnode.results_labels")
@@ -251,14 +303,16 @@ class Workflows:
         self.workflow.connect(self.results_label_node, self.results_label_file, self.masking, "inputnode.results_label_img")
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.masking, "inputnode.pet_volume")
 
-        # If <pvc/tka/results>_label_template has been set, this means that label_img[0] contains the file path
+        # If <pvc/quant/results>_label_template has been set, this means that label_img[0] contains the file path
         # to stereotaxic atlas and label_template contains the file path to the template image for the atlas
         if not opts.pvc_label_template == None and opts.pvc_method != None: 
             self.workflow.connect(self.datasource, "pvc_label_template", self.masking, "inputnode.pvc_label_template")
-        if not opts.tka_label_template == None and opts.quant_method != None: 
-            self.workflow.connect(self.datasource, "tka_label_template", self.masking, "inputnode.tka_label_template")
+        if not opts.quant_label_template == None and opts.quant_method != None: 
+            self.workflow.connect(self.datasource, "quant_label_template", self.masking, "inputnode.quant_label_template")
         if not opts.results_label_template == None: 
             self.workflow.connect(self.datasource, "results_label_template", self.masking, "inputnode.results_label_template")
+
+
 
         #
         # Transform Surfaces 
@@ -294,7 +348,7 @@ class Workflows:
         else : 
             self.quant_target_wf = self.pet_input_node # #CHANGE
             self.quant_target_img= self.pet_input_file # ##CHANGE
-        self.quant=tka.get_tka_workflow("quantification", opts)
+        self.quant=quant.get_quant_workflow("quantification", opts)
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.quant, "inputnode.header")
         self.workflow.connect(self.masking, "resultsLabels.out_file", self.quant, "inputnode.mask") 
         self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "inputnode.in_file")
@@ -309,7 +363,7 @@ class Workflows:
         if opts.arterial :
             self.workflow.connect(self.datasource, 'arterial_file', self.quant, "inputnode.reference")
         else :     
-            self.workflow.connect(self.masking, 'tkaLabels.out_file', self.quant, "inputnode.reference")
+            self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "inputnode.reference")
 
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
@@ -408,15 +462,11 @@ class Workflows:
     #############
     def set_dashboard(self, opts) : 
         if opts.analysis_space == "pet":
-            t1_pet_space = pe.Node( APPIANApplyTransforms(), name="t1_pet_space" )
-            self.workflow.connect(self.mri_preprocess,'outputnode.mri_space_nat',t1_pet_space,"input_image")
-            self.workflow.connect(self.datasource,'pet',t1_pet_space,"reference_image")
-            self.workflow.connect(self.pet2mri, 'out_matrix_inverse', t1_pet_space,"transform_1")
-
-            self.t1_analysis_space = t1_pet_space
+            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
+            self.workflow.connect(self.pet2mri, "inverse_warped_image", self.t1_analysis_space,"output_image")
         elif opts.analysis_space == "t1":
             self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
-            self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_nat", self.t1_analysis_space,"ouput_image")
+            self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_nat", self.t1_analysis_space,"output_image")
         elif opts.analysis_space == "stereo":
             self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
             self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_stx", self.t1_analysis_space,"output_image")
@@ -438,19 +488,19 @@ class Workflows:
             self.dashboard.inputs.pvc_method = opts.pvc_method;
             self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
         if opts.quant_method != None:
-            self.dashboard.inputs.tka_method = opts.quant_method;
-            self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'tka')
+            self.dashboard.inputs.quant_method = opts.quant_method;
+            self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'quant')
     #####################
     ### Preinfosource ###
     #####################
     def set_preinfosource(self, opts):
-        self.preinfosource = pe.Node(interface=niu.IdentityInterface(fields=['args','ses','results_labels','tka_labels','pvc_labels', 'pvc_erode_times', 'tka_erode_times', 'results_erode_times']), name="preinfosource")
+        self.preinfosource = pe.Node(interface=niu.IdentityInterface(fields=['args','ses','results_labels','quant_labels','pvc_labels', 'pvc_erode_times', 'quant_erode_times', 'results_erode_times']), name="preinfosource")
         self.preinfosource.iterables = ( 'args', opts.task_valid_args )
         self.preinfosource.inputs.results_labels = opts.results_labels
-        self.preinfosource.inputs.tka_labels = opts.tka_labels
+        self.preinfosource.inputs.quant_labels = opts.quant_labels
         self.preinfosource.inputs.pvc_labels = opts.pvc_labels 
         self.preinfosource.inputs.results_erode_times = opts.results_erode_times
-        self.preinfosource.inputs.tka_erode_times = opts.tka_erode_times
+        self.preinfosource.inputs.quant_erode_times = opts.quant_erode_times
         self.preinfosource.inputs.pvc_erode_times = opts.pvc_erode_times
 
     ##################
@@ -488,8 +538,8 @@ class Workflows:
         if opts.pvc_method != None and opts.pvc_label_type != "internal_cls"  :
             self.workflow.connect(self.datasourceAnat, 'pvc_label_img', self.datasource, 'pvc_label_img')
         
-        if opts.quant_method != None and opts.tka_label_type != "internal_cls" :
-            self.workflow.connect(self.datasourceAnat, 'tka_label_img', self.datasource, 'tka_label_img')
+        if opts.quant_method != None and opts.quant_label_type != "internal_cls" :
+            self.workflow.connect(self.datasourceAnat, 'quant_label_img', self.datasource, 'quant_label_img')
         
         if opts.results_label_type != "internal_cls" :
             self.workflow.connect(self.datasourceAnat, 'results_label_img', self.datasource, 'results_label_img')
@@ -497,8 +547,8 @@ class Workflows:
         if opts.pvc_label_template != None :
             self.workflow.connect(self.datasourceAnat, 'pvc_label_template', self.datasource, 'pvc_label_template')
 
-        if opts.tka_label_template != None :
-            self.workflow.connect(self.datasourceAnat, 'tka_label_template', self.datasource, 'tka_label_template')
+        if opts.quant_label_template != None :
+            self.workflow.connect(self.datasourceAnat, 'quant_label_template', self.datasource, 'quant_label_template')
 
         if opts.results_label_template != None :
             self.workflow.connect(self.datasourceAnat, 'results_label_template', self.datasource, 'results_label_template')
@@ -566,7 +616,7 @@ class Workflows:
     ###################
     def set_datasource_anat(self, opts) :  
         ### Use DataGrabber to get key input files
-        self.base_anat_outputs  = ['mri', 'tfm_mri_stx','tfm_stx_mri','brain_mask_space_stx', "pvc_label_img", "tka_label_img", "results_label_img", "pvc_label_template", "tka_label_template", "results_label_template" ]
+        self.base_anat_outputs  = ['mri', 'tfm_mri_stx','tfm_stx_mri','brain_mask_space_stx', "pvc_label_img", "quant_label_img", "results_label_img", "pvc_label_template", "quant_label_template", "results_label_template" ]
         self.datasourceAnat = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_anat_outputs, raise_on_empty=True, sort_filelist=False), name="datasourceAnat")
         self.datasourceAnat.inputs.template = '*'
         self.datasourceAnat.inputs.base_directory = '/' # opts.sourceDir
@@ -592,8 +642,8 @@ class Workflows:
         if opts.pvc_label_type != "internal_cls" :
             self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts, base_label_template, base_template_args)
 
-        if opts.tka_label_type != "internal_cls" :
-            self.set_label(opts.tka_label_type , opts.tka_label_img, opts.tka_label_template, 'tka_label_img', 'tka_label_template', opts, base_label_template, base_template_args)
+        if opts.quant_label_type != "internal_cls" :
+            self.set_label(opts.quant_label_type , opts.quant_label_img, opts.quant_label_template, 'quant_label_img', 'quant_label_template', opts, base_label_template, base_template_args)
 
         if opts.results_label_type != "internal_cls" :
             self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts, base_label_template, base_template_args)
@@ -616,7 +666,7 @@ class Workflows:
     def set_label(self, label_type, img, template, label_img, template_img, opts, base_label_template, base_template_args) :
         '''
         updates datasourceT1 with the appropriate field_template and template_args to find the desired
-        3D image volume with labels for particular processing stage (pvc, tka/quant, results)
+        3D image volume with labels for particular processing stage (pvc, quant, results)
         '''
         field_template={}
         template_args={}

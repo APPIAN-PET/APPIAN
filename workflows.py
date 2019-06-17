@@ -119,7 +119,6 @@ class Workflows:
                 node.inputs.moving_image = moving_image
                 node.inputs.fixed_image = opts.template 
                 node.inputs.fixed_image_mask = opts.template_brain_mask 
-
                 if opts.user_ants_command != None :
                     node.inputs.user_ants_command = opts.user_ants_command
 

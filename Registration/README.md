@@ -33,12 +33,5 @@ In order for APPIAN to know how to "fill in" the appropriate file names and para
 | 'interpolation_method'        | interpolation method for resampling    |
 
 
-#### Coregistration Options
-
-```
---normalization-type
---user-ants-command
-
-```
 ##### Please cite the following paper for the coregistration stage
 Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANTS). Insight j, 2, pp.1-35.

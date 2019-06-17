@@ -26,7 +26,6 @@ from scipy.ndimage.morphology import binary_erosion
 from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
 
 
-icbm_default_brain=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii"
 
 class IdentityTransformInput(BaseInterfaceInputSpec):
     out_file  = File(desc="Labels in analysis space")
@@ -93,7 +92,11 @@ class Labels(BaseInterface):
         
         print("1", np.sum(label_img)) 
         print(self.inputs.labels)
-        _labels =[ int(i) for i in self.inputs.labels ]
+        if self.inputs.labels != [] :
+            _labels =[ int(i) for i in self.inputs.labels ]
+        #else : 
+        #    _labels = np.unique(label_img)
+
         #2. Remove labels not specified by user, if any have been provided
         if self.inputs.labels != [] :
             labels_to_remove =[ i for i in np.unique(label_img) if int(i) not in _labels ]
@@ -175,7 +178,7 @@ class Labels(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
+def get_transforms_for_stage(inputnode, label_name, label_space, label_type, analysis_space, identity):
     if label_space == analysis_space :
         tfm_node=[identity]
         transform_file=["out_file"]
@@ -185,6 +188,8 @@ def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
                 transform_file=["tfm_stx_mri"]
             elif analysis_space == "pet":
                 transform_file=['tfm_mri_pet', 'tfm_stx_mri']
+            if label_type == 'atlas-template' :
+                transform_file += ['tfm_'+label_name+'_tmp_stx']
         elif label_space == "t1":
             if analysis_space == "stereo":
                 transform_file=["tfm_mri_stx"]
@@ -200,7 +205,7 @@ def get_transforms_for_stage(inputnode, label_space, analysis_space, identity):
 
     return([tfm_node, transform_file])
 
-def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_only, tfm_node_list, tfm_file_list, label_template, default_template, normalization_type, like_file, brain_mask_node, workflow,inputnode, kind):
+def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_only, tfm_node_list, tfm_file_list, label_template,   like_file, brain_mask_node, workflow,inputnode, kind):
     LabelNode = pe.Node(interface=Labels(), name=kind+"Labels")
     LabelNode.inputs.analysis_space = analysis_space
     LabelNode.inputs.erode_times = erode_times
@@ -221,25 +226,10 @@ def set_label_node(analysis_space, label_space,  erode_times, brain_only, ones_o
         label_brain_mask_file = 'brain_mask_space_mri'
 
     workflow.connect(label_brain_mask_node, label_brain_mask_file, LabelNode, 'brain_mask')
-  
-    #Setup node for nonlinear alignment of results template to default (icbm152) template
-    if label_template != None :
-        template_norm = pe.Node(interface=APPIANRegistration(), name="template_normalization")
-        template_norm.inputs.interpolation='NearestNeighbor'
-        template_norm.inputs.normalization_type = normalization_type
-        workflow.connect(inputnode, kind+'_label_template', template_norm, 'moving_image')
-        template_norm.inputs.fixed_image = default_template
-        template_norm.inputs.fixed_image_mask = icbm_default_brain
-        tfm_node_list.append(template_norm)
-        if normalization_type == 'nl' :
-            template_tfm = 'composite_transform'
-        else : 
-            template_tfm = 'out_matrix'
-        tfm_file_list.append(template_tfm)
     
     tfm_index=1
     for node, tfm in zip(tfm_node_list, tfm_file_list) :
-        print("Label masking node:", node, "Transformation :", tfm)
+        print(kind,":, Label masking node:", node, "Transformation :", tfm)
         workflow.connect(node, tfm, LabelNode,'transform_'+str(tfm_index))
         tfm_index += 1
     return LabelNode
@@ -257,13 +247,13 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "tfm_mri_pet", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "tfm_mri_pet", "tfm_quant_tmp_stx", "tfm_pvc_tmp_stx","tfm_results_tmp_stx", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
-    if not opts.tka_method == None:
-        out_list += ["tka_label_img_t1", "tka_label_img_mni"]
-        in_list +=  ["tka_labels", "tka_label_space","tka_label_template","tka_label_img"]
+    if not opts.quant_method == None:
+        out_list += ["quant_label_img_t1", "quant_label_img_mni"]
+        in_list +=  ["quant_labels", "quant_label_space","quant_label_template","quant_label_img"]
     #Define input node that will receive input from outside of workflow
     inputnode = pe.Node(niu.IdentityInterface(fields=in_list), name='inputnode')
     #Define empty node for output
@@ -271,19 +261,14 @@ def get_workflow(name, infosource, opts):
     
     identity_transform = pe.Node(IdentityTransform(), name="identity_transform")
 
-    if opts.normalization_type == 'nl' :
-        template_tfm='composite_transform'
-    else :
-        template_tfm='out_matrix'
-
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode, opts.pvc_label_space, opts.analysis_space, identity_transform)
+        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc'. opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform)
 
-    if not opts.tka_method == None:
-       tka_tfm_node, tka_tfm_file = get_transforms_for_stage(inputnode, opts.tka_label_space, opts.analysis_space, identity_transform)
-
-    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, opts.results_label_space, opts.analysis_space, identity_transform)
+    if not opts.quant_method == None:
+       quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform)
+    print(quant_tfm_file)    
+    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, 'results', opts.results_label_space, opts.results_label_type, opts.analysis_space, identity_transform)
     
     ###################
     # Brain Mask Node #
@@ -307,7 +292,7 @@ def get_workflow(name, infosource, opts):
     else :
         print("Error: Analysis space must be one of pet,stereo,t1 but is",opts.analysis_space)
         exit(1)
-
+    
     #################
     # Surface masks #
     #################
@@ -329,15 +314,14 @@ def get_workflow(name, infosource, opts):
             workflow.connect(inputnode, "surf_left", surface_left_node, "output_file")
             workflow.connect(inputnode, "surf_right", surface_right_node, "output_file")
    
-    resultsLabels = set_label_node(opts.analysis_space, opts.results_label_space, opts.results_erode_times, opts.results_labels_brain_only, opts.results_labels_ones_only, results_tfm_node, results_tfm_file, opts.results_label_template, opts.template, opts.normalization_type,like_file, brain_mask_node,workflow,inputnode, "results")
+    resultsLabels = set_label_node(opts.analysis_space, opts.results_label_space, opts.results_erode_times, opts.results_labels_brain_only, opts.results_labels_ones_only, results_tfm_node, results_tfm_file, opts.results_label_template, like_file, brain_mask_node,workflow,inputnode, "results")
 
     if not opts.pvc_method == None :
-        pvcLabels = set_label_node(opts.analysis_space,opts.pvc_label_space, opts.pvc_erode_times, opts.pvc_labels_brain_only, opts.pvc_labels_ones_only, pvc_tfm_node, pvc_tfm_file, opts.pvc_label_template, opts.template, opts.normalization_type,like_file, brain_mask_node,workflow,inputnode, "pvc")
+        pvcLabels = set_label_node(opts.analysis_space,opts.pvc_label_space, opts.pvc_erode_times, opts.pvc_labels_brain_only, opts.pvc_labels_ones_only, pvc_tfm_node, pvc_tfm_file, opts.pvc_label_template, like_file, brain_mask_node,workflow,inputnode, "pvc")
 
         
-    if not opts.tka_method == None :
-        tkaLabels = set_label_node(opts.analysis_space, opts.tka_label_space, opts.tka_erode_times, opts.tka_labels_brain_only, opts.tka_labels_ones_only, tka_tfm_node, tka_tfm_file, opts.tka_label_template, opts.template, opts.normalization_type, like_file, brain_mask_node,workflow,inputnode, "tka")
-
+    if not opts.quant_method == None :
+        quantLabels = set_label_node(opts.analysis_space, opts.quant_label_space, opts.quant_erode_times, opts.quant_labels_brain_only, opts.quant_labels_ones_only, quant_tfm_node, quant_tfm_file, opts.quant_label_template,  like_file, brain_mask_node,workflow,inputnode, "quant")
 
 
 

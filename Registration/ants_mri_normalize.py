@@ -120,11 +120,8 @@ class APPIANConcatenateTransforms(BaseInterface):
         
         return runtime
         
-    
-
-
     def _list_outputs(self):
-	outputs = self.output_spec().get()
+        outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
@@ -139,9 +136,10 @@ class APPIANRegistrationInputs(BaseInterfaceInputSpec):
     inverse_composite_transform = traits.File(desc="Inverse composite transorfmation matrix")
     user_ants_normalization = traits.File(desc="User provided normalization file")
     normalization_type = traits.Str(desc="Type of registration: rigid, affine, nl", usedefault=True, default_value="nl")
-
+    moving_image_space = traits.Str(desc="Name of coordinate space for moving image", usedefault=True, default_value="source")
+    fixed_image_space = traits.Str(desc="Name of coordinate space for fixed image", usedefault=True, default_value="target")
     interpolation = traits.Str(desc="Type of registration: Linear, NearestNeighbor, MultiLabel[<sigma=imageSpacing>,<alpha=4.0>], Gaussian[<sigma=imageSpacing>,<alpha=1.0>], BSpline[<order=3>], CosineWindowedSinc, WelchWindowedSinc, HammingWindowedSinc, LanczosWindowedSinc, GenericLabel", usedefault=True, default_value="Linear")
-
+    
     out_matrix = traits.File(desc="Composite transorfmation matrix")
     out_matrix_inverse = traits.File(desc="Composite transorfmation matrix")
 
@@ -175,7 +173,7 @@ class APPIANRegistration(BaseInterface):
                         ['composite_transform', self.inputs.composite_transform], 
                         ['inverse_composite_transform', self.inputs.inverse_composite_transform],
                         ['inverse_warped_image', self.inputs.inverse_warped_image], 
-                        #Warning, inverse_warped_image must be subsituted before warped_image
+                        #Warning, inverse_warped_image must come before warped_image
                         ['warped_image', self.inputs.warped_image],
                         ['interpolation_method', self.inputs.interpolation]
                         ]
@@ -195,16 +193,17 @@ class APPIANRegistration(BaseInterface):
         cmdline="antsRegistration --verbose 1 --float --collapse-output-transforms 1 --dimensionality 3 --initial-moving-transform [ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1 ] --initialize-transforms-per-stage 0 --interpolation "+self.inputs.interpolation+' '
 
         ### Rigid
-        cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 10x5x2, 1e-08, 20 ] --smoothing-sigmas 3.0x2.0x1.0vox --shrink-factors 3x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
+        cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x250x200, 1e-08, 20 ] --smoothing-sigmas 8.0x4.0x2.0vox --shrink-factors 8x4x2 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
         #output = " --output [ transform ] "
 
         ### Affine
         if self.inputs.normalization_type == 'affine' or self.inputs.normalization_type == 'nl':
-            cmdline += " --transform Affine[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 10x5x2 , 1e-08, 20 ] --smoothing-sigmas 8.0x4.0x2.0vox --shrink-factors 4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
+            cmdline += " --transform Affine[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x400x300 , 1e-08, 20 ] --smoothing-sigmas 4.0x2.0x1.0vox --shrink-factors 4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
        
         ### Non-linear
         if  self.inputs.normalization_type == 'nl':
-            cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 500x400x300x200, 1e-6,10 ] --smoothing-sigmas 3.0x2.0x1.0x0.0vox --shrink-factors 8x4x2x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
+            #cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 100x100x100x100, 1e-6,10 ] --smoothing-sigmas 4.0x2.0x1.0x0.0vox --shrink-factors 4x2x1x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
+            cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 500x400x300x200, 1e-6,10 ] --smoothing-sigmas 4.0x2.0x1.0x0.0vox --shrink-factors 4x2x1x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
         
         output = " --output [ transform, "+self.inputs.warped_image+", "+self.inputs.inverse_warped_image+" ] "
         
@@ -231,7 +230,7 @@ class APPIANRegistration(BaseInterface):
         return 0 
 
     def _run_interface(self, runtime):
-        self._set_inputs()
+        self._set_outputs()
         #Setup ANTs command line arguments
         if isdefined(self.inputs.user_ants_normalization):
             cmdline = self.user_command_line()
@@ -259,9 +258,9 @@ class APPIANRegistration(BaseInterface):
         else : 
             return '_'.join( [ f  if not 'space-' in f else 'space-'+space for f in basefn.split('_') ] )
 
-    def _set_inputs(self):
-        self.inputs.warped_image=os.getcwd()+os.sep+ self._create_output_file(self.inputs.moving_image,'stx' )
-        self.inputs.inverse_warped_image=os.getcwd()+os.sep+self._create_output_file(self.inputs.fixed_image, 'T1w' )
+    def _set_outputs(self):
+        self.inputs.warped_image=os.getcwd()+os.sep+ self._create_output_file(self.inputs.moving_image,self.inputs.fixed_image_space )
+        self.inputs.inverse_warped_image=os.getcwd()+os.sep+self._create_output_file(self.inputs.fixed_image, self.inputs.moving_image_space )
         if self.inputs.normalization_type == 'nl' :
             self.inputs.composite_transform=os.getcwd()+os.sep+'transformComposite.h5'
             self.inputs.inverse_composite_transform=os.getcwd()+os.sep+'transformInverseComposite.h5'
@@ -271,6 +270,7 @@ class APPIANRegistration(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
+        self._set_outputs()
         if isdefined(self.inputs.warped_image):
             outputs["warped_image"] = self.inputs.warped_image
         if isdefined(self.inputs.inverse_warped_image):

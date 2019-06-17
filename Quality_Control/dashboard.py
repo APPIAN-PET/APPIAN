@@ -17,7 +17,7 @@ import Registration.registration as reg
 import Initialization.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
-import Tracer_Kinetic.tka as tka
+import Quantification.quantification as quant
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
@@ -38,9 +38,9 @@ global path
 path = os.path.dirname(os.path.abspath(__file__))
 path_split = path.split(os.sep)
 pvc_path = '/'.join(path_split[0:-1])+os.sep+"Partial_Volume_Correction"+os.sep+"methods"
-tka_path = '/'.join(path_split[0:-1])+os.sep+"Tracer_Kinetic"+os.sep+"methods"
+quant_path = '/'.join(path_split[0:-1])+os.sep+"Quantification"+os.sep+"methods"
 sys.path.insert(0, pvc_path)
-sys.path.insert(0, tka_path)
+sys.path.insert(0, quant_path)
 importlib.import_module("pvc_method_GTM")
 importlib.import_module("quant_method_lp")
 
@@ -104,7 +104,7 @@ def get_stage_file_type(stage, method, stage_dir, prefix):
     #Read the file format from the module
     if stage == 'pvc' :
         return module.file_format
-    elif stage =='tka' : 
+    elif stage =='quant' : 
         return module.out_file_format
     
     return None
@@ -116,10 +116,10 @@ def set_stage_node_file(stage, method) :
         prefix="pvc"
     elif stage == 'quant' :
         conversion_node = 'convertParametric'
-        stage_dir="Tracer_Kinetic"
-        prefix="tka"
+        stage_dir="Quantification"
+        prefix="quant"
     else :
-        print("Error: stage must be with 'pvc' or 'tka' but received :", stage)
+        print("Error: stage must be with 'pvc' or 'quant' but received :", stage)
         exit(1)
 
     if method != None :
@@ -129,7 +129,7 @@ def set_stage_node_file(stage, method) :
     return {"node" : node, "file" : 'out_file'} 
 
 
-def generate_xml_nodes(sourceDir,targetDir,pvc_method,tka_method,analysis_space,images, info, out_file):
+def generate_xml_nodes(sourceDir,targetDir,pvc_method,quant_method,analysis_space,images, info, out_file):
     #Create root for xml, called <qc> 
     xmlQC = Element('qc')
     
@@ -190,14 +190,14 @@ class deployDashInput(BaseInterfaceInputSpec):
     targetDir = traits.File(mandatory=True, desc="Target directory")
     sourceDir = traits.File(mandatory=True, desc="Source directory")
     pvc_method = traits.Str(desc="PVC method")
-    tka_method = traits.Str(desc="TKA method")
+    quant_method = traits.Str(desc="TKA method")
     analysis_space = traits.Str(desc="Analysis Space")
     pet = traits.File(exists=True, mandatory=True, desc="PET image")
     pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
     mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
     t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
     pvc = traits.File(exists=True, desc="Output PVC image")
-    tka = traits.File(exists=True, desc="Output TKA image")
+    quant = traits.File(exists=True, desc="Output TKA image")
     sid =traits.Str()
     cid=traits.Str()
     ses=traits.Str()
@@ -231,11 +231,11 @@ class deployDashCommand(BaseInterface):
             images["pvc"]= {"v1":self.inputs.pet, "v2":self.inputs.pvc}
 
         # If TKA method is defined, then add quantification images
-        if isdefined(self.inputs.tka_method) :
-            images["tka"]= {"v1":self.inputs.t1_analysis_space, "v2":self.inputs.tka}
+        if isdefined(self.inputs.quant_method) :
+            images["quant"]= {"v1":self.inputs.t1_analysis_space, "v2":self.inputs.quant}
        
         #Create xml for current scan
-        generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.tka_method,self.inputs.analysis_space,images,info, self.inputs.out_file);
+        generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.quant_method,self.inputs.analysis_space,images,info, self.inputs.out_file);
         
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()

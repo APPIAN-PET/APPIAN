@@ -20,17 +20,7 @@ if __name__ == "__main__":
     opts = parser.parse_args() 
     opts = modify_opts( opts ) 
     args=opts.args 
-
-    ############################################
-    # Create BIDS-style header for MINC inputs #
-    ############################################
-    create_minc_headers( opts.sourceDir )
-    
-    #######################################
-    ### Convert NII to MINC if necessary. # 
-    #######################################
-    nii2mnc_batch(opts)	
-   
+ 
     #################
     # Launch APPIAN #
     #################

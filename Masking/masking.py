@@ -182,23 +182,39 @@ def get_transforms_for_stage(inputnode, label_name, label_space, label_type, ana
         tfm_node=[identity]
         transform_file=["out_file"]
     else : 
+        #From stereotaxic space...
         if label_space == "stereo" :
             if analysis_space == "t1":
+                #...to T1 native space
                 transform_file=["tfm_stx_mri"]
             elif analysis_space == "pet":
-                transform_file=['tfm_mri_pet', 'tfm_stx_mri']
+                #..to PET native space
+                if opts.pet_coregistration_target == "t1":
+                    transform_file=['tfm_struct_pet', 'tfm_stx_mri']
+                else : 
+                    transform_file=['tfm_struct_pet']
+
             if label_type == 'atlas-template' :
                 transform_file += ['tfm_'+label_name+'_tmp_stx']
+        #From T1 native space...
         elif label_space == "t1":
             if analysis_space == "stereo":
+                #...to stereotaxic space
                 transform_file=["tfm_mri_stx"]
             elif analysis_space == "pet":
-                transform_file=["tfm_mri_pet"]
+                #...to PET space
+                transform_file=["tfm_struct_pet"]
+        #From PET native space...
         elif label_space == "pet":
-            if analysis_space == "stereo":
-                transform_file=["tfm_mri_stx", "tfm_pet_mri"]
+            # ...to stereotaxic space
+            if analysis_space == "stereo" :
+                if opts.pet_coregistration_target == "t1":
+                    transform_file=["tfm_mri_stx", "tfm_pet_struct"]
+                else : 
+                    transform_file=["tfm_pet_struct"]
+            # ...to T1w native space
             elif analysis_space == "t1":
-                transform_file=["tfm_pet_mri"]
+                transform_file=["tfm_pet_struct"]
 
         tfm_node=[inputnode]*len(transform_file)
 
@@ -246,7 +262,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "tfm_mri_pet", "tfm_quant_tmp_stx", "tfm_pvc_tmp_stx","tfm_results_tmp_stx", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_struct", "tfm_struct_pet", "tfm_quant_tmp_stx", "tfm_pvc_tmp_stx","tfm_results_tmp_stx", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -283,8 +299,12 @@ def get_workflow(name, infosource, opts):
     elif opts.analysis_space == "pet" :
         brain_mask_node = pe.Node(APPIANApplyTransforms(), "brain_mask_space_pet")
         workflow.connect(inputnode, 'brain_mask_space_stx', brain_mask_node, 'input_image')
-        workflow.connect(inputnode, "tfm_mri_stx", brain_mask_node, 'transform_3')
-        workflow.connect(inputnode, "tfm_pet_mri", brain_mask_node, 'transform_2')
+
+        #If PET was coregistered to T1w, then add transformation from T1w MRI space to stereotaxic space
+        if opts.pet_coregistration_target == "t1":
+            workflow.connect(inputnode, "tfm_mri_stx", brain_mask_node, 'transform_3')
+        workflow.connect(inputnode, "tfm_pet_struct", brain_mask_node, 'transform_2')
+        
         workflow.connect(inputnode, 'pet_volume', brain_mask_node, 'reference_image')
         brain_mask_node.inputs.interpolation = 'NearestNeighbor'
         like_file="pet_volume"

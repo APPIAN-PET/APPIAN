@@ -19,7 +19,9 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 
-
+def pexit(output_string, errorcode=1) : 
+    print(output_string)
+    exit(errorcode)
 
 class Workflows:
     def __init__(self, opts) :
@@ -198,9 +200,7 @@ class Workflows:
             self.pet2mri.inputs.fixed_image_space='stx'
             self.pet2mri.inputs.normalization_type='affine'
         else :
-            print("Error: PET coregistration target Not implemented ", opts.pet_coregistration_target)
-            print("Must be either \'t1\' or \'stx\'")
-            exit(1)
+            pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
         
         if opts.pet_brain_mask:
             workflow.connect(self.init_pet, 'pet_brain_mask',self.pet2mri, 'moving_image_mask')
@@ -209,15 +209,12 @@ class Workflows:
             self.workflow.connect(self.datasource, 'mri', self.pet2mri, 'fixed_image')
             self.workflow.connect(self.mri_preprocess,'outputnode.brain_mask_space_mri', self.pet2mri, 'fixed_image_mask')
         elif opts.pet_coregistration_target == "stx":
-            self.pet2mri.inputs.fixed_image = 
-            self.pet2mri.inputs.fixed_image_mask = 
+            self.pet2mri.inputs.fixed_image =  opts.template
+            self.pet2mri.inputs.fixed_image_mask = opts.template_brain_mask
         else :
-            print("Error: PET coregistration target Not implemented ", opts.pet_coregistration_target)
-            print("Must be either \'t1\' or \'stx\'")
-            exit(1)
+            pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
             
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, 'moving_image')
-        
 
         #If analysis_space != pet, then resample 4d PET image to T1 or stereotaxic space
         if opts.analysis_space in ['t1', 'stereo'] :
@@ -303,7 +300,10 @@ class Workflows:
         self.workflow.connect(self.tfm_node, self.mri_stx_tfm, self.masking, "inputnode.tfm_mri_stx")
         self.workflow.connect(self.tfm_node, self.stx_mri_tfm, self.masking, "inputnode.tfm_stx_mri")
         self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.masking, 'inputnode.pet_header_json')
-        self.workflow.connect(self.pet2mri, "out_matrix", self.masking, "inputnode.tfm_pet_mri")
+
+        self.workflow.connect(self.pet2mri, "out_matrix", self.masking, "inputnode.tfm_pet_struct")
+        self.workflow.connect(self.pet2mri, "out_matrix_inverse", self.masking, "inputnode.tfm_struct_pet")
+        
         self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name, self.masking, "inputnode.mri_space_stx")
         self.workflow.connect(self.brain_mask_space_stx_node, self.brain_mask_space_stx_file, self.masking, "inputnode.brain_mask_space_stx")
         self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.masking, "inputnode.brain_mask_space_mri")

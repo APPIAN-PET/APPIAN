@@ -191,13 +191,33 @@ class Workflows:
     def set_pet2mri(self, opts) :
         self.pet2mri = pe.Node(interface=APPIANRegistration(), name="pet2mri")
         self.pet2mri.inputs.moving_image_space='pet'
-        self.pet2mri.inputs.fixed_image_space='T1w'
-        self.pet2mri.inputs.normalization_type='rigid'
+        if opts.pet_coregistration_target == "t1":
+            self.pet2mri.inputs.fixed_image_space='T1w'
+            self.pet2mri.inputs.normalization_type='rigid'
+        elif opts.pet_coregistration_target == "stx":
+            self.pet2mri.inputs.fixed_image_space='stx'
+            self.pet2mri.inputs.normalization_type='affine'
+        else :
+            print("Error: PET coregistration target Not implemented ", opts.pet_coregistration_target)
+            print("Must be either \'t1\' or \'stx\'")
+            exit(1)
+        
         if opts.pet_brain_mask:
             workflow.connect(self.init_pet, 'pet_brain_mask',self.pet2mri, 'moving_image_mask')
-        self.workflow.connect(self.mri_preprocess,'outputnode.brain_mask_space_mri', self.pet2mri, 'fixed_image_mask')
+        
+        if opts.pet_coregistration_target == "t1":
+            self.workflow.connect(self.datasource, 'mri', self.pet2mri, 'fixed_image')
+            self.workflow.connect(self.mri_preprocess,'outputnode.brain_mask_space_mri', self.pet2mri, 'fixed_image_mask')
+        elif opts.pet_coregistration_target == "stx":
+            self.pet2mri.inputs.fixed_image = 
+            self.pet2mri.inputs.fixed_image_mask = 
+        else :
+            print("Error: PET coregistration target Not implemented ", opts.pet_coregistration_target)
+            print("Must be either \'t1\' or \'stx\'")
+            exit(1)
+            
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, 'moving_image')
-        self.workflow.connect(self.datasource, 'mri', self.pet2mri, 'fixed_image')
+        
 
         #If analysis_space != pet, then resample 4d PET image to T1 or stereotaxic space
         if opts.analysis_space in ['t1', 'stereo'] :

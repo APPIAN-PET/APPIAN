@@ -307,7 +307,7 @@ class plot_metricsCommand(BaseInterface):
     def _run_interface(self, runtime):
         df=pd.read_csv(self.inputs.in_file)
         out_file  = self._gen_output()
-        self.inputs.out_files =  plot_metrics(df,  out_file, color=cm.spectral)
+        self.inputs.out_files =  plot_metrics(df,  out_file, color="spectral")
         return(runtime)
 
     def _list_outputs(self):
@@ -341,7 +341,7 @@ class plot_outlier_measuresCommand(BaseInterface):
         #Calculate ROC curves based on outlier measures
         df=pd.read_csv(self.inputs.in_file)
         out_file = self._gen_output()
-        self.inputs.out_files = plot_outlier_measures(df, outlier_measures, out_file, color=cm.spectral)
+        self.inputs.out_files = plot_outlier_measures(df, outlier_measures, out_file, color='spectral')
 
         return(runtime)
 
@@ -386,7 +386,7 @@ class plot_rocCommand(BaseInterface):
 
 ### WORKFLOW
 ### FUNCTIONS
-def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.spectral, DPI=500):
+def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color='spectral', DPI=500):
     
     df = dfi.copy()
     figs=[]
@@ -527,7 +527,7 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
 
 
 from matplotlib.lines import Line2D
-def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
+def plot_outlier_measures(dfi, outlier_measures, out_fn, color='spectral'):
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
@@ -581,7 +581,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.spectral):
         plt.savefig(temp_out_fn,width=2000*ndim, dpi=500)
     return(file_list)
 
-def plot_metrics(dfi, out_fn, color=cm.spectral):
+def plot_metrics(dfi, out_fn, color='spectral'):
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
     
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 

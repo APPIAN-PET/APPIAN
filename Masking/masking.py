@@ -177,7 +177,7 @@ class Labels(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_transforms_for_stage(inputnode, label_name, label_space, label_type, analysis_space, identity):
+def get_transforms_for_stage(inputnode, label_name, label_space, label_type, analysis_space, identity, pet_coregistration_target):
     if label_space == analysis_space :
         tfm_node=[identity]
         transform_file=["out_file"]
@@ -189,7 +189,7 @@ def get_transforms_for_stage(inputnode, label_name, label_space, label_type, ana
                 transform_file=["tfm_stx_mri"]
             elif analysis_space == "pet":
                 #..to PET native space
-                if opts.pet_coregistration_target == "t1":
+                if pet_coregistration_target == "t1":
                     transform_file=['tfm_struct_pet', 'tfm_stx_mri']
                 else : 
                     transform_file=['tfm_struct_pet']
@@ -278,12 +278,12 @@ def get_workflow(name, infosource, opts):
 
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc'. opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform)
+        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc'. opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
 
     if not opts.quant_method == None:
-       quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform)
-    print(quant_tfm_file)    
-    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, 'results', opts.results_label_space, opts.results_label_type, opts.analysis_space, identity_transform)
+       quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
+
+    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, 'results', opts.results_label_space, opts.results_label_type, opts.analysis_space, identity_transform,opts.pet_coregistration_target)
     
     ###################
     # Brain Mask Node #

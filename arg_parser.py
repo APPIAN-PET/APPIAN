@@ -18,6 +18,7 @@ file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
 icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
 icbm_default_brain_mask=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
+icbm_default_atlas = file_dir+os.sep+"/Atlas/MNI152/dka.nii.gz"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -129,7 +130,7 @@ def get_parser():
     # Quantification
     #group= OptionGroup(parser,"Masking options","Quantification")
     parser.add_argument("--quant-label-space","--quant-label-space", dest="quant_label_space",help=label_space_help,default='stereo', choices=spaces)
-    parser.add_argument("--quant-label-img","--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--quant-label-template","--quant-label-template",dest="quant_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
     parser.add_argument("--quant-label","--quant-label",dest="quant_labels",help="Label values to use for TKA", default=[], nargs='+' )
     parser.add_argument("--quant-label-erosion","--quant-label-erosion",dest="quant_erode_times",help="Number of times to erode label", type=int, default=0 )
@@ -232,6 +233,15 @@ def get_parser():
 def modify_opts(opts) :
     opts.targetDir = os.path.normpath(opts.targetDir)
     opts.sourceDir = os.path.normpath(opts.sourceDir)
+
+    #
+    # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the
+    # MNI152 template instead. The default quant, pvc, and results labels should be modified accordingly 
+    #
+    if opts.pet_coregistration_target == "stx" :
+        opts.quant_label_template = opts.pvc_label_template = opts.results_label_template = opts.template
+        opts.quant_label_img = opts.pvc_label_img = opts.results_label_img = icbm_default_atlas
+
 
     ############################
     #Automatically set sessions#

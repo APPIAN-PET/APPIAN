@@ -2,8 +2,6 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os
 import sys
-from Extra.nii2mnc_batch import nii2mnc_batch
-from Extra.minc_json_header_batch import create_minc_headers
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
 from arg_parser import get_parser, modify_opts

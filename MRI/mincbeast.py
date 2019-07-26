@@ -73,43 +73,7 @@ def create_alt_template(template, beast_dir, clobber=False) :
 
 
 
-class SegmentationToBrainMaskOutput(TraitedSpec):
-	output_image = File(argstr="%s",  desc="Brain Mask")
 
-class SegmentationToBrainMaskInput(CommandLineInputSpec):
-	output_image= File(argstr="%s",  desc="Brain Mask", position=-1)
-	seg_file = File(argstr="%s",  desc="Segmentation", position=-1)
-
-
-class SegmentationToBrainMask(BaseInterface):
-	input_spec =  SegmentationToBrainMaskInput
-	output_spec = SegmentationToBrainMaskOutput
-
-
-        def _run_interface(self, runtime) :
-	    if not isdefined(self.inputs.output_image):
-                self.inputs.output_image = self._gen_output(self.inputs.seg_file)
-                
-            img = nib.load(self.inputs.seg_file)
-            data = img.get_data()
-            data[ data > 1 ] = 1
-            out = nib.Nifti1Image(data, img.get_affine() )
-            out.to_filename (self.inputs.output_image)
-
-            return runtime
-
-	def _gen_output(self, basefile):
-		fname = ntpath.basename(basefile)
-		fname_list = splitext(fname) # [0]= base filename; [1] =extension
-		dname = os.getcwd()
-		return dname+ os.sep+fname_list[0] + "_brain_mask" + fname_list[1]
-
-	def _list_outputs(self):
-		if not isdefined(self.inputs.output_image):
-			self.inputs.output_image = self._gen_output(self.inputs.seg_file)
-		outputs = self.output_spec().get()
-		outputs["output_image"] = self.inputs.output_image
-		return outputs
 
 
 

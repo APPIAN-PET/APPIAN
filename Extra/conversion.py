@@ -51,7 +51,6 @@ class mincconvertCommand(CommandLine):
     def _gen_output(self, basefile):
         fname = ntpath.basename(basefile)
         fname_list = list(os.path.splitext(fname)) # [0]= base filename; [1] =extension
-        print fname_list
         if "_mnc1"  in  fname_list[0] :
             fname_list[0]=re.sub("_mnc1", "", fname_list[0])
         elif "_mnc2"  in fname_list[0] :
@@ -335,7 +334,6 @@ class minctoecatInterfaceCommand(BaseInterface):
         cmd = minctoecatCommand();
         cmd.inputs.in_file = self.inputs.in_file
         cmd.inputs.out_file = "temp.v"
-        print cmd.cmdline
         cmd.run()
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file)

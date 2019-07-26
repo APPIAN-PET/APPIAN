@@ -1,10 +1,13 @@
-import os
+from nipype.interfaces.ants import N4BiasFieldCorrection
+from Extra.utils import splitext 
+from nipype.interfaces.ants.segmentation import BrainExtraction
+from arg_parser import icbm_default_template, file_dir
+from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
-from MRI.mincbeast import SegmentationToBrainMask, beast, mincbeast_library, create_alt_template
 from Extra.extra import copyCommand
 from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms
 from nipype.interfaces.utility import Rename
@@ -14,10 +17,10 @@ import nipype.interfaces.utility as util
 import Initialization.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
-from nipype.interfaces.ants import N4BiasFieldCorrection
-from Extra.utils import splitext 
-from nipype.interfaces.ants.segmentation import BrainExtraction
-from arg_parser import icbm_default_template, file_dir
+import ntpath
+import os
+import nibabel as nib
+
 
 global icbm_default_csf  
 global icbm_default_gm
@@ -33,7 +36,7 @@ def get_workflow(name, opts):
     in_fields = ['mri']
     if opts.user_brainmask :
         in_fields += ['brain_mask_space_stx']
-    
+
     if opts.user_mri_stx :
         in_fields += ['tfm_mri_stx', 'tfm_stx_mri']
 
@@ -47,7 +50,7 @@ def get_workflow(name, opts):
     for stage, label_type in zip(stages, label_types):
         if 'internal_cls' == label_type :
             out_fields += [ stage+'_label_img']
-    
+
     outputnode = pe.Node(niu.IdentityInterface(fields=out_fields), name='outputnode')
 
     ##########################################
@@ -78,7 +81,7 @@ def get_workflow(name, opts):
 
         mri_stx_file = 'warped_image'
         mri_stx_node = mri2template
-        
+
         tfm_node= mri2template
         tfm_inv_node= mri2template
         if opts.normalization_type == 'nl' :
@@ -102,14 +105,14 @@ def get_workflow(name, opts):
         tfm_file = 'tfm_mri_stx'
         tfm_inv_node=inputnode
         tfm_inv_file='tfm_stx_mri'
-    
+
     #
     # T1 in native space will be part of the APPIAN target directory
     # and hence it won't be necessary to link to the T1 in the source directory.
     #
     copy_mri_nat = pe.Node(interface=copyCommand(), name="mri_nat"  )
     workflow.connect(inputnode, 'mri', copy_mri_nat, 'input_file')
-    
+
     ###################################
     # Segment T1 in Stereotaxic space #
     ###################################
@@ -137,13 +140,13 @@ def get_workflow(name, opts):
             #workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
         print(stage, img) 
         if 'antsAtropos' == img :
-           workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
-    
+            workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
+
     ####################
     # T1 Brain masking #
     ####################
     if not opts.user_brainmask :
-       #  if opts.brain_extraction_method == 'beast':
+        #  if opts.brain_extraction_method == 'beast':
        #      #Brain Mask MNI-Space
        #      mriMNI_brain_mask = pe.Node(interface=beast(), name="mri_stx_brain_mask")
        #      mriMNI_brain_mask.inputs.library_dir  = library_dir
@@ -171,11 +174,10 @@ def get_workflow(name, opts):
 
         brain_mask_node = mriMNI_brain_mask
         brain_mask_file = 'output_image'
-
     else :			
         brain_mask_node = inputnode
         brain_mask_file = 'brain_mask_space_stx'
-    
+
     #
     # Transform brain mask from stereotaxic to T1 native space
     #
@@ -184,6 +186,7 @@ def get_workflow(name, opts):
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_image')
     workflow.connect(tfm_node, tfm_inv_file, transform_brain_mask, 'transform_1')
     workflow.connect(copy_mri_nat,'output_file', transform_brain_mask,'reference_image') 
+
     ###############################
     # Pass results to output node #
     ###############################
@@ -196,3 +199,40 @@ def get_workflow(name, opts):
     return(workflow)
 
 
+class SegmentationToBrainMaskOutput(TraitedSpec):
+    output_image = File(argstr="%s",  desc="Brain Mask")
+
+class SegmentationToBrainMaskInput(CommandLineInputSpec):
+    output_image= File(argstr="%s",  desc="Brain Mask", position=-1)
+    seg_file = File(argstr="%s",  desc="Segmentation", position=-1)
+
+
+class SegmentationToBrainMask(BaseInterface):
+    input_spec =  SegmentationToBrainMaskInput
+    output_spec = SegmentationToBrainMaskOutput
+
+
+    def _run_interface(self, runtime) :
+        if not isdefined(self.inputs.output_image):
+            self.inputs.output_image = self._gen_output(self.inputs.seg_file)
+
+        img = nib.load(self.inputs.seg_file)
+        data = img.get_data()
+        data[ data > 1 ] = 1
+        out = nib.Nifti1Image(data, img.get_affine() )
+        out.to_filename (self.inputs.output_image)
+
+        return runtime
+
+    def _gen_output(self, basefile):
+        fname = ntpath.basename(basefile)
+        fname_list = splitext(fname) # [0]= base filename; [1] =extension
+        dname = os.getcwd()
+        return dname+ os.sep+fname_list[0] + "_brain_mask" + fname_list[1]
+
+    def _list_outputs(self):
+        if not isdefined(self.inputs.output_image):
+            self.inputs.output_image = self._gen_output(self.inputs.seg_file)
+        outputs = self.output_spec().get()
+        outputs["output_image"] = self.inputs.output_image
+        return outputs

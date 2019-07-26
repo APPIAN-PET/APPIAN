@@ -4,7 +4,6 @@ import numpy as np
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix)
-from Extra.minc_filemanip import  update_minchd_json
 import pickle
 
 

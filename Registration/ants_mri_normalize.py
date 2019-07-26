@@ -3,8 +3,6 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
-from MRI.mincbeast import beast, mincbeast_library, create_alt_template
-from Extra.extra import copyCommand
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from nipype.interfaces.ants.registration import CompositeTransformUtil, CompositeTransformUtilInputSpec

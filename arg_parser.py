@@ -34,22 +34,22 @@ def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
 
     """
     uname = os.popen('uname -s -n -r').read()
-    print "\n"
-    print "* Pipeline started at "+time.strftime("%c")+"on "+uname
-    print "* Command line is : \n "+str(sys.argv)+"\n"
-    print "* The source directory is : "+opts.sourceDir
-    print "* The target directory is : "+opts.targetDir+"\n"
-    print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
-    print "* Sessions : ", session_ids, "\n"
-    print "* Tasks : " , task_list , "\n"
-    print "* Runs : " , run_list , "\n"
-    print "* Acquisition : " , acq , "\n"
-    print "* Reconstruction : " , rec , "\n"
+    print("\n")
+    print("* Pipeline started at "+time.strftime("%c")+"on "+uname)
+    print("* Command line is : \n "+str(sys.argv)+"\n")
+    print("* The source directory is : "+opts.sourceDir)
+    print("* The target directory is : "+opts.targetDir+"\n")
+    print("* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n")
+    print("* Sessions : ", session_ids, "\n")
+    print("* Tasks : " , task_list , "\n")
+    print("* Runs : " , run_list , "\n")
+    print("* Acquisition : " , acq , "\n")
+    print("* Reconstruction : " , rec , "\n")
 
 def get_parser():
     parser = ArgumentParser(usage="useage: ")
-    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory", required=True)
-    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in", required=True)
+    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Path for input file directory", required=True)
+    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Path for directory where output data will be saved in", required=True)
     parser.add_argument("--preprocdir",dest="preproc_dir",type=str, default='preproc', help="Relative path (relative to targetDir) to preprocessing directory for intermediate files")
 
     parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
@@ -231,8 +231,8 @@ def get_parser():
     return parser
 
 def modify_opts(opts) :
-    opts.targetDir = os.path.normpath(opts.targetDir)
-    opts.sourceDir = os.path.normpath(opts.sourceDir)
+    opts.targetDir = os.path.abspath(os.path.normpath(opts.targetDir))
+    opts.sourceDir = os.path.abspath(os.path.normpath(opts.sourceDir))
 
     #
     # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the
@@ -252,7 +252,7 @@ def modify_opts(opts) :
         print("Subjects:", ' '.join( opts.args))
    
         if len(opts.args) == 0:
-            print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
+            print( "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n")
             exit(1)
 
 
@@ -308,7 +308,7 @@ def modify_opts(opts) :
     # Check inputs to make sure there are no inconsistencies #
     ##########################################################
     if not opts.sourceDir or not opts.targetDir: 
-        print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n"
+        print( "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n")
         parser.print_help()
         sys.exit(1)
 
@@ -324,18 +324,18 @@ def modify_opts(opts) :
     ###Check PVC options and set defaults if necessary
     if opts.pvc_method != None : 
         if  opts.scanner_fwhm == None and opts.pet_scanner == None :
-            print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
-            print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
-            print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
+            print("Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or")
+            print("\t2) set the PET scanner type using the \"--pet-scanner <string>\" option.")
+            print("\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys()))
             exit(1)
        
         if not opts.pet_scanner == None:
             if opts.pet_scanner in pet_scanners.keys():
                 opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
             else:
-                print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
-                print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
-                print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
+                print("Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can")
+                print("\t1) add this PET scanner to the \"PET_scanner.json\" file, or")
+                print("\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option.")
                 exit(1)
 
 
@@ -372,7 +372,7 @@ def check_masking_options(opts, label_img, label_template, label_space):
     # 3) String that defines user classification
         label_type='user_cls'
     else : 
-        print "Label error: ", label_img
+        print( "Label error: ", label_img)
         exit(1)
 
     return label_type, label_space

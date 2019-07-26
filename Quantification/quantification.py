@@ -1,10 +1,8 @@
-from pyminc.volumes.factory import *
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined
 from nipype.utils.filemanip import load_json, save_json, split_filename, fname_presuffix, copyfile
 
 from Extra.base import MINCCommand, MINCCommandInputSpec
-from Extra.conversion import (ecat2mincCommand, minc2ecatCommand, ecattomincCommand, minctoecatInterfaceCommand, minctoecatWorkflow, mincconvertCommand, ecattominc2Command)
 from Extra.modifHeader import FixHeaderLinkCommand
 from Turku.dft import img2dft_unit_conversion
 from Extra.extra import subject_parameterCommand
@@ -160,16 +158,7 @@ def get_quant_workflow(name, opts):
     pet_file = "in_file" 
     
     ### Setup output from quantification function
-    if quant_module.out_file_format == "ECAT" :
-        # Node to convert ECAT to MINC
-        convertParametric=pe.Node(ecattominc2Command(), name="convertParametric")
-        
-        #Connect quantification node to output node
-        workflow.connect(quantNode, 'out_file', convertParametric, 'in_file')
-        workflow.connect(inputnode, 'header', convertParametric, 'header')
-
-        quant_source = convertParametric
-    elif quant_module.out_file_format == "NIFTI"  :
+    if quant_module.out_file_format == "NIFTI"  :
         quant_source = quantNode
     elif quant_module.out_file_format == "DFT"  :
         #Create 3/4D volume based on ROI values

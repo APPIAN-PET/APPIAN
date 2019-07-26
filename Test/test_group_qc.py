@@ -2,7 +2,6 @@ import nipype
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-import pyminc.volumes.factory as pyminc
 import matplotlib as mpl
 from scipy.integrate import simps
 mpl.use('Agg')
@@ -576,7 +575,7 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color='spectral'):
         n+=1
         temp_fn = os.path.splitext(out_fn)
         temp_out_fn = temp_fn[0] + '_' + errortype +'_'+ str(roi) + temp_fn[1]
-        print 'saving outlier plot to', temp_out_fn
+        print( 'saving outlier plot to', temp_out_fn)
         file_list += temp_out_fn
         plt.savefig(temp_out_fn,width=2000*ndim, dpi=500)
     return(file_list)
@@ -733,7 +732,6 @@ class tka_refContaminate(BaseInterface):
 
         if not isdefined(self.inputs.out_file) : 
             self.inputs.out_file=self._gen_output() 
-        print "TKA Contamination:",self.inputs.out_file
         df_out.to_csv(self.inputs.out_file)
         return(runtime)
 

@@ -7,7 +7,6 @@ import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.minc as minc
-import pyminc.volumes.factory as pyminc
 import nibabel as nib
 import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
@@ -16,10 +15,6 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 from arg_parser import file_dir
 from nipype.interfaces.utility import Rename
 from Extra.utils import splitext, gz
-from Extra.xfmOp import InvertCommand
-from Extra.morphomat import MorphCommand
-from Extra.info import StatsCommand
-from Extra.resample import param2xfmCommand
 from Extra.obj import *
 from scipy.ndimage.morphology import binary_erosion
 from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
@@ -47,7 +42,7 @@ class IdentityTransform(BaseInterface):
         return runtime
 
     def _list_outputs(self):
-	outputs = self.output_spec().get()
+        outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
 
 

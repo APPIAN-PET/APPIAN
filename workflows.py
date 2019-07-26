@@ -4,7 +4,6 @@ import re
 from Masking import masking as masking
 from Masking import surf_masking
 from MRI import normalize
-from Extra.conversion import nii2mnc2Command
 from Registration.ants_mri_normalize import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
 from arg_parser import icbm_default_brain_mask
 import nipype.interfaces.minc as minc
@@ -60,7 +59,7 @@ class Workflows:
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
         (self.set_qc_metrics, False, False), 
-        (self.set_dashboard, False, opts.dashboard)
+        (self.set_dashboard, False, False)
         )
 
     def initialize(self, opts) :
@@ -87,7 +86,7 @@ class Workflows:
             #TODO : Use line below with verbose option
             if run_flag != None and run_flag != False :
                 if opts.verbose >= 2 :
-                    print "\t",set_workflow_function, return_early_flag, run_flag 
+                    print("\t",set_workflow_function, return_early_flag, run_flag )
                 set_workflow_function( opts)
                 if return_early_flag :
                     return(0)
@@ -113,8 +112,8 @@ class Workflows:
 
         for label_name, label_type, node, moving_image in zip(names, types, nodes, moving_images ) : 
             if label_type == "atlas-template" :
-                print label_name + "_template_normalization"
-                print label_name, label_type, moving_image
+                print(label_name + "_template_normalization")
+                print(label_name, label_type, moving_image)
                 node.inputs.fixed_image_space='stx'
                 node.inputs.moving_image_space='template'
                 node.inputs.interpolation='Linear'
@@ -157,7 +156,8 @@ class Workflows:
 
             self.mri_space_nat_name = 'outputnode.mri_space_nat'
             self.brain_mask_space_mri_name = 'outputnode.brain_mask_space_mri'
-            
+            self.brain_mask_space_stx_name='outputnode.brain_mask_space_stx'
+
             self.out_node_list += [self.brain_mask_space_stx_node, self.mri_preprocess, self.mri_preprocess] 
             self.out_img_list += [self.brain_mask_space_stx_file, 'mri_spatial_normalized.warped_image','mri_spatial_normalized.inverse_warped_image']
             self.out_img_dim += ['3','3','3']

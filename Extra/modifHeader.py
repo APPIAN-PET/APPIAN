@@ -4,7 +4,6 @@ import json
 import shutil
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-import pyminc.volumes.factory as pyminc
 
 class ModifyHeaderOutput(TraitedSpec):
     out_file = File(desc="Image after centering")

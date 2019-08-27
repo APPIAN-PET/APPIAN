@@ -3,6 +3,7 @@ from pvc_template import *
 
 file_format="NIFTI"
 separate_labels=True
+roi=True
 
 class pvcCommand(petpvc4DCommand):
     _suffix='GTM'

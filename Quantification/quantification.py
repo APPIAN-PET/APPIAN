@@ -40,13 +40,11 @@ class createImgFromROI(BaseInterface) :
         ref_data = ref.get_data()
         out_data = np.zeros(ref_data.shape)
         roi=[]
-
-        def read_dft(in_file, )
-            with open(self.inputs.in_file) as f :
-                for l in f.readlines() :
-                    if 'Mask' in l : 
-                        ll=re.split(' |\t', l)
-                        roi.append([int(ll[1]), float(ll[3])])
+        with open(self.inputs.in_file) as f :
+            for l in f.readlines() :
+                if 'Mask' in l : 
+                    ll=re.split(' |\t', l)
+                    roi.append([int(ll[1]), float(ll[3])])
 
         for label, value in roi : 
             out_data[ref_data == label] = value

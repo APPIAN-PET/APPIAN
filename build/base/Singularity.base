@@ -1,6 +1,7 @@
 Bootstrap: docker
 From: ubuntu:18.04
 
+
 %post
 mkdir /opt/bin /opt/lib /opt/include /opt/share
 apt-get update

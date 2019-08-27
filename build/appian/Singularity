@@ -1,0 +1,5 @@
+Bootstrap : localimage
+From : ants.simg
+
+%post
+git clone https://github.com/APPIAN-PET/APPIAN

@@ -4,6 +4,7 @@ from Extra.utils import splitext
 import nibabel as nib
 import numpy as np
 import shutil
+import re
 
 file_format="NIFTI"
 separate_labels=True

@@ -816,7 +816,7 @@ class Workflows:
     def set_datasink(self, opts) :
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
         self.datasink.inputs.base_directory= opts.targetDir + '/' 
-        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', ''), ('sid-','sub-'), ('task','task-'), ('ses','ses-')]
+        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', ''), ('sid-','sub-'), ('task','task-'), ('ses','ses')]
         for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
             if opts.output_format == 'minc' :
                 convertOutput=pe.Node(nii2mncCommand(), name="convert_output_"+str(i)+'_'+node.name)

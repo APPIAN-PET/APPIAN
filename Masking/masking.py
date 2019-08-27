@@ -45,7 +45,6 @@ class IdentityTransform(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
 
-
 class LabelsInput(BaseInterfaceInputSpec):
     #tfm= traits.File(desc="Transformation matrix to register PET image to T1 space") #
     transform_3 = traits.File( desc="Transformation matrix to register PET image to T1 space") #
@@ -273,7 +272,7 @@ def get_workflow(name, infosource, opts):
 
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc'. opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
+        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc', opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
 
     if not opts.quant_method == None:
        quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)

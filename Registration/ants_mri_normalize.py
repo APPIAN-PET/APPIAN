@@ -212,11 +212,11 @@ class APPIANRegistration(BaseInterface):
 
     def apply_linear_transforms(self):
         #Command line to 
-        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+        cmdline = "antsApplyTransforms -e 3 -d " + self.dim + " -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
         print(cmdline)
         cmd( cmdline  )
 
-        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+        cmdline = "antsApplyTransforms -e 3 -d "+ self.dim + " -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
         
         print(cmdline)
         cmd( cmdline  )

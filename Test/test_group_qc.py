@@ -385,7 +385,9 @@ class plot_rocCommand(BaseInterface):
 
 ### WORKFLOW
 ### FUNCTIONS
-def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color='spectral', DPI=500):
+
+def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.nipy_spectral, DPI=500):
+
     
     df = dfi.copy()
     figs=[]
@@ -526,7 +528,9 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
 
 
 from matplotlib.lines import Line2D
-def plot_outlier_measures(dfi, outlier_measures, out_fn, color='spectral'):
+
+def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.nipy_spectral):
+
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
@@ -580,7 +584,8 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color='spectral'):
         plt.savefig(temp_out_fn,width=2000*ndim, dpi=500)
     return(file_list)
 
-def plot_metrics(dfi, out_fn, color='spectral'):
+def plot_metrics(dfi, out_fn, color=cm.nipy_spectral):
+
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
     
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 

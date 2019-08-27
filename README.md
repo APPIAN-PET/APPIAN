@@ -29,7 +29,7 @@ Once Docker or Singularity is installed, simply run the following command line o
 ```
 docker pull tffunck/appian:latest-dev
 
-singularity pull appian-pet/appian:latest
+singularity pull APPIAN-PET/APPIAN:latest
 ```
 
 That’s it, ``APPIAN`` is installed on your computer. 

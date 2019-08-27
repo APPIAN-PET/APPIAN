@@ -2,6 +2,7 @@ from pvc_template import *
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from Extra.utils import splitext
 import nibabel as nib
+import pandas as pd
 import numpy as np
 import shutil
 import re
@@ -9,33 +10,36 @@ import re
 file_format="NIFTI"
 separate_labels=True
 split_frames=True
-roi=False
 
 def txt2nii(in_file, out_file, mask_file) : 
     ref = nib.load(mask_file)
     ref_data = ref.get_data()
-    out_data = np.zeros(ref_data.shape)
-    with open(in_file) as f :
-        for line_number, l in enumerate( f.readlines() ) :
-            if line_number > 0 : 
-                ll= l.split(" ")
-                label=int(ll[0])
-                value=float(ll[1])
-                out_data[ref_data == label] = value
+    out_data = np.zeros(ref_data.shape[0:3])
+    print(in_file)
+    df = pd.read_csv(in_file,sep="\t") 
+    print(df)
+    for i , row in df.iterrows() :
+        label=int(row["REGION"])
+        value=float(row["MEAN"])
+        print(i, label, value)
+        out_data[ref_data[:,:,:,i] == label] = value
 
     out = nib.Nifti1Image(out_data, ref.get_affine())
     out.to_filename(out_file )
 
-def concatenate_volumes(tmax,temp_string="tmp/pvc_<frame>.nii" ) : 
+def concatenate_volumes(tmax, temp_string="tmp/pvc_<frame>.nii" ) : 
     for i in range(tmax) :
+        print(i,tmax)
         temp_out_file = re.sub("<frame>", str(i), temp_string)
         temp_vol =  nib.load(temp_out_file)
         if i == 0 :
-            ar = np.zeros(list(temp_vol.shape) + [vol.shape[-1]] )
-        ar[:, :, :, i ] = np.array(temp_vol.get_data())
+            ar = np.zeros(list(temp_vol.shape) + [tmax] )
+            in_ar = temp_vol.get_data()
+            print(in_ar.shape)
+        ar[:, :, :, i ] = np.array(in_ar)
         affine = temp_vol.get_affine()
     out_vol = nib.Nifti1Image(ar, affine)
-    out_vol.to_filename( self.inputs.out_file )
+    return out_vol
 
 class petpvcOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
@@ -56,6 +60,7 @@ class petpvcCommand(CommandLine):
     input_spec =  petpvcInput
     output_spec = petpvcOutput
     _cmd='petpvc'
+    roi=False 
 
 
 class petpvc4DCommand(BaseInterface):
@@ -81,8 +86,7 @@ class petpvc4DCommand(BaseInterface):
                 temp_in_file = "tmp/pet_"+str(i)+".nii.gz"
 
                 temp_out_file = "tmp/pvc_"+str(i)+".nii"
-                print(roi); exit(1)
-                if roi :
+                if self.roi :
                     pvc_out_file = "tmp/pvc_"+str(i)+".txt"
                 else :
                     pvc_out_file = "tmp/pvc_"+str(i)+".nii"
@@ -103,12 +107,12 @@ class petpvc4DCommand(BaseInterface):
         
                 petpvc4dNode.run()
                 
-                if roi :
-                    txt2nii(self.inputs.in_file, self.inputs.out_file,self.inputs.mask_file)
+                if self.roi :
+                    txt2nii(pvc_out_file, temp_out_file,self.inputs.mask_file)
 
-            concatenate_volumes(tmax)
+            concatenate_volumes(tmax).to_filename(self.inputs.out_file)
 
-            #shutil.rmtree("tmp/") 
+            shutil.rmtree("tmp/") 
         else :
             petpvcNode = petpvcCommand()
             petpvcNode.inputs.z_fwhm  = self.inputs.z_fwhm

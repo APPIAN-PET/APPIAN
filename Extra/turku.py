@@ -3,7 +3,7 @@ import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, CommandLine,  CommandLineInputSpec , File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+        BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from Extra.utils import splitext
@@ -78,9 +78,9 @@ class e7emhdrInterface(BaseInterface): #CommandLine):
         data = json.load( open( self.inputs.header, "rb" ) )
         e7emhdrNode = e7emhdrCommand() 
         e7emhdrNode.inputs.in_file = self.inputs.in_file
-        
-     	e7emhdrNode.inputs.isotope = str(data["acquisition"]["radionuclide_halflife"])
-                
+
+        e7emhdrNode.inputs.isotope = str(data["acquisition"]["radionuclide_halflife"])
+
         e7emhdrNode.run()
         self.inputs.out_file = self.inputs.in_file
 
@@ -169,7 +169,7 @@ class sifCommand(BaseInterface):
 
         print(self.inputs.header)
         data = json.load( open( self.inputs.header, "rb" ) )
-       
+
         #if data['Time']['frames-time'] == 'unknown':
         #    start = 0
         #    print 'Warning: Converting \"unknown\" start time to 0.'
@@ -207,7 +207,7 @@ class JsonToSifInput(CommandLineInputSpec):
 class JsonToSifCommand(BaseInterface):
     input_spec =  JsonToSifInput
     output_spec = JsonToSifOutput
-    
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
@@ -230,7 +230,7 @@ class JsonToSifCommand(BaseInterface):
         for i, vals in enumerate(d["Time"]["FrameTimes"]["Values"]) : 
             lines += "{}\t{}\t{}\t{}\n".format(vals[0], vals[1], str(np.sum(img[:,:,:,i])), str(np.sum(img[:,:,:,i])) )
 
-        
+
         with open(out_fn, 'w') as f:
             f.write(lines)
 

@@ -2,7 +2,6 @@ import nipype
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-import pyminc.volumes.factory as pyminc
 import matplotlib as mpl
 from scipy.integrate import simps
 mpl.use('Agg')
@@ -307,7 +306,7 @@ class plot_metricsCommand(BaseInterface):
     def _run_interface(self, runtime):
         df=pd.read_csv(self.inputs.in_file)
         out_file  = self._gen_output()
-        self.inputs.out_files =  plot_metrics(df,  out_file, color=cm.spectral)
+        self.inputs.out_files =  plot_metrics(df,  out_file, color="spectral")
         return(runtime)
 
     def _list_outputs(self):
@@ -341,7 +340,7 @@ class plot_outlier_measuresCommand(BaseInterface):
         #Calculate ROC curves based on outlier measures
         df=pd.read_csv(self.inputs.in_file)
         out_file = self._gen_output()
-        self.inputs.out_files = plot_outlier_measures(df, outlier_measures, out_file, color=cm.spectral)
+        self.inputs.out_files = plot_outlier_measures(df, outlier_measures, out_file, color='spectral')
 
         return(runtime)
 
@@ -386,7 +385,9 @@ class plot_rocCommand(BaseInterface):
 
 ### WORKFLOW
 ### FUNCTIONS
+
 def plot_roc(dfi, df_auc, error_type_unit, error_type_name, color=cm.nipy_spectral, DPI=500):
+
     
     df = dfi.copy()
     figs=[]
@@ -527,7 +528,9 @@ def calc_outlier_measures(df, outlier_measures, normal_param):
 
 
 from matplotlib.lines import Line2D
+
 def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.nipy_spectral):
+
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
     file_list = []
     df = dfi.copy()
@@ -576,12 +579,13 @@ def plot_outlier_measures(dfi, outlier_measures, out_fn, color=cm.nipy_spectral)
         n+=1
         temp_fn = os.path.splitext(out_fn)
         temp_out_fn = temp_fn[0] + '_' + errortype +'_'+ str(roi) + temp_fn[1]
-        print 'saving outlier plot to', temp_out_fn
+        print( 'saving outlier plot to', temp_out_fn)
         file_list += temp_out_fn
         plt.savefig(temp_out_fn,width=2000*ndim, dpi=500)
     return(file_list)
 
 def plot_metrics(dfi, out_fn, color=cm.nipy_spectral):
+
     #f=lambda x: float(''.join([ i for i in x if i.isdigit() ]))
     
     dfi["sub"]=dfi["sub"].map(str)+"-"+dfi["task"].map(str)+"-"+dfi["ses"].map(str) 
@@ -733,7 +737,6 @@ class tka_refContaminate(BaseInterface):
 
         if not isdefined(self.inputs.out_file) : 
             self.inputs.out_file=self._gen_output() 
-        print "TKA Contamination:",self.inputs.out_file
         df_out.to_csv(self.inputs.out_file)
         return(runtime)
 

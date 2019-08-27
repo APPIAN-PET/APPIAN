@@ -3,8 +3,6 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
-from MRI.mincbeast import beast, mincbeast_library, create_alt_template
-from Extra.extra import copyCommand
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from nipype.interfaces.ants.registration import CompositeTransformUtil, CompositeTransformUtilInputSpec
@@ -218,7 +216,7 @@ class APPIANRegistration(BaseInterface):
         print(cmdline)
         cmd( cmdline  )
 
-        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+        cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
         
         print(cmdline)
         cmd( cmdline  )

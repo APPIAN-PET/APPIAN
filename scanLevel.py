@@ -101,9 +101,9 @@ def gen_args(opts, subjects):
                         task_args.append(d)
                     else:
                         if not os.path.exists(pet_fn) and opts.verbose >= 1:
-                            print "Could not find PET for ", sub, ses, task, pet_fn
+                            print("Could not find PET for ", sub, ses, task, pet_fn)
                         if not os.path.exists(mri_fn) and opts.verbose >= 1:
-                            print "Could not find T1 for ", sub, mri_fn
+                            print( "Could not find T1 for ", sub, mri_fn)
 
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses})

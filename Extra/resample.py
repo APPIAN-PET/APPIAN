@@ -148,7 +148,6 @@ class param2xfmInterfaceCommand(BaseInterface):
         paramNode = param2xfmCommand();
         paramNode.inputs.transformation = exec_params
         paramNode.inputs.out_file = self.inputs.out_file
-        print paramNode.cmdline
         paramNode.run()
         return runtime
 

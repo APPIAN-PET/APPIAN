@@ -17,7 +17,6 @@ from time import gmtime, strftime
 from glob import glob
 from os.path import basename
 from Extra.utils import splitext
-from sets import Set
 
 def pexit(pstring="Error", exitcode=1):
     print(pstring)

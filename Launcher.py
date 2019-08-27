@@ -2,8 +2,6 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os
 import sys
-from Extra.nii2mnc_batch import nii2mnc_batch
-from Extra.minc_json_header_batch import create_minc_headers
 from scanLevel import run_scan_level
 from groupLevel import run_group_level
 from arg_parser import get_parser, modify_opts
@@ -20,17 +18,7 @@ if __name__ == "__main__":
     opts = parser.parse_args() 
     opts = modify_opts( opts ) 
     args=opts.args 
-
-    ############################################
-    # Create BIDS-style header for MINC inputs #
-    ############################################
-    create_minc_headers( opts.sourceDir )
-    
-    #######################################
-    ### Convert NII to MINC if necessary. # 
-    #######################################
-    nii2mnc_batch(opts)	
-   
+ 
     #################
     # Launch APPIAN #
     #################

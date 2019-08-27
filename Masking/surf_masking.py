@@ -4,8 +4,6 @@ import tempfile
 import shutil
 import pickle
 import ntpath 
-
-from pyminc.volumes.factory import *
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 

@@ -10,7 +10,6 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
-import minc2volume_viewer as minc2volume
 import distutils
 import nibabel as nib
 import Initialization.initialization as init
@@ -22,6 +21,7 @@ import Test.test_group_qc as tqc
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
+from . import minc2volume_viewer as minc2volume
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from nipype.utils.filemanip import loadcrash
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
@@ -29,7 +29,6 @@ from xml.dom import minidom
 from Extra.utils import splitext
 from distutils import dir_util
 from nipype.interfaces.utility import Rename
-from Extra.conversion import  nii2mncCommand
 from Masking import masking as masking
 
 from Masking import surf_masking

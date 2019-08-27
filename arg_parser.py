@@ -18,6 +18,7 @@ file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
 icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
 icbm_default_brain_mask=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
+icbm_default_atlas = file_dir+os.sep+"/Atlas/MNI152/dka.nii.gz"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -33,22 +34,22 @@ def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
 
     """
     uname = os.popen('uname -s -n -r').read()
-    print "\n"
-    print "* Pipeline started at "+time.strftime("%c")+"on "+uname
-    print "* Command line is : \n "+str(sys.argv)+"\n"
-    print "* The source directory is : "+opts.sourceDir
-    print "* The target directory is : "+opts.targetDir+"\n"
-    print "* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n"
-    print "* Sessions : ", session_ids, "\n"
-    print "* Tasks : " , task_list , "\n"
-    print "* Runs : " , run_list , "\n"
-    print "* Acquisition : " , acq , "\n"
-    print "* Reconstruction : " , rec , "\n"
+    print("\n")
+    print("* Pipeline started at "+time.strftime("%c")+"on "+uname)
+    print("* Command line is : \n "+str(sys.argv)+"\n")
+    print("* The source directory is : "+opts.sourceDir)
+    print("* The target directory is : "+opts.targetDir+"\n")
+    print("* Data-set Subject ID(s) is/are : "+str(', '.join(subject_ids))+"\n")
+    print("* Sessions : ", session_ids, "\n")
+    print("* Tasks : " , task_list , "\n")
+    print("* Runs : " , run_list , "\n")
+    print("* Acquisition : " , acq , "\n")
+    print("* Reconstruction : " , rec , "\n")
 
 def get_parser():
     parser = ArgumentParser(usage="useage: ")
-    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Absolute path for input file directory", required=True)
-    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Absolute path for directory where output data will be saved in", required=True)
+    parser.add_argument("-s","--source","--sourcedir",dest="sourceDir",  help="Path for input file directory", required=True)
+    parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Path for directory where output data will be saved in", required=True)
     parser.add_argument("--preprocdir",dest="preproc_dir",type=str, default='preproc', help="Relative path (relative to targetDir) to preprocessing directory for intermediate files")
 
     parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
@@ -129,7 +130,7 @@ def get_parser():
     # Quantification
     #group= OptionGroup(parser,"Masking options","Quantification")
     parser.add_argument("--quant-label-space","--quant-label-space", dest="quant_label_space",help=label_space_help,default='stereo', choices=spaces)
-    parser.add_argument("--quant-label-img","--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
+    parser.add_argument("--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--quant-label-template","--quant-label-template",dest="quant_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
     parser.add_argument("--quant-label","--quant-label",dest="quant_labels",help="Label values to use for TKA", default=[], nargs='+' )
     parser.add_argument("--quant-label-erosion","--quant-label-erosion",dest="quant_erode_times",help="Number of times to erode label", type=int, default=0 )
@@ -156,6 +157,7 @@ def get_parser():
     #group= OptionGroup(parser,"Coregistation options")
     parser.add_argument("--coreg-method", dest="coreg_method",type=str,help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
     parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
+    parser.add_argument("--pet-coregistration-target",dest="pet_coregistration_target",type=str, help="Target for PET coregistration (t1, stx; Default=t1)", default='t1', choices=['t1','stx'])
     parser.add_argument("--pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_true', default=False)
     parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
     parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
@@ -229,8 +231,17 @@ def get_parser():
     return parser
 
 def modify_opts(opts) :
-    opts.targetDir = os.path.normpath(opts.targetDir)
-    opts.sourceDir = os.path.normpath(opts.sourceDir)
+    opts.targetDir = os.path.abspath(os.path.normpath(opts.targetDir))
+    opts.sourceDir = os.path.abspath(os.path.normpath(opts.sourceDir))
+
+    #
+    # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the
+    # MNI152 template instead. The default quant, pvc, and results labels should be modified accordingly 
+    #
+    if opts.pet_coregistration_target == "stx" :
+        opts.quant_label_template = opts.pvc_label_template = opts.results_label_template = opts.template
+        opts.quant_label_img = opts.pvc_label_img = opts.results_label_img = icbm_default_atlas
+
 
     ############################
     #Automatically set sessions#
@@ -241,7 +252,7 @@ def modify_opts(opts) :
         print("Subjects:", ' '.join( opts.args))
    
         if len(opts.args) == 0:
-            print "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n"
+            print( "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n")
             exit(1)
 
 
@@ -297,7 +308,7 @@ def modify_opts(opts) :
     # Check inputs to make sure there are no inconsistencies #
     ##########################################################
     if not opts.sourceDir or not opts.targetDir: 
-        print "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n"
+        print( "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n")
         parser.print_help()
         sys.exit(1)
 
@@ -313,18 +324,18 @@ def modify_opts(opts) :
     ###Check PVC options and set defaults if necessary
     if opts.pvc_method != None : 
         if  opts.scanner_fwhm == None and opts.pet_scanner == None :
-            print "Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or"
-            print "\t2) set the PET scanner type using the \"--pet-scanner <string>\" option."
-            print "\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys())
+            print("Error: You must either\n\t1) set the desired FWHM of the PET scanner using the \"--pvc-fwhm <float>\" option, or")
+            print("\t2) set the PET scanner type using the \"--pet-scanner <string>\" option.")
+            print("\tSupported PET scanners to date are the " + ', '.join(pet_scanners.keys()))
             exit(1)
        
         if not opts.pet_scanner == None:
             if opts.pet_scanner in pet_scanners.keys():
                 opts.scanner_fwhm = pet_scanners[opts.pet_scanner]
             else:
-                print "Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can"
-                print "\t1) add this PET scanner to the \"PET_scanner.json\" file, or"
-                print "\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option."
+                print("Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can")
+                print("\t1) add this PET scanner to the \"PET_scanner.json\" file, or")
+                print("\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option.")
                 exit(1)
 
 
@@ -361,7 +372,7 @@ def check_masking_options(opts, label_img, label_template, label_space):
     # 3) String that defines user classification
         label_type='user_cls'
     else : 
-        print "Label error: ", label_img
+        print( "Label error: ", label_img)
         exit(1)
 
     return label_type, label_space

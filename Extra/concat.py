@@ -16,7 +16,7 @@ class concat_dfInput(BaseInterfaceInputSpec):
 class concat_df(BaseInterface):
     input_spec =  concat_dfInput 
     output_spec = concat_dfOutput 
-   
+
     def _run_interface(self, runtime):
         df=pd.DataFrame([])
         test = self.inputs.test
@@ -29,7 +29,7 @@ class concat_df(BaseInterface):
                 s=f.split('/')
                 error = s[-3].split('.')[-1]
                 errortype = s[-3].split('.')[-2]
-		errortype = sub('_error_', '', errortype )
+                errortype = sub('_error_', '', errortype )
                 dft['error'] = error
                 dft["errortype"]=errortype
             df = pd.concat([df, dft], axis=0)
@@ -41,14 +41,14 @@ class concat_df(BaseInterface):
         outputs = self.output_spec().get()
         outputs["out_file"] = os.getcwd() + os.sep + self.inputs.out_file
         return outputs
-      
+
 class ConcatOutput(TraitedSpec):
     out_file = File(exists=True, desc="resampled image")
 
 class ConcatInput(CommandLineInputSpec):
     in_file = InputMultiPath(File(mandatory=True), position=0, argstr='%s', desc='List of input images.')
     out_file = File(position=1, argstr="%s", mandatory=True, desc="Output image.")
-    
+
     dimension = traits.Str(argstr="-concat_dimension %s", desc="Concatenate along a given dimension.")
     start = traits.Float(argstr="-start %s", desc="Starting coordinate for new dimension.")
     step = traits.Float(argstr="-step %s", desc="Step size for new dimension.")

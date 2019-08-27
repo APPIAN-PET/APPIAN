@@ -45,12 +45,12 @@ class transform_objectCommand(CommandLine ):
 
 
 class volume_object_evaluateOutput(TraitedSpec):
-	out_file=traits.File(argstr="%s", desc="Out file")
+    out_file=traits.File(argstr="%s", desc="Out file")
 
 class volume_object_evaluateInput(CommandLineInputSpec):
-        vol_file=traits.File(argstr="%s",position=1, desc="In obj file")
-	obj_file=traits.File(argstr="%s",position=2, desc="Transform file")
-	out_file=traits.File(argstr="%s",position=3, desc="Out file")
+    vol_file=traits.File(argstr="%s",position=1, desc="In obj file")
+    obj_file=traits.File(argstr="%s",position=2, desc="Transform file")
+    out_file=traits.File(argstr="%s",position=3, desc="Out file")
 
 class volume_object_evaluateCommand( CommandLine ):
     input_spec = volume_object_evaluateInput  

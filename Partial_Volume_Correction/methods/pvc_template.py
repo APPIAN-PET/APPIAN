@@ -2,7 +2,7 @@ from nipype.interfaces.base import TraitedSpec, File, traits
 from Extra.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.base import TraitedSpec, File, traits
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                    BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+        BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import ntpath
 import os
 class pvcCommand(MINCCommand):
@@ -24,7 +24,7 @@ class pvcCommand(MINCCommand):
 
     def _parse_inputs(self, skip=None):
         if skip is None:
-	    skip = []
+            skip = []
         if not isdefined(self.inputs.out_file):
-	    self.inputs.out_file = self._gen_output(self.inputs.in_file)
+            self.inputs.out_file = self._gen_output(self.inputs.in_file)
         return super(pvcCommand, self)._parse_inputs(skip=skip)

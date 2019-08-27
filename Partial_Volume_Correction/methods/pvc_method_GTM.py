@@ -6,7 +6,7 @@ separate_labels=True
 
 class pvcCommand(petpvc4DCommand):
     _suffix='GTM'
-
+    roi=True
 
 def check_options(pvcNode, opts):
     if opts.scanner_fwhm != None: pvcNode.inputs.z_fwhm=opts.scanner_fwhm[0]

@@ -49,13 +49,13 @@ class QuantificationCommandWrapper(BaseInterface):
 
         print(modified_command)
         command=' '.join(modified_command)
-        print command 
+        print( command  )
         cmd( command)
 
 
 
 
-        print "Out file", self.inputs.out_file
+        print( "Out file", self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):

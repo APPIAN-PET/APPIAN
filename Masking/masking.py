@@ -7,7 +7,6 @@ import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.minc as minc
-import pyminc.volumes.factory as pyminc
 import nibabel as nib
 import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
@@ -16,10 +15,6 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 from arg_parser import file_dir
 from nipype.interfaces.utility import Rename
 from Extra.utils import splitext, gz
-from Extra.xfmOp import InvertCommand
-from Extra.morphomat import MorphCommand
-from Extra.info import StatsCommand
-from Extra.resample import param2xfmCommand
 from Extra.obj import *
 from scipy.ndimage.morphology import binary_erosion
 from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
@@ -47,9 +42,8 @@ class IdentityTransform(BaseInterface):
         return runtime
 
     def _list_outputs(self):
-	outputs = self.output_spec().get()
+        outputs = self.output_spec().get()
         outputs["out_file"] = self.inputs.out_file
-
 
 class LabelsInput(BaseInterfaceInputSpec):
     #tfm= traits.File(desc="Transformation matrix to register PET image to T1 space") #
@@ -177,28 +171,44 @@ class Labels(BaseInterface):
 .. moduleauthor:: Thomas Funck <tffunck@gmail.com>
 """
 
-def get_transforms_for_stage(inputnode, label_name, label_space, label_type, analysis_space, identity):
+def get_transforms_for_stage(inputnode, label_name, label_space, label_type, analysis_space, identity, pet_coregistration_target):
     if label_space == analysis_space :
         tfm_node=[identity]
         transform_file=["out_file"]
     else : 
+        #From stereotaxic space...
         if label_space == "stereo" :
             if analysis_space == "t1":
+                #...to T1 native space
                 transform_file=["tfm_stx_mri"]
             elif analysis_space == "pet":
-                transform_file=['tfm_mri_pet', 'tfm_stx_mri']
+                #..to PET native space
+                if pet_coregistration_target == "t1":
+                    transform_file=['tfm_struct_pet', 'tfm_stx_mri']
+                else : 
+                    transform_file=['tfm_struct_pet']
+
             if label_type == 'atlas-template' :
                 transform_file += ['tfm_'+label_name+'_tmp_stx']
+        #From T1 native space...
         elif label_space == "t1":
             if analysis_space == "stereo":
+                #...to stereotaxic space
                 transform_file=["tfm_mri_stx"]
             elif analysis_space == "pet":
-                transform_file=["tfm_mri_pet"]
+                #...to PET space
+                transform_file=["tfm_struct_pet"]
+        #From PET native space...
         elif label_space == "pet":
-            if analysis_space == "stereo":
-                transform_file=["tfm_mri_stx", "tfm_pet_mri"]
+            # ...to stereotaxic space
+            if analysis_space == "stereo" :
+                if opts.pet_coregistration_target == "t1":
+                    transform_file=["tfm_mri_stx", "tfm_pet_struct"]
+                else : 
+                    transform_file=["tfm_pet_struct"]
+            # ...to T1w native space
             elif analysis_space == "t1":
-                transform_file=["tfm_pet_mri"]
+                transform_file=["tfm_pet_struct"]
 
         tfm_node=[inputnode]*len(transform_file)
 
@@ -246,7 +256,7 @@ def get_workflow(name, infosource, opts):
     '''
     workflow = pe.Workflow(name=name)
     out_list=["pet_brain_mask", "brain_mask",  "results_label_img_t1", "results_label_img_mni" ]
-    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_mri", "tfm_mri_pet", "tfm_quant_tmp_stx", "tfm_pvc_tmp_stx","tfm_results_tmp_stx", "surf_left", 'surf_right']
+    in_list=["mri_space_nat","mri_space_stx","brain_mask_space_stx", "brain_mask_space_mri", "pet_header_json", "pet_volume", "results_labels", "results_label_template","results_label_img", 'tfm_mri_stx', "tfm_pet_stx", "tfm_stx_pet",'tfm_stx_mri',  "tfm_pet_struct", "tfm_struct_pet", "tfm_quant_tmp_stx", "tfm_pvc_tmp_stx","tfm_results_tmp_stx", "surf_left", 'surf_right']
     if not opts.pvc_method == None :
         out_list += ["pvc_label_img_t1", "pvc_label_img_mni"]
         in_list += ["pvc_labels", "pvc_label_space", "pvc_label_img","pvc_label_template"]
@@ -262,12 +272,12 @@ def get_workflow(name, infosource, opts):
 
 
     if not opts.pvc_method == None and not opts.pvc_method == None:
-        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc'. opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform)
+        pvc_tfm_node, pvc_tfm_file = get_transforms_for_stage(inputnode,'pvc', opts.pvc_label_space, opts.pvc_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
 
     if not opts.quant_method == None:
-       quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform)
-    print(quant_tfm_file)    
-    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, 'results', opts.results_label_space, opts.results_label_type, opts.analysis_space, identity_transform)
+       quant_tfm_node, quant_tfm_file = get_transforms_for_stage(inputnode, 'quant', opts.quant_label_space, opts.quant_label_type, opts.analysis_space, identity_transform, opts.pet_coregistration_target)
+
+    results_tfm_node, results_tfm_file = get_transforms_for_stage(inputnode, 'results', opts.results_label_space, opts.results_label_type, opts.analysis_space, identity_transform,opts.pet_coregistration_target)
     
     ###################
     # Brain Mask Node #
@@ -283,8 +293,12 @@ def get_workflow(name, infosource, opts):
     elif opts.analysis_space == "pet" :
         brain_mask_node = pe.Node(APPIANApplyTransforms(), "brain_mask_space_pet")
         workflow.connect(inputnode, 'brain_mask_space_stx', brain_mask_node, 'input_image')
-        workflow.connect(inputnode, "tfm_mri_stx", brain_mask_node, 'transform_3')
-        workflow.connect(inputnode, "tfm_pet_mri", brain_mask_node, 'transform_2')
+
+        #If PET was coregistered to T1w, then add transformation from T1w MRI space to stereotaxic space
+        if opts.pet_coregistration_target == "t1":
+            workflow.connect(inputnode, "tfm_mri_stx", brain_mask_node, 'transform_3')
+        workflow.connect(inputnode, "tfm_pet_struct", brain_mask_node, 'transform_2')
+        
         workflow.connect(inputnode, 'pet_volume', brain_mask_node, 'reference_image')
         brain_mask_node.inputs.interpolation = 'NearestNeighbor'
         like_file="pet_volume"

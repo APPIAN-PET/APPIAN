@@ -7,6 +7,7 @@ roi=True
 
 class pvcCommand(petpvc4DCommand):
     _suffix='GTM'
+    roi=True
 
 
 def check_options(pvcNode, opts):

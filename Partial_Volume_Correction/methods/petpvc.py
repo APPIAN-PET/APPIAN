@@ -81,7 +81,7 @@ class petpvc4DCommand(BaseInterface):
                 temp_in_file = "tmp/pet_"+str(i)+".nii.gz"
 
                 temp_out_file = "tmp/pvc_"+str(i)+".nii"
-
+                print(roi); exit(1)
                 if roi :
                     pvc_out_file = "tmp/pvc_"+str(i)+".txt"
                 else :

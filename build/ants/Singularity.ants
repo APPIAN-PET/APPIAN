@@ -1,6 +1,6 @@
 Bootstrap : shub
 From : APPIAN-PET/APPIAN:base
-
+ 
 %post
 cd /opt
 wget https://downloads.sourceforge.net/project/itk/itk/4.12/InsightToolkit-4.12.2.tar.gz 

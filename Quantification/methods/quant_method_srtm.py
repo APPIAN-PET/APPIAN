@@ -42,15 +42,15 @@ class QuantCommandWrapper(QuantificationCommandWrapper):
     _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
-    if opts.tka_R1 != None: tkaNode.inputs.R1=opts.tka_R1
-    if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2 
-    if opts.tka_k2s != None: tkaNode.inputs.k2s=opts.tka_k2s
-    if opts.tka_rp != None: tkaNode.inputs.rp=opts.tka_rp
+    if opts.quant_R1 != None: tkaNode.inputs.R1=opts.quant_R1
+    if opts.quant_k2 != None: tkaNode.inputs.k2=opts.quant_k2 
+    if opts.quant_k2s != None: tkaNode.inputs.k2s=opts.quant_k2s
+    if opts.quant_rp != None: tkaNode.inputs.rp=opts.quant_rp
 
-    if opts.tka_dual != None: tkaNode.inputs.err=opts.tka_dual
-    if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-    if opts.tka_DVR != None: tkaNode.inputs.DVR=opts.tka_DVR
-    if opts.tka_srtm2 != None: tkaNode.inputs.srtm2=opts.tka_srtm2
-    if opts.tka_end_time != None: tkaNode.inputs.end=opts.tka_end_time 
+    if opts.quant_dual != None: tkaNode.inputs.err=opts.quant_dual
+    if opts.quant_thr != None: tkaNode.inputs.thr=opts.quant_thr
+    if opts.quant_DVR != None: tkaNode.inputs.DVR=opts.quant_DVR
+    if opts.quant_srtm2 != None: tkaNode.inputs.srtm2=opts.quant_srtm2
+    if opts.quant_end_time != None: tkaNode.inputs.end=opts.quant_end_time 
 
     return tkaNode

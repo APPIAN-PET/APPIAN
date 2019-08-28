@@ -1,0 +1,5 @@
+Bootstrap : shub
+From : APPIAN-PET/APPIAN:ants
+
+%post
+git clone https://github.com/APPIAN-PET/APPIAN

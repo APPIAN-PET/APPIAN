@@ -1,0 +1,26 @@
+Bootstrap : shub
+From : APPIAN-PET/APPIAN:base
+ 
+%post
+cd /opt
+wget https://downloads.sourceforge.net/project/itk/itk/4.12/InsightToolkit-4.12.2.tar.gz 
+tar -zxvf InsightToolkit-4.12.2.tar.gz
+cd InsightToolkit-4.12.2 
+mkdir build 
+cd build 
+cmake -DModule_ITKReview:BOOL=ON .. 
+make 
+make install 
+rm -rf /opt/InsightToolkit-4.12.2
+
+mkdir /opt/ANTs /opt/ANTs/build/ 
+cd /opt/ANTs 
+git clone https://github.com/stnava/ANTs.git 
+cd /opt/ANTs/build 
+cmake ../ANTs/ 
+cmake -D ITK_BUILD_MINC_SUPPORT=ON ../ANTs/ 
+make  
+cp -r bin/* /opt/bin 
+cp ../ANTs/Scripts/* /opt/bin/ 
+rm -rf /opt/ANTs
+

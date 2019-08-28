@@ -21,8 +21,8 @@ def txt2nii(in_file, out_file, mask_file) :
     for i , row in df.iterrows() :
         label=int(row["REGION"])
         value=float(row["MEAN"])
-        print(i, label, value)
-        out_data[ref_data[:,:,:,i] == label] = value
+        print(i, label, value, np.sum(ref_data[:,:,:,i] == 1) )
+        out_data[ref_data[:,:,:,i] == 1] = value
 
     out = nib.Nifti1Image(out_data, ref.get_affine())
     out.to_filename(out_file )
@@ -108,8 +108,10 @@ class petpvc4DCommand(BaseInterface):
                 petpvc4dNode.run()
                 
                 if self.roi :
+                    print(temp_out_file)
                     txt2nii(pvc_out_file, temp_out_file,self.inputs.mask_file)
 
+            print(self.inputs.out_file)
             concatenate_volumes(tmax).to_filename(self.inputs.out_file)
 
             shutil.rmtree("tmp/") 

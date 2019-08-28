@@ -1,8 +1,5 @@
-Bootstrap : localimage
-From : itk.simg
-
-#Bootstrap : shub
-#From : APPIAN-PET/APPIAN:base
+Bootstrap : shub
+From : APPIAN-PET/APPIAN:base
 
 %post
 

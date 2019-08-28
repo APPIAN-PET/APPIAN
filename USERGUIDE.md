@@ -30,7 +30,7 @@ Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or
 apt install awscli
 aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
 ```
-
+ 
 ### Format data
 The data may need to be reformatted slightly to have the following structure. 
 As of version 00002 of the Cimbi data set, you can fix it using the following commands: 

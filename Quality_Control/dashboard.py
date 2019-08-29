@@ -29,9 +29,9 @@ from xml.dom import minidom
 from Extra.utils import splitext
 from distutils import dir_util
 from nipype.interfaces.utility import Rename
-from Masking import masking as masking
+from src import masking as masking
 
-from Masking import surf_masking
+from src import surf_masking
 global path
 path = os.path.dirname(os.path.abspath(__file__))
 path_split = path.split(os.sep)

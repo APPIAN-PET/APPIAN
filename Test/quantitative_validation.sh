@@ -7,9 +7,9 @@ nrm=${version}-download
 ####################
 # Default Settings #
 ####################
-appian_dir="/opt/APPIAN/"
-source_dir="/opt/APPIAN/Test/$nrm"
-target_dir="/opt/APPIAN/Test/out_${nrm}"
+appian_dir="/APPIAN/"
+source_dir="/APPIAN/Test/$nrm"
+target_dir="/APPIAN/Test/out_${nrm}"
 threads=1
 use_singularity=0
 singularity_image="tffunck/appian:latest"

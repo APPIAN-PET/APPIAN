@@ -1,9 +1,9 @@
 # vi: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
 import re
-from Masking import masking as masking
-from Masking import surf_masking
-from MRI import normalize
+from src import masking as masking
+from src import surf_masking
+from src import mri
 from src.ants import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
 from arg_parser import icbm_default_brain_mask
 import nipype.interfaces.minc as minc
@@ -143,7 +143,7 @@ class Workflows:
     #####################
     def set_mri_preprocess(self, opts) :
         if opts.pet_coregistration_target == 't1' :
-            self.mri_preprocess = normalize.get_workflow("mri", opts)
+            self.mri_preprocess = mri.get_workflow("mri", opts)
             #If user wants to input their own brain mask with the option --user-brainmask,
             #then the source node for the brain mask is datasource. Otherwise it is derived in 
             if opts.user_brainmask : 

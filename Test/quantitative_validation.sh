@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 SCRIPTPATH="$( cd "$(dirname "$0")"; cd .. ; pwd -P )"
 version=ds001705 
 nrm=${version}-download
@@ -14,6 +13,7 @@ target_dir="/opt/APPIAN/Test/out_${nrm}"
 threads=1
 use_singularity=0
 singularity_image="tffunck/appian:latest"
+
 
 function useage(){
 	echo Name :	quantitative_validation.sh
@@ -96,16 +96,16 @@ pvcMethods="idSURF VC"
 quantMethods="lp  srtm "
 
 #Run Quant
-cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
-
+#cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
+cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 5 --threads $threads --quant-label 2 "
 cmd_quant="$cmd_base --quant-method suvr "
 cmd_pvc="$cmd_quant" # --pvc-method VC "
+echo $cmd_base
+singularity exec -B "$SCRIPTPATH":"/opt/APPIAN" $singularity_image bash -c "$cmd_pvc"
 
-echo singularity run -B "$SCRIPTPATH":"/opt/APPIAN"  $singularity_image bash -c "$cmd_pvc"
-
-singularity exec -B "$SCRIPTPATH":"/opt/APPIAN" $singularity_image bash -c "$cmd_pvc" #"find $source_dir -name \"*.nii.gz\" "
 
 exit 0 
+
 
 for quant in $quantMethods; do
 	cmd_quant="$cmd_base --quant-method $quant "

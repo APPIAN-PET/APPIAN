@@ -9,12 +9,12 @@ from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from Extra.extra import copyCommand
-from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms
+from src.ants import APPIANRegistration, APPIANApplyTransforms
 from nipype.interfaces.utility import Rename
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.utility as util
-import Initialization.initialization as init
+import src.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
 import ntpath

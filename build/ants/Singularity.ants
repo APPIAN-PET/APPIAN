@@ -14,3 +14,7 @@ cp -r bin/* /opt/bin
 cp ../ANTs/Scripts/* /opt/bin/ 
 rm -rf /opt/ANTs
 
+git clone https://github.com/ANTsX/ANTsPy
+cd ANTsPy
+python3 setup.py install
+

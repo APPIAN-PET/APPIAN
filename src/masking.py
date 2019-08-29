@@ -17,7 +17,7 @@ from nipype.interfaces.utility import Rename
 from Extra.utils import splitext, gz
 from Extra.obj import *
 from scipy.ndimage.morphology import binary_erosion
-from Registration.ants_mri_normalize import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
+from src.ants import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
 
 
 

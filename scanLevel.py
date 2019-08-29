@@ -7,7 +7,7 @@ import sys
 import argparse
 import time
 
-#import Initialization.initialization as init
+#import src.initialization as init
 from workflows import Workflows
 
 """

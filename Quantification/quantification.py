@@ -8,7 +8,7 @@ from Turku.dft import img2dft_unit_conversion
 from Extra.extra import subject_parameterCommand
 from Extra.turku import imgunitCommand
 from Extra.turku import JsonToSifCommand
-from Registration.ants_mri_normalize import APPIANApplyTransforms
+from src.ants import APPIANApplyTransforms
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu

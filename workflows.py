@@ -4,10 +4,10 @@ import re
 from Masking import masking as masking
 from Masking import surf_masking
 from MRI import normalize
-from Registration.ants_mri_normalize import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
+from src.ants import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
 from arg_parser import icbm_default_brain_mask
 import nipype.interfaces.minc as minc
-import Initialization.initialization as init
+import src.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Quantification.quantification as quant

@@ -12,7 +12,7 @@ import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
 import distutils
 import nibabel as nib
-import Initialization.initialization as init
+import src.initialization as init
 import Partial_Volume_Correction.pvc as pvc 
 import Results_Report.results as results
 import Quantification.quantification as quant

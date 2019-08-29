@@ -12,8 +12,8 @@ appian_dir="/opt/APPIAN/"
 source_dir="/opt/APPIAN/Test/$nrm"
 target_dir="/opt/APPIAN/Test/out_${nrm}"
 threads=1
-use_docker=0
-docker_image="tffunck/appian:latest"
+use_singularity=0
+singularity_image="tffunck/appian:latest"
 
 function useage(){
 	echo Name :	quantitative_validation.sh
@@ -22,8 +22,8 @@ function useage(){
 	echo "		-a 		Set APPIAN directory where Launcher is located (default=$appian_dir)"
 	echo "		-s 		Set source directory where NRM2018 data will be downloaded (default=$source_dir)"
 	echo "		-t 		Set target directory where results will be saved (default=$target_dir)"
-	echo "		-d 		Use docker container (default=False)"
-	echo "		-i 		Docker image name (default=$docker_image)"
+	echo "		-d 		Use singularity container (default=False)"
+	echo "		-i 		Docker image name (default=$singularity_image)"
 	echo "		-r 		Number of threads to use (default=$threads)"
 	echo "		-h 		Print this help menu"
 }
@@ -48,10 +48,10 @@ while getopts "a:s:t:r:i:dh" opt; do
 			;;
 
 		i) 
-			docker_image=$OPTARG 1>&2
+			singularity_image=$OPTARG 1>&2
 			;;
 		d) 
-			use_docker=1
+			use_singularity=1
 			;;
 		h) 
 			useage
@@ -85,8 +85,8 @@ echo -------------------------------
 echo " APPIAN Directory : $appian_dir"
 echo " Source Directory : $source_dir"
 echo " Target Directory : $target_dir"
-if [[ $use_docker == 1 ]]; then
-	echo " Docker image : $docker_image"
+if [[ $use_singularity == 1 ]]; then
+	echo " Docker image : $singularity_image"
 fi
 echo " Threads : $threads"
 echo 
@@ -96,18 +96,21 @@ pvcMethods="idSURF VC"
 quantMethods="lp  srtm "
 
 #Run Quant
-cmd_base="python ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --tka-label-img /APPIAN/Atlas/MNI152/dka.nii --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
+cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /APPIAN/Atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
-cmd_quant="$cmd_base --tka-method suvr "
+cmd_quant="$cmd_base --quant-method suvr "
 cmd_pvc="$cmd_quant" # --pvc-method VC "
-echo docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
-docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
-exit 0
+
+echo singularity run -B "$SCRIPTPATH":"/opt/APPIAN"  $singularity_image bash -c "$cmd_pvc"
+
+singularity exec -B "$SCRIPTPATH":"/opt/APPIAN" $singularity_image bash -c "$cmd_pvc" #"find $source_dir -name \"*.nii.gz\" "
+
+exit 0 
 
 for quant in $quantMethods; do
-	cmd_quant="$cmd_base --tka-method $quant "
-	if [[ $use_docker != 0 ]]; then
-		docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_quant"
+	cmd_quant="$cmd_base --quant-method $quant "
+	if [[ $use_singularity != 0 ]]; then
+		singularity exec -B "$SCRIPTPATH":"/APPIAN" $singularity_image bash -c "$cmd_quant"
 	else
 		bash -c "$cmd"
 	fi 
@@ -118,9 +121,9 @@ for quant in $quantMethods; do
 		# Setup command to run APPIAN
 		cmd_pvc="$cmd_quant --pvc-method $pvc "
 		
-		if [[ $use_docker != 0 ]]; then
-			# Run command in docker container
-			docker run -v "$SCRIPTPATH":"/APPIAN" --rm $docker_image bash -c "$cmd_pvc"
+		if [[ $use_singularity != 0 ]]; then
+			# Run command in singularity container
+			singularity exec -B "$SCRIPTPATH":"/APPIAN"  $singularity_image bash -c "$cmd_pvc"
 		else
 			# Assumes you are already in an environment that can run APPIAN
 			bash -c "$cmd_pvc"

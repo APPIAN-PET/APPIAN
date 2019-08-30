@@ -19,7 +19,7 @@ tar -zxf /opt/turku/src.tar.gz -C /opt/turku/src/
 mv  /opt/turku/src/bin/* /opt/bin/
 rm -rf /opt/turku
 
-pip3  install tensorflow networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image
+pip3  install tensorflow networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image webcolors
 
 echo "syntax on" > /root/.vimrc
 echo "set tabstop=4 shiftwidth=4 expandtab smartindent hlsearch " >> /root/.vimrc

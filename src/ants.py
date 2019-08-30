@@ -4,7 +4,6 @@ from nipype.interfaces.ants import registration, segmentation
 from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from nipype.interfaces.utility import Rename
-from nipype.interfaces.ants import Registration, ApplyTransforms
 from nipype.interfaces.ants.registration import CompositeTransformUtil, CompositeTransformUtilInputSpec
 from nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
 from nipype.interfaces.base import InputMultiPath
@@ -38,9 +37,10 @@ class APPIANApplyTransformsInputSpec(BaseInterfaceInputSpec) :
     invert_1 = traits.Bool(default_value=False, usedefault=True)
     invert_2 = traits.Bool(default_value=False, usedefault=True)
     invert_3 = traits.Bool(default_value=False, usedefault=True)
-    reference_image=traits.File()
-    input_image=traits.File()
+    reference_image=traits.File(mandatory=True, exists=True)
+    input_image=traits.File(mandatory=True, exists=True)
     output_image = traits.File()
+    target_space=traits.Str(default_value="undefined", usedefault=True)
     interpolation = traits.Str(usedefault=True, default_value='Linear')
 
 class APPIANApplyTransformsOutputSpec(TraitedSpec) :
@@ -65,15 +65,19 @@ class APPIANApplyTransforms(BaseInterface):
             transforms.append(self.inputs.transform_3)
             invert_transform_flags.append(self.inputs.invert_3)
         
-        cmd = ApplyTransforms()
-        cmd.inputs.transforms=transforms
-        cmd.inputs.invert_transform_flags = invert_transform_flags
-        cmd.inputs.reference_image = self.inputs.reference_image
-        cmd.inputs.input_image = self.inputs.input_image
-        cmd.inputs.interpolation = self.inputs.interpolation
-        cmd.run()
+        #output file
         split =splitext(os.path.basename( self.inputs.input_image))
-        self.inputs.output_image =os.getcwd() + os.sep + split[0] + '_trans' + split[1] 
+        self.inputs.output_image =os.getcwd() + os.sep + split[0] + split[1] 
+        if '_space-' in self.inputs.output_image :
+            self.inputs.output_image = re.sub('_space-[A-z]*_',"_space-"+self.inputs.target_space+"_", self.inputs.output_image)
+        
+        #combine transformation files and output flags
+        transforms_zip = zip(transforms, invert_transform_flags)
+        transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in transforms_zip  if t != None ]) 
+        cmdline = "antsApplyTransforms  -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
+        
+        cmd(cmdline)
+
         print(os.listdir(os.getcwd()))
         return runtime
 

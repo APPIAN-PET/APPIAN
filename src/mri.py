@@ -95,6 +95,7 @@ def get_workflow(name, opts):
             exit(1)
     else :
         transform_mri = pe.Node(interface=APPIANApplyTransforms(), name="transform_mri"  )
+        transform_mri.inputs.target_space='t1'
         workflow.connect(inputnode, 'mri', transform_mri, 'input_image')
         workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'transform_1')
         transform_mri.inputs.reference_image = opts.template
@@ -183,6 +184,7 @@ def get_workflow(name, opts):
     #
     transform_brain_mask = pe.Node(interface=APPIANApplyTransforms(),name="transform_brain_mask")
     transform_brain_mask.inputs.interpolation = 'NearestNeighbor'
+    transform_brain_mask.inputs.target_space = 't1'
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_image')
     workflow.connect(tfm_node, tfm_inv_file, transform_brain_mask, 'transform_1')
     workflow.connect(copy_mri_nat,'output_file', transform_brain_mask,'reference_image') 

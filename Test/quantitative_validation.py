@@ -85,7 +85,7 @@ if __name__ == '__main__' :
     #Run Quant
     #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
-    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + " --start-time 5 --threads "+ opts.threads+ " --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
+    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + " --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
     cmd_quant=cmd_base + " --quant-method suvr "
     cmd_pvc=cmd_quant # --pvc-method VC "
 

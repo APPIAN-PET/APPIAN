@@ -265,6 +265,7 @@ class pet3DVolume(BaseInterface):
             volume_average=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
             outfile = nib.Nifti1Image(volume_average, affine)
+            outfile.set_qform(affine)
             nib.save(outfile, self.inputs.out_file)
         else :
             #If there is no "time" dimension (i.e., in 3D file), just copy the PET file

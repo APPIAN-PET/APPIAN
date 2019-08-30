@@ -237,6 +237,7 @@ class Workflows:
         #If analysis_space != pet, then resample 4d PET image to T1 or stereotaxic space
         if opts.analysis_space in ['t1', 'stereo'] :
             pet_analysis_space = pe.Node(interface=APPIANApplyTransforms(), name='pet_space_mri')
+            pet_analysis_space.inputs.target_space="t1"
             self.workflow.connect(self.datasource, 'pet', pet_analysis_space, 'input_image')
             self.pet_input_node=pet_analysis_space
             self.pet_input_file='output_image'

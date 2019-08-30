@@ -122,6 +122,7 @@ class Labels(BaseInterface):
 
         #6. Apply transformation
         transformLabels = APPIANApplyTransforms()
+        transformLabels.inputs.target_space = +self.inputs.analysis_space
         transformLabels.inputs.input_image ="tmp_label_img.nii"
         transformLabels.inputs.reference_image = self.inputs.like_file
         transformLabels.inputs.transform_1 = self.inputs.transform_1
@@ -292,6 +293,7 @@ def get_workflow(name, infosource, opts):
         like_file="mri_space_nat"
     elif opts.analysis_space == "pet" :
         brain_mask_node = pe.Node(APPIANApplyTransforms(), "brain_mask_space_pet")
+        brain_mask_node.inputs.target_space=opts.analysis_space
         workflow.connect(inputnode, 'brain_mask_space_stx', brain_mask_node, 'input_image')
 
         #If PET was coregistered to T1w, then add transformation from T1w MRI space to stereotaxic space

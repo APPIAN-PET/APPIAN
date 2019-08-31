@@ -1,5 +1,7 @@
 language: python
 python :
     - "3.6"
-
+script :
+    singularity build appian.simg APPIAN/Singularity
+    singularity exec appian.simg bash -c "hello, world!"
 

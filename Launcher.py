@@ -2,9 +2,9 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os
 import sys
-from scanLevel import run_scan_level
-from groupLevel import run_group_level
-from arg_parser import get_parser, modify_opts
+from src.scanLevel import run_scan_level
+from src.groupLevel import run_group_level
+from src.arg_parser import get_parser, modify_opts
 
 version = "1.0"
 

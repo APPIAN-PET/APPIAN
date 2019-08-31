@@ -262,9 +262,9 @@ class pet3DVolume(BaseInterface):
             volume_subsets=np.split(data, [first,last], axis=ti) 
             volume_subset=volume_subsets[1]
             
-            volume_average=np.mean(volume_subset, axis=ti)
+            volume_src=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
-            outfile = nib.Nifti1Image(volume_average, affine)
+            outfile = nib.Nifti1Image(volume_src, affine)
             outfile.set_qform(affine)
             nib.save(outfile, self.inputs.out_file)
         else :

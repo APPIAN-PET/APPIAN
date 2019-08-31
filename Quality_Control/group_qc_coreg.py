@@ -33,7 +33,7 @@ import nipype.interfaces.io as nio
 #import Quality_Control.group_qc_coreg as coreg_qc
 import Quality_Control.pvc_qc as pvc_qc
 import Quality_Control.tka_qc as tka_qc
-import Results_Report.results as results
+import src.results as results
 from Extra.concat import concat_df
 
 ######################

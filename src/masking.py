@@ -12,7 +12,7 @@ import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-from arg_parser import file_dir
+from src.arg_parser import file_dir
 from nipype.interfaces.utility import Rename
 from Extra.utils import splitext, gz
 from Extra.obj import *

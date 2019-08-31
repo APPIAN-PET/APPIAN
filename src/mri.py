@@ -1,7 +1,7 @@
 from nipype.interfaces.ants import N4BiasFieldCorrection
 from Extra.utils import splitext 
 from nipype.interfaces.ants.segmentation import BrainExtraction
-from arg_parser import icbm_default_template, file_dir
+from src.arg_parser import icbm_default_template, file_dir
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)

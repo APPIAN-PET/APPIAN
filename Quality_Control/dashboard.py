@@ -13,9 +13,9 @@ import nipype.interfaces.utility as niu
 import distutils
 import nibabel as nib
 import src.initialization as init
-import Partial_Volume_Correction.pvc as pvc 
-import Results_Report.results as results
-import Quantification.quantification as quant
+import src.pvc as pvc 
+import src.results as results
+import src.quantification as quant
 import Quality_Control.qc as qc
 import Test.test_group_qc as tqc
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
@@ -35,8 +35,8 @@ from src import surf_masking
 global path
 path = os.path.dirname(os.path.abspath(__file__))
 path_split = path.split(os.sep)
-pvc_path = '/'.join(path_split[0:-1])+os.sep+"Partial_Volume_Correction"+os.sep+"methods"
-quant_path = '/'.join(path_split[0:-1])+os.sep+"Quantification"+os.sep+"methods"
+pvc_path = '/'.join(path_split[0:-1])+os.sep+"src"+os.sep+"pvc_methods"
+quant_path = '/'.join(path_split[0:-1])+os.sep+"src"+os.sep+"quant_methods"
 sys.path.insert(0, pvc_path)
 sys.path.insert(0, quant_path)
 importlib.import_module("pvc_method_GTM")
@@ -110,11 +110,11 @@ def get_stage_file_type(stage, method, stage_dir, prefix):
 def set_stage_node_file(stage, method) :
     if stage == 'pvc':
         conversion_node = 'convertPVC'
-        stage_dir="Partial_Volume_Correction"
+        stage_dir="src"
         prefix="pvc"
     elif stage == 'quant' :
         conversion_node = 'convertParametric'
-        stage_dir="Quantification"
+        stage_dir="src"
         prefix="quant"
     else :
         print("Error: stage must be with 'pvc' or 'quant' but received :", stage)

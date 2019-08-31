@@ -16,14 +16,14 @@ class AverageInput(CommandLineInputSpec):
     in_file = File(position=0, argstr="%s", mandatory=True, desc="4D input image")
     out_file = File(argstr="%s", desc="3D output image")
 
-    avgdim = traits.Str(argstr="-avgdim %s", mandatory=True, desc="Specify a dimension along which we wish to average")
+    avgdim = traits.Str(argstr="-avgdim %s", mandatory=True, desc="Specify a dimension along which we wish to src")
     width_weighted = traits.Bool(argstr="-width_weighted", usedefault=True, default_value=True, desc="Weight by dimension widths.")
 
     clobber = traits.Bool(argstr="-clobber", usedefault=True, default_value=True, desc="Overwrite output file")
     verbose = traits.Bool(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
 class AverageCommand(CommandLine):
-    _cmd = "mincaverage"
+    _cmd = "mincsrc"
     _suffix = "_sum"
     input_spec = AverageInput
     output_spec = AverageOutput

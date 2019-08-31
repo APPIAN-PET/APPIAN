@@ -1,6 +1,5 @@
-from Extra.base import MINCCommand, MINCCommandInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, BaseInterface,  BaseInterfaceInputSpec, isdefined, CommandLineInputSpec, CommandLine)
-from Extra.utils import splitext, check_gz, cmd
+from src.utils import splitext, check_gz, cmd
 import ntpath
 import os
 class quantificationCommand(CommandLine):

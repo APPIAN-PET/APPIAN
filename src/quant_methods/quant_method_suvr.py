@@ -1,7 +1,7 @@
 import numpy as np
 import json
 import nibabel as nib
-from Extra.utils import splitext
+from src.utils import splitext
 from quantification_template import *
 from scipy.integrate import simps
 ### Required for a quantification node:
@@ -40,6 +40,7 @@ class quantCommand(BaseInterface):
         pet = nib.load(self.inputs.in_file).get_data()
         reference_vol = nib.load(self.inputs.reference)
         reference = reference_vol.get_data()
+        reference = reference.reshape(*reference.shape[0:3])
         ndim = len(pet.shape)
         
         vol = pet
@@ -60,7 +61,6 @@ class quantCommand(BaseInterface):
             except ValueError :
                 time_frames = [1.]
             vol = simps( pet, time_frames, axis=3)
-        
         idx = reference > 0
         ref = np.mean(vol[idx])
         print("SUVR Reference = ", ref)

@@ -10,7 +10,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 
-from Extra.obj import transform_objectCommand, volume_object_evaluateCommand
+from src.obj import transform_objectCommand, volume_object_evaluateCommand
 
 def get_surf_workflow(name, infosource, datasink, opts):
     workflow = pe.Workflow(name=name)

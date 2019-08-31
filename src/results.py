@@ -2,14 +2,10 @@ import os
 import re
 import nipype
 import json
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
-                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from Extra.base import MINCCommand, MINCCommandInputSpec, Info
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,isdefined)
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy.integrate import simps
-from Extra.concat import concat_df
-from Extra.utils import splitext
-from Quality_Control.qc import metric_columns
+from src.utils import concat_df, splitext
+from src.qc import metric_columns
 import pandas as pd
 import numpy as np
 import nipype.pipeline.engine as pe
@@ -193,7 +189,7 @@ class resultsCommand( BaseInterface):
         return outputs
 
 
-class descriptive_statisticsInput(MINCCommandInputSpec):   
+class descriptive_statisticsInput(CommandLineInputSpec):   
     in_file = traits.File(desc="Input file ")
     ses = traits.File(desc="Output srcd by sesion")
     task = traits.File(desc="Output srcd by task")
@@ -258,7 +254,7 @@ class descriptive_statisticsCommand( BaseInterface):
         return out_file
 
 ### TKA metrics
-class integrate_TACInput(MINCCommandInputSpec):   
+class integrate_TACInput(CommandLineInputSpec):   
     in_file = traits.File(desc="Input file ")
     header = traits.File(desc="PET Header file ")
     out_file = traits.File(desc="Output file ")

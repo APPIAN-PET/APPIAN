@@ -7,7 +7,7 @@ from nipype.interfaces.utility import Rename
 from nipype.interfaces.ants.registration import CompositeTransformUtil, CompositeTransformUtilInputSpec
 from nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
 from nipype.interfaces.base import InputMultiPath
-from Extra.utils import splitext, cmd
+from src.utils import splitext, cmd
 from scipy.io import loadmat
 import nipype.pipeline.engine as pe
 import SimpleITK as sitk

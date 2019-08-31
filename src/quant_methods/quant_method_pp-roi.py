@@ -10,7 +10,7 @@ voxelwise=False
 class quantOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image")
 
-class quantInput( MINCCommandInputSpec):
+class quantInput( CommandLineInputSpec):
     out_file = File(argstr="%s", position=-1, desc="image to operate on")
     header = traits.File(exists=True, mandatory=True, desc="Input file ")
     in_file= File(exists=True, position=-4, argstr="%s", desc="PET file")

@@ -1,11 +1,8 @@
-from nipype.interfaces.base import TraitedSpec, File, traits
-from Extra.base import MINCCommand, MINCCommandInputSpec
-from nipype.interfaces.base import TraitedSpec, File, traits
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import ntpath
 import os
-class pvcCommand(MINCCommand):
+class pvcCommand(CommandLine):
     #these are temporary placeholders, to be replaced by actual <_cmd> and <_suffix> values
     _cmd="pvc"
     _suffix="pvc"

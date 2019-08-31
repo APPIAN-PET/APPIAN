@@ -11,9 +11,8 @@ import src.initialization as init
 import src.pvc as pvc 
 import src.results as results
 import src.quantification as quant
-import Quality_Control.qc as qc
-import Quality_Control.dashboard as dash
-import Test.test_group_qc as tqc
+import src.qc as qc
+import src.dashboard.dashboard as dash
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
@@ -58,7 +57,7 @@ class Workflows:
         (self.set_datasink, False, True),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
-        (self.set_qc_metrics, False, False), 
+        (self.set_qc_metrics, False, not opts.no_qc), 
         (self.set_dashboard, False, False)
         )
 
@@ -480,7 +479,6 @@ class Workflows:
 
             self.workflow.connect( self.resultsReport, 'out_file', self.datasink, node_name+os.sep+dir_name )
 
-
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -488,7 +486,7 @@ class Workflows:
         if opts.group_qc or opts.test_group_qc :
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
-            self.workflow.connect(self.pet2mri, 'outputnode.petmri_img',  self.distance_metricNode, 'pet')
+            self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
             self.workflow.connect(self.mri_preprocess, self.brain_mask_space_mri_name, self.distance_metricNode, 'brain_mask_space_mri')
             self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name,  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')

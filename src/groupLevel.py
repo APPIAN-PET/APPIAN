@@ -2,9 +2,9 @@ import os
 import sys
 
 import src.results as results
-import Quality_Control.qc as qc
-import Test.test_group_qc as tqc
-import Quality_Control.dashboard as dash
+import src.qc as qc
+import src.test_group_qc as tqc
+import src.dashboard.dashboard as dash
 
 
 def run_group_level(opts,args):

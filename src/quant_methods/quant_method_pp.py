@@ -8,7 +8,7 @@ voxelwise=True
 class quantOutput(TraitedSpec):
     out_file = File(argstr="-o %s",  desc="Patlak plot ki parametric image.")
 
-class quantInput(MINCCommandInputSpec):
+class quantInput(CommandLineInputSpec):
     out_file = File(argstr="%s", position=-1, desc="image to operate on")
     in_file= File(exists=True, mandatory=True, position=-3, argstr="%s", desc="PET file")
     reference = File(exists=True, mandatory=True,  position=-4, argstr="%s", desc="Reference file")

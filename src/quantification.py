@@ -2,12 +2,10 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined
 from nipype.utils.filemanip import load_json, save_json, split_filename, fname_presuffix, copyfile
 
-from Extra.base import MINCCommand, MINCCommandInputSpec
-from Extra.modifHeader import FixHeaderLinkCommand
 from src.turku import img2dft_unit_conversion
-from Extra.extra import subject_parameterCommand
-from Extra.turku import imgunitCommand
-from Extra.turku import JsonToSifCommand
+from src.utils import subject_parameterCommand
+from src.turku import imgunitCommand
+from src.turku import JsonToSifCommand
 from src.ants import APPIANApplyTransforms
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio

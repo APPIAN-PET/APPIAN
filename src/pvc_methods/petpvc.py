@@ -1,6 +1,6 @@
 from pvc_template import *
 from nipype.interfaces.base import CommandLine, CommandLineInputSpec
-from Extra.utils import splitext
+from src.utils import splitext
 import nibabel as nib
 import pandas as pd
 import numpy as np
@@ -44,7 +44,7 @@ def concatenate_volumes(tmax, temp_string="tmp/pvc_<frame>.nii" ) :
 class petpvcOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
 
-class petpvcInput(MINCCommandInputSpec):
+class petpvcInput(CommandLineInputSpec):
     out_file = File(argstr="-o %s", desc="image to operate on")
     mask_file = File(argstr="-m %s",  desc="Integer mask file")
     in_file = File(argstr="-i %s", exists=True, desc="PET file")

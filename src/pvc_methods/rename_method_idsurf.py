@@ -6,7 +6,7 @@ out_file_format="MINC"
 class pvcOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
 
-class pvcInput(MINCCommandInputSpec):
+class pvcInput(CommandLineInputSpec):
     out_file = File(position=3, argstr="-o %s",desc="image to operate on")
     mask = File( position=2, argstr="-mask %s", desc="Integer mask file")
     input_file = File(exists=True, position=1, argstr="-pet %s", desc="PET file")

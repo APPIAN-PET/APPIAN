@@ -12,8 +12,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,is
 import shutil
 import sys
 import importlib
-from Extra.extra import separate_mask_labelsCommand
-from Extra.modifHeader import FixHeaderLinkCommand
+from src.utils import separate_mask_labelsCommand
 """
 .. module:: pvc
     :platform: Unix

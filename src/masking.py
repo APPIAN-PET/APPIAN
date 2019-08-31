@@ -14,8 +14,8 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from src.arg_parser import file_dir
 from nipype.interfaces.utility import Rename
-from Extra.utils import splitext, gz
-from Extra.obj import *
+from src.utils import splitext, gz
+from src.obj import *
 from scipy.ndimage.morphology import binary_erosion
 from src.ants import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
 
@@ -122,7 +122,7 @@ class Labels(BaseInterface):
 
         #6. Apply transformation
         transformLabels = APPIANApplyTransforms()
-        transformLabels.inputs.target_space = +self.inputs.analysis_space
+        transformLabels.inputs.target_space = self.inputs.analysis_space
         transformLabels.inputs.input_image ="tmp_label_img.nii"
         transformLabels.inputs.reference_image = self.inputs.like_file
         transformLabels.inputs.transform_1 = self.inputs.transform_1

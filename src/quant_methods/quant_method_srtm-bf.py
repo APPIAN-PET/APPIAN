@@ -11,7 +11,7 @@ voxelwise=True
 class quantOutput(TraitedSpec):
     out_file = File(argstr="%s",  desc="Parametric image of binding potential.")
 
-class quantInput(MINCCommandInputSpec):
+class quantInput(CommandLineInputSpec):
     in_file= File(exists=True, position=-3, argstr="%s", desc="PET file")
     reference = File(exists=True,  position=-2, argstr="%s", desc="Reference file")
     out_file = File(argstr="%s", position=-1, desc="image to operate on") 

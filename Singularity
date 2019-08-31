@@ -1,5 +1,5 @@
 Bootstrap : shub
-From : APPIAN-PET/APPIAN:ants
+From : APPIAN-PET/Dependencies:ants
 
 %post
 cd /opt

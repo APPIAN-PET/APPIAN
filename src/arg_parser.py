@@ -17,9 +17,9 @@ internal_cls_methods=["antsAtropos"]
 file_dir, fn =os.path.split( os.path.abspath(__file__) )
 file_dir = '/'.join( file_dir.split('/')[0:-1] )
 
-icbm_default_template = file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
-icbm_default_brain_mask=file_dir+os.sep+"/Atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
-icbm_default_atlas = file_dir+os.sep+"/Atlas/MNI152/dka.nii.gz"
+icbm_default_template = file_dir+os.sep+"/atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c.nii.gz"
+icbm_default_brain_mask=file_dir+os.sep+"/atlas/MNI152/mni_icbm152_t1_tal_nlin_asym_09c_mask.nii.gz"
+icbm_default_atlas = file_dir+os.sep+"/atlas/MNI152/dka.nii.gz"
 
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
@@ -218,7 +218,8 @@ def get_parser():
 
     #Quality Control 
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
-    parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  #FIXME Add to options
+    parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
+    parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  
     parser.add_argument("--test-group-qc",dest="test_group_qc",help="Perform simulations to test quantitative group-wise quality control.", action='store_const', const=True, default=False)
     parser.add_argument_group(parser)
 
@@ -359,7 +360,7 @@ def check_masking_options(opts, label_img, label_template, label_space):
     '''
     #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
     if os.path.exists(label_img):
-    # 1) Atlas 
+    # 1) atlas 
         label_type ="atlas"
         #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
         if label_template != None :

@@ -4,6 +4,7 @@ python :
 addons:
   apt:
     sources:
+        - http://neuro.debian.net/lists/xenial.us-ca.full
     packages:
       -  singularity-container
 script:

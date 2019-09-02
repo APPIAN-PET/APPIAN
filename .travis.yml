@@ -1,8 +1,11 @@
 language: python
 python :
     - "3.6"
-before_script :
-    - apt install singularity-container
+addons:
+  apt:
+    sources:
+    packages:
+      -  singularity-container
 script:
     - singularity build appian.simg APPIAN/Singularity
     - singularity exec appian.simg bash -c "hello, world!"

@@ -6,9 +6,12 @@ before_install:
     - sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
     - sudo apt-get update -q
     - sudo apt-get install -y singularity-container
+before_script :
+    - sudo singularity build /opt/appian.simg APPIAN/Singularity
 script:
-    - singularity build appian.simg APPIAN/Singularity
-    - singularity exec appian.simg bash -c "hello, world!"
+    - pwd
+    - ls
+    - singularity exec /opt/appian.simg bash -c "hello, world!"
 
 
 

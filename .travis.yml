@@ -9,7 +9,6 @@ before_install:
 before_script :
     - sudo singularity build appian.simg Singularity
 script:
-    - pwd
     - ls
     - singularity exec appian.simg bash -c "hello, world!"
 

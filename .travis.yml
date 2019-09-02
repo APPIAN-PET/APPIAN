@@ -7,7 +7,10 @@ before_install:
     - sudo apt-get update -q
     - sudo apt-get install -y singularity-container
 before_script :
-    - sudo singularity build /opt/appian.simg APPIAN/Singularity
+    - ls 
+    - pwd
+    - find / -name Singularity | grep APPIAN
+    - #sudo singularity build /opt/appian.simg `find / -name Singularity`
 script:
     - pwd
     - ls

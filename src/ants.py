@@ -41,7 +41,7 @@ class APPIANApplyTransformsInputSpec(BaseInterfaceInputSpec) :
     input_image=traits.File(mandatory=True, exists=True)
     output_image = traits.File()
     target_space=traits.Str(default_value="undefined", usedefault=True)
-    interpolation = traits.Str(usedefault=True, default_value='Linear')
+    interpolation = traits.Str(usedefault=True, default_value='BSpline')
 
 class APPIANApplyTransformsOutputSpec(TraitedSpec) :
     output_image = traits.File(exists=True)

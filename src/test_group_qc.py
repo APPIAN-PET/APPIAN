@@ -1,18 +1,28 @@
 import nipype
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
-from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 import matplotlib as mpl
-from scipy.integrate import simps
 mpl.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
 import numpy as np
 import pandas as pd
 import fnmatch
 import os
 import shutil
+import src as qc
+import random
+import seaborn as sns
+import nipype.interfaces.io as nio
+import SimpleITK as sitk
+import ants
+import numpy as np
+import nibabel as nib
+from scipy.ndimage.measurements import center_of_mass 
+from src.ants import APPIANApplyTransforms
+from sklearn.metrics import roc_curve, auc
+from scipy.integrate import simps
+from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy import stats
 from math import sqrt, floor, ceil
 from os import getcwd
@@ -21,19 +31,13 @@ from sys import argv, exit
 from re import sub
 from src.outlier import lof, kde, MAD, lcf
 from src.qc import outlier_measures, distance_metrics, metric_columns
-import src as qc
-import random
-import seaborn as sns
-import nipype.interfaces.io as nio
 from src.utils import concat_df
-
 
 # Name: group_coreg_qc_test
 # Purpose: src the ability of group_coreg_qc to detect misregistration of T1 and PET images. This is done by
 #          creating misregistered PET images for each subject by applying translations and rotations to the PET
 #          image. For each misregistered PET image, we run group_coreg_qc to see how much the misregistration 
 #          affects group qc metrics.
-
 
 global normal_param
 global angles
@@ -46,6 +50,96 @@ errors = angles + offsets
 misalignment_parameters={"angles":angles, "offsets":offsets}
 
 normal_param ='000'
+
+def setup_test_group_qc(self,opts ):
+    #define string that includes translation and/or rotation error
+    error_string = ''
+    if opts.rotation_error_deg != [] :
+        error_string += 'rotation_' + '_'.join( [str(int(i)) for i in opts.rotation_error_deg] )
+    if opts.translation_error_deg != [] :
+        error_string += 'translation_'+ '_'.join( [str(int(i)) for i in opts.translation_error_deg] )
+
+    # Modfiy pvc, quant, and results labels to include the error_string
+    #This is done so that multiple rotation/translation errors can be run
+    #without having to rerun the preliminary mri prepcrocessing and pet coregistration
+    if opts.pvc_label_name != None :
+        opts.pvc_label_name += error_string
+    else :
+        opts.pvc_label_name = error_string
+
+    opts.rotation_error_rad = [ i * 3.14159 / 180. for i in opts.rotation_error_deg ]
+    opts.translation_error_rad = [ i * 3.14159 / 180. for i in opts.translation_error_deg ]
+    
+    #Create a matrix that will misalign the PET image w.r.t the MRI
+    self.create_misalignment_tfm = pe.Node(interface=create_misalignment_tfm(),name="misalignment_tfm_"+error_string)
+    self.workflow.connect(self.pet_input_node, self.pet_input_file, self.create_misalignment_tfm, "image")
+    self.create_misalignment_tfm.inputs.error_string = error_string
+    self.create_misalignment_tfm.inputs.rotation_error = opts.rotation_error_rad
+    self.create_misalignment_tfm.inputs.translation_error = opts.translation_error_rad
+
+    # Apply misalignment transform to PET image
+    self.misalign_pet = pe.Node(interface=APPIANApplyTransforms(), name="misalign_pet_"+error_string)
+    self.misalign_pet.inputs.target_space='pet'
+    self.workflow.connect(self.pet_input_node, self.pet_input_file, self.misalign_pet, "input_image")
+    self.workflow.connect(self.init_pet, 'petVolume.out_file', self.misalign_pet, "reference_image")
+    self.workflow.connect(self.create_misalignment_tfm, 'tfm', self.misalign_pet, "transform_1")
+   
+    #change variable that refers to pet node/filename so that the misaligned PET image is used instead
+    self.pet_input_node = self.misalign_pet
+    self.pet_input_file = 'output_image'
+
+    return self
+
+class create_misalignment_tfm_inputs(BaseInterfaceInputSpec) :
+    rotation_error = traits.List()
+    translation_error = traits.List()
+    error_string =traits.Str()
+    image = traits.File()
+    tfm = traits.File()
+
+class create_misalignment_tfm_outputs(TraitedSpec) :
+    tfm = traits.File(exists=True)
+
+class create_misalignment_tfm(BaseInterface):
+    input_spec = create_misalignment_tfm_inputs 
+    output_spec = create_misalignment_tfm_outputs
+   
+    def _run_interface(self, runtime):
+
+        rigid_euler = sitk.Euler3DTransform()
+
+        if  self.inputs.rotation_error != [] :
+            if len(self.inputs.rotation_error) == 3 :
+                rigid_euler.SetRotation(*self.inputs.rotation_error )
+            else :
+                print("Error: rotation error must be list of length 3, but received",self.inputs.rotation_error)
+                exit(1)
+
+        if self.inputs.translation_error != [] :
+            if len(self.inputs.translation_error) == 3 :               
+                translation = sitk.TranslationTransform(3, self.inputs.translation_error)
+                rigid_euler.SetTranslation(translation.GetOffset())
+            else :
+                print("Error: translation error must be list of length 3, but received",self.inputs.translation_error)
+                exit(1)
+
+        img = nib.load(self.inputs.image) 
+        vol = img.get_data()
+        aff = img.affine
+        com = center_of_mass( np.sum(vol,axis=3) ) * np.array([ aff[0,0], aff[1,1], aff[2,2]] ) + np.array( [ aff[0,3], aff[1,3], aff[2,3] ] )
+        rigid_euler.SetFixedParameters(list(com)+[1])
+        
+        self.inputs.tfm=os.getcwd() + os.sep + self.inputs.error_string +'.mat'
+
+        sitk.WriteTransform(rigid_euler, self.inputs.tfm)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["tfm"] = self.inputs.tfm
+        return outputs
+
 def get_misalign_pet_workflow(name, opts):
     workflow = pe.Workflow(name=name)
 

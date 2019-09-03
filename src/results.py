@@ -109,8 +109,11 @@ class resultsCommand( BaseInterface):
             self.inputs.out_file=self._gen_output(self.inputs.in_file, '_results')
         
         #Load PET image
+        print(self.inputs.in_file)
         image = nib.load(self.inputs.in_file).get_data()
+        
         #Load Label image
+        print(self.inputs.mask)
         labels_all = np.round(nib.load(self.inputs.mask).get_data()).astype(int).reshape(-1,)
         
         #Time Dimensions
@@ -143,6 +146,7 @@ class resultsCommand( BaseInterface):
         df_list=[]
         for f in range(nFrames) :
             #Get 3D Frames
+            print(f, nFrames)
             if nFrames != 1 :
                 frame_img_all = image[:,:,:,f]
             else :
@@ -150,12 +154,13 @@ class resultsCommand( BaseInterface):
             
             #Reshape image and get rid of voxels with 0 values
             frame_img = frame_img_all.reshape(-1,)[ idx ]
-            
+            print('frame)img', np.sum(frame_img) ) 
             #Get weighted sum for each label in the PET image frame
             sums = np.bincount(labels_cont, weights=frame_img )
-
             #Calculate srcs from weighted sum and count
             srcs = sums / counts
+            print(sums, counts)
+
 
             #Calculate mid frame
             mid_frame = (float(frames[f][0])+float(frames[f][1]))/2.
@@ -178,6 +183,7 @@ class resultsCommand( BaseInterface):
         df=pd.concat(df_list)
         df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
         df.to_csv(self.inputs.out_file)
+
         return runtime
 
     def _list_outputs(self):

@@ -27,8 +27,8 @@ nrm=version+"-download"
 # Default Settings #
 ####################
 appian_dir=SCRIPTPATH
-source_dir=SCRIPTPATH+"/src/"+nrm
-target_dir=SCRIPTPATH+"/src/out_"+nrm
+source_dir=SCRIPTPATH+"/temp/"+nrm
+target_dir=SCRIPTPATH+"/temp/out_"+nrm
 singularity_image="APPIAN-PET/APPIAN:latest"
 
 def useage():
@@ -60,9 +60,13 @@ if __name__ == '__main__' :
     ##########################################
     # Download data from Amazon Web Services #
     ##########################################
-    #	pip install awscli --upgrade --user > /dev/null && export PATH="${PATH}:/root/.local/bin/" > /dev/null
-    #    aws s3 sync --no-sign-request s3://openneuro.org/$version $source_dir
-
+    print(opts.source_dir)
+    
+    if not os.path.exists(opts.source_dir) :
+        os.makedirs(opts.source_dir)
+        #cmd('pip3 install awscli --user') #> /dev/null && export PATH="${PATH}:/root/.local/bin/" > /dev/null]))
+        cmd(' '.join(['aws s3 sync --no-sign-request s3://openneuro.org/'+version,opts.source_dir]) )
+    
     ##################
     # Run validation #
     ##################

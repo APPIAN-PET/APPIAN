@@ -1,11 +1,6 @@
 # vi: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
 import re
-from src import masking as masking
-from src import surf_masking
-from src import mri
-from src.ants import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
-from src.arg_parser import icbm_default_brain_mask
 import nipype.interfaces.minc as minc
 import src.initialization as init
 import src.pvc as pvc 
@@ -17,6 +12,12 @@ import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
+import src.test_group_qc as tqc
+from src import masking as masking
+from src import surf_masking
+from src import mri
+from src.ants import APPIANApplyTransforms, APPIANConcatenateTransforms, APPIANRegistration
+from src.arg_parser import icbm_default_brain_mask
 
 def pexit(output_string, errorcode=1) : 
     print(output_string)
@@ -248,15 +249,13 @@ class Workflows:
                 self.workflow.connect(self.pet2mri, "out_matrix", pet_analysis_space, 'transform_1')
                 self.workflow.connect(self.tfm_node, self.mri_stx_tfm, pet_analysis_space, 'transform_2')
                 self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name,  pet_analysis_space, 'reference_image')
-
         else : 
             self.pet_input_node=self.datasource
             self.pet_input_file='pet'
 
-        #if opts.test_group_qc :
-        #    self.misregistration = pe.Node(interface=niu.IdentityInterface(fields=['error']), name="misregistration")
-        #    self.misregistration.iterables = ('error',tqc.errors)
-        #    self.workflow.connect(self.misregistration, 'error', self.pet2mri, "inputnode.error")
+        if opts.test_group_qc :
+            self = tqc.setup_test_group_qc(self,opts)
+
         #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.pet_input_node, self.pet2mri] 

@@ -88,8 +88,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-[link_contributing]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md
-[link_user_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md
+[link_contributing]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/CONTRIBUTING.md
+[link_user_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/USERGUIDE.md
 [ubuntu_docker]: https://docs.docker.com/install/linux/docker-ce/ubuntu/
 [debian_docker]: https://docs.docker.com/install/linux/docker-ce/ubuntu/
 [mac_docker]: https://docs.docker.com/docker-for-mac/install/

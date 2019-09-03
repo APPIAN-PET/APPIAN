@@ -5,9 +5,10 @@ before_install:
     - sudo wget -O- http://neuro.debian.net/lists/xenial.us-ca.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
     - sudo apt-key adv --recv-keys --keyserver hkp://pool.sks-keyservers.net:80 0xA5D32F012649A5A9
     - sudo apt-get update -q
-    - sudo apt-get install -y singularity-container
+    - sudo apt-get install -y singularity-container python3-pip
 before_script :
     - sudo singularity build appian.simg Singularity
+    - sudo pip3 install awscli
 script:
     - singularity exec appian.simg bash -c "python3 src/quantitative_validation.py"
 

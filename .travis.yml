@@ -9,8 +9,7 @@ before_install:
 before_script :
     - sudo singularity build appian.simg Singularity
 script:
-    - ls
-    - singularity exec appian.simg bash -c "hello, world!"
+    - singularity exec appian.simg bash -c "python3 src/quantitative_validation.py"
 
 
 

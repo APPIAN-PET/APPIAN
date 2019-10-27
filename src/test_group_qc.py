@@ -15,7 +15,6 @@ import random
 import seaborn as sns
 import nipype.interfaces.io as nio
 import SimpleITK as sitk
-import ants
 import numpy as np
 import nibabel as nib
 from scipy.ndimage.measurements import center_of_mass 

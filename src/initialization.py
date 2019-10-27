@@ -83,6 +83,7 @@ class pet_brain_mask(BaseInterface):
 
 class header_output(TraitedSpec):
     out_file=traits.File(desc="Input json header file")
+
 class header_input(BaseInterfaceInputSpec):
     in_file=traits.File(exists=True,mandatory=True,desc="Input json header file")
     out_file=traits.File(desc="Input json header file")
@@ -293,10 +294,8 @@ class pet3DVolume(BaseInterface):
 def get_workflow(name, infosource, opts):
     '''
     Nipype workflow that initializes the PET images by
-        1. Centering the PET image: petCenter
-        2. Exlcude start and end frames: petExcludeFr
-        3. Average 4D PET image into 3D image: petVolume
-        4. Extract information from header
+        1. Average 4D PET image into 3D image: petVolume
+        2. Extract information from header
 
     :param name: Name of workflow
     :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)

@@ -42,9 +42,28 @@ def gen_args(opts, subjects):
     task_args=[]
     sub_ses_args=[]
     sub_ses_dict={}
-    if len(session_ids) == 0 : session_ids=['']
-    if len(task_ids) == 0 : task_ids=['']
-    if len(run_ids) == 0 : run_ids=['']
+
+    report_columns = ['Sub']
+    if len(session_ids) == 0 : 
+        session_ids=['']
+        report_columns += ['Ses']
+    if len(task_ids) == 0 : 
+        task_ids=['']
+        report_columns += ['Task']
+    if len(run_ids) == 0 : 
+        run_ids=['']
+        report_columns += ['Run']
+
+    rec_arg=acq_arg=""
+    if  not acq == '': 
+        acq_arg='acq-'+acq
+        report_columns += ['Acq']
+
+    if  not rec == '': 
+        rec_arg='rec-'+rec
+        report_columns += ['Rec']
+
+    report = pd.DataFrame()
 
     for sub in subjects:
         if opts.verbose >= 2: print("Sub:", sub)
@@ -54,11 +73,9 @@ def gen_args(opts, subjects):
                 if opts.verbose >= 2: print("Task:",task)
                 for run in run_ids:
                     sub_arg='sub-'+sub
-                    rec_arg=acq_arg=""
 
                     pet_fn=mri_fn=""
-                    if  not acq == '': acq_arg='acq-'+acq
-                    if  not rec == '': rec_arg='rec-'+rec
+
                     if ses == '' :
                         pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.nii*'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + 'anat/*_T1w.nii*'
@@ -88,7 +105,20 @@ def gen_args(opts, subjects):
                     print(mri_list)
                     if mri_list != []:
                         mri_fn = unique_file(mri_list, mri_arg_list )
+                    
+                    report_row = {"Sub":sub}
+                    if "Ses" in report_columns :
+                        report_row['Ses']=ses
+                    if "Task" in report_columns :
+                        report_row['Task']=task
+                    if "Acq" in report_columns :
+                        report_row['Acq']=acq
+                    if "Rec" in report_columns :
+                        report_row['Rec']=rec
+                    if "Run" in report_columns :
+                        report_row['Run']=run
 
+                    report.append(report_row)
                     if os.path.exists(pet_fn) and os.path.exists(mri_fn):
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run} 
                         sub_ses_dict[sub]=ses
@@ -102,7 +132,8 @@ def gen_args(opts, subjects):
                             print("Could not find PET for ", sub, ses, task, pet_fn)
                         if not os.path.exists(mri_fn) and opts.verbose >= 1:
                             print( "Could not find T1 for ", sub, mri_fn)
-
+    print(report)
+    exit(1)
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses})
 

@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import time
+import pandas as pd
 from src.workflows import Workflows
 
 """
@@ -43,28 +44,34 @@ def gen_args(opts, subjects):
     sub_ses_args=[]
     sub_ses_dict={}
 
-    report_columns = ['Sub']
+    report_columns = {'Sub':[]}
+
+    print(session_ids, len(session_ids))
     if len(session_ids) == 0 : 
         session_ids=['']
-        report_columns += ['Ses']
+    else :
+        report_columns['Ses']=[]
+    
     if len(task_ids) == 0 : 
         task_ids=['']
-        report_columns += ['Task']
+    else :
+        report_columns['Task']=[]
+
     if len(run_ids) == 0 : 
         run_ids=['']
-        report_columns += ['Run']
+    else :
+        report_columns['Run']=[]
 
     rec_arg=acq_arg=""
     if  not acq == '': 
         acq_arg='acq-'+acq
-        report_columns += ['Acq']
+        report_columns['Acq']=[]
 
     if  not rec == '': 
         rec_arg='rec-'+rec
-        report_columns += ['Rec']
+        report_columns['Rec']=[]
 
-    report = pd.DataFrame()
-
+    report = pd.DataFrame(report_columns)
     for sub in subjects:
         if opts.verbose >= 2: print("Sub:", sub)
         for ses in session_ids:
@@ -74,20 +81,19 @@ def gen_args(opts, subjects):
                 for run in run_ids:
                     sub_arg='sub-'+sub
 
-                    pet_fn=mri_fn=""
 
                     if ses == '' :
                         pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.nii*'
+                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.json'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + 'anat/*_T1w.nii*'
                     else :
                         ses_arg='ses-'+ses
                         pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.nii*'
+                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.json'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.nii*'
-                    #pet_string_gz=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.'+opts.img_ext+'.gz'
-                    pet_list=glob(pet_string) 
-                    print(pet_string)
                     mri_arg_list = ['sub-'+sub]
                     arg_list = ['sub-'+sub ]
+
                     if not ses == '' :
                         arg_list += ['ses-'+ses]
                         mri_arg_list += ['ses-'+ses]
@@ -95,45 +101,51 @@ def gen_args(opts, subjects):
                     if not acq == '': arg_list += ['acq-'+acq]
                     if not rec == '': arg_list += ['rec-'+rec]
                     if not run == '': arg_list += ['run-'+run]
-                    if opts.verbose >= 2: print( "Arguments for indentifying images:", arg_list );
-                    print(pet_list)
-                    if pet_list != []:
-                        pet_fn = unique_file(pet_list, arg_list, opts.verbose )
-                
-                    print("mri_string :", mri_string)
-                    mri_list=glob(mri_string )
-                    print(mri_list)
-                    if mri_list != []:
-                        mri_fn = unique_file(mri_list, mri_arg_list )
+                     
+                    pet_fn = unique_file(pet_string, arg_list, opts.verbose )
+                    pet_header_fn = unique_file(pet_header_string, arg_list, opts.verbose )
+                    mri_fn = unique_file(mri_string, mri_arg_list, opts.verbose )
                     
                     report_row = {"Sub":sub}
-                    if "Ses" in report_columns :
+                    if "Ses" in report_columns.keys() :
                         report_row['Ses']=ses
-                    if "Task" in report_columns :
+                    if "Task" in report_columns.keys():
                         report_row['Task']=task
-                    if "Acq" in report_columns :
+                    if "Acq" in report_columns.keys() :
                         report_row['Acq']=acq
-                    if "Rec" in report_columns :
+                    if "Rec" in report_columns.keys() :
                         report_row['Rec']=rec
-                    if "Run" in report_columns :
+                    if "Run" in report_columns.keys() :
                         report_row['Run']=run
 
-                    report.append(report_row)
-                    if os.path.exists(pet_fn) and os.path.exists(mri_fn):
+
+                    if not os.path.exists(pet_fn):
+                        report_row['PET Volume']=pet_string
+                    else :
+                        report_row['PET Volume']='OK'
+
+                    if not os.path.exists(pet_header_fn):
+                        report_row['PET Header']=pet_header_string
+                    else : 
+                        report_row['PET Header']='OK'
+
+                    if not os.path.exists(mri_fn):
+                        report_row['MRI Volume']=mri_string
+                    else : 
+                        report_row['MRI Volume']='OK'
+
+                    if os.path.exists(pet_fn) and os.path.exists(pet_header_fn) and os.path.exists(mri_fn):
+
+
                         d={'task':task, 'ses':ses, 'sid':sub, 'run':run} 
                         sub_ses_dict[sub]=ses
-                        if opts.verbose >= 2 :
-                            print(pet_fn, os.path.exists(pet_fn))
-                            print(mri_fn, os.path.exists(mri_fn))
-                            print('Adding to dict of valid args',d)
                         task_args.append(d)
-                    else:
-                        if not os.path.exists(pet_fn) and opts.verbose >= 1:
-                            print("Could not find PET for ", sub, ses, task, pet_fn)
-                        if not os.path.exists(mri_fn) and opts.verbose >= 1:
-                            print( "Could not find T1 for ", sub, mri_fn)
-    print(report)
-    exit(1)
+                    
+                    report=report.append(report_row,ignore_index=True)
+    if opts.verbose >= 1 : 
+        print(report)
+    report.to_csv(opts.targetDir+os.sep+'input_file_report.csv',index=False)
+
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses})
 
@@ -147,9 +159,11 @@ def gen_args(opts, subjects):
     return sub_ses_args, task_args
 
 
-def unique_file(files, attributes, verbose=1):
+def unique_file(file_string, attributes, verbose=1):
 
+    files = glob(file_string) 
     out_files=[]
+    out_fn=""
     
     for f in files :
         missing_attributes=[]
@@ -167,22 +181,24 @@ def unique_file(files, attributes, verbose=1):
 
         if  len(missing_attributes) == 0 :
             out_files.append(f)
-    print("out files", out_files)
+
     if attributes == [] or len(out_files) == 0 : return ''
 
     # If there are 2 out_files, check if one is a compressed version of the other
     # If so keep the compressed version
     if len(out_files) == 2  :
+        print(out_files)
         if out_files[0] == out_files[1] + '.gz' :
             out_files=[out_files[1]+'.gz']
         elif out_files[1] == out_files[0] + '.gz' : 
             out_files=[out_files[0]+'.gz']
-		
+        print(out_files)
+
+    if len(out_files) >= 1 :
+        out_fn = out_files[0]
 
     if len(out_files) > 1 :
-        print("Error: File is not uniquely specified. Multiple files found for the attributes ", attributes)
-        print("For PET images, you can used --acq and --rec to specify the acquisition and receptor")
-        print(out_files)
-        exit(1)
+        print("Warning: File is not uniquely specified. Multiple files found for the attributes ", attributes)
+        print("Using file:", out_fn)
 
-    return( out_files[0] )
+    return( out_fn )

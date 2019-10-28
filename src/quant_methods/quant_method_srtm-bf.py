@@ -43,17 +43,17 @@ class QuantCommandWrapper(srcCommandWrapper):
     _quantCommand=quantCommand
 
 def check_options(tkaNode, opts):
-    if opts.tka_R1 != None: tkaNode.inputs.R1=opts.tka_R1
-    if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2 
-    if opts.tka_t3min != None: tkaNode.inputs.Min=opts.tka_t3min
-    if opts.tka_t3max != None: tkaNode.inputs.Max=opts.tka_t4max
-    if opts.tka_nBF != None: tkaNode.inputs.nr=opts.tka_nBF 
-    if opts.tka_bf != None: tkaNode.inputs.bf=opts.tka_bf
-    if opts.tka_wss != None: tkaNode.inputs.wss=opts.tka_wss 
-    if opts.tka_err != None: tkaNode.inputs.err=opts.tka_err
-    if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-    if opts.tka_DVR != None: tkaNode.inputs.DVR=opts.tka_DVR
-    if opts.tka_noneg != None: tkaNode.inputs.noneg=opts.tka_noneg
-    if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end_time
+    if opts.quant_R1 != None: tkaNode.inputs.R1=opts.quant_R1
+    if opts.quant_k2 != None: tkaNode.inputs.k2=opts.quant_k2 
+    if opts.quant_t3min != None: tkaNode.inputs.Min=opts.quant_t3min
+    if opts.quant_t3max != None: tkaNode.inputs.Max=opts.quant_t4max
+    if opts.quant_nBF != None: tkaNode.inputs.nr=opts.quant_nBF 
+    if opts.quant_bf != None: tkaNode.inputs.bf=opts.quant_bf
+    if opts.quant_wss != None: tkaNode.inputs.wss=opts.quant_wss 
+    if opts.quant_err != None: tkaNode.inputs.err=opts.quant_err
+    if opts.quant_thr != None: tkaNode.inputs.thr=opts.quant_thr
+    if opts.quant_DVR != None: tkaNode.inputs.DVR=opts.quant_DVR
+    if opts.quant_noneg != None: tkaNode.inputs.noneg=opts.quant_noneg
+    if opts.quant_end != None: tkaNode.inputs.end=opts.quant_end_time
 
     return tkaNode

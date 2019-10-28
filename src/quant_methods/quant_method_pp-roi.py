@@ -70,8 +70,8 @@ class QuantCommandWrapper(srcCommandWrapper):
 
 def check_options(tkaNode, opts):
     #Define node for patlak plot analysis 
-    if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
-    if opts.tka_end_time != None: tkaNode.inputs.end_time=opts.tka_end_time
-    if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+    if opts.quant_k2 != None: tkaNode.inputs.k2=opts.quant_k2
+    if opts.quant_end_time != None: tkaNode.inputs.end_time=opts.quant_end_time
+    if opts.quant_start_time != None: tkaNode.inputs.start_time=opts.quant_start_time
 
     return tkaNode

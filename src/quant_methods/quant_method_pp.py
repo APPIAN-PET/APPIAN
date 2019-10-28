@@ -38,14 +38,14 @@ class QuantCommandWrapper(srcCommandWrapper):
 
 def check_options(tkaNode, opts):
     #Define node for logan plot analysis 
-    if opts.tka_Ca != None: tkaNode.inputs.Ca=opts.tka_Ca
-    if opts.tka_LC != None: tkaNode.inputs.LC=opts.tka_LC
-    if opts.tka_density != None: tkaNode.inputs.density=opts.tka_density
-    if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-    if opts.tka_max != None: tkaNode.inputs.max=opts.tka_max
-    if opts.tka_filter != None: tkaNode.inputs.filter=opts.tka_filter
-    if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-    if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-    if opts.tka_n != None: tkaNode.inputs.n=opts.tka_n
-    if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+    if opts.quant_Ca != None: tkaNode.inputs.Ca=opts.quant_Ca
+    if opts.quant_LC != None: tkaNode.inputs.LC=opts.quant_LC
+    if opts.quant_density != None: tkaNode.inputs.density=opts.quant_density
+    if opts.quant_thr != None: tkaNode.inputs.thr=opts.quant_thr
+    if opts.quant_max != None: tkaNode.inputs.max=opts.quant_max
+    if opts.quant_filter != None: tkaNode.inputs.filter=opts.quant_filter
+    if opts.quant_end != None: tkaNode.inputs.end=opts.quant_end
+    if opts.quant_v != None: tkaNode.inputs.v=opts.quant_v
+    if opts.quant_n != None: tkaNode.inputs.n=opts.quant_n
+    if opts.quant_start_time != None: tkaNode.inputs.start_time=opts.quant_start_time
     return tkaNode

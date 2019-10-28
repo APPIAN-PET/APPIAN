@@ -40,13 +40,13 @@ class QuantCommandWrapper(srcCommandWrapper):
 
 def check_options(tkaNode, opts):
     #Define node for logan plot analysis 
-    if opts.tka_k2 != None: tkaNode.inputs.k2=opts.tka_k2
-    if opts.tka_thr != None: tkaNode.inputs.thr=opts.tka_thr
-    if opts.tka_max != None: tkaNode.inputs.Max=opts.tka_max
-    if opts.tka_filter != None: tkaNode.inputs.Filter=opts.tka_filter
-    if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-    if opts.tka_v != None: tkaNode.inputs.v=opts.tka_v
-    if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+    if opts.quant_k2 != None: tkaNode.inputs.k2=opts.quant_k2
+    if opts.quant_thr != None: tkaNode.inputs.thr=opts.quant_thr
+    if opts.quant_max != None: tkaNode.inputs.Max=opts.quant_max
+    if opts.quant_filter != None: tkaNode.inputs.Filter=opts.quant_filter
+    if opts.quant_end != None: tkaNode.inputs.end=opts.quant_end
+    if opts.quant_v != None: tkaNode.inputs.v=opts.quant_v
+    if opts.quant_start_time != None: tkaNode.inputs.start_time=opts.quant_start_time
 
     return tkaNode
 

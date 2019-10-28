@@ -110,8 +110,8 @@ class quantCommand(BaseInterface):
 
 def check_options(tkaNode, opts):
     #Define node for suv analysis 
-    if opts.tka_end != None: tkaNode.inputs.end=opts.tka_end
-    if opts.tka_start_time != None: tkaNode.inputs.start_time=opts.tka_start_time
+    if opts.quant_end != None: tkaNode.inputs.end=opts.quant_end
+    if opts.quant_start_time != None: tkaNode.inputs.start_time=opts.quant_start_time
 
     return tkaNode
 

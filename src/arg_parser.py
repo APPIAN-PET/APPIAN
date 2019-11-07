@@ -67,6 +67,7 @@ def get_parser():
     #MRI N4 Correction
     parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=200)
     parser.add_argument("--n4-bspline-order", dest="n4_bspline_order",type=int,help="Order of BSpline interpolation for N4 correction", default=None)
+
     parser.add_argument("--n4-n-iterations", dest="n4_n_iterations",type=int,help="List with number of iterations to perform. Default=50 50 30 20 ", default=[50, 50, 30, 20], nargs='+')
     parser.add_argument("--n4-shrink-factor", dest="n4_shrink_factor",type=int,help="Order of BSpline interpolation for N4 correction", default=2)
     parser.add_argument("--n4-convergence-threshold", dest="n4_convergence_threshold",type=float,help="Convergence threshold for N4 correction", default=1e-6)
@@ -143,6 +144,7 @@ def get_parser():
     #group= OptionGroup(parser,"Masking options","Results")
     parser.add_argument("--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
     parser.add_argument("--results-label-name",dest="results_label_name",help="Extra label string that is used to create the directory with results: /<results_method>_<results_label>. Allows you to run same results node multiple times without overwriting previous results.",type=str, default=None)
+    parser.add_argument("--roi-labels", dest="roi_labels_file",help="A .csv file to convert ROI values to the region represented by ROI value. First column is ROI value and second column is the name of the region represented by the ROI (example: 15,\"corpus callosum\")",default='')
     parser.add_argument("--results-label-space", dest="results_label_space",help=label_space_help,default='stereo', choices=spaces)
     parser.add_argument("--results-label-img", dest="results_label_img",help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--results-label-template",dest="results_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
@@ -220,7 +222,7 @@ def get_parser():
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
     parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  
-    parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",nargs='+', default=[])
+    parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",type=float, nargs='+', default=[])
     parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])
     parser.add_argument_group(parser)
 

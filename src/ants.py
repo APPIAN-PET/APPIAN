@@ -78,16 +78,11 @@ class APPIANApplyTransforms(BaseInterface):
         
         cmd(cmdline)
 
-        print(os.listdir(os.getcwd()))
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["output_image"] =  self.inputs.output_image
-        #print "\n\nCHECK"
-        #print os.path.exists(self.inputs.output_image)
-        #print "\n"
-        
         return outputs
 
     def _parse_inputs(self, skip=None):
@@ -157,7 +152,7 @@ class APPIANRegistration(BaseInterface):
     input_spec = APPIANRegistrationInputs
     output_spec= APPIANRegistrationOutputs
 
-    def user_command_line(self) :
+    def read_user_command_line(self) :
         cmdline=''
         if not os.path.exists(self.inputs.user_ants_command) :
             print("Error : could not read --user-ants-normalization file specified by user ", self.inputs.user_ants_command)
@@ -168,6 +163,16 @@ class APPIANRegistration(BaseInterface):
                     print('read', l)
                     cmdline += ' ' + l.rstrip("\n")  
 
+        if 'SyN' in cmdline : 
+            normalization_type = 'nl' 
+        elif 'Affine' in cmdline :
+            normalization_type = 'affine' 
+        else  :
+            normalization_type = 'rigid' 
+
+        return cmdline, normalization_type
+        
+    def replace_user_command_line(self, cmdline): 
         replacement=[   ['fixed_image',self.inputs.fixed_image], 
                         ['moving_image',self.inputs.moving_image],
                         ['fixed_image_mask', self.inputs.fixed_image_mask], 
@@ -215,15 +220,17 @@ class APPIANRegistration(BaseInterface):
 
 
     def apply_linear_transforms(self):
-        #Command line to 
-        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
-        print(cmdline)
-        cmd( cmdline  )
-
-        cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
         
-        print(cmdline)
-        cmd( cmdline  )
+        #Command line to 
+        if not os.path.exists(self.inputs.warped_image) :
+            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+            print(cmdline)
+            cmd( cmdline  )
+
+        if not os.path.exists(self.inputs.out_matrix_inverse) :
+            cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+            print(cmdline)
+            cmd( cmdline  )
 
     def mat2txt(self, ii_fn, oo_fn):
         print(ii_fn, oo_fn)
@@ -232,12 +239,17 @@ class APPIANRegistration(BaseInterface):
         return 0 
 
     def _run_interface(self, runtime):
-        self._set_outputs()
+        normalization_type = self.inputs.normalization_type
+
         #Setup ANTs command line arguments
         if isdefined(self.inputs.user_ants_command):
-            cmdline = self.user_command_line()
+            cmdline, self.inputs.normalization_type = self.read_user_command_line()
+            self._set_outputs()
+            cmdline = self.replace_user_command_line(cmdline)
         else :
+            self._set_outputs()
             cmdline = self.default_command_line()
+            
         #Run antsRegistration on command line
         print("Ants command line:\n", cmdline)
         p = cmd(cmdline)	

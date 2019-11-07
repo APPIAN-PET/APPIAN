@@ -462,6 +462,7 @@ class Workflows:
             self.resultsReport.inputs.dim = dim
             self.resultsReport.inputs.node = node.name
             self.resultsReport.inputs.acq = opts.acq
+            self.resultsReport.inputs.roi_labels_file = opts.roi_labels_file
             self.workflow.connect(self.infosource, 'sid', self.resultsReport, "sub")
             self.workflow.connect(self.infosource, 'ses', self.resultsReport, "ses")
             self.workflow.connect(self.infosource, 'task', self.resultsReport, "task")
@@ -769,7 +770,7 @@ class Workflows:
         #    label_template = label_template + '*_xfm.h5' 
         #else :
         #    print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
-        #    exit(1)
+        #    exit(2)
         field_template["tfm_mri_stx"] = mri_stx_template
         field_template["tfm_stx_mri"] = stx_mri_template
 

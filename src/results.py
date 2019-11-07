@@ -70,9 +70,22 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
         workflow.run()
 
+def set_roi_labels(unique_labels, roi_labels_file) :
+    roi_labels = []
+    if os.path.exists(roi_labels_file) :
+        df = pd.read_csv(roi_labels_file, header=None,names=['roi','labels'])    
+        for label in unique_labels :
+            try :
+                new_roi_label = df['labels'].loc[ df['roi'] == label ].values[0]
+            except IndexError :
+                new_roi_label = label
+            roi_labels.append(new_roi_label)
+    return roi_labels
+
 class resultsInput(TraitedSpec):   
     in_file = traits.File(desc="Input file ")
     out_file = traits.File(desc="Output file ")
+    roi_labels_file = traits.File(desc="Output file")
     mask = traits.File(desc="ROI PET mask ")
     surf_left = traits.File(desc="Left Surface mesh (.obj) ")
     mask_left = traits.File(desc="Left Surface mask (.txt) ")
@@ -117,7 +130,7 @@ class resultsCommand( BaseInterface):
         labels_all = np.round(nib.load(self.inputs.mask).get_data()).astype(int).reshape(-1,)
         
         #Time Dimensions
-        ti=np.argmin(image.shape) #FIXME : Not a good way to identify time dimension
+        #ti=np.argmin(image.shape) #FIXME : Not a good way to identify time dimension
 
         #Keep only voxel values above 0
         idx = labels_all > 0
@@ -130,6 +143,9 @@ class resultsCommand( BaseInterface):
         unique_labels = np.unique(labels)
         for i, val in enumerate(unique_labels) :
             labels_cont[ labels == val ] = i
+        print('ROI Labels File: ', self.inputs.roi_labels_file)
+        roi_labels = set_roi_labels(unique_labels, self.inputs.roi_labels_file) 
+        print(roi_labels)
 
         #Define number of labels
         n=len(unique_labels)
@@ -154,12 +170,10 @@ class resultsCommand( BaseInterface):
             
             #Reshape image and get rid of voxels with 0 values
             frame_img = frame_img_all.reshape(-1,)[ idx ]
-            print('frame)img', np.sum(frame_img) ) 
             #Get weighted sum for each label in the PET image frame
             sums = np.bincount(labels_cont, weights=frame_img )
             #Calculate srcs from weighted sum and count
             srcs = sums / counts
-            print(sums, counts)
 
 
             #Calculate mid frame
@@ -174,7 +188,7 @@ class resultsCommand( BaseInterface):
                 'run': [self.inputs.run] * n,
                 'acq': [self.inputs.acq] * n,
                 'rec': [self.inputs.rec] * n,
-                'roi': unique_labels,
+                'roi': roi_labels,
                 'metric': ['mean'] * n,
                 'value': srcs,
                 'frame':  [mid_frame] * n

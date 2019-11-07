@@ -67,19 +67,24 @@ class separate_mask_labelsCommand(BaseInterface ):
     def _run_interface(self, runtime):
         vol = nib.load(self.inputs.in_file)
         data = vol.get_data()
+        data = data.reshape(*data.shape[0:3])
+        
 
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file = self._gen_outputs(self.inputs.in_file)
 
-        unique = np.unique( data )
+        unique = np.unique( data ).astype(int)
 
         nUnique = len(unique)-1
 
         out = np.zeros( [data.shape[0], data.shape[1], data.shape[2], nUnique] )
+        print('unique', unique)
+        print('shape',out.shape)
+        print('data', data.shape)
 
         for t,i in enumerate( unique ) :
             if i != 0 :
-                print(t, i )
+                print(t-1, i )
                 out[ data == i, t-1 ] = 1 
 
         out_file=nib.Nifti1Image(out, vol.get_affine())

@@ -1,5 +1,5 @@
 Bootstrap : shub
-From : APPIAN-PET/Dependencies:base
+From : APPIAN-PET/APPIAN:base
 
 %post
 

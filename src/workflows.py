@@ -477,7 +477,7 @@ class Workflows:
             else :
                 self.workflow.connect(self.masking, 'resultsLabels.out_file', self.resultsReport, 'mask')
 
-            self.workflow.connect( self.resultsReport, 'out_file', self.datasink, node_name+os.sep+dir_name )
+            self.workflow.connect( self.resultsReport, 'out_file', self.datasink, node_name)
 
     ############################
     # Subject-level QC Metrics #

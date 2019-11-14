@@ -1,13 +1,16 @@
 import os
 import ntpath
+import json
+import datetime
+import numpy as np
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
+import nibabel as nib
 from src.utils import splitext, check_gz
 from nipype.interfaces.utility import Function
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-import json
 
 class img2dftOutput(TraitedSpec):
     out_file = File(argstr=" %s", position=-1,  desc="Patlak plot ki parametric image.")
@@ -383,8 +386,6 @@ class JsonToSifCommand(BaseInterface):
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
-
-
     def _run_interface(self, runtime):
         img_fn=self.inputs.pet
         json_fn=self.inputs.pet_header_json
@@ -398,12 +399,12 @@ class JsonToSifCommand(BaseInterface):
         date_string = datetime.datetime.now().strftime("%d/%m/%Y %H:%m:%S")
         lines=date_string+"  "+str(nframes)+" 4 1 sub "+d['Info']['Tracer']['Isotope'][0] + "\n"
         for i, vals in enumerate(d["Time"]["FrameTimes"]["Values"]) : 
-            lines += "{}\t{}\t{}\t{}\n".format(vals[0], vals[1], str(np.sum(img[:,:,:,i])), str(np.sum(img[:,:,:,i])) )
+            lines += "{}\t{}\t{}\t{}\n".format(vals[1], vals[1], str(np.sum(img[:,:,:,i])), str(np.sum(img[:,:,:,i])) )
 
 
         with open(out_fn, 'w') as f:
             f.write(lines)
 
         self.inputs.out_file = out_fn
-        print('Creating SIF')
+        print('Creating SIF', out_fn)
         return runtime

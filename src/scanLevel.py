@@ -160,7 +160,6 @@ def gen_args(opts, subjects):
 
 
 def unique_file(file_string, attributes, verbose=1):
-
     files = glob(file_string) 
     out_files=[]
     out_fn=""
@@ -200,5 +199,8 @@ def unique_file(file_string, attributes, verbose=1):
     if len(out_files) > 1 :
         print("Warning: File is not uniquely specified. Multiple files found for the attributes ", attributes)
         print("Using file:", out_fn)
+    
+    if 'json' in file_string :
+        print(out_fn)
 
     return( out_fn )

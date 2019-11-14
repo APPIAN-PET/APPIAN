@@ -14,7 +14,7 @@ ldconfig
 
 #Turku
 mkdir /opt/turku /opt/turku/build /opt/turku/src
-wget -O  /opt/turku/src.tar.gz   https://www.dropbox.com/s/0zfmx89o4x4mx7e/tpcclib-0.6.16-Darwin-x64.tar.gz
+wget -O  /opt/turku/src.tar.gz https://www.dropbox.com/sh/l22cilo1ze25rj4/AAC96WoMUaigZk8DQJ9mZO1fa/tpcclib-0.7.1-Linux-x64.tar.gz?dl=1
 tar -zxf /opt/turku/src.tar.gz -C /opt/turku/src/
 mv  /opt/turku/src/bin/* /opt/bin/
 rm -rf /opt/turku
@@ -39,6 +39,7 @@ rm -rf /opt/ANTs
 wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Linux.tar.gz
 tar -zxvf PETPVC-1.2.4-Linux.tar.gz
 cp -r PETPVC-1.2.4/* /opt/
+rm -r PETPVC*
 
 %environment
 export PATH=/opt/bin:$PATH

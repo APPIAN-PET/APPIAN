@@ -67,6 +67,7 @@ def get_workflow(name, opts):
     else :
         n4 = pe.Node(niu.IdentityInterface(fields=["output_image"]), name='mri_no_intensity_normalization')
         workflow.connect(inputnode, 'mri', n4, 'output_image')
+
     if opts.user_mri_stx == '':
         mri2template = pe.Node(interface=APPIANRegistration(), name="mri_spatial_normalized")
         mri2template.inputs.moving_image_space="T1w"

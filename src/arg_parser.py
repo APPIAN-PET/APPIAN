@@ -236,7 +236,9 @@ def get_parser():
 def modify_opts(opts) :
     opts.targetDir = os.path.abspath(os.path.normpath(opts.targetDir))
     opts.sourceDir = os.path.abspath(os.path.normpath(opts.sourceDir))
-
+   
+    if not os.path.exists(opts.targetDir) :
+        os.makedirs(opts.targetDir)
     #
     # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the
     # MNI152 template instead. The default quant, pvc, and results labels should be modified accordingly 

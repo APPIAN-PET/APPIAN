@@ -157,10 +157,10 @@ def pvc_mse(pvc_fn, pve_fn, fwhm):
     pve.data = pve.get_data()
     mse = 0 
     if len(pvc.data.shape) > 3 :#if volume has more than 3 dimensions
-        t = int(pvc.sizes[0]/2)
+        t = int(pvc.data.shape[3]/2)
         #for t in range(pvc.sizes[0]):
-        pve_frame = pve.data[t,:,:,:]
-        pvc_frame = pvc.data[t,:,:,:]
+        pve_frame = pve.data[:,:,:,t]
+        pvc_frame = pvc.data[:,:,:,t]
 
         n = np.sum(pve.data[t,:,:,:]) # np.prod(pve.data.shape[0:4])
         pvc_blur = gaussian_filter(pvc_frame,fwhm) 

@@ -39,6 +39,7 @@ rm -rf /opt/ANTs
 wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Linux.tar.gz
 tar -zxvf PETPVC-1.2.4-Linux.tar.gz
 cp -r PETPVC-1.2.4/* /opt/
+rm -r PETPVC*
 
 %environment
 export PATH=/opt/bin:$PATH

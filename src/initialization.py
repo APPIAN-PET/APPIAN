@@ -259,8 +259,12 @@ class pet3DVolume(BaseInterface):
 
             first=int(floor(nFrames*rank))
             last=nFrames
-            volume_subsets=np.split(data, [first,last], axis=ti) 
-            volume_subset=volume_subsets[1]
+            #print(self.inputs.in_file)
+            #for t in range(data.shape[3]) :
+            #    print(np.sum(data[:,:,:,t]))
+            #volume_subsets=np.split(data, [first,last], axis=ti) 
+            volume_subset=data[:,:,:,first:last] #volume_subsets[1]
+            #print(np.sum(volume_subset))
             volume_src=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
             outfile = nib.Nifti1Image(volume_src, affine)

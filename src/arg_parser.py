@@ -222,8 +222,6 @@ def get_parser():
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
     parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  
-    parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",type=float, nargs='+', default=[])
-    parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])
     parser.add_argument_group(parser)
 
     #Results reporting
@@ -247,10 +245,6 @@ def modify_opts(opts) :
         opts.quant_label_template = opts.pvc_label_template = opts.results_label_template = opts.template
         opts.quant_label_img = opts.pvc_label_img = opts.results_label_img = icbm_default_atlas
 
-    if opts.rotation_error_deg != [] or opts.translation_error_deg != [] :
-        opts.test_group_qc = True
-    else :
-        opts.test_group_qc = False
 
     ############################
     #Automatically set sessions#

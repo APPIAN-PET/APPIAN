@@ -52,6 +52,8 @@ normal_param ='000'
 
 def setup_test_group_qc(self,opts ):
     #define string that includes translation and/or rotation error
+    print(opts.translation_error_deg )
+    print(opts.rotation_error_deg)
     error_string = ''
     if opts.rotation_error_deg != [] :
         error_string += 'rotation_' + '_'.join( [str(int(i)) for i in opts.rotation_error_deg] )
@@ -70,6 +72,7 @@ def setup_test_group_qc(self,opts ):
     opts.translation_error_rad = [ i * 3.14159 / 180. for i in opts.translation_error_deg ]
     
     #Create a matrix that will misalign the PET image w.r.t the MRI
+    join_rotationsNode = pe.JoinNode(interface=niu.IdentityInterface(fields=["angle"]), joinsource="angle_splitNode", joinfield=["angle"], name="join_rotationsNode")
     self.create_misalignment_tfm = pe.Node(interface=create_misalignment_tfm(),name="misalignment_tfm_"+error_string)
     self.workflow.connect(self.pet_input_node, self.pet_input_file, self.create_misalignment_tfm, "image")
     self.create_misalignment_tfm.inputs.error_string = error_string

@@ -20,12 +20,12 @@ def run_group_level(opts,args):
             (qc, qc.group_level_qc, default, opts.group_qc, 1 ),
             (tqc, tqc.test_group_qc_groupLevel,default, opts.test_group_qc, 1 ),
             (results,results.group_level_descriptive_statistics, default ,opts.group_stats, 1 ),
-            (qc,dash.groupLevel_dashboard, default, opts.dashboard, 0)
+            (qc,dash.groupLevel_dashboard, default, opts.dashboard, 1)
             ]
     
     for module, command, fargs, run_flag, min_args in args_list:
-        print(command, run_flag)
-        if run_flag and len(args) > min_args :
+        print(command, run_flag, args)
+        if run_flag and len(args) >= min_args :
             try :
                 command(*fargs)
             except KeyboardInterrupt:

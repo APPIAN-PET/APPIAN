@@ -157,13 +157,15 @@ def generate_xml_nodes(sourceDir,targetDir,pvc_method,quant_method,analysis_spac
     
     # Save the output xml file
     with open(out_file,"w") as f:
-        f.write(prettify(xmlQC))
+        to_write = str(prettify(xmlQC) )
+        print(to_write)
+        f.write(to_write)
 
     # Perform conversion to raw
-    for niftifile in listVolumes:
-        rawfile = niftifile+'.raw'
-        headerfile = niftifile+'.header'
-        mnc2vol(niftifile)
+    #for niftifile in listVolumes:
+    #    rawfile = niftifile+'.raw'
+    #    headerfile = niftifile+'.header'
+    #    mnc2vol(niftifile)
 
 
 def link_stats_qc(*args):
@@ -250,10 +252,12 @@ class deployDashCommand(BaseInterface):
 def groupLevel_dashboard(opts, args):
     workflow = pe.Workflow(name="concat_dashboard_xml")
     workflow.base_dir = opts.targetDir + '/preproc'
-  
     #Check for valid data sources
-    sources=glob.glob(opts.targetDir+os.sep+opts.preproc_dir+'*'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml')
-    if len(sources) == 0 : return 0
+    sources=glob.glob(opts.targetDir+os.sep+opts.preproc_dir+os.sep+'**'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml')
+    print(opts.targetDir+os.sep+opts.preproc_dir+os.sep+'**'+os.sep+'dash_scanLevel'+os.sep+'nodes.xml')
+    if len(sources) == 0 : 
+        print('Could not find any nodes.xml files for processed subjects')
+        return 0
 
     if not os.path.exists(opts.targetDir+"/preproc/dashboard/") :
         os.makedirs(opts.targetDir+"/preproc/dashboard/");

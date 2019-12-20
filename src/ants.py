@@ -74,7 +74,7 @@ class APPIANApplyTransforms(BaseInterface):
         #combine transformation files and output flags
         transforms_zip = zip(transforms, invert_transform_flags)
         transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in transforms_zip  if t != None ]) 
-        cmdline = "antsApplyTransforms  -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
+        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
         
         cmd(cmdline)
 
@@ -249,7 +249,7 @@ class APPIANRegistration(BaseInterface):
         else :
             self._set_outputs()
             cmdline = self.default_command_line()
-            
+        print(self.inputs); 
         #Run antsRegistration on command line
         print("Ants command line:\n", cmdline)
         p = cmd(cmdline)	
@@ -297,5 +297,4 @@ class APPIANRegistration(BaseInterface):
             outputs["out_matrix_inverse"]=self.inputs.out_matrix_inverse
         if isdefined(self.inputs.inverse_composite_transform):
             outputs["inverse_composite_transform"]= self.inputs.inverse_composite_transform
-        
         return outputs

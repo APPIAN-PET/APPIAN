@@ -17,9 +17,10 @@ import nipype.interfaces.utility as util
 import src.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
+import nibabel as nib
+import numpy as np
 import ntpath
 import os
-import nibabel as nib
 
 
 global icbm_default_csf  
@@ -222,7 +223,7 @@ class SegmentationToBrainMask(BaseInterface):
         img = nib.load(self.inputs.seg_file)
         data = img.get_data()
         data[ data > 1 ] = 1
-        out = nib.Nifti1Image(data, img.get_affine() )
+        out = nib.Nifti1Image(data.astype(np.int16), img.get_affine() )
         out.to_filename (self.inputs.output_image)
 
         return runtime

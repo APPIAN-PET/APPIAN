@@ -28,16 +28,14 @@ class pet_brain_maskOutput(TraitedSpec):
 
 class pet_brain_maskInput(BaseInterfaceInputSpec):
     in_file = File(exists=True, mandatory=True, desc="PET volume")
-    in_json = File(exists=True, mandatory=True, desc="PET json file")
     out_file = File(desc="Head mask")
-    slice_factor = traits.Float(usedefault=True, default_value=0.25, desc="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask")
-    total_factor = traits.Float(usedefault=True, default_value=0.333, desc="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice. ")
 
-    clobber = traits.Bool(usedefault=True, default_value=True, desc="Overwrite output file")
-    run = traits.Bool(usedefault=True, default_value=True, desc="Run the commands")
-    verbose = traits.Int(usedefault=True, default_value=True, desc="Write messages indicating progress")
 
-class pet_brain_mask(BaseInterface):
+import nibabel as nib 
+from skimage.filters import threshold_otsu 
+import numpy as np 
+from scipy.ndimage import gaussian_filter 
+class petBrainMask(BaseInterface):
     input_spec = pet_brain_maskInput
     output_spec = pet_brain_maskOutput
     _suffix = "_brain_mask"
@@ -48,35 +46,16 @@ class pet_brain_mask(BaseInterface):
             split = splitext(base)
             self.inputs.out_file = os.getcwd() +os.sep + split[0] + self._suffix + split[1]
             #Load PET 3D volume
-        infile = nib.load(self.inputs.in_file)
-        shape=infile.get_shape()
-        zmax=shape[2]
-        data=infile.get_data()
-        #Get max slice values and multiply by pet_mask_slice_threshold (0.25 by default)
-        slice_thresholds=np.amax(data, axis=(1,2)) * self.inputs.slice_factor
-        #Get mean for all values above slice_max
-        slice_mean_f=lambda t, d, i: float(np.mean(d[i, d[i,:,:] > t[i]]))
-        slice_mean = np.array([slice_mean_f(slice_thresholds, data, i) for i in range(zmax) ])
-        #Remove nan from slice_mean
-        slice_mean =slice_mean[ ~ np.isnan(slice_mean) ]
-        #Calculate overall mean from mean of thresholded slices
-        overall_mean = np.mean(slice_mean)
-        #Calcuate threshold
-        threshold = overall_mean * self.inputs.total_factor
-        #Apply threshold and create and write outputfile
         
-        idx = data >= threshold
-        data[ idx ] = 1
-        data[~idx ] = 0
-
-        outfile = nib.Nifti1Image(data, infile.get_affine())
-        outfile.to_file(self.inputs.out_file)
+        img = nib.load(self.inputs.in_file)
+        vol = gaussian_filter( img.get_data(), 1 ) 
+        vol[ vol < threshold_otsu(vol) ] = 0 
+        vol[ vol > 0 ] = 1 
+        nib.Nifti1Image(vol, img.affine).to_filename(self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
         outputs["out_file"] = self.inputs.out_file
         return outputs
 
@@ -327,11 +306,11 @@ def get_workflow(name, infosource, opts):
     
     workflow.connect(inputnode, 'pet', petVolume, 'in_file')
    
-    if opts.pet_brain_mask :
-        petBrainMask=pe.Node(pet_brain_mask(), "pet_brain_mask")
-        workflow.connect(petVolume, 'out_file', petBrainMask, 'in_file')
-        workflow.connect(petBrainMask, 'out_file', outputnode, 'pet_brain_mask')
-    
+    if  opts.pet_brain_mask :
+        petBrainMaskNode=pe.Node(interface=petBrainMask(), name="pet_brain_mask")
+        workflow.connect(petVolume, 'out_file', petBrainMaskNode, 'in_file')
+        workflow.connect(petBrainMaskNode, 'out_file', outputnode, 'pet_brain_mask')
+
     workflow.connect(petVolume, 'out_file', outputnode, 'pet_volume')
     workflow.connect(petHeader, 'out_file', outputnode, 'pet_header_json')
 

@@ -17,6 +17,7 @@ import src.pvc as pvc
 import src.results as results
 import src.quantification as quant
 import src.qc as qc
+import pandas as pd
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
@@ -191,25 +192,31 @@ class deployDashInput(BaseInterfaceInputSpec):
     analysis_space = traits.Str(desc="Analysis Space")
     pet = traits.File(exists=True, mandatory=True, desc="PET image")
     pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
+    pet_brain_mask_space_mri = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
     mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
+    mri_brain_mask = traits.File(exists=True, mandatory=True, desc="MRI brain mask (t1 native space)")
     t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
     pvc = traits.File(exists=True, desc="Output PVC image")
     quant = traits.File(exists=True, desc="Output TKA image")
-    sid =traits.Str()
-    cid=traits.Str()
-    ses=traits.Str()
-    task=traits.Str()
-    run=traits.Str()
+    sid =traits.Str(default_value='NA',usedefault=True)
+    cid=traits.Str(default_value='NA',usedefault=True)
+    ses=traits.Str(default_value='NA',usedefault=True)
+    task=traits.Str(default_value='NA',usedefault=True)
+    run=traits.Str(default_value='NA',usedefault=True)
 
     out_file = traits.File(desc="Output file")
     clobber = traits.Bool(desc="Overwrite output file", default=False)
 
-class deployDashCommand(BaseInterface):
+class GenerateOutputImagesCSV(BaseInterface):
     input_spec = deployDashInput
     output_spec = deployDashOutput
   
     def _gen_output(self):
-        fname = "nodes.xml"
+        fname = 'sub-'+self.inputs.sid
+        if self.inputs.ses != 'NA' :  fname+='_ses-'+self.inputs.ses
+        if self.inputs.task != 'NA' : fname+='_task-'+self.inputs.task
+        if self.inputs.run != 'NA' :  fname+='_run-'+self.inputs.run
+        fname += "_output_images.csv" #"nodes.xml"
         dname = os.getcwd()
         return dname+os.sep+fname
 
@@ -218,25 +225,28 @@ class deployDashCommand(BaseInterface):
         #create dictionary with information about scan
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
-        info={ "sid":self.inputs.sid, "cid":self.inputs.cid,  "ses":self.inputs.ses, "task":self.inputs.task, "run":self.inputs.run }
 
-        #Create dictionary with file paths and names for volumes that we want to display in dashboard
-        images={"pet2mri":{"v1":self.inputs.mri_space_nat, "v2":self.inputs.pet_space_mri}}
+        images=pd.DataFrame({   "sid":[self.inputs.sid], "cid":[self.inputs.cid],  "ses":[self.inputs.ses], 
+                                "task":[self.inputs.task], "run":[self.inputs.run], "mri":[self.inputs.mri_space_nat], 
+                                "pet_space_mri":[self.inputs.pet_space_mri], "pet_brain_mask_space_mri":[self.inputs.pet_brain_mask_space_mri], 
+                                "mri_brain_mask":[self.inputs.mri_brain_mask ]})
 
         # If PVC method is defined, then add PVC images
         if isdefined(self.inputs.pvc_method) :
-            images["pvc"]= {"v1":self.inputs.pet, "v2":self.inputs.pvc}
+            images["pvc"]= self.inputs.pvc
 
         # If TKA method is defined, then add quantification images
         if isdefined(self.inputs.quant_method) :
-            images["quant"]= {"v1":self.inputs.t1_analysis_space, "v2":self.inputs.quant}
+            images["quant"]= self.inputs.quant
+
        
         #Create xml for current scan
-        generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.quant_method,self.inputs.analysis_space,images,info, self.inputs.out_file);
+        #generate_xml_nodes(self.inputs.sourceDir,self.inputs.targetDir,self.inputs.pvc_method,self.inputs.quant_method,self.inputs.analysis_space,images,info, self.inputs.out_file);
         
         if not isdefined( self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
-
+        print(self.inputs.out_file)
+        images.to_csv(self.inputs.out_file,index=False)
         return runtime
 
     def _list_outputs(self):

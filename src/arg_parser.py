@@ -161,7 +161,7 @@ def get_parser():
     parser.add_argument("--coreg-method", dest="coreg_method",type=str,help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
     parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
     parser.add_argument("--pet-coregistration-target",dest="pet_coregistration_target",type=str, help="Target for PET coregistration (t1, stx; Default=t1)", default='t1', choices=['t1','stx'])
-    parser.add_argument("--pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_true', default=False)
+    parser.add_argument("--no-pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_false', default=True)
     parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
     parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
     parser.add_argument("--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type=float, default=0.333)
@@ -236,6 +236,21 @@ def get_parser():
 def modify_opts(opts) :
     opts.targetDir = os.path.abspath(os.path.normpath(opts.targetDir))
     opts.sourceDir = os.path.abspath(os.path.normpath(opts.sourceDir))
+
+    #If user ants command is set, modify normalization type according to user ants command
+    if opts.user_ants_command != None :
+        if os.path.exists(opts.user_ants_command ) :
+            file_text = open(opts.user_ants_command).read()
+            print(file_text)
+            if 'SyN' in file_text:
+                opts.normalization_type = 'nl'
+            elif 'Affine' in file_text : 
+                opts.normalization_type = 'affine' 
+            elif 'Rigid' in file_text : 
+                opts.normalization_type = 'rigid' 
+            else :
+                print("Error: User ANTs command should contain SyN, Affine, or Rigid")
+                exit(1)
 
     #
     # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the

@@ -32,33 +32,39 @@ def group_level_descriptive_statistics(opts, args):
 
     if opts.use_surfaces : 
         vol_surf_list += ['_surf']
-
+    print('1', vol_surf_list)
     for surf in vol_surf_list:
-        print(surf, "\n")
+        print('2')
         #Setup workflow
         workflow = pe.Workflow(name=opts.preproc_dir)
         workflow.base_dir = opts.targetDir
         
         #Datasink
         datasink=pe.Node(interface=nio.DataSink(), name="output")
-        datasink.inputs.base_directory= opts.targetDir+os.sep+os.sep+final_dir+os.sep+surf
+        datasink.inputs.base_directory= opts.targetDir+os.sep
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
         #Datagrabber
-        if not opts.test_group_qc : scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')
-        else : scan_stats_dict = dict(scan_stats='*'+os.sep+'*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')
+        scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv',
+                             output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
 
         
-        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats','output_images'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
         datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
         datasource.inputs.template = '*'
         datasource.inputs.field_template = scan_stats_dict
+
+        #Concatenate output files
+        concat_outputfileNode=pe.Node(interface=concat_df(), name="concat_output_images")
+        concat_outputfileNode.inputs.out_file="output_images.csv"
+        workflow.connect(datasource, 'output_images', concat_outputfileNode, 'in_list')
+        workflow.connect(concat_outputfileNode, "out_file", datasink, 'output_images')
 
         #Concatenate descriptive statistics
         concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics"+surf)
         concat_statisticsNode.inputs.out_file="descriptive_statistics"+surf+".csv"
         workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-        workflow.connect(concat_statisticsNode, "out_file", datasink, 'results')
+        workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'results')
        
         #Calculate descriptive statistics
         descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)

@@ -110,16 +110,26 @@ def gen_args(opts, subjects):
                     mri_fn = unique_file(mri_string, mri_arg_list, opts.verbose )
                     
                     report_row = {"Sub":sub}
+                    d={'sid':sub} 
                     if "Ses" in report_columns.keys() :
                         report_row['Ses']=ses
+                        d['ses']=ses
+
                     if "Task" in report_columns.keys():
                         report_row['Task']=task
+                        d['task']=task
+
                     if "Acq" in report_columns.keys() :
                         report_row['Acq']=acq
+                        d['acq']=acq
+
                     if "Rec" in report_columns.keys() :
                         report_row['Rec']=rec
+                        d['rec']=rec
+
                     if "Run" in report_columns.keys() :
                         report_row['Run']=run
+                        d['run']=run
 
 
                     if not os.path.exists(pet_fn):

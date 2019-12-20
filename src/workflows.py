@@ -220,7 +220,7 @@ class Workflows:
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
         
         if opts.pet_brain_mask:
-            workflow.connect(self.init_pet, 'pet_brain_mask',self.pet2mri, 'moving_image_mask')
+            self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.pet2mri, 'moving_image_mask')
         
         if opts.pet_coregistration_target == "t1":
             self.workflow.connect(self.datasource, 'mri', self.pet2mri, 'fixed_image')
@@ -232,6 +232,15 @@ class Workflows:
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
             
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, 'moving_image')
+
+        #Transform PET Brain Mask to T1 space
+        if opts.pet_brain_mask:
+            self.pet_brain_mask_mri_space = pe.Node(interface=APPIANApplyTransforms(), name='pet_brain_mask_space_mri')
+            self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.pet_brain_mask_mri_space  , 'input_image' )
+            self.workflow.connect(self.mri_preprocess, 'outputnode.mri_space_nat', self.pet_brain_mask_mri_space  , 'reference_image' )
+            self.pet_brain_mask_mri_space.inputs.target_space="t1"
+            self.pet_brain_mask_mri_space.inputs.interpolation = 'NearestNeighbor'
+            self.workflow.connect(self.pet2mri, 'out_matrix', self.pet_brain_mask_mri_space , 'transform_1')
 
         #If analysis_space != pet, then resample 4d PET image to T1 or stereotaxic space
         if opts.analysis_space in ['t1', 'stereo'] :
@@ -312,7 +321,6 @@ class Workflows:
             self.workflow.connect(self.results_template_normalization, 'composite_transform', self.masking, 'inputnode.tfm_results_tmp_stx' )
       
 
-
         self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name, self.masking, "inputnode.mri_space_nat")
         self.workflow.connect(self.mri_preprocess, self.mri_space_stx_name, self.masking, "inputnode.mri_space_stx")
         self.workflow.connect(self.mri_preprocess, self.brain_mask_space_mri_name, self.masking, "inputnode.brain_mask_space_mri")
@@ -349,8 +357,6 @@ class Workflows:
             self.workflow.connect(self.datasource, "quant_label_template", self.masking, "inputnode.quant_label_template")
         if not opts.results_label_template == None: 
             self.workflow.connect(self.datasource, "results_label_template", self.masking, "inputnode.results_label_template")
-
-
 
         #
         # Transform Surfaces 
@@ -475,6 +481,42 @@ class Workflows:
 
             self.workflow.connect( self.resultsReport, 'out_file', self.datasink, node_name)
 
+        #
+        # Create .csv with file paths for main output files
+        #
+        if opts.analysis_space == "pet":
+            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
+            self.workflow.connect(self.pet2mri, "inverse_warped_image", self.t1_analysis_space,"output_image")
+        elif opts.analysis_space == "t1":
+            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
+            self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name, self.t1_analysis_space,"output_image")
+        elif opts.analysis_space == "stereo":
+            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
+            self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_stx", self.t1_analysis_space,"output_image")
+        
+        self.dashboard=pe.Node(interface=dash.GenerateOutputImagesCSV(),name="output_images")
+        self.dashboard.inputs.targetDir = opts.targetDir;
+        self.dashboard.inputs.sourceDir = opts.sourceDir;
+        self.dashboard.inputs.analysis_space = opts.analysis_space
+        self.workflow.connect(self.infosource, 'sid', self.dashboard, "sid")
+        self.workflow.connect(self.infosource, 'ses', self.dashboard, "ses")
+        self.workflow.connect(self.infosource, 'task', self.dashboard, "task")
+        self.workflow.connect(self.infosource, 'run', self.dashboard, "run")
+        self.workflow.connect(self.infosource, 'cid', self.dashboard, "cid")
+        self.workflow.connect(self.pet2mri, 'warped_image',  self.dashboard, 'pet_space_mri')
+        self.workflow.connect(self.t1_analysis_space, 'output_image',  self.dashboard, 't1_analysis_space')
+        self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.dashboard,"mri_space_nat")
+        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.dashboard,"mri_brain_mask")
+        self.workflow.connect(self.pet_input_node, self.pet_input_file, self.dashboard, "pet")
+        if opts.pvc_method != None :
+            self.dashboard.inputs.pvc_method = opts.pvc_method;
+            self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
+        if opts.quant_method != None:
+            self.dashboard.inputs.quant_method = opts.quant_method;
+            self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'quant')
+        if opts.pet_brain_mask:
+            self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image', self.dashboard, 'pet_brain_mask_space_mri' )
+        self.workflow.connect(self.dashboard, 'out_file', self.datasink,'output_images')
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -483,6 +525,8 @@ class Workflows:
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
+            if opts.pet_brain_mask:
+                self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image',  self.distance_metricNode, 'pet_brain_mask' )
             self.workflow.connect(self.mri_preprocess, self.brain_mask_space_mri_name, self.distance_metricNode, 'brain_mask_space_mri')
             self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name,  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')
@@ -503,35 +547,7 @@ class Workflows:
     # Dashboard # 
     #############
     def set_dashboard(self, opts) : 
-        if opts.analysis_space == "pet":
-            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
-            self.workflow.connect(self.pet2mri, "inverse_warped_image", self.t1_analysis_space,"output_image")
-        elif opts.analysis_space == "t1":
-            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
-            self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name, self.t1_analysis_space,"output_image")
-        elif opts.analysis_space == "stereo":
-            self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
-            self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_stx", self.t1_analysis_space,"output_image")
-        
-        self.dashboard=pe.Node(interface=dash.deployDashCommand(),name="dash_scanLevel")
-        self.dashboard.inputs.targetDir = opts.targetDir;
-        self.dashboard.inputs.sourceDir = opts.sourceDir;
-        self.dashboard.inputs.analysis_space = opts.analysis_space
-        self.workflow.connect(self.infosource, 'sid', self.dashboard, "sid")
-        self.workflow.connect(self.infosource, 'ses', self.dashboard, "ses")
-        self.workflow.connect(self.infosource, 'task', self.dashboard, "task")
-        self.workflow.connect(self.infosource, 'run', self.dashboard, "run")
-        self.workflow.connect(self.infosource, 'cid', self.dashboard, "cid")
-        self.workflow.connect(self.pet2mri, 'warped_image',  self.dashboard, 'pet_space_mri')
-        self.workflow.connect(self.t1_analysis_space, 'output_image',  self.dashboard, 't1_analysis_space')
-        self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.dashboard,"mri_space_nat")
-        self.workflow.connect(self.pet_input_node, self.pet_input_file, self.dashboard, "pet")
-        if opts.pvc_method != None :
-            self.dashboard.inputs.pvc_method = opts.pvc_method;
-            self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
-        if opts.quant_method != None:
-            self.dashboard.inputs.quant_method = opts.quant_method;
-            self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'quant')
+        pass
     #####################
     ### Preinfosource ###
     #####################
@@ -810,7 +826,8 @@ class Workflows:
     ##############
     def set_datasink(self, opts) :
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
-        self.datasink.inputs.base_directory= opts.targetDir + '/' 
+        self.datasink.inputs.base_directory= opts.targetDir + '/'
+
         self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', ''), ('sid-','sub-'), ('task','task-'), ('ses','ses')]
         for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
             if opts.output_format == 'minc' :

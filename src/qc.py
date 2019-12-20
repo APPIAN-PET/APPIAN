@@ -1,17 +1,26 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
 import matplotlib
+import ants
+import numpy as np
+import pandas as pd
+import os
 matplotlib.use('Agg')
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu 
+import nibabel as nib
+import ntpath
+import nipype.pipeline.engine as pe
+import nipype.interfaces.utility as niu
+import nipype.interfaces.io as nio
+import matplotlib.pyplot as plt
+import seaborn as sns
+import inspect
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.svm import OneClassSVM
 
-import numpy as np
-import pandas as pd
-import os
 from math import sqrt, log, ceil
 from os import getcwd
 from os.path import basename
@@ -23,14 +32,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy.ndimage.filters import gaussian_filter
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-import nibabel as nib
-import ntpath
-import nipype.pipeline.engine as pe
-import nipype.interfaces.utility as niu
-import nipype.interfaces.io as nio
-import matplotlib.pyplot as plt
-import seaborn as sns
-import inspect
+
 ######################
 #   Group-level QC   #
 ######################
@@ -497,7 +499,7 @@ class coreg_qc_metricsInput(BaseInterfaceInputSpec):
     pet = traits.File(exists=True, mandatory=True, desc="Input PET image")
     t1 = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     brain_mask_space_mri = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
-    #pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
+    pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Input T1 MRI")
     sid = traits.Str(desc="Subject")
     ses = traits.Str(desc="Session")
     task = traits.Str(desc="Task")
@@ -532,7 +534,9 @@ class coreg_qc_metricsCommand(BaseInterface):
         acq = self.inputs.acq
 
         brain_mask_space_mri = self.inputs.brain_mask_space_mri
-        #pet_brain_mask = self.inputs.pet_brain_mask
+        pet_brain_mask = self.inputs.pet_brain_mask
+
+        coreg_metrics=['Demons', 'MattesMutualInformation', 'ANTsNeighborhoodCorrelation']
 
         path, ext = os.path.splitext(pet)
         base=basename(path)
@@ -541,12 +545,17 @@ class coreg_qc_metricsCommand(BaseInterface):
 
         distance_metric_methods=distance_metrics.values()
         distance_metric_names=distance_metrics.keys()
-        #mis_metric=distance(pet, t1, brain_mask_space_mri, pet_brain_mask, distance_metric_methods )
-        mis_metric=distance(pet, t1, brain_mask_space_mri,  distance_metric_methods )
 
         df=pd.DataFrame(columns=metric_columns )
-        for m,metric_name,metric_func in zip(mis_metric, distance_metric_names, distance_metric_methods):
-            temp=pd.DataFrame([['coreg',sid,ses,task,run,acq,rec,'01',metric_name,m]],columns=df.columns  ) 
+
+        for metric in coreg_metrics :
+            metric_val = ants.create_ants_metric(    
+                                                fixed=ants.image_read( t1 ), 
+                                                moving=ants.image_read( pet ),
+                                                fixed_mask=ants.image_read( brain_mask_space_mri  ),
+                                                moving_mask=ants.image_read( pet_brain_mask ),
+                                                metric_type=metric ).get_value()
+            temp = pd.DataFrame([['coreg',sid,ses,task,run,acq,rec,'01',metric,metric_val]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
 
         if not isdefined( self.inputs.out_file) :

@@ -58,7 +58,7 @@ class Workflows:
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
         (self.set_qc_metrics, False, not opts.no_qc), 
-        (self.set_dashboard, False, False)
+        (self.set_dashboard, False, True)
         )
 
     def initialize(self, opts) :
@@ -155,7 +155,7 @@ class Workflows:
 
             self.mri_space_nat_name = 'outputnode.mri_space_nat'
             self.brain_mask_space_mri_name = 'outputnode.brain_mask_space_mri'
-            self.brain_mask_space_stx_name='outputnode.brain_mask_space_stx'
+            self.brain_mask_space_stx_name = 'outputnode.brain_mask_space_stx'
 
             self.out_node_list += [self.brain_mask_space_stx_node, self.mri_preprocess, self.mri_preprocess] 
             self.out_img_list += [self.brain_mask_space_stx_file, 'mri_spatial_normalized.warped_image','mri_spatial_normalized.inverse_warped_image']

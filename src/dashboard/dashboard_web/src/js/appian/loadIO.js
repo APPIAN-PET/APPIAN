@@ -57,6 +57,8 @@ function menuQC(xmlNodes){
 
     tabScans=xmlNodes.getElementsByTagName("scan");
 
+    print(tabScans); 
+
     array = ['pet-coregistration', 'pvc', 'tka'];
 
     array.forEach(function(stage) {

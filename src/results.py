@@ -134,7 +134,6 @@ class resultsCommand( BaseInterface):
         image = nib.load(self.inputs.in_file).get_data()
         
         #Load Label image
-        print(self.inputs.mask)
         labels_all = np.round(nib.load(self.inputs.mask).get_data()).astype(int).reshape(-1,)
         
         #Time Dimensions
@@ -151,7 +150,6 @@ class resultsCommand( BaseInterface):
         unique_labels = np.unique(labels)
         for i, val in enumerate(unique_labels) :
             labels_cont[ labels == val ] = i
-        print('ROI Labels File: ', self.inputs.roi_labels_file)
         roi_labels = set_roi_labels(unique_labels, self.inputs.roi_labels_file) 
 
         #Define number of labels
@@ -169,7 +167,6 @@ class resultsCommand( BaseInterface):
         df_list=[]
         for f in range(nFrames) :
             #Get 3D Frames
-            print(f, nFrames)
             if nFrames != 1 :
                 frame_img_all = image[:,:,:,f]
             else :
@@ -185,7 +182,6 @@ class resultsCommand( BaseInterface):
 
             #Calculate mid frame
             mid_frame = (float(frames[f][0])+float(frames[f][1]))/2.
-
             #Create frame
             frame_df=pd.DataFrame({
                 'analysis': [self.inputs.node] * n,
@@ -203,6 +199,7 @@ class resultsCommand( BaseInterface):
             df_list.append(frame_df)
         df=pd.concat(df_list)
         df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
+        print(df)
         df.to_csv(self.inputs.out_file)
 
         return runtime

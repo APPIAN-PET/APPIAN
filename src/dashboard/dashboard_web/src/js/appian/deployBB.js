@@ -20,6 +20,7 @@ function deployPage(tabScans,index,id,stage){
             titleDiv="PET-MRI : "+id;
             createDiv(idDiv,titleDiv);
             runBrainBrowser(bbFiles,idDiv);
+            //runPapaya((bbFiles, idDiv)
             break;
 
         case "pvc":
@@ -35,6 +36,7 @@ function deployPage(tabScans,index,id,stage){
             titleDiv="post-PVC : "+id;
             createDiv(idDiv,titleDiv);
             runBrainBrowser(bbFiles,idDiv);
+            //runPapaya((bbFiles, idDiv)
             break;
 
         case "tka":
@@ -44,6 +46,7 @@ function deployPage(tabScans,index,id,stage){
             titleDiv="TKA : "+id;
             createDiv(idDiv,titleDiv);
             runBrainBrowser(bbFiles,idDiv);
+            //runPapaya((bbFiles, idDiv)
             break;
     }} 
     });
@@ -181,21 +184,10 @@ var displayPlotBrowser = function(level,roiList,valueList,subjList,xaxis_title,y
     });  
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//function runBrainBrowser(file,bb) {
+// "use strict";
+//        <div class="papaya"></div>
+//}
 
 function runBrainBrowser(file,bb) {
  "use strict";

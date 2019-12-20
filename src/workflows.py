@@ -12,7 +12,6 @@ import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
-import src.test_group_qc as tqc
 from src import masking as masking
 from src import surf_masking
 from src import mri
@@ -253,9 +252,6 @@ class Workflows:
             self.pet_input_node=self.datasource
             self.pet_input_file='pet'
 
-        if opts.test_group_qc :
-            self = tqc.setup_test_group_qc(self,opts)
-
         #Add the outputs of Coregistration to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.pet_input_node, self.pet2mri] 
@@ -483,7 +479,7 @@ class Workflows:
     # Subject-level QC Metrics #
     ############################
     def set_qc_metrics(self, opts):
-        if opts.group_qc or opts.test_group_qc :
+        if opts.group_qc :
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')

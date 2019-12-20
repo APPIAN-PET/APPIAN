@@ -68,7 +68,7 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
         workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
         workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
-        workflow.run()
+        workflow.run() 
 
 def set_roi_labels(unique_labels, roi_labels_file) :
     roi_labels = []
@@ -80,9 +80,9 @@ def set_roi_labels(unique_labels, roi_labels_file) :
             except IndexError :
                 new_roi_label = label
             roi_labels.append(new_roi_label)
+        return roi_labels
     else :
         return unique_labels
-    return roi_labels
 
 class resultsInput(TraitedSpec):   
     in_file = traits.File(desc="Input file ")

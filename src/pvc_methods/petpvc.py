@@ -29,13 +29,12 @@ def txt2nii(in_file, out_file, mask_file) :
 
 def concatenate_volumes(tmax, temp_string="tmp/pvc_<frame>.nii" ) : 
     for i in range(tmax) :
-        print(i,tmax)
         temp_out_file = re.sub("<frame>", str(i), temp_string)
         temp_vol =  nib.load(temp_out_file)
+        print(i,tmax, temp_out_file)
         if i == 0 :
             ar = np.zeros(list(temp_vol.shape) + [tmax] )
-            in_ar = temp_vol.get_data()
-            print(in_ar.shape)
+        in_ar = temp_vol.get_data()
         ar[:, :, :, i ] = np.array(in_ar)
         affine = temp_vol.get_affine()
     out_vol = nib.Nifti1Image(ar, affine)
@@ -104,7 +103,6 @@ class petpvc4DCommand(BaseInterface):
                 petpvc4dNode.inputs.mask_file= self.inputs.mask_file
                 petpvc4dNode.inputs.pvc= self._suffix
                 print(petpvc4dNode.cmdline)
-        
                 petpvc4dNode.run()
                 
                 if self.roi :

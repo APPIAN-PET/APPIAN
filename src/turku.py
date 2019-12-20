@@ -155,8 +155,17 @@ class img2dft_unit_conversion(BaseInterface) :
         line_counter=-1
         newlines=''
         with open(img2dft.inputs.out_file, 'r') as f :
-            for line in f.readlines() :
-                print(line)
+            for i, line in enumerate(f.readlines()) :
+                if 'unknown' in line and i == 2 :
+                    try :
+                        unit = header["Info"]["Unit"]
+                    except KeyError :
+                        unit='Bq/ml'
+
+                    line=line.replace('unknown',unit)
+                    #print('replace unknown!')
+                    #print(line)
+
                 if 'Times' in line : 
                     line_counter=0
                     line=line.replace('sec','min')

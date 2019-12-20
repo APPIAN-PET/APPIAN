@@ -17,6 +17,9 @@ from src.workflows import Workflows
 """
 def run_scan_level(opts,args): 
     ###Define args with exiting subject and condition combinations
+    if not os.path.exists(opts.targetDir) :
+        os.makedirs(opts.targetDir)
+
     sub_valid_args, task_valid_args=gen_args(opts, args)
     
     scan_level_workflow = Workflows(opts)

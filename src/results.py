@@ -163,7 +163,9 @@ class resultsCommand( BaseInterface):
             nFrames=int(image.shape[3])
         else :
             nFrames=1
-
+        #print(frame_img_all.shape)
+        #print(labels_all.shape)
+        #exit(1)
         df_list=[]
         for f in range(nFrames) :
             #Get 3D Frames

@@ -13,6 +13,7 @@ apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.6 get-pip.py
 pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image #webcolors  
+pip3 install --upgrade numpy
 
 ### ANTsPy
 pip3 install https://github.com/ANTsX/ANTsPy/releases/download/v0.1.4/antspy-0.1.4-cp36-cp36m-linux_x86_64.whl

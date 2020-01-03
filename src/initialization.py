@@ -51,7 +51,7 @@ class petBrainMask(BaseInterface):
         vol = gaussian_filter( img.get_data(), 1 ) 
         vol[ vol < threshold_otsu(vol) ] = 0 
         vol[ vol > 0 ] = 1 
-        nib.Nifti1Image(vol, img.affine).to_filename(self.inputs.out_file)
+        nib.Nifti1Image(vol, img.affine, img.header).to_filename(self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):
@@ -246,7 +246,7 @@ class pet3DVolume(BaseInterface):
             #print(np.sum(volume_subset))
             volume_src=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
-            outfile = nib.Nifti1Image(volume_src, affine)
+            outfile = nib.Nifti1Image(volume_src, affine, infile.header)
             outfile.set_qform(affine)
             nib.save(outfile, self.inputs.out_file)
         else :

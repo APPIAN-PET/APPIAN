@@ -223,7 +223,7 @@ class SegmentationToBrainMask(BaseInterface):
         img = nib.load(self.inputs.seg_file)
         data = img.get_data()
         data[ data > 1 ] = 1
-        out = nib.Nifti1Image(data.astype(np.int16), img.get_affine() )
+        out = nib.Nifti1Image(data.astype(np.int16), img.get_affine(), img.header )
         out.to_filename (self.inputs.output_image)
 
         return runtime

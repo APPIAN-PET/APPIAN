@@ -47,7 +47,7 @@ class createImgFromROI(BaseInterface) :
         for label, value in roi : 
             out_data[ref_data == label] = value
         
-        out = nib.Nifti1Image(out_data, ref.get_affine())
+        out = nib.Nifti1Image(out_data, ref.get_affine(), ref.header)
         out.to_filename(self.inputs.out_file )
 
         return runtime

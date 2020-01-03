@@ -8,8 +8,10 @@ import nibabel as nib
 import ntpath
 import pandas as pd
 import numpy as np 
+import tempfile
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
+
 
 def cmd(command):
     try:
@@ -44,7 +46,7 @@ def gunzip(ii, oo):
 def check_gz(in_file_fn) :
     img, ext = splitext(in_file_fn)
     if '.gz' in ext :
-        out_file_fn='/tmp/'+os.path.basename(img)+'.nii'
+        out_file_fn = tempfile.mkdtemp() + os.path.basename(img) + '.nii'
         sif = img + '.sif'
         if os.path.exists(sif) : 
             shutil.copy(sif, '/tmp/'+os.path.basename(img)+'.sif'  )
@@ -87,7 +89,7 @@ class separate_mask_labelsCommand(BaseInterface ):
                 print(t-1, i )
                 out[ data == i, t-1 ] = 1 
 
-        out_file=nib.Nifti1Image(out, vol.get_affine())
+        out_file=nib.Nifti1Image(out, vol.get_affine(), vol.header)
         out_file.to_filename(self.inputs.out_file)
         return(runtime)
 

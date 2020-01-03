@@ -117,7 +117,7 @@ class Labels(BaseInterface):
             brain_mask = nib.load(self.inputs.brain_mask).get_data()
             label_img *= brain_mask
 
-        tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine())
+        tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine(), img.header)
         tmp_label_img.to_filename("tmp_label_img.nii")
 
         #6. Apply transformation

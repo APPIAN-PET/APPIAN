@@ -382,9 +382,9 @@ class Workflows:
         self.datasink_dir_name += ['pvc']
         print('set pvc')
 
-    ###########################
-    # Tracer kinetic analysis #
-    ###########################
+    ##################
+    # Quantification #
+    ##################
     def set_quant (self, opts) :
         if opts.pvc_method != None : 
             self.quant_target_wf = self.pvc
@@ -392,42 +392,53 @@ class Workflows:
         else : 
             self.quant_target_wf = self.pet_input_node # #CHANGE
             self.quant_target_img= self.pet_input_file # ##CHANGE
-        self.quant=quant.get_quant_workflow("quantification", opts)
-        self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.quant, "inputnode.header")
-        self.workflow.connect(self.masking, "resultsLabels.out_file", self.quant, "inputnode.mask") 
-        self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "inputnode.in_file")
-        self.workflow.connect(self.mri_preprocess, self.brain_mask_space_stx_name, self.quant, "inputnode.stereo")
-       
-
+        
+        self.quant = pe.Node(interface=quant.ApplyModel(), name="quant-"+opts.quant_method)
+        self.quant.inputs.quant_method = opts.quant_method
+        self.quant.inputs.roi_based = opts.quant_roi
+        self.quant.inputs.opts = vars(opts)
+        self.workflow.connect(self.init_pet, 'outputnode.pet_header_json', self.quant, "header_file")
+        self.workflow.connect(self.masking, "resultsLabels.out_file", self.quant, "roi_file") 
+        self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "pet_file")
+        self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.quant, "brain_mask_file" )
+        self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
+        self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
+        
+        '''
         if opts.analysis_space in ["t1", "pet"] :
             if opts.pet_coregistration_target == 't1' :
                 self.workflow.connect(self.mri_preprocess, 'outputnode.tfm_mri_stx', self.quant, 'inputnode.tfm_mri_stx')
             else :
                 self.workflow.connect(self.pet2mri, "out_matrix", self.quant, 'inputnode.tfm_mri_stx')
 
-            if opts.analysis_space == "pet" :
-                self.workflow.connect(self.pet2mri, "out_matrix", self.quant, 'inputnode.tfm_pet_mri')
-        
-        if opts.arterial :
-            self.workflow.connect(self.datasource, 'arterial_file', self.quant, "inputnode.reference")
-        else :     
-            self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "inputnode.reference")
-
+            if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
+                quant_to_stereo = pe.Node( APPIANApplyTransforms(), name="quant_stereo"  )
+                workflow.connect(inputnode, 'tfm_mri_stx', quant_to_stereo, "transform_2")
+                if opts.analysis_space=='pet' :
+                    workflow.connect(inputnode, 'tfm_pet_mri', quant_to_stereo, "transform_3")
+                workflow.connect(inputnode, 'stereo', quant_to_stereo, "reference_image")
+                workflow.connect(quant_source, 'out_file', quant_to_stereo, "input_image")
+                workflow.connect(quant_to_stereo, 'output_image', outputnode, 'out_file_stereo')
+                quant_to_stereo.inputs.tricubic_interpolation = True
+            
+            
+            #if opts.analysis_space == "pet" :
+            #    self.workflow.connect(self.pet2mri, "out_matrix", self.quant, 'inputnode.tfm_pet_mri')
+        '''
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]
-        self.out_img_list += ['outputnode.out_file']
+        self.out_img_list += ['out_file']
         self.out_img_dim += ['3']
         self.extract_values += [True]
         self.datasink_dir_name += ['quant']
 
-        if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
-            self.out_node_list += [self.quant]
-            self.out_img_list += ['outputnode.out_file']
-            self.out_img_dim += ['3']
-            self.extract_values += [False]
-            self.datasink_dir_name += ['quant/stereo']
-        print('set quant')
+        #if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
+        #    self.out_node_list += [self.quant]
+        #    self.out_img_list += ['outputnode.out_file']
+        #    self.out_img_dim += ['3']
+        #    self.extract_values += [False]
+        #    self.datasink_dir_name += ['quant/stereo']
         
 
     ##################
@@ -513,7 +524,7 @@ class Workflows:
             self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
         if opts.quant_method != None:
             self.dashboard.inputs.quant_method = opts.quant_method;
-            self.workflow.connect(self.quant, 'outputnode.out_file',  self.dashboard, 'quant')
+            self.workflow.connect(self.quant, 'out_file',  self.dashboard, 'quant')
         if opts.pet_brain_mask:
             self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image', self.dashboard, 'pet_brain_mask_space_mri' )
         self.workflow.connect(self.dashboard, 'out_file', self.datasink,'output_images')

@@ -185,7 +185,8 @@ def get_parser():
 
     #TKA Options
     #group= OptionGroup(parser,"src options")
-    parser.add_argument("--quant-method","--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-roi",dest="quant_roi",help="Use ROI-based quantification (default is voxelwise).",action='store_true', default=False)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
     parser.add_argument("--k2",dest="quant_k2",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)

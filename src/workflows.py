@@ -404,27 +404,6 @@ class Workflows:
         self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
         
-        '''
-        if opts.analysis_space in ["t1", "pet"] :
-            if opts.pet_coregistration_target == 't1' :
-                self.workflow.connect(self.mri_preprocess, 'outputnode.tfm_mri_stx', self.quant, 'inputnode.tfm_mri_stx')
-            else :
-                self.workflow.connect(self.pet2mri, "out_matrix", self.quant, 'inputnode.tfm_mri_stx')
-
-            if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
-                quant_to_stereo = pe.Node( APPIANApplyTransforms(), name="quant_stereo"  )
-                workflow.connect(inputnode, 'tfm_mri_stx', quant_to_stereo, "transform_2")
-                if opts.analysis_space=='pet' :
-                    workflow.connect(inputnode, 'tfm_pet_mri', quant_to_stereo, "transform_3")
-                workflow.connect(inputnode, 'stereo', quant_to_stereo, "reference_image")
-                workflow.connect(quant_source, 'out_file', quant_to_stereo, "input_image")
-                workflow.connect(quant_to_stereo, 'output_image', outputnode, 'out_file_stereo')
-                quant_to_stereo.inputs.tricubic_interpolation = True
-            
-            
-            #if opts.analysis_space == "pet" :
-            #    self.workflow.connect(self.pet2mri, "out_matrix", self.quant, 'inputnode.tfm_pet_mri')
-        '''
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]
@@ -432,14 +411,6 @@ class Workflows:
         self.out_img_dim += ['3']
         self.extract_values += [True]
         self.datasink_dir_name += ['quant']
-
-        #if opts.quant_to_stereo and not opts.analysis_space == "stereo" :
-        #    self.out_node_list += [self.quant]
-        #    self.out_img_list += ['outputnode.out_file']
-        #    self.out_img_dim += ['3']
-        #    self.extract_values += [False]
-        #    self.datasink_dir_name += ['quant/stereo']
-        
 
     ##################
     # Results Report #

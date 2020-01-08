@@ -59,7 +59,6 @@ def get_parser():
     parser.add_argument("--subjects",dest="args",default=[], help="List of subjects",nargs='+')
     parser.add_argument("--tasks",dest="taskList",default=[],help="List of conditions or scans",nargs='+')
     parser.add_argument("--runs",dest="runList",default=[],help="List of runs",nargs='+')
-    parser.add_argument("--output-format",dest="output_format",type=str, default='nifti', help="Output file format for APPIAN (default=nifti, options=nifti,minc)")
 
     #############################
     # MRI Preprocessing Options #
@@ -94,7 +93,6 @@ def get_parser():
     ######################
     # Additional Options #
     ######################
-    parser.add_argument("--test",dest="test",action='store_true', default=False, help="Run tests on APPIAN")
     parser.add_argument("--no-group-level",dest="run_group_level",action='store_false', default=True, help="Do not run group level analysis")
     parser.add_argument("--no-scan-level",dest="run_scan_level",action='store_false', default=True, help="Do not run scan level analysis")
 
@@ -119,7 +117,6 @@ def get_parser():
     label_space_help="Coordinate space of labeled image to use for TKA. Options: [pet/t1/stereo] "
     label_img_help="Options: 1. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 2. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template 3. Internal classification method (" + ', '.join(internal_cls_methods) + ') 4. String that identifies labels in anat/ directory to be used as mask' 
     #PVC
-    #group= OptionGroup(parser,"Masking options","PVC")
     parser.add_argument("--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='stereo', choices=spaces)
     parser.add_argument("--pvc-label-img",dest="pvc_label_img",help=label_img_help, type=str, default='antsAtropos')
     parser.add_argument("--pvc-label-template",dest="pvc_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
@@ -131,7 +128,6 @@ def get_parser():
     
 
     # src
-    #group= OptionGroup(parser,"Masking options","src")
     parser.add_argument("--quant-label-space","--quant-label-space", dest="quant_label_space",help=label_space_help,default='stereo', choices=spaces)
     parser.add_argument("--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--quant-label-template","--quant-label-template",dest="quant_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
@@ -142,7 +138,6 @@ def get_parser():
     
 
     #Results
-    #group= OptionGroup(parser,"Masking options","Results")
     parser.add_argument("--no-results-report",dest="no_results_report",help="Don't calculate descriptive stats for results ROI.",action='store_true',default=False)
     parser.add_argument("--results-label-name",dest="results_label_name",help="Extra label string that is used to create the directory with results: /<results_method>_<results_label>. Allows you to run same results node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--roi-labels", dest="roi_labels_file",help="A .csv file to convert ROI values to the region represented by ROI value. First column is ROI value and second column is the name of the region represented by the ROI (example: 15,\"corpus callosum\")",default='')
@@ -158,7 +153,6 @@ def get_parser():
     ##########################
     # Coregistration Options #
     ##########################
-    #group= OptionGroup(parser,"Coregistation options")
     parser.add_argument("--coreg-method", dest="coreg_method",type=str,help="Coregistration method: minctracc, ants (default=minctracc)", default="minctracc")
     parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
     parser.add_argument("--pet-coregistration-target",dest="pet_coregistration_target",type=str, help="Target for PET coregistration (t1, stx; Default=t1)", default='t1', choices=['t1','stx'])
@@ -183,10 +177,10 @@ def get_parser():
     parser.add_argument("--pvc-nvoxel-to-src",dest="nvoxel_to_src",help="Number of voxels to src over (for IdSURF).",type=int, default=64)
     
 
-    #TKA Options
-    #group= OptionGroup(parser,"src options")
+    #Quantification Options
     parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
     parser.add_argument("--quant-roi",dest="quant_roi",help="Use ROI-based quantification (default is voxelwise).",action='store_true', default=False)
+    parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_true', default=True)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
     parser.add_argument("--k2",dest="quant_k2",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)

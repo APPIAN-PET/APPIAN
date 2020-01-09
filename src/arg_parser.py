@@ -1,11 +1,13 @@
 import argparse
 import os
 import numpy as np
+import time
+import sys
+import nibabel as nib
+from nibabel.filebasedimages import ImageFileError
 from argparse import ArgumentParser
 from glob import glob
 from re import sub
-import time
-import sys
  
 global spaces
 global file_dir
@@ -180,7 +182,7 @@ def get_parser():
     #Quantification Options
     parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
     parser.add_argument("--quant-roi",dest="quant_roi",help="Use ROI-based quantification (default is voxelwise).",action='store_true', default=False)
-    parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_true', default=True)
+    parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_false', default=False)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
     parser.add_argument("--k2",dest="quant_k2",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)
@@ -217,7 +219,6 @@ def get_parser():
     #Quality Control 
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
-    parser.add_argument("--no-group-qc",dest="group_qc",help="Don't perform quantitative group-wise quality control.", action='store_const', const=False, default=True)  
     parser.add_argument_group(parser)
 
     #Results reporting
@@ -325,10 +326,9 @@ def modify_opts(opts) :
         print( "\n\n*******ERROR******** \n     You must specify --sourcedir, --targetdir \n********************\n")
         parser.print_help()
         sys.exit(1)
-
     #Check inputs for PVC masking 
     opts.pvc_label_type, opts.pvc_label_space = check_masking_options(opts, opts.pvc_label_img, opts.pvc_label_template, opts.pvc_label_space)
-    #Check inputs for TKA masking
+    #Check inputs for Quantification masking
     opts.quant_label_type, opts.quant_label_space = check_masking_options(opts, opts.quant_label_img, opts.quant_label_template, opts.quant_label_space)
     #Check inputs for results masking
     opts.results_label_type, opts.results_label_space = check_masking_options(opts, opts.results_label_img, opts.results_label_template, opts.results_label_space)
@@ -370,23 +370,24 @@ def check_masking_options(opts, label_img, label_template, label_space):
         label_type      label type tells you what kind of labled image we're dealing with. there are several
                         possibilities based on the coordinate space of the image (label_space): roi-user, civet, animal, other.
     '''
-    #if os.path.exists(opts.sourceDir + os.sep + label_img[0]):
-    if os.path.exists(label_img):
+    try :
+        nib.load(label_img)
     # 1) atlas 
         label_type ="atlas"
         #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
         if label_template != None :
             if os.path.exists(label_template) : 
                 label_type="atlas-template"
-    elif label_img in internal_cls_methods :
-    # 2) Internal classification metion
-        label_type = 'internal_cls'
-        label_space="stereo"
-    elif type(label_img) == str:
-    # 3) String that defines user classification
-        label_type='user_cls'
-    else : 
-        print( "Label error: ", label_img)
-        exit(1)
+    except (FileNotFoundError, ImageFileError)  :
+        if label_img in internal_cls_methods :
+        # 2) Internal classification metion
+            label_type = 'internal_cls'
+            label_space="stereo"
+        elif type(label_img) == str:
+        # 3) String that defines user classification
+            label_type='user_cls'
+        else : 
+            print( "Label error: ", label_img)
+            exit(1)
 
     return label_type, label_space

@@ -83,8 +83,10 @@ class Labels(BaseInterface):
         img = nib.load(self.inputs.label_img)
         label_img = img.get_data()
         
-        print("1", np.sum(label_img)) 
-        print(self.inputs.labels)
+        if np.sum(label_img) == 0 :
+            print("\nError: labeled image summed to zero in file\n",self.inputs.label_img)
+            exit(1)
+
         if self.inputs.labels != [] :
             _labels =[ int(i) for i in self.inputs.labels ]
         #else : 
@@ -93,10 +95,13 @@ class Labels(BaseInterface):
         #2. Remove labels not specified by user, if any have been provided
         if self.inputs.labels != [] :
             labels_to_remove =[ i for i in np.unique(label_img) if int(i) not in _labels ]
+
             for i in labels_to_remove :
                 label_img[ label_img == i ] = 0
-        print(np.unique(label_img))
-        print("2", np.sum(label_img)) 
+
+        if np.sum(label_img) == 0 :
+            print("\nError: labeled image summed to zero when using labels", _labels, "in file\n",self.inputs.label_img)
+            exit(1)
         #3. concatenate all labels to 1
         if self.inputs.ones_only :
             label_img[label_img != 0 ] = 1

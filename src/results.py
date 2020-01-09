@@ -29,7 +29,6 @@ final_dir="stats"
 ######################################
 def group_level_descriptive_statistics(opts, args):
     vol_surf_list = ['']
-
     if opts.use_surfaces : 
         vol_surf_list += ['_surf']
     print('1', vol_surf_list)
@@ -43,7 +42,7 @@ def group_level_descriptive_statistics(opts, args):
         datasink=pe.Node(interface=nio.DataSink(), name="output")
         datasink.inputs.base_directory= opts.targetDir+os.sep
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
-
+    
         #Datagrabber
         scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv',
                              output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
@@ -60,20 +59,20 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(datasource, 'output_images', concat_outputfileNode, 'in_list')
         workflow.connect(concat_outputfileNode, "out_file", datasink, 'output_images')
 
-        #Concatenate descriptive statistics
-        concat_statisticsNode=pe.Node(interface=concat_df(), name="concat_statistics"+surf)
+        #Concatenate scan-level statistics
+        concat_statisticsNode=pe.Node(interface=concat_df(), name="statistics"+surf)
         concat_statisticsNode.inputs.out_file="descriptive_statistics"+surf+".csv"
         workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-        workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'results')
+        workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'all')
        
         #Calculate descriptive statistics
         descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
         workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
-        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'sub')
-        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'ses')
-        workflow.connect(descriptive_statisticsNode, "task", datasink, 'task')
-        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'sub_task')
-        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'sub_ses')
+        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'stats/sub')
+        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'stats/ses')
+        workflow.connect(descriptive_statisticsNode, "task", datasink, 'stats/task')
+        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'stats/sub_task')
+        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'stats/sub_ses')
         workflow.run() 
 
 def set_roi_labels(unique_labels, roi_labels_file) :
@@ -130,7 +129,6 @@ class resultsCommand( BaseInterface):
             self.inputs.out_file=self._gen_output(self.inputs.in_file, '_results')
         
         #Load PET image
-        print(self.inputs.in_file)
         image = nib.load(self.inputs.in_file).get_data()
         
         #Load Label image
@@ -151,21 +149,22 @@ class resultsCommand( BaseInterface):
         for i, val in enumerate(unique_labels) :
             labels_cont[ labels == val ] = i
         roi_labels = set_roi_labels(unique_labels, self.inputs.roi_labels_file) 
-
+        
         #Define number of labels
         n=len(unique_labels)
         
+        if n == 0 :
+            print("\n","Error: No labels in image", self.inputs.in_file,"\n")
+            exit(1)
+
         #Find number of counts for each label
         counts = np.bincount(labels_cont)
-        
         #Determine if 3D/4D PET image
         if len(image.shape) == 4 :
             nFrames=int(image.shape[3])
         else :
             nFrames=1
-        #print(frame_img_all.shape)
-        #print(labels_all.shape)
-        #exit(1)
+        
         df_list=[]
         for f in range(nFrames) :
             #Get 3D Frames
@@ -202,7 +201,7 @@ class resultsCommand( BaseInterface):
         df=pd.concat(df_list)
         df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
         print(df)
-        df.to_csv(self.inputs.out_file)
+        df.to_csv(self.inputs.out_file,index=False)
 
         return runtime
 
@@ -243,6 +242,7 @@ class descriptive_statisticsCommand( BaseInterface):
         return super(descriptive_statisticsCommand, self)._parse_inputs(skip=skip)
 
     def _run_interface(self, runtime):
+        print('Reading', self.inputs.in_file)
         df = pd.read_csv( self.inputs.in_file   )
 #        df_pivot = lambda y : pd.DataFrame(df.pivot_table(rows=y,values=["value"], aggfunc=np.mean).reset_index(level=y))
         print(df)

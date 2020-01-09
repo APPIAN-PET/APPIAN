@@ -25,7 +25,7 @@ def run_group_level(opts,args):
         print(command, run_flag, len(args))
         if run_flag and len(args) > min_args :
             command(*fargs)
-            continue
+            #continue
             #try :
             #    print("Trying")
             #    command(*fargs)

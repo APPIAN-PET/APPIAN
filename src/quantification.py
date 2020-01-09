@@ -9,6 +9,7 @@ import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
 import nibabel as nib
+import pandas as pd
 import ntpath
 import numpy as np
 import os
@@ -45,33 +46,57 @@ def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}):
     del int_vol
     n_frames -= regr_start
 
-    ki = regr(x,y,dim[0],n_frames)
+    ki = np.array(map(slope,x,y)) 
 
     return ki
 
 
-def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={} ):
+def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, roi_based=False ):
     n_frames = len(time_frames)
     start_time = opts["quant_start_time"]
     dim = list(vol.shape)
 
     x = int_ref * 1.0/vol #[brain_mask]    
     x[np.isnan(x) | np.isinf(x) ] = 0.
-    del int_ref
+    if not roi_based:
+        del int_ref
 
     y = int_vol * 1.0/ vol # [brain_mask]
     y[np.isnan(y) | np.isinf(y) ] = 0.
 
-    regr_start = np.sum(start_time > np.array(time_frames)) 
-    x = x[:, regr_start:n_frames]
-    y = y[:, regr_start:n_frames]
+    '''
+    df = None
+    if roi_based == True:
+        pet_vol_list = [{'roi-'+str(i):vol[i]} for i in  range(vol.shape[0])  ]
+        int_vol_list = [{'int-roi-'+str(i):int_vol[i]} for i in range(int_vol.shape[0])  ]
+        ref_tac_list = [{'ref-'+str(i):ref[i]} for i in range(ref.shape[0])  ]
+        int_ref_list = [{'int-ref-'+str(i):int_ref[i]} for i in range(int_ref.shape[0])  ]
+        x_list = [{'x-'+str(i):x[i]} for i in range(x.shape[0]) ]
+        y_list = [{'y-'+str(i):y[i]} for i in range(y.shape[0]) ]
+
+        df_dict = {'frames':time_frames}
+        for item in pet_vol_list + int_vol_list + ref_tac_list + int_ref_list +x_list +y_list:
+            df_dict.update(item)
+            df = pd.DataFrame( df_dict )
+        print(df)
+    '''
+
+    regr_start = np.sum(start_time >= np.array(time_frames)) 
+    print("Start frame (counting from 0):", regr_start)
+    x = x[:, regr_start:]
+    y = y[:, regr_start:]
     del vol     
     del int_vol
     n_frames -= regr_start
 
-    dvr = regr(x,y,dim[0],n_frames)
-
-    return dvr
+    dvr = np.array(list(map(slope,x,y))) 
+        
+    if opts["quant_DVR"] :
+        out = dvr
+    else :
+        out = dvr - 1 #BPnd
+    print(out)
+    return out
 
 def suv(vol, brain_mask, int_vol, int_ref, time_frames, opts):
     pass
@@ -79,22 +104,29 @@ def suv(vol, brain_mask, int_vol, int_ref, time_frames, opts):
 def suvr(vol, brain_mask, int_vol, int_ref, time_frames, opts):
     pass
 
+from scipy.stats import linregress
 global model_dict
 model_dict={'pp':patlak_plot, 'lp':logan_plot,  'suv':suv, 'suvr':suvr}
 
 
+def slope(x,y):
+    return linregress(x,y)[0]
 ### Helper functions 
 
 def regr(x,y,tac_len, n_frames):
-    x_mean = np.mean( x, axis=1)
-    y_mean = np.mean( y, axis=1)
-    x_mean = np.repeat(x_mean, n_frames).reshape( [tac_len]+[-1] )
-    y_mean = np.repeat(y_mean, n_frames).reshape( [tac_len]+[-1] )
+    #x_mean = np.mean( x, axis=1)
+    #y_mean = np.mean( y, axis=1)
+    #x_mean = np.repeat(x_mean, n_frames).reshape( [tac_len]+[-1] )
+    #y_mean = np.repeat(y_mean, n_frames).reshape( [tac_len]+[-1] )
+    print(list(map(slope, x, y)))
+    return (n_frames * np.sum(x*y,axis=1) - np.sum(x,axis=1)*np.sum(y,axis=1)) /  (n_frames * np.sum(x**2,axis=1) - np.sum(x,axis=1)**2)
 
     xx = x - x_mean 
+    print(xx)
     del x
     del x_mean
     yy = y - y_mean
+    print(yy)
     del y_mean
     del y
 
@@ -150,10 +182,13 @@ def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file=
     
     return  ref_tac
 
-def get_roi_tac(roi_file,pet_vol ):
+def get_roi_tac(roi_file,pet_vol,brain_mask_vol, time_frames ):
     roi_img = nib.load(roi_file)
     roi_vol = roi_img.get_data()
+    roi_vol = roi_vol.reshape(roi_vol.shape[0:3])
     roi_vol = roi_vol.reshape(-1,)
+    roi_vol = roi_vol[brain_mask_vol]
+
     unique_roi = np.unique(roi_vol)[1:]
     roi_tac = np.zeros( (len(unique_roi), len(time_frames)) )
     for t in range(len(time_frames)) :
@@ -161,13 +196,15 @@ def get_roi_tac(roi_file,pet_vol ):
             frame = pet_vol[:,t]
             roi_tac[i][t] = np.mean(frame[roi_vol == roi])
     del pet_vol
-    return roi_tac, unique_roi, roi_vol
+    return roi_tac
 
 
-def create_output_array(dims,  roi_based, quant_vol, roi_vol, brain_mask_vol ):
+def create_output_array(dims,  roi_based, quant_vol, roi_file, brain_mask_vol ):
+    roi_img = nib.load(roi_file)
+    roi_vol = roi_img.get_data().reshape(-1,)
     n3d=np.product(dims[0:3]) 
     n_frames=dims[3]
-    unique_roi=np.unique(roi_vol)
+    unique_roi=np.unique(roi_vol)[1:]
     
     ar = np.zeros([n3d] )
     
@@ -175,6 +212,7 @@ def create_output_array(dims,  roi_based, quant_vol, roi_vol, brain_mask_vol ):
         for t in range(n_frames) :
             for label, value in enumerate(unique_roi) : 
                 ar[ roi_vol == value ] = quant_vol[label]
+        
     else : 
         ar[ brain_mask_vol ] = quant_vol
     ar = ar.reshape(dims[0:3])
@@ -184,9 +222,11 @@ def create_output_array(dims,  roi_based, quant_vol, roi_vol, brain_mask_vol ):
 
 class ApplyModelOutput(TraitedSpec):  
     out_file = File(desc="Reconstruced 3D image based on .dft ROI values")
+    out_df = File(desc="Reconstruced 3D image based on .dft ROI values")
 
 class ApplyModelInput(TraitedSpec):
     out_file = File(desc="Reconstruced 3D image based on .dft ROI values")
+    out_df = File(desc="Reconstruced 3D image based on .dft ROI values")
     pet_file = File(exists=True, mandatory=True, desc=" .dft ROI values")
     header_file = File(exists=True, mandatory=True, desc=" .dft ROI values")
     brain_mask_file = File( desc=" .dft ROI values") #,default_value=None, usedefault=True)
@@ -212,52 +252,63 @@ class ApplyModel(BaseInterface) :
         opts = self.inputs.opts
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
+        
+        if not isdefined(self.inputs.out_df) and self.inputs.roi_based == True:
+            self.inputs.out_df = os.getcwd() + os.sep + self.inputs.quant_method+".csv" 
 
         pet_img = nib.load(pet_file)
         pet_vol = pet_img.get_data().astype('f4')
+        print(pet_vol.shape)
         dims = pet_vol.shape
         n3d=np.product(pet_vol.shape[0:3])
         pet_vol = pet_vol.reshape([n3d]+[pet_vol.shape[3]])
        
         brain_mask_img = nib.load(brain_mask_file)
-        brain_mask_vol = brain_mask_img.get_data().astype(bool).reshape(-1,)
-        
+        brain_mask_vol = brain_mask_img.get_data().astype(bool)
+        print(brain_mask_vol.shape)
+        brain_mask_vol = brain_mask_vol.reshape(-1,)
         pet_vol = pet_vol[ brain_mask_vol, :  ]
         
         model = model_dict[self.inputs.quant_method]
         header = json.load(open(header_file, "r") )
-        time_frames = [ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ]
+        time_frames = [ (float(s) + float(e)) / 3. for s,e in  header['Time']["FrameTimes"]["Values"] ]
         n_frames=len(time_frames)
         
         ref_tac = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file)
 
-        roi_vol=unique_roi=None
         if  self.inputs.roi_based == True :
-            pet_vol, unique_roi, roi_vol = get_roi_tac(roi_file, pet_vol )
+            pet_vol = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
         
         int_vol = integrate_tac(pet_vol, time_frames)
         int_ref = integrate_tac(ref_tac, time_frames)
 
-        quant_vol = model(pet_vol, int_vol, ref_tac, int_ref, time_frames, opts=opts)
-
-        out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_vol, brain_mask_vol )
+        quant_vol = model(pet_vol, int_vol, ref_tac, int_ref, time_frames, opts=opts, roi_based=self.inputs.roi_based)
+        
+        out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_file, brain_mask_vol )
 
         print(self.inputs.out_file)
         nib.Nifti1Image(out_ar, pet_img.affine).to_filename(self.inputs.out_file)
-
+        
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file = self._gen_output()
+        if not isdefined(self.inputs.out_df) and self.inputs.roi_based :
+            self.inputs.out_df = os.getcwd() + os.sep + self.inputs.quant_method+".csv" 
+
         outputs["out_file"] = self.inputs.out_file
+        outputs["out_df"] = self.inputs.out_df
         return outputs
 
     def _gen_output(self):
         fname = ntpath.basename(self.inputs.pet_file)
         fname_list = splitext(fname) # [0]= base filename; [1] =extension
         dname = os.getcwd() 
-        return dname+ os.sep+fname_list[0] +'_quant-'+ self.inputs.quant_method +'.nii.gz'
+        kind='vxl'
+        if self.inputs.roi_based == True :
+            kind = 'roi'
+        return dname+ os.sep+fname_list[0] +'_quant-'+kind+'-'+ self.inputs.quant_method +'.nii.gz'
 
 

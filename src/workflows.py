@@ -1,7 +1,6 @@
 # vi: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a hlsearch
 import os 
 import re
-import nipype.interfaces.minc as minc
 import src.initialization as init
 import src.pvc as pvc 
 import src.results as results
@@ -47,6 +46,7 @@ class Workflows:
         (self.set_datasource_anat, False, True),
         (self.set_datasource_surf, False, opts.use_surfaces),
         (self.set_datasource_base, opts.datasource_exit, True),
+        (self.set_datasink, False, True),
         (self.set_init_pet, opts.initialize_exit, True ),
         (self.set_mri_preprocess, opts.mri_preprocess_exit, True),
         (self.set_template_normalization, False, True),
@@ -54,7 +54,6 @@ class Workflows:
         (self.set_masking, opts.masking_exit, True),
         (self.set_pvc, opts.pvc_exit, opts.pvc_method),
         (self.set_quant, False, opts.quant_method ),
-        (self.set_datasink, False, True),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
         (self.set_qc_metrics, False, not opts.no_qc), 
@@ -403,7 +402,7 @@ class Workflows:
         self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.quant, "brain_mask_file" )
         self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
-        
+        self.workflow.connect(self.quant, 'out_df', self.datasink, 'quant/csv') 
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]
@@ -415,7 +414,6 @@ class Workflows:
     ##################
     # Results Report #
     ##################
-    # For each of the nodes in the outputnode list pass the output image to mincgroupstats.
     # This will print out descriptive statistics for the labelled regions in the mask image
     # for the output image. 
     def set_results_report(self,  opts ):
@@ -433,7 +431,7 @@ class Workflows:
             print(node.name, extract, img, dim)
             if not extract : continue
             node_name="results_"+surf+ node.name
-            dir_name = "results_"+surf_dir+ node.name
+            dir_name = 'stats/'+ surf_dir+ node.name
             
             if opts.pvc_label_name != None :
                 node_name += "_"+opts.pvc_label_name
@@ -461,7 +459,6 @@ class Workflows:
             else :
                 self.workflow.connect(self.masking, 'resultsLabels.out_file', self.resultsReport, 'mask')
 
-            self.workflow.connect( self.resultsReport, 'out_file', self.datasink, node_name)
 
         #
         # Create .csv with file paths for main output files
@@ -503,7 +500,7 @@ class Workflows:
     # Subject-level QC Metrics #
     ############################
     def set_qc_metrics(self, opts):
-        if opts.group_qc :
+        if not opts.no_qc :
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
@@ -672,21 +669,22 @@ class Workflows:
         
         mri_list = base_template_args
         mri_str = re.sub('DIR', 'anat', base_label_template)
-
+        label_str =re.sub('DIR', 'anat', base_label_template) #FIXME: not sure if BIDS derivatives go in anat
+ 
         self.datasourceAnat.inputs.field_template={
                 "mri":mri_str+"*_T1w.nii*"
-                #opts.sourceDir+os.sep+'sub-%s/*ses-%s/anat/sub-%s_ses-%s*_T1w.'+opts.img_ext+'*'
                 }
         self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 
         if opts.pvc_label_type != "internal_cls" :
-            self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts, base_label_template, base_template_args)
+            self.set_label(opts.pvc_label_type ,opts.pvc_label_img,opts.pvc_label_template, 'pvc_label_img', 'pvc_label_template', opts, label_str, base_template_args)
 
         if opts.quant_label_type != "internal_cls" :
-            self.set_label(opts.quant_label_type , opts.quant_label_img, opts.quant_label_template, 'quant_label_img', 'quant_label_template', opts, base_label_template, base_template_args)
+            self.set_label(opts.quant_label_type , opts.quant_label_img, opts.quant_label_template, 'quant_label_img', 'quant_label_template', opts, label_str, base_template_args)
 
         if opts.results_label_type != "internal_cls" :
-            self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts, base_label_template, base_template_args)
+
+            self.set_label(opts.results_label_type , opts.results_label_img, opts.results_label_template, 'results_label_img', 'results_label_template', opts, label_str, base_template_args)
 
         if opts.user_mri_stx != '' :
             tfm_label_template=re.sub('DIR', 'transforms', base_label_template )
@@ -710,6 +708,7 @@ class Workflows:
         '''
         field_template={}
         template_args={}
+
         if label_type == 'user_cls' :
             template_args[label_img]=[ base_template_args + [img] ] 
             field_template[label_img] = base_label_template + '*%s*'
@@ -758,13 +757,6 @@ class Workflows:
         
         mri_stx_template = label_template + '*to-MNI152*mode-image_xfm.h5' 
         stx_mri_template = label_template + '*to-T1w*mode-image_xfm.h5' 
-        #if opts.user_mri_stx == 'nl' :
-        #    label_template = label_template + '*_xfm.h5' 
-        #elif opts.user_mri_stx == 'lin' : 
-        #    label_template = label_template + '*_xfm.h5' 
-        #else :
-        #    print("Error : Options to '--user-t1mni' must either be 'lin' or 'nl'")
-        #    exit(2)
         field_template["tfm_mri_stx"] = mri_stx_template
         field_template["tfm_stx_mri"] = stx_mri_template
 
@@ -810,14 +802,9 @@ class Workflows:
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
         self.datasink.inputs.base_directory= opts.targetDir + '/'
 
-        self.datasink.inputs.substitutions = [('_args_',''), ('run','run-'), ('_cid_', ''), ('sid_', ''), ('sid-','sub-'), ('task','task-'), ('ses','ses')]
+        self.datasink.inputs.substitutions = [('_args_',''), ('run',''), ('_cid_', ''),  ('sid-','sub-'), ('task','task-'), ('ses','ses')]
         for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
-            if opts.output_format == 'minc' :
-                convertOutput=pe.Node(nii2mncCommand(), name="convert_output_"+str(i)+'_'+node.name)
-                self.workflow.connect(node, img, convertOutput, 'in_file')
-                self.workflow.connect(convertOutput, 'out_file', self.datasink, dir_name) 
-            else :
-                self.workflow.connect(node, img, self.datasink, dir_name) 
+            self.workflow.connect(node, img, self.datasink, dir_name) 
         return 0
 
 

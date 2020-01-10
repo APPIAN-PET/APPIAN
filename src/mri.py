@@ -41,9 +41,20 @@ def get_workflow(name, opts):
     if opts.user_mri_stx :
         in_fields += ['tfm_mri_stx', 'tfm_stx_mri']
 
-    label_types = [opts.quant_label_type, opts.pvc_label_type, opts.results_label_type]
-    stages = ['quant', 'pvc', 'results']
-    label_imgs= [opts.quant_label_img, opts.pvc_label_img, opts.results_label_img  ]
+    label_types = [ opts.results_label_type]
+    label_imgs = [ opts.results_label_img  ]
+    stages = ['results']
+
+    if opts.pvc_method != None :
+        stages += ['pvc']
+        label_imgs += [ opts.pvc_label_img  ]
+        label_types += [ opts.pvc_label_type ]
+
+    if opts.quant_method != None :
+        stages += ['results']
+        label_imgs += [ opts.results_label_img  ]
+        label_types += [ opts.results_label_type ]
+
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
@@ -89,7 +100,7 @@ def get_workflow(name, opts):
         if opts.normalization_type == 'nl' :
             tfm_file='composite_transform'
             tfm_inv_file='inverse_composite_transform'
-        elif opts.normalization_type == 'affine' :
+        elif opts.normalization_type == 'affine' or opts.normalization_type == 'rigid' :
             tfm_file='out_matrix'
             tfm_inv_file='out_matrix_inverse'
         else :

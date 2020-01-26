@@ -89,7 +89,7 @@ def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     return out
 
 def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
-    num = int_vol[:,-1]
+    num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
     bw=dose=0
 
     try :
@@ -107,8 +107,20 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     return num / (dose/bw)
 
 def suvr(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
-    num = int_vol[:,-1]
-    den = int_ref[-1]
+
+    start_time = opts["quant_start_time"]
+    end_time = opts["quant_end_time"]
+    if end_time == None :
+        end_time=time_frames[-1]
+
+    start_frame = np.sum(start_time >= np.array(time_frames)) 
+    end_frame = np.sum(end_time >= np.array(time_frames)) 
+    print(start_time, end_time)
+    print(start_frame, end_frame)
+
+    num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    den = simps( ref[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    print(num.shape, den.shape)
     return num / den
 
 global half_life_dict
@@ -377,11 +389,11 @@ class ApplyModel(BaseInterface) :
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
-        if  self.inputs.roi_based == True :
-            pet_vol = pet_roi
-        else : 
+        #if  self.inputs.roi_based == True :
+        #    pet_vol = pet_roi
+        #else : 
             #If doing voxel-wise analysis, still useful to calculate ROI averages to plot TAC for visual QC
-            int_roi = integrate_tac(pet_roi, time_frames)
+        int_roi = integrate_tac(pet_roi, time_frames)
 
         int_vol = integrate_tac(pet_vol, time_frames)
         int_ref = integrate_tac(ref_tac, time_frames)

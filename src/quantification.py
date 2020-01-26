@@ -109,6 +109,9 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
 def suvr(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
 
     start_time = opts["quant_start_time"]
+    if start_time == None :
+        start_time=time_frames[0]
+
     end_time = opts["quant_end_time"]
     if end_time == None :
         end_time=time_frames[-1]

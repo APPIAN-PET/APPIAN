@@ -12,7 +12,7 @@ apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-
 ### Python packages
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.6 get-pip.py
-pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image #webcolors  
+pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image webcolors  
 pip3 install --upgrade numpy
 
 ### ANTsPy
@@ -50,6 +50,7 @@ rm -r PETPVC*
 echo python3 /opt/APPIAN/Launcher.py > /opt/bin/appian.sh
 
 %environment
+# ENVIRONMENT VARIABLES
 export PATH=/opt/bin:$PATH
 export ANTSPATH=/opt/bin
 

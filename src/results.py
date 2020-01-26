@@ -90,10 +90,10 @@ def set_roi_labels(unique_labels, roi_labels_file) :
         return unique_labels
 
 class resultsInput(TraitedSpec):   
-    in_file = traits.File(desc="Input file ")
+    in_file = traits.File(mandatory=True,exists=True, desc="Input file ")
     out_file = traits.File(desc="Output file ")
-    roi_labels_file = traits.File(desc="Output file")
-    mask = traits.File(desc="ROI PET mask ")
+    roi_labels_file = traits.File( desc="Output file")
+    mask = traits.File(mandatory=True,exists=True,desc="ROI PET mask ")
     surf_left = traits.File(desc="Left Surface mesh (.obj) ")
     mask_left = traits.File(desc="Left Surface mask (.txt) ")
     surf_right = traits.File(desc="Right Surface mesh (.obj) ")
@@ -154,7 +154,7 @@ class resultsCommand( BaseInterface):
         n=len(unique_labels)
         
         if n == 0 :
-            print("\n","Error: No labels in image", self.inputs.in_file,"\n")
+            print("\n","Error: No labels in image", self.inputs.roi_labels_file,"\n")
             exit(1)
 
         #Find number of counts for each label

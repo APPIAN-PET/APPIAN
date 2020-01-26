@@ -16,7 +16,8 @@ from src.arg_parser import file_dir
 from nipype.interfaces.utility import Rename
 from src.utils import splitext, gz
 from src.obj import *
-from scipy.ndimage.morphology import binary_erosion
+#from scipy.ndimage.morphology import binary_erosion
+from skimage.morphology import binary_erosion
 from src.ants import APPIANRegistration, APPIANApplyTransforms,APPIANConcatenateTransforms
 
 
@@ -89,6 +90,7 @@ class Labels(BaseInterface):
 
         if self.inputs.labels != [] :
             _labels =[ int(i) for i in self.inputs.labels ]
+
         #else : 
         #    _labels = np.unique(label_img)
 
@@ -109,14 +111,23 @@ class Labels(BaseInterface):
         #4. erode all labels
         label_img_eroded=np.zeros(label_img.shape)
         if self.inputs.erode_times != 0 :
+            print("Erode times:", self.inputs.erode_times)
             for i in np.unique(label_img) :
                 if i != 0 :
-                    temp=np.zeros(label_img.shape)
-                    temp[ label_img == i ] = 1
-                    temp = binary_erosion(temp, iterations=self.inputs.erode_times)
-                    label_img_eroded += temp
+                    print("Eroding:",i,end=" ")
+                    temp=np.zeros(label_img.shape).astype(bool)
+                    temp[ label_img == i ] = True
+                    print(temp.dtype, np.sum(temp), end="-->")
+                    for j in range(self.inputs.erode_times) :
+                        temp = binary_erosion(temp) #, iterations=1).astype(int)#*i
+                    temp = temp.astype(int) * i
+                    print( np.sum(temp)/i)
+                    label_img_eroded += temp 
             label_img=label_img_eroded
 
+        if np.sum(label_img) == 0 :
+            print("\nError: labeled image summed to zero (after erosion) in file\n",self.inputs.label_img)
+            exit(1)
         #5.
         if self.inputs.brain_only :
             brain_mask = nib.load(self.inputs.brain_mask).get_data()
@@ -145,6 +156,7 @@ class Labels(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.label_img, self._suffix+self.inputs.analysis_space)
         print(output_image, self.inputs.out_file)
+
         if '.gz' in splitext(self.inputs.out_file)[1] : 
             print('Gzip')
             gz(output_image, self.inputs.out_file)

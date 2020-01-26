@@ -185,6 +185,7 @@ def get_parser():
     parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_false', default=False)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)
     parser.add_argument("--quant-to-stereo",dest="quant_to_stereo",help="Transform quantitative images to stereotaxic space. If \"analysis space\" is \"stereo\" then this option is redundant (default=False) ", action='store_true', default=False)
+    parser.add_argument("--half-life",dest="quant_half_life",help="Half-life of radioisotope in seconds. Use to calculate decay correction. No need to set if isotope is C11, F18, O15, or N13.",type=float, default=None)
     parser.add_argument("--k2",dest="quant_k2",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)
     parser.add_argument("--k2s",dest="quant_k2s",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)
     parser.add_argument("--thr",dest="quant_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
@@ -349,7 +350,7 @@ def modify_opts(opts) :
             else:
                 print("Error: The PET scanner \"" + opts.pet_scanner + "\"is not supported. You can")
                 print("\t1) add this PET scanner to the \"PET_scanner.json\" file, or")
-                print("\t2) set the FWHM of the scanner manually using the \"--scanner_fwhm <z fwhm> <y fwhm> <x fwhm>\" option.")
+                print("\t2) set the FWHM of the scanner manually using the \"--scanner-fwhm <z fwhm> <y fwhm> <x fwhm>\" option.")
                 exit(1)
 
 

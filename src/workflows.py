@@ -403,6 +403,7 @@ class Workflows:
         self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
         self.workflow.connect(self.quant, 'out_df', self.datasink, 'quant/csv') 
+        self.workflow.connect(self.quant, 'out_plot', self.datasink, 'quant/plot') 
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]

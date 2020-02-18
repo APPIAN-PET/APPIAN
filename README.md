@@ -4,8 +4,8 @@ Table of Contents
  1. [Introduction](#introduction)
  2. [Installation](#installation)
  3. [Documentation](#documentation)\
-     3.1 [User Guide](https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md)\
-     3.2 [Developer Guide](link_contributing)
+     3.1 [User Guide][link_userguide]\
+     3.2 [Developer Guide][link_contributing]
  4. [Publications](#publications)
  5. [Getting Help](#getting-help)
  6. [About us](#about-us)
@@ -50,12 +50,14 @@ For those interested in extending or contributing to APPIAN please check out our
 
 2. APPIAN automated QC (*in preparation*)
 
+
+[link_contributing]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/CONTRIBUTING.md
+[link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/USERGUIDE.md
 [link_dockerinstall]: https://docs.docker.com/install/
 [link_civet]: https://mcin-cnim.ca/technology/civet/
 [link_cbrain]: https://github.com/aces/cbrain/wiki
 [link_nipypertd]: https://nipype.readthedocs.io/en/latest/
 [link_dockerhome]: https://docs.docker.com/
-[link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/USERGUIDE.md
 [link_contributors]: https://github.com/APPIAN-PET/APPIAN/blob/master/CONTRIBUTING.md
 [link_pmcid]: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6178989/
 [link_doi]: https://doi.org/10.3389/fninf.2018.00064
@@ -89,7 +91,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 [link_contributing]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/CONTRIBUTING.md
-[link_user_guide]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/USERGUIDE.md
+[link_userguide]: https://github.com/APPIAN-PET/APPIAN/blob/master/documentation/USERGUIDE.md
 [ubuntu_docker]: https://docs.docker.com/install/linux/docker-ce/ubuntu/
 [debian_docker]: https://docs.docker.com/install/linux/docker-ce/ubuntu/
 [mac_docker]: https://docs.docker.com/docker-for-mac/install/

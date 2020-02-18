@@ -116,7 +116,7 @@ def get_parser():
     ###################
     # Masking options #
     ###################
-    label_space_help="Coordinate space of labeled image to use for TKA. Options: [pet/t1/stereo] "
+    label_space_help="Coordinate space of labeled image to use for Quantification. Options: [pet/t1/stereo] "
     label_img_help="Options: 1. ICBM MNI 152 atlas: <path/to/labeled/atlas>, 2. Stereotaxic atlas and template: path/to/labeled/atlas /path/to/atlas/template 3. Internal classification method (" + ', '.join(internal_cls_methods) + ') 4. String that identifies labels in anat/ directory to be used as mask' 
     #PVC
     parser.add_argument("--pvc-label-space",dest="pvc_label_space",help=label_space_help,default='stereo', choices=spaces)
@@ -133,7 +133,7 @@ def get_parser():
     parser.add_argument("--quant-label-space","--quant-label-space", dest="quant_label_space",help=label_space_help,default='stereo', choices=spaces)
     parser.add_argument("--quant-label-img",dest="quant_label_img", help=label_img_help, type=str,default='antsAtropos')
     parser.add_argument("--quant-label-template","--quant-label-template",dest="quant_label_template",help="Absolute path to template for stereotaxic atlas", type=str, default=None)
-    parser.add_argument("--quant-label","--quant-label",dest="quant_labels",help="Label values to use for TKA", default=[], nargs='+' )
+    parser.add_argument("--quant-label","--quant-label",dest="quant_labels",help="Label values to use for Quantification", default=[], nargs='+' )
     parser.add_argument("--quant-label-erosion","--quant-label-erosion",dest="quant_erode_times",help="Number of times to erode label", type=int, default=0 )
     parser.add_argument("--quant-labels-brain-only","--quant-label-brain-only",dest="quant_labels_brain_only",help="Mask quant labels with brain mask",action='store_true',default=False)
     parser.add_argument("--quant-labels-ones-only","--quant-labels-ones-only",dest="quant_labels_ones_only",help="Flag to signal threshold so that label image is only 1s and 0s",action='store_true',default=False)
@@ -180,7 +180,7 @@ def get_parser():
     
 
     #Quantification Options
-    parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (TKA): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (Quantification): lp, pp, srtm.",type=str, default=None)
     parser.add_argument("--quant-roi",dest="quant_roi",help="Use ROI-based quantification (default is voxelwise).",action='store_true', default=False)
     parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_false', default=False)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)

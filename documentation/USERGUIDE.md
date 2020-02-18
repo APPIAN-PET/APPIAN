@@ -84,13 +84,13 @@ You can run the following examples to see some of the basic functionality of APP
 
 #### Minimal Inputs
 ##### Default: Coregistration + MRI Preprocessing + Results Report
-	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi" ";
+	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi" ";
 
 #### PVC
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t "/path/to/cimbi/dir/out_cimbi" --sessions 01  01";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t "/path/to/cimbi/dir/out_cimbi" --sessions 01  01";
 
 #### PVC + Quantification
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python2.7 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
+	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
 
 ## 2. File Formats  <a name="fileformat"></a>
 
@@ -135,10 +135,6 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 ##### T1w (native T1 space) :
 `sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc`
 
-#### Optional
-##### Linear Transform from T1 native to stereotaxic: 
-`sub-%s/_ses-%s/transforms/sub-%s_ses-%s*target-MNI_affine.xfm`
-
 ##### Brain mask (stereotaxic space): 
 `sub-%s/_ses-%s/anat/sub-%s_ses-%s*_T1w_space-mni_brainmask.mnc`
 
@@ -147,50 +143,19 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 
-### MINC
-Users can opt to use MINC2 files instead of Nifti files. If the user provides MINC files, these must either contain the certain variables in the headers of the PET images or contain a BIDS-style header that has the format described below to accompany the PET files.
-
-Required variables for MINC header ```<time>, <time-widths>, <time:units>, <acquisition:radionuclide>, <acquisition:radionuclide_halflife> ```.
-
-```python
-  {
-    	"Info": {
-    		"Tracer": {
-      			"Isotope": ["C-11"],
-			#APPIAN has a library of standard Isotopes that it can use to determine radionuclide halflife
-			#Otherwise you can specify it using "Info":"Halflife" (units=seconds)
-			"Halflife" : 100
-			},
-		#Optional : Specify bodyweight (kg) for SUV
-		"BodyWeight": 75.0
-	},
-
-    	"Time" : {
-        	"FrameTimes": {
-            		"Units": ["m", "m"],
-            		"Values":[[14,64]]
-      		}
-    	},
-	#Optional : Specify injected radioactivity dose for SUV
-	"RadioChem":{
-		"InjectedRadioactivity": 8,
-		"InjectedRadioactivityUnits": "kBq"
-	}
-    }
-```
 ## 3. Usage <a name="useage"></a>
 
 ### Launching APPIAN
-APPIAN is a Python program (Python 2.7 to be specific) that is launched using a command of the form:
+APPIAN is a Python program (Python 3.6 to be specific) that is launched using a command of the form:
 
 ```
-python2.7 <path to APPIAN directory>/Launcher.py <list of options> <subject names>
+python3 <path to APPIAN directory>/Launcher.py <list of options> 
 ```
 
 The <subject names> arguments are optional. If you do not provide spedific subject IDs, the APPIAN will be run on all subjects found in the source directory. When running APPIAN in a Docker container (described in detail in the following section), the APPIAN directory is located in “/opt/APPIAN/”:
 
 ```
-python2.7 /opt/APPIAN/Launcher.py <list of options> <subject names>
+python3 /opt/APPIAN/Launcher.py <list of options> 
 ```
 
 Running APPIAN with Docker
@@ -223,7 +188,7 @@ etc
 APPIAN is intended to be flexible and applicable in a wide variety of situations. However, this also means that it has many options that have to be specified by the user. Typing out these options in the command line would quickly become tedious, so it is more convenient to put the command you will use to launch the pipeline, along with all of the desired options, into a bash script (basically just a text file that you can run from the command line). For the example below, “run.sh” is just such a bash script (note that you can name your script whatever you like). Therefore, in the current example, the command would look something like 
 
 ```
-python2.7 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
+python3 /opt/APPIAN/Launcher.py -s /path/to/pet/images -t /path/to/output/dir -p <study prefix> -c </path/to/civet/output> <subject names>
 ```
 
 By default, you cannot access any of the data on your computer from the filesystem of the Docker container. To access your data from the Docker container it is necessary to mount the directory on your computer in the Docker container. This sounds complicated, but it’s actually very simple. All you have to do is pass the “-v” flag (“v” for volume) to the Docker “run” command, followed by the absolute path to the directory you want to mount, a colon (“:”),  and the absolute path to the location where you want to mount it. Let’s say your database is stored in “/path/to/your/data” and, for simplicity, you want to mount it to a path called “/path/to/your/data” in the Docker container. To run your Docker container with this path mounted, you would just have to run:
@@ -258,17 +223,10 @@ APPIAN has lots of options, mostly concerned with the types of masks you want to
     -t TARGETDIR, --target=TARGETDIR, --targetdir=TARGETDIR
                         Directory where output data will be saved in
 #### Data Formats
-By default, APPIAN accepts either Nifti or MINC input files. If Nifti files are used, they will be converted to MINC in the source directory. This means that you must have write permissions to your source directory. In the future, this may be changed so that files converted from Nifti to MINC are saved in the target directory because it may be preferable to only write to the target directory.
-
-The user can set whether files are output in Nifti or MINC with the ```--output-format <file format>``` option. In principal files could be converted to any format for which a converter is available and python savy users are encouraged to try to implement this. 
-#####  Optional arguments:
-```
-    --output-format=OUTPUT_FORMAT 
-    			The file format for outputs from APPIAN: minc, nifti (Default=nifti).
-```
+APPIAN uses the BIDS specification (nifti and .json).
 
 #### Running on a subset of data
-By default, APPIAN will run for all the PET scans located in the source directory. However, a more specific subset of subjects can be specified using the "--subjects", "--sessions", "--tasks", "--runs", "--acq", and "rec" option to specify specific subjects, sessions, tasks, runs, acquisitions (i.e., specific radiotracers), and reconstructions. 
+By default, APPIAN will run for all the PET scans located in the source directory. However, a more specific subset of subjects can be specified using the "--subjects", "--sessions", "--tasks", "--runs", "--acq", and "--rec" option to specify specific subjects, sessions, tasks, runs, acquisitions (i.e., specific radiotracers), and reconstructions (e.g., "FBP" or "OSEM"). 
 
 
 #####  Optional arguments:
@@ -286,8 +244,8 @@ APPIAN runs in 2 steps: 1) scan-level; 2) group-level. The first step is called 
 Both the scan-level and the group-level analysis can be turned off using the "--no-scan-level" and "--no-group-level" options.
 
 #####  Optional arguments:
-    --no-group-level    Run group level analysis
-    --no-scan-level     Run scan level analysis
+    --no-group-level    Don't run group level analysis
+    --no-scan-level     Don't run scan level analysis
 
 
 #### Analysis Space
@@ -340,14 +298,71 @@ Processing of T1 MRI for spatial normalization to stereotaxic space, intensity n
 
 Prior to performing PET processing, T1 structural preprocessing can be performed if the user does not provide a binary brain mask volume and a transformation file that maps the T1 MR image into stereotaxic space. If these inputs are not provided, APPIAN will automatically coregister the T1 MR image to stereotaxic space. By default, the stereotaxic space is defined on the ICBM 152 6th generation non-linear brain atlas (Mazziotta et al., 2001), but users can provide their own stereotaxic template if desired. Coregistration is performed using an iterative implementation of minctracc (Collins et al., 1994). 
 
-Brain tissue extraction is performed in stereotaxic space using BEaST (Eskildsen et al., 2012). In addition, tissue segmentation can also be performed on the normalized T1 MR image. Currently, only ANTs Atropos package (Avants et al., 2011) has been implemented for T1 tissue segmentation but this can be extended based on user needs.
+#### Non-uniformity MRI intensity correction
+Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). By default=0, which means this step will be skipped.
+```
+    --n4-bspline-fitting-distance  
+```
 
-#### MRI preprocessing options:
-    --user-t1mni        Use user provided transform from MRI to MNI space
-    --user-brainmask    Use user provided brain mask
-    --coregistration-method=MRI_COREG_METHOD	Method to use to register MRI to stereotaxic template
-    --brain-extraction-method=MRI_BRAIN_EXTRACT_METHOD	Method to use to extract brain mask from MRI
-    --segmentation-method=MRI_SEGMENTATION_METHOD	Method to segment mask from MRI
+Order of BSpline interpolation for N4 correction.
+```
+    --n4-bspline-order
+```
+
+List with number of iterations to perform. Default=50 50 30 20.
+```
+    --n4-n-iterations
+```
+
+Order of BSpline interpolation for N4 correction (Default=2).
+```
+    --n4-shrink-factor
+```   
+
+Convergence threshold for N4 correction (Default=1e-6).
+```
+ --n4-convergence-threshold
+```
+
+#### Spatial MRI normalization
+Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)
+```
+    --normalization-type
+```
+
+
+User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example
+```
+    --user-ants-command
+```
+
+User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>
+```
+    --user-t1mni
+```
+
+Boolean flag to use user provided brain mask:
+```
+    --user-brainmask
+``` 
+
+
+#### MRI Segmentation
+Method to segment mask from MRI: default=ANTS, currently this is the only implemented method.
+```
+    --segmentation-method
+```
+
+Anatomic label images to use as priors for Atropos segmentation. By default, if not set by user and template is the default ICBM152c, then APPIAN uses the GM/WM/CSF probabilistic segmentations of ICBM152c template. Users providing their own templates can specify their own priors.
+
+```
+--ants-atropos-priors
+```
+
+Weight to give to priors in Atropos segmentation (Default=0.5)
+```
+    --ants-atropos-prior-weighting
+```
 
 ##### If you use the MRI preprocessing module, please cite the following :
 
@@ -406,7 +421,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
   #### Masking options: PVC
 
     --pvc-label-space=PVC_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
     --pvc-label-img=PVC_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
@@ -427,19 +442,19 @@ The pipeline uses up to three different types of masks: a reference region mask 
 
   #### Masking options: Quantification
 
-    --tka-label-space=TKA_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+    --tka-label-space=quant_LABEL_SPACE
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
-    --tka-label-img=TKA_LABEL_IMG
+    --tka-label-img=quant_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
                         <path/to/labeled/atlas>, 2. Stereotaxic atlas and
                         template: path/to/labeled/atlas
                         /path/to/atlas/template 3. Internal classification
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
-    --tka-label=TKA_LABELS
-                        List of label values to use for TKA
-    --tka-label-erosion=TKA_ERODE_TIMES
+    --tka-label=quant_LABELS
+                        List of label values to use for quant
+    --tka-label-erosion=quant_ERODE_TIMES
                         Number of times to erode label
     --tka-labels-brain-only
                         Mask tka labels with brain mask
@@ -452,7 +467,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
     --no-results-report
                         Don't calculate descriptive stats for results ROI.
     --results-label-space=RESULTS_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
     --results-label-img=RESULTS_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
@@ -541,7 +556,7 @@ APPIAN will create the target directory you specify with the "-t" or "--target" 
 
 Within the target directory you will find a subdirectory called "preproc". This contains all of the intermediate files produced by APPIAN. APPIAN is built using Nipype, which defines a network of nodes (also called a workflow). The ouputs of upstream nodes are passed as inputs to downstream nodes. A directory within preproc/ is created for each node that is run as a part of the workflow. Given that the nodes that APPIAN will run will change as a function of user inputs, the outputs you find in preproc will change accordingly. 
 
-For all nodes that are responsible for running a command in the terminal, there will be a text file called "commant.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
+For all nodes that are responsible for running a command in the terminal, there will be a text file called "command.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
 
 Within preproc you will find directories named after each scan APPIAN has processed, with the form: _args_run<run>.task<task>.ses<ses>.sid<sub>. This will contain a variety of results including the results report, automated QC, dashboard xml for that particular scan. 
 
@@ -570,7 +585,7 @@ By default, APPIAN will run on all the scans it can identify in the source direc
 For example, if your study contains 3 sessions "baseline", "treatment", "follow-up". You can then run APPIAN only on the, for example, "treatment" and "follow-up" images :
 
 ```
-python2.7 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions baseline follow-up
+python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions baseline follow-up
 ```
 
 The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
@@ -582,12 +597,12 @@ To use partial-volume correction (PVC), you must also specify the FWHM of the sc
 Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
 	
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --pvc-label-img <label image> <label template> --pvc-label <list of labels> --fwhm <Z FWHM> <Y FWHM> <X FWHM> --pvc-method <PVC Method> 
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --pvc-label-img <label image> <label template> --pvc-label <list of labels> --fwhm <Z FWHM> <Y FWHM> <X FWHM> --pvc-method <PVC Method> 
 ```
 For instance, let's say your images were acquired using the HR+ scanner (which has a FWHM of about 6.5 6.5 6.5) and you want to use the Geometric Transfer Matrix method (GTM). Let's say you want to use a predefined labeled image in the /anat directory of your source directory of the form sub-<subject>/ses-<session>/anat/sub-<subject>_ses-<session>_variant-segmentation_dseg.mnc. You would use : 
 
 ```
-python2.7 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
+python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
 ```
 
 ### Quantification
@@ -599,56 +614,56 @@ You may also need to either define a reference region or use arterial sampling. 
 On the other hand, you can use a labeled image to define a reference region. There are multiple types of labeled images that you can select with the "--tka-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use the WM mask from a GM/WM/CSF segmentation of the input T1 MRI. Additionally, the "--quant-labels-ones-only" is useful because it will set all of the labels you set with "--quant-label <list of labels>" to 1. 
 	
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --quant-label-img <label image> <label template> --quant-label <list of labels> --start-time <Start time in Min.> --quant-labels-ones-only --quant-method <Quantification Method> 
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --quant-label-img <label image> <label template> --quant-label <list of labels> --start-time <Start time in Min.> --quant-labels-ones-only --quant-method <Quantification Method> 
 ```
 	
 For example, say you have FDG images and wish to use the Patlak-Gjedde plot method for tracer-kinetic analysis. In order to calculate glucose metabolism, you need to specify the lump constant (LC) and concentration of native substantce (Ca). Let's also imagine that you have a you use an atlas in MNI152 space that you want to use to specify a reference region in the cerebellum and where the two hemispheres of the cerebellum have labels 67 and 76, respectively. 
 
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.mnc --quant-label 67,76 --quant-labels-ones-only --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --quant-label-img /opt/APPIAN/Atlas/MNI152/dka.mnc --quant-label 67,76 --quant-labels-ones-only --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
 ```
 
 To do the same analysis but with an arterial input file for each subject (instead of a reference region):
 
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --arterial --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads 6 --arterial --start-time 5 --Ca 5.0 --LC 0.8  --quant-method pp 
 ```
 
-Quantification [usuallly with tracer kinetic analysis (TKA)] allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate TKA method will depend on the radiotracer. Certain models, e.g., the Logan Plot and Simplified Reference Tissue Model (SRTM), are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three TKA methods are implemented: Logan plot, Patlak-Gjedde plot, and the SRTM.
+Quantification [usuallly with tracer kinetic analysis (quant)] allows for the quantification of physiological or biological parameters from the radiotracer concentrations measured in the PET image. The appropriate quant method will depend on the radiotracer. Certain models, e.g., the Logan Plot and Simplified Reference Tissue Model (SRTM), are only suitable for radiotracers that are reversibly bound to the tissue. Currently only three quant methods are implemented: Logan plot, Patlak-Gjedde plot, and the SRTM.
 
 #### Quantification options:
-    --tka-method=TKA_METHOD
-                        Method for performing tracer kinetic analysis (TKA):
+    --tka-method=quant_METHOD
+                        Method for performing tracer kinetic analysis (quant):
                         lp, pp, srtm.
-    --k2=TKA_K2         With reference region input it may be necessary to
+    --k2=quant_K2         With reference region input it may be necessary to
                         specify also the population average for regerence
                         region k2
-    --thr=TKA_THR       Pixels with AUC less than (threshold/100 x max AUC)
+    --thr=quant_THR       Pixels with AUC less than (threshold/100 x max AUC)
                         are set to zero. Default is 0%
-    --max=TKA_MAX       Upper limit for Vt or DVR values; by default max is
+    --max=quant_MAX       Upper limit for Vt or DVR values; by default max is
                         set pixel-wise to 10 times the AUC ratio.
-    --min=TKA_MIN       Lower limit for Vt or DVR values, 0 by default
-    --t3max=TKA_T3MAX   Upper limit for theta3, 0.01 by default
-    --t3min=TKA_T3MIN   Lower limit for theta3, 0.001 by default
-    --nBF=TKA_NBF       Number of basis functions.
+    --min=quant_MIN       Lower limit for Vt or DVR values, 0 by default
+    --t3max=quant_T3MAX   Upper limit for theta3, 0.01 by default
+    --t3min=quant_T3MIN   Lower limit for theta3, 0.001 by default
+    --nBF=quant_NBF       Number of basis functions.
     --filter            Remove parametric pixel values that over 4x higher
                         than their closest neighbours.
-    --reg-end=TKA_END   By default line is fit to the end of data. Use this
+    --reg-end=quant_END   By default line is fit to the end of data. Use this
                         option to enter the fit end time (in min).
-    --y-int=TKA_V       Y-axis intercepts time -1 are written as an image to
+    --y-int=quant_V       Y-axis intercepts time -1 are written as an image to
                         specified file.
-    --num=TKA_N         Numbers of selected plot data points are written as an
+    --num=quant_N         Numbers of selected plot data points are written as an
                         image.
-    --Ca=TKA_CA         Concentration of native substrate in arterial plasma
+    --Ca=quant_CA         Concentration of native substrate in arterial plasma
                         (mM).
-    --LC=TKA_LC         Lumped constant in MR calculation; default is 1.0.
-    --density=TKA_DENSITY
+    --LC=quant_LC         Lumped constant in MR calculation; default is 1.0.
+    --density=quant_DENSITY
                         Tissue density in MR calculation; default is 1.0 g/ml.
     --arterial          Use arterial input input.
-    --start-time=TKA_START_TIME
+    --start-time=quant_START_TIME
                         Start time of either regression in MTGA or averaging
                         time for SUV.
-    --end-time=TKA_END_TIME
+    --end-time=quant_END_TIME
                         End time for SUV average.
     --body-weight=BODY_WEIGHT
                         Either name of subject body weight (kg) in header or
@@ -658,7 +673,7 @@ Quantification [usuallly with tracer kinetic analysis (TKA)] allows for the quan
                         Either name of subject's injected radiotracer dose
                         (MBq) in header or path to .csv file containing
                         subject names and injected radiotracer dose (MBq).
-    --tka-type=TKA_TYPE
+    --tka-type=quant_TYPE
                         Type of tka analysis: voxel or roi.
 
 ##### References
@@ -682,11 +697,11 @@ As with PVC and quantification, the results labels are defined using the option 
 
 For example, if you want to use a segmentation defined on your own template of Alzheimer's patients defined in T1 native space, you would use :
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/segmentation.mnc --results-label-space t1
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/segmentation.mnc --results-label-space t1
 ```
 Similarly, if you want to create the results report with an atlas that is not in MNI space, but only for a single label value (i.e., 4), you would use :
 ```
-python2.7 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/atlas.mnc /path/to/template.mnc --results-label 4
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/atlas.mnc /path/to/template.mnc --results-label 4
 ```
 The ROI masks described [here](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 
 
@@ -723,7 +738,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
   #### Masking options: PVC
 
     --pvc-label-space=PVC_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
     --pvc-label-img=PVC_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
@@ -744,19 +759,19 @@ The pipeline uses up to three different types of masks: a reference region mask 
 
   #### Masking options: Quantification
 
-    --tka-label-space=TKA_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+    --tka-label-space=quant_LABEL_SPACE
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
-    --tka-label-img=TKA_LABEL_IMG
+    --tka-label-img=quant_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
                         <path/to/labeled/atlas>, 2. Stereotaxic atlas and
                         template: path/to/labeled/atlas
                         /path/to/atlas/template 3. Internal classification
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
-    --tka-label=TKA_LABELS
-                        List of label values to use for TKA
-    --tka-label-erosion=TKA_ERODE_TIMES
+    --tka-label=quant_LABELS
+                        List of label values to use for quant
+    --tka-label-erosion=quant_ERODE_TIMES
                         Number of times to erode label
     --tka-labels-brain-only
                         Mask tka labels with brain mask
@@ -769,7 +784,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
     --no-results-report
                         Don't calculate descriptive stats for results ROI.
     --results-label-space=RESULTS_LABEL_SPACE
-                        Coordinate space of labeled image to use for TKA.
+                        Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
     --results-label-img=RESULTS_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:

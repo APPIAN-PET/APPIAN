@@ -136,7 +136,7 @@ class APPIANRegistrationInputs(BaseInterfaceInputSpec):
     moving_image_space = traits.Str(desc="Name of coordinate space for moving image", usedefault=True, default_value="source")
     fixed_image_space = traits.Str(desc="Name of coordinate space for fixed image", usedefault=True, default_value="target")
     interpolation = traits.Str(desc="Type of registration: Linear, NearestNeighbor, MultiLabel[<sigma=imageSpacing>,<alpha=4.0>], Gaussian[<sigma=imageSpacing>,<alpha=1.0>], BSpline[<order=3>], CosineWindowedSinc, WelchWindowedSinc, HammingWindowedSinc, LanczosWindowedSinc, GenericLabel", usedefault=True, default_value="Linear")
-    
+    misalign_matrix = traits.File(desc="Misalignment matrix")
     out_matrix = traits.File(desc="Composite transorfmation matrix")
     out_matrix_inverse = traits.File(desc="Composite transorfmation matrix")
 
@@ -223,12 +223,12 @@ class APPIANRegistration(BaseInterface):
         
         #Command line to 
         if not os.path.exists(self.inputs.warped_image) :
-            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+self.inputs.misalign_matrix +" "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
             print(cmdline)
             cmd( cmdline  )
 
         if not os.path.exists(self.inputs.out_matrix_inverse) :
-            cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+            cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+self.inputs.misalign_matrix +" "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
             print(cmdline)
             cmd( cmdline  )
 

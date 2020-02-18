@@ -220,6 +220,8 @@ def get_parser():
     #Quality Control 
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
+    parser.add_argument("--rotation",dest="rotation",help="Apply rotation (deg) <x y z> to PET to MRI transformation.", type='+', default=[0., 0., 0.])  
+    parser.add_argument("--translation",dest="translation",help="Apply translation (mm) <x y z> to PET to MRI transformation.", type='+', default=[0., 0., 0.])  
     parser.add_argument_group(parser)
 
     #Results reporting

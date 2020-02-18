@@ -219,11 +219,11 @@ class Workflows:
         else :
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
         
-        if args.rotation != [0, 0, 0] and args.translation != [0, 0, 0] :
-            affine = sitk.AffineTransform(3)
-            affine.SetTranslation(tuple(args.translation))
-            affine.Rotate(angle=args.rotation)
-            sitk.WriteTransform(affine, args.preproc_dir + os.sep + 'misalignment_rot_x-{}_y-{}_z-{}_trans_x-{}_y-{}_z-{}.tfm'.format(*args.rotation,*args.translation))
+        #if args.rotation != [0, 0, 0] and args.translation != [0, 0, 0] :
+        #    affine = sitk.AffineTransform(3)
+        #    affine.SetTranslation(tuple(args.translation))
+        #    affine.Rotate(angle=args.rotation)
+        #    sitk.WriteTransform(affine, args.preproc_dir + os.sep + 'misalignment_rot_x-{}_y-{}_z-{}_trans_x-{}_y-{}_z-{}.tfm'.format(*args.rotation,*args.translation))
 
 
         if opts.pet_brain_mask:

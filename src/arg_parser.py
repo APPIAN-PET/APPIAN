@@ -76,7 +76,7 @@ def get_parser():
 
     parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
     parser.add_argument("--user-ants-command", dest="user_ants_command",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
-    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h5'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
+    parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h6'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
     
     parser.add_argument("--segmentation-method",dest="mri_segmentation_method", help="Method to segment mask from MRI", type=str, default='ANTS') 
@@ -220,8 +220,8 @@ def get_parser():
     #Quality Control 
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
-    parser.add_argument("--rotation",dest="rotation",help="Apply rotation (deg) <x y z> to PET to MRI transformation.", type='+', default=[0., 0., 0.])  
-    parser.add_argument("--translation",dest="translation",help="Apply translation (mm) <x y z> to PET to MRI transformation.", type='+', default=[0., 0., 0.])  
+    parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",type=float, nargs='+', default=[])
+        parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])V
     parser.add_argument_group(parser)
 
     #Results reporting
@@ -260,6 +260,9 @@ def modify_opts(opts) :
         opts.quant_label_template = opts.pvc_label_template = opts.results_label_template = opts.template
         opts.quant_label_img = opts.pvc_label_img = opts.results_label_img = icbm_default_atlas
 
+    opts.test_group_qc = False
+    if opts.rotation_error_deg != [] or opts.translation_error_deg != [] :
+        opts.test_group_qc = True
 
     ############################
     #Automatically set sessions#

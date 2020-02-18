@@ -17,7 +17,7 @@ pip3 install --upgrade numpy
 
 ### ANTsPy
 pip3 install https://github.com/ANTsX/ANTsPy/releases/download/v0.1.4/antspy-0.1.4-cp36-cp36m-linux_x86_64.whl
-
+pip3 install webcolors
 
 ### Add /opt/lib to library path
 echo "/opt/lib/" >> /etc/ld.so.conf.d/userLibraries.conf

@@ -547,11 +547,28 @@ class coreg_qc_metricsCommand(BaseInterface):
         distance_metric_names=distance_metrics.keys()
 
         df=pd.DataFrame(columns=metric_columns )
+        
+        def image_read(fn) : 
+            img = nib.load(fn)
+            vol = img.get_data() 
+            hd  = img.header
+            vol = vol.reshape(vol.shape[0:3] )
+            aff = img.affine
+            #print(aff)
+            origin = [ aff[0,3], aff[1,3], aff[2,3]]
+            get_spacing = lambda  i : aff[i, np.argmax(np.abs(aff[i,0:3]))] 
+            spacing = [ get_spacing(0), get_spacing(1), get_spacing(2) ]
+            #print(origin)
+            #print(spacing)
+            #exit(1)
+            return ants.from_numpy( vol, origin=origin, spacing=spacing )
 
         for metric in coreg_metrics :
+            fixed = image_read( t1  )
+            moving = image_read( pet )
             metric_val = ants.create_ants_metric(    
-                                                fixed=ants.image_read( t1 ), 
-                                                moving=ants.image_read( pet ),
+                                                fixed = fixed, 
+                                                moving= moving,
                                                 fixed_mask=ants.image_read( brain_mask_space_mri  ),
                                                 moving_mask=ants.image_read( pet_brain_mask ),
                                                 metric_type=metric ).get_value()

@@ -228,7 +228,7 @@ class APPIANRegistration(BaseInterface):
             cmd( cmdline  )
 
         if not os.path.exists(self.inputs.out_matrix_inverse) :
-            cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+self.inputs.misalign_matrix +" "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+            cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
             print(cmdline)
             cmd( cmdline  )
 

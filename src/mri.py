@@ -51,7 +51,7 @@ def get_workflow(name, opts):
         label_types += [ opts.pvc_label_type ]
 
     if opts.quant_method != None :
-        stages += ['results']
+        stages += ['quant']
         label_imgs += [ opts.results_label_img  ]
         label_types += [ opts.results_label_type ]
 

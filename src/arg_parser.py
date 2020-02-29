@@ -221,7 +221,7 @@ def get_parser():
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
     parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",type=float, nargs='+', default=[])
-        parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])V
+    parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])
     parser.add_argument_group(parser)
 
     #Results reporting
@@ -264,9 +264,7 @@ def modify_opts(opts) :
     if opts.rotation_error_deg != [] or opts.translation_error_deg != [] :
         opts.test_group_qc = True
 
-    ############################
-    #Automatically set sessions#
-    ############################ 
+
     if opts.args == [] :
         opts.args = [ sub('sub-', '',os.path.basename(f)) for f in glob(opts.sourceDir+os.sep+"sub-*") ]
         print("Warning : No subject arguments passed. Will run all subjects found in source directory "+ opts.sourceDir)
@@ -275,7 +273,10 @@ def modify_opts(opts) :
         if len(opts.args) == 0:
             print( "\n\n*******ERROR********: \n     The subject IDs are not listed in the command-line \n********************\n\n")
             exit(1)
-
+    
+    ############################
+    #Automatically set sessions#
+    ############################ 
 
     if opts.sessionList == [] :
         opts.sessionList =np.unique( [ sub('_','',sub('ses-', '',os.path.basename(f))) for f in glob(opts.sourceDir+os.sep+"**/*ses-*") ])

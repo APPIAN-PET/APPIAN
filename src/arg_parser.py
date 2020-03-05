@@ -220,8 +220,8 @@ def get_parser():
     #Quality Control 
     parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
-    parser.add_argument("--translation-error",dest="translation_error_deg",help="Misalign PET image by translation of [x,y,z] mm.",type=float, nargs='+', default=[])
-    parser.add_argument("--rotation-error",dest="rotation_error_deg",help="Misalign PET image by rotation of [x,y,z] radians.",type=float, nargs='+', default=[])
+    parser.add_argument("--translation-error",dest="translation_error",help="Misalign PET image by translation of [x,y,z] mm.",type=int, nargs='+', default=[0,0,0])
+    parser.add_argument("--rotation-error",dest="rotation_error",help="Misalign PET image by rotation of [x,y,z] radians.",type=int, nargs='+', default=[0,0,0])
     parser.add_argument_group(parser)
 
     #Results reporting
@@ -261,7 +261,7 @@ def modify_opts(opts) :
         opts.quant_label_img = opts.pvc_label_img = opts.results_label_img = icbm_default_atlas
 
     opts.test_group_qc = False
-    if opts.rotation_error_deg != [] or opts.translation_error_deg != [] :
+    if opts.rotation_error != [] or opts.translation_error != [] :
         opts.test_group_qc = True
 
 

@@ -11,6 +11,7 @@ import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
+import SimpleITK as sitk
 from src import masking as masking
 from src import surf_masking
 from src import mri
@@ -208,7 +209,16 @@ class Workflows:
     # PET-to-MRI Coregistration #
     #############################
     def set_pet2mri(self, opts) :
-        self.pet2mri = pe.Node(interface=APPIANRegistration(), name="pet2mri")
+        pet2mri_name='pet2mri'
+   
+        if opts.translation_error != [0,0,0] :
+            pet2mri_name += '_trans_{}_{}_{}.tfm'.format(*opts.translation_error)
+        
+        if opts.rotation_error != [0,0,0] :
+            pet2mri_name += '_rot_{}_{}_{}'.format(*opts.rotation_error)
+    
+        print(pet2mri_name)
+        self.pet2mri = pe.Node(interface=APPIANRegistration(), name=pet2mri_name)
         self.pet2mri.inputs.moving_image_space='pet'
         if opts.pet_coregistration_target == "t1":
             self.pet2mri.inputs.fixed_image_space='T1w'
@@ -219,13 +229,6 @@ class Workflows:
         else :
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
         
-        #if args.rotation != [0, 0, 0] and args.translation != [0, 0, 0] :
-        #    affine = sitk.AffineTransform(3)
-        #    affine.SetTranslation(tuple(args.translation))
-        #    affine.Rotate(angle=args.rotation)
-        #    sitk.WriteTransform(affine, args.preproc_dir + os.sep + 'misalignment_rot_x-{}_y-{}_z-{}_trans_x-{}_y-{}_z-{}.tfm'.format(*args.rotation,*args.translation))
-
-
         if opts.pet_brain_mask:
             self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.pet2mri, 'moving_image_mask')
         
@@ -238,6 +241,9 @@ class Workflows:
         else :
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
             
+        self.pet2mri.inputs.translation_error = opts.translation_error
+        self.pet2mri.inputs.rotation_error = opts.rotation_error
+
         self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.pet2mri, 'moving_image')
 
         #Transform PET Brain Mask to T1 space
@@ -509,9 +515,18 @@ class Workflows:
     # Subject-level QC Metrics #
     ############################
     def set_qc_metrics(self, opts):
+        qc_err=''
+        if opts.pvc_label_name != None :
+            qc_err += "_"+opts.pvc_label_name
+        if opts.quant_label_name != None :
+            qc_err += "_"+opts.quant_label_name
+        if opts.results_label_name != None :
+            qc_err += "_"+opts.results_label_name
+
+
         if not opts.no_qc :
             #Automated QC: PET to MRI linear coregistration 
-            self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name="coreg_qc_metrics")
+            self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name=qc_err+"_coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
             if opts.pet_brain_mask:
                 self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image',  self.distance_metricNode, 'pet_brain_mask' )
@@ -523,7 +538,7 @@ class Workflows:
 
             if  opts.pvc_method != None :
                 #Automated QC: PVC 
-                self.pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name="pvc_qc_metrics")
+                self.pvc_qc_metricsNode=pe.Node(interface=qc.pvc_qc_metrics(),name=qc_err+"pvc_qc_metrics")
                 self.pvc_qc_metricsNode.inputs.fwhm = list(opts.scanner_fwhm)
                 self.workflow.connect(self.pet_input_node, self.pet_input_file, self.pvc_qc_metricsNode, 'pve') 
                 self.workflow.connect(self.pvc, "outputnode.out_file", self.pvc_qc_metricsNode, 'pvc'  )

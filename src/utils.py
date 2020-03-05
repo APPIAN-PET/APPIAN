@@ -9,9 +9,16 @@ import ntpath
 import pandas as pd
 import numpy as np 
 import tempfile
+import nibabel as nib
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
+def nib_load_3d(fn):
+    img = nib.load(fn)
+    vol = img.get_data()
+    vol = vol.reshape(vol.shape[0:3])
+    img_3d = nib.Nifti1Image(vol, img.affine)
+    return img_3d
 
 def cmd(command):
     try:

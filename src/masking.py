@@ -8,13 +8,14 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.minc as minc
 import nibabel as nib
+from nibabel.processing import resample_from_to
 import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
                                     BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from src.arg_parser import file_dir
 from nipype.interfaces.utility import Rename
-from src.utils import splitext, gz
+from src.utils import splitext, gz, nib_load_3d
 from src.obj import *
 #from scipy.ndimage.morphology import binary_erosion
 from skimage.morphology import binary_erosion
@@ -81,7 +82,7 @@ class Labels(BaseInterface):
 
     def _run_interface(self, runtime):
         #1. load label image
-        img = nib.load(self.inputs.label_img)
+        img = nib_load_3d(self.inputs.label_img)
         label_img = img.get_data()
         
         if np.sum(label_img) == 0 :
@@ -130,8 +131,11 @@ class Labels(BaseInterface):
             exit(1)
         #5.
         if self.inputs.brain_only :
-            brain_mask = nib.load(self.inputs.brain_mask).get_data()
-            label_img *= brain_mask
+            brain_mask_img = nib_load_3d(self.inputs.brain_mask)
+            print(np.sum(label_img))
+            brain_mask = resample_from_to( brain_mask_img, img, order=0 ).get_data()
+            label_img[ brain_mask == 0 ] = 0
+            print(np.sum(label_img))
 
         tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine(), img.header)
         tmp_label_img.to_filename("tmp_label_img.nii")

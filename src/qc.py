@@ -26,7 +26,8 @@ from os import getcwd
 from os.path import basename
 from sys import argv, exit
 from glob import glob
-from src.outlier import lof, kde, MAD, lcf
+from src.outlier import  kde, MAD
+from sklearn.neighbors import LocalOutlierFactor 
 from src.utils import concat_df
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
@@ -44,11 +45,11 @@ final_dir="qc"
 
 def group_level_qc(opts, args):
     #setup workflow
-    workflow = pe.Workflow(name=opts.preproc_dir)
+    workflow = pe.Workflow(name=qc_err+opts.preproc_dir)
     workflow.base_dir = opts.targetDir
 
     #Datasink
-    datasink=pe.Node(interface=nio.DataSink(), name="output")
+    datasink=pe.Node(interface=nio.DataSink(), name=qc_err+"output")
     datasink.inputs.base_directory= opts.targetDir +os.sep +"qc"
     datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
 
@@ -65,7 +66,7 @@ def group_level_qc(opts, args):
             paths.pop(outfield)
 
     #Datagrabber
-    datasource = pe.Node( interface=nio.DataGrabber( outfields=outfields, raise_on_empty=True, sort_filelist=False), name="datasource")
+    datasource = pe.Node( interface=nio.DataGrabber( outfields=outfields, raise_on_empty=True, sort_filelist=False), name=qc_err+"datasource")
     datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
     datasource.inputs.template = '*'
     datasource.inputs.field_template = paths
@@ -74,25 +75,34 @@ def group_level_qc(opts, args):
     ##################
     # Coregistration #
     ##################
+    qc_err=''
+    if opts.pvc_label_name != None :
+        qc_err += "_"+opts.pvc_label_name
+    if opts.quant_label_name != None :
+        qc_err += "_"+opts.quant_label_name
+    if opts.results_label_name != None :
+        qc_err += "_"+opts.results_label_name
+    qc_err += "_"
+
     if 'coreg_metrics' in outfields:
         #Concatenate distance metrics
-        concat_coreg_metricsNode=pe.Node(interface=concat_df(), name="concat_coreg_metrics")
+        concat_coreg_metricsNode=pe.Node(interface=concat_df(), name=qc_err+"concat_coreg_metrics")
         concat_coreg_metricsNode.inputs.out_file="coreg_qc_metrics.csv"
         workflow.connect(datasource, 'coreg_metrics', concat_coreg_metricsNode, 'in_list')
         workflow.connect(concat_coreg_metricsNode, "out_file", datasink, 'coreg/metrics')
 
         #Plot Coregistration Metrics 
-        plot_coreg_metricsNode=pe.Node(interface=plot_qcCommand(), name="plot_coreg_metrics")
+        plot_coreg_metricsNode=pe.Node(interface=plot_qcCommand(), name=qc_err+"plot_coreg_metrics")
         workflow.connect(concat_coreg_metricsNode, "out_file", plot_coreg_metricsNode, 'in_file')
         workflow.connect(plot_coreg_metricsNode, "out_file", datasink, 'coreg/metrics_plot')
 
         #Calculate Coregistration outlier measures
-        outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name="coregistration_outlier_measure")
+        outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name=qc_err+"coregistration_outlier_measure")
         workflow.connect(concat_coreg_metricsNode, 'out_file', outlier_measureNode, 'in_file')
         workflow.connect(outlier_measureNode, "out_file", datasink, 'coreg/outlier')
 
         #Plot coregistration outlier measures
-        plot_coreg_measuresNode=pe.Node(interface=plot_qcCommand(),name="plot_coreg_measures")
+        plot_coreg_measuresNode=pe.Node(interface=plot_qcCommand(),name=qc_err+"plot_coreg_measures")
         workflow.connect(outlier_measureNode,"out_file",plot_coreg_measuresNode,'in_file')
         workflow.connect(plot_coreg_measuresNode,"out_file",datasink,'coreg/measures_plot')
     #######
@@ -100,23 +110,23 @@ def group_level_qc(opts, args):
     #######
     if 'pvc_metrics' in outfields:
         #Concatenate PVC metrics
-        concat_pvc_metricsNode=pe.Node(interface=concat_df(), name="concat_pvc_metrics")
+        concat_pvc_metricsNode=pe.Node(interface=concat_df(), name=qc_err+"concat_pvc_metrics")
         concat_pvc_metricsNode.inputs.out_file="pvc_qc_metrics.csv"
         workflow.connect(datasource, 'pvc_metrics', concat_pvc_metricsNode, 'in_list')
         workflow.connect(concat_pvc_metricsNode, "out_file", datasink, 'pvc/metrics')
 
         #Plot PVC Metrics 
-        plot_pvc_metricsNode=pe.Node(interface=plot_qcCommand(), name="plot_pvc_metrics")
+        plot_pvc_metricsNode=pe.Node(interface=plot_qcCommand(), name=qc_err+"plot_pvc_metrics")
         workflow.connect(concat_pvc_metricsNode, "out_file", plot_pvc_metricsNode, 'in_file')
         workflow.connect(plot_pvc_metricsNode, "out_file", datasink, 'pvc/metrics_plot')
 
         #Calculate PVC outlier measures
-        pvc_outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name="pvc_outlier_measure")
+        pvc_outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name=qc_err+"pvc_outlier_measure")
         workflow.connect(concat_pvc_metricsNode, 'out_file', pvc_outlier_measureNode, 'in_file')
         workflow.connect(pvc_outlier_measureNode, "out_file", datasink, 'pvc/outlier')
 
        #Plot PVC outlier measures 
-        plot_pvc_measuresNode=pe.Node(interface=plot_qcCommand(), name="plot_pvc_measures")
+        plot_pvc_measuresNode=pe.Node(interface=plot_qcCommand(), name=qc_err+"plot_pvc_measures")
         workflow.connect(pvc_outlier_measureNode,"out_file",plot_pvc_measuresNode,'in_file')
         workflow.connect(plot_pvc_measuresNode, "out_file", datasink, 'pvc/measures_plot')
 
@@ -126,20 +136,20 @@ def group_level_qc(opts, args):
     #######
     if 'tka_metrics' in outfields:
         #Concatenate TKA metrics
-        concat_tka_metricsNode=pe.Node(interface=concat_df(), name="concat_tka_metrics")
+        concat_tka_metricsNode=pe.Node(interface=concat_df(), name=qc_err+"concat_tka_metrics")
         concat_tka_metricsNode.inputs.out_file="tka_qc_metrics.csv"
         workflow.connect(datasource, 'tka_metrics', concat_tka_metricsNode, 'in_list')
         workflow.connect(concat_tka_metricsNode, "out_file", datasink, 'tka/metrics')
         #Plot TKA Metrics 
-        plot_tka_metricsNode=pe.Node(interface=plot_qcCommand(), name="plot_tka_metrics")
+        plot_tka_metricsNode=pe.Node(interface=plot_qcCommand(), name=qc_err+"plot_tka_metrics")
         workflow.connect(concat_tka_metricsNode, "out_file", plot_tka_metricsNode, 'in_file')
         workflow.connect(plot_tka_metricsNode, "out_file", datasink, 'tka/metrics_plot')
         #Calculate TKA outlier measures
-        tka_outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name="tka_outlier_measure")
+        tka_outlier_measureNode = pe.Node(interface=outlier_measuresCommand(),  name=qc_err+"tka_outlier_measure")
         workflow.connect(concat_tka_metricsNode, 'out_file', tka_outlier_measureNode, 'in_file')
         workflow.connect(tka_outlier_measureNode, "out_file", datasink, 'tka/outlier')
         #Plot PVC outlier measures 
-        plot_tka_measuresNode=pe.Node(interface=plot_qcCommand(), name="plot_tka_measures")
+        plot_tka_measuresNode=pe.Node(interface=plot_qcCommand(), name=qc_err+"plot_tka_measures")
         workflow.connect(tka_outlier_measureNode,"out_file",plot_tka_measuresNode,'in_file')
         workflow.connect(plot_tka_measuresNode, "out_file", datasink, 'tka/measures_plot')
 
@@ -177,232 +187,31 @@ def pvc_mse(pvc_fn, pve_fn, fwhm):
     mse = -mse /  n #np.sum(pve.data)
     print("PVC MSE:", mse)
     return mse
-import matplotlib.pyplot as plt
-def temp_qc(vol0, mask0, vol1, mask1, out_fn):
-    i=int(vol0.shape[0]/2)
-    plt.subplot(2,2,1)
-    plt.imshow(vol0[i,:])
-    plt.subplot(2,2,2)
-    plt.imshow(mask0[i,:])
-    plt.subplot(2,2,3)
-    plt.imshow(vol1[i,:])
-    plt.subplot(2,2,4)
-    plt.imshow(mask1[i,:])
-    print(out_fn)
-    plt.savefig(out_fn)
 
-#def distance(pet_fn, mri_fn, t1_brain_fn, pet_brain_fn, dist_f_list):
-def distance(pet_fn, mri_fn, t1_brain_fn, dist_f_list):
-    pet = nib.load(pet_fn)
-    pet.data = pet.get_data()
-
-    mri = nib.load(mri_fn)
-    mri.data = mri.get_data()
-
-    t1_mask= nib.load(t1_brain_fn)
-    t1_mask.data = t1_mask.get_data()
-
-    #pet_mask= nib.load(pet_brain_fn)
-    #pet_mask.data = pet_mask.get_data()
-
-    pet_data=pet.data.flatten()
-    mri_data=mri.data.flatten()
-    t1_mask_data=t1_mask.data.flatten()
-    #pet_mask_data=pet_mask.data.flatten()
-
-    if not pet_data.shape == mri_data.shape : 
-        print("Dimension mismatch between pet and mri:")
-        print(pet_fn) 
-        print(mri_fn, t1_mask.data.shape)
-        exit(1)
-
-    #if not t1_mask_data.shape == pet_mask_data.shape : 
-    #    print("Dimension mismatch between masks pet and mri:")
-    #    print(pet_brain_fn, pet_mask.data.shape) 
-    #    print(t1_brain_fn, t1_mask.data.shape)
-    #    exit(1)
-
-    overlap = t1_mask_data #* pet_mask_data
-    overlap[ overlap >= 1 ] = 1
-    #temp_qc(np.array(pet.data), np.array(mri.data), np.array(t1_mask.data+pet_mask.data), pet_mask.data, os.path.basename(pet_fn)+'.png')
-    #print(pet_fn)
-    #print(mri_fn)
-    #print(t1_brain_fn)
-    #print(pet_brain_fn)
-
-    n=overlap.shape[0]
-    masked_pet_data = [ pet_data[i] for i in range(n) if int(overlap[i])  == 1 ] 
-    masked_mri_data = [ mri_data[i] for i in range(n) if  int(overlap[i]) == 1 ] 
-    del pet
-    del mri
-    del t1_mask
-    #del pet_mask
-    del t1_mask_data
-    #del pet_mask_data
-    dist_list=[]
-    for dist_f in dist_f_list:
-        dist_list.append(dist_f(masked_pet_data, masked_mri_data))
-    return(dist_list)
-
-
-def mse(masked_pet_data, masked_mri_data):
-    mse=-(np.sum(( np.array(masked_pet_data) - np.array(masked_mri_data))**2) / len(masked_pet_data))
-    return mse
-
-def mi(masked_pet_data, masked_mri_data):
-    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
-    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
-
-    mi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
-
-    print("MI:", mi)
-    return(mi)
-
-
-def cc(masked_pet_data, masked_mri_data):
-    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
-    pet_nbins=find_nbins(masked_pet_data)*2 #len(masked_mri_data) /2 #/4 #1000 #len(masked_mri_data)/10
-    mri_nbins=find_nbins(masked_mri_data)*2
-
-    cc=0.0
-    xd=0.0
-    yd=0.0
-    p=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )[0]
-
-    pet_mean=np.mean(masked_pet_data)
-    mri_mean=np.mean(masked_mri_data)
-    xval=(masked_pet_data-pet_mean)
-    yval=(masked_mri_data-mri_mean)
-    num = np.sum( xval * yval * p)
-    xd = np.sum( p * xval**2)
-    yd = np.sum( p * yval**2)
-    den=sqrt(xd*yd)
-    cc = abs(num / den)
-    #r=pearsonr(masked_pet_data, masked_mri_data)[0]
-
-    #print 'CC0:', r
-    print( "CC = " + str(cc))
-
-    return(cc)
-
-def iecc(masked_pet_data, masked_mri_data):
-    masked_pet_data = [int(round(x)) for x in masked_pet_data ]
-    masked_mri_data = [int(round(x)) for x in masked_mri_data ]
-
-    pet_nbins=find_nbins(masked_pet_data)
-    mri_nbins=find_nbins(masked_mri_data)
-    #nmi = normalized_mutual_info_score(masked_pet_data,masked_mri_data)
-    p, pet_bins, mri_bins=joint_dist(masked_pet_data, masked_mri_data,pet_nbins, mri_nbins )
-    mri_dist = np.histogram(masked_mri_data, mri_nbins)
-    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
-    pet_dist = np.histogram(masked_pet_data, pet_nbins)
-    pet_dist = np.array(pet_dist[0], dtype=float) / np.sum(pet_dist[0])
-    num=p*np.log2( p / (pet_dist[pet_bins] * mri_dist[mri_bins]) )
-    den=pet_dist[pet_bins]*np.log2(pet_dist[pet_bins]) + mri_dist[mri_bins]*np.log2(mri_dist[mri_bins])
-    iecc = np.sum(num / den) 
-    print( "IEEC:", num, '/', den, '=', iecc)
-    return(iecc)
-
-def ec(masked_pet_data, masked_mri_data):
-    ###Ref: Kalinic, 2011. A novel image similarity measure for image registration. IEEE ISPA
-    pet_mean=np.mean(masked_pet_data)
-    mri_mean=np.mean(masked_mri_data)
-    xval=np.exp(masked_pet_data-pet_mean)-1
-    yval=np.exp(masked_mri_data-mri_mean)-1
-    ec = np.sum((xval*yval)) / (len(xval) * len(yval))
-    print( "EC = " + str(ec))
-
-    return(ec)
-
-def iv(masked_pet_data, masked_mri_data):
-    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
-    pet_nbins=find_nbins(masked_pet_data)
-    mri_nbins=find_nbins(masked_mri_data)
-
-    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins)
-    df=pd.DataFrame({ 'Value':masked_pet_data , 'p':p, 'Label':mri_bin})
-
-
-    #Intensity variation:
-    #
-    #              p(n,m)(n - mean{n}(m))^2
-    #sum{sqrt(sum[ ------------------------ ]) * p(m)}
-    #                   mean{n}(m)^2
-    #
-
-
-    # 1)
-    #      p(n,m)(n - mean{n}(m))^2
-    # X =  ------------------------
-    #           mean{n}(m)^2
-    df["Normed"]=df.groupby(["Label"])['Value'].transform( lambda x: (x - x.mean())**2 / x.mean()**2 ) * df.p
-
-    # 2)
-    #          
-    #sum{sqrt(sum[ X ]) * p(m)}
-    #
-    mri_dist = np.histogram(masked_mri_data, mri_nbins)
-    mri_dist = np.array(mri_dist[0], dtype=float) / np.sum(mri_dist[0])
-    iv = - float(np.sum(df.groupby(["Label"])["Normed"].agg( {'IV': lambda x: sqrt(x.sum()) } ) * mri_dist[0]))
-    print( "IV:", iv)
-    return iv
-
-def fse(masked_pet_data, masked_mri_data):
-    ###Ref: Studholme et al., (1997) Medical Physics 24, Vol 1
-    pet_nbins=find_nbins(masked_pet_data)
-    mri_nbins=find_nbins(masked_mri_data)
-
-    p, pet_bin, mri_bin=joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins)
-    fse=-np.sum(p*np.array(list(map(np.log, p))))
-    print( "FSE:", fse)
-    return fse
-
-def joint_dist(masked_pet_data, masked_mri_data, pet_nbins, mri_nbins):
-    #return joint probability for pair of pet and mri value
-    n=len(masked_pet_data)
-    print(pet_nbins, mri_nbins)
-    h=np.histogram2d(masked_pet_data, masked_mri_data, [pet_nbins, mri_nbins])
-    #print h
-    nbins = h[0].shape[0] * h[0].shape[1]
-    hi= np.array(h[0].flatten() / sum(h[0].flatten()) ).reshape( h[0].shape)
-    #Binarized PET data
-    x_bin = np.digitize(masked_pet_data, h[1]) - 1
-    #Binarized MRI data
-    y_bin = np.digitize(masked_mri_data, h[2]) - 1
-    #Reduce max bins by 1
-    x_bin[x_bin >= h[0].shape[0] ]=h[0].shape[0]-1
-    y_bin[y_bin >= h[0].shape[1] ]=h[0].shape[1]-1
-
-    pet_bin=x_bin
-    mri_bin=y_bin
-    x_idx=x_bin #v[:,0]
-    y_idx=y_bin #v[:,1]
-    p=hi[x_idx,y_idx]
-
-    return [p, pet_bin, mri_bin]
-
-def find_nbins(array):
-    #r=float(max(array)) - min(array)
-    #n=ceil(-np.log2(16/r))
-    #n=len(array)
-    #iqr=np.diff(np.percentile(array, (25,75)))[0]
-    #x = ceil(2 * iqr / (n**(1/3)))
-    #x=3.5*np.std(array)/ (n**(1/3))
-    return 100
 
 ####################
 # Outlier Measures #
 ####################
 
 def _IsolationForest(X):
+    X = np.array(X)
+    if len(X.shape) == 1 :
+        X=X.reshape(-1,1)
     rng = np.random.RandomState(42)
     clf = IsolationForest(max_samples=X.shape[0], random_state=rng)
     return clf.fit(X).predict(X)
 
 def _LocalOutlierFactor(X):
+    X = np.array(X)
+    if len(X.shape) == 1 :
+        X=X.reshape(-1,1)
     n=int(round(X.shape[0]*0.2))
+    
     clf = LocalOutlierFactor(n_neighbors=n)
-    return clf.fit_predict(X)
+
+    clf.fit_predict(X)
+
+    return clf.negative_outlier_factor_
 
 def _OneClassSVM(X):
     clf = OneClassSVM(nu=0.1, kernel="rbf", gamma=0.1)
@@ -421,11 +230,11 @@ global distance_metrics
 global outlier_measures
 global metric_columns  
 global outlier_columns
-distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
-pvc_metrics={'MSE':pvc_mse }
+#distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
+#pvc_metrics={'MSE':pvc_mse }
 #outlier_measures={"KDE":kde , 'LCF':lcf} 
-#outlier_measures={"KDE":kde, "LOF":lof, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
-outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
+outlier_measures={"KDE":kde, "LOF": _LocalOutlierFactor, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
+#outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 
 metric_columns  = ['analysis', 'sub','ses','task','run','acq','rec','roi','metric','value']
 outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
@@ -542,9 +351,6 @@ class coreg_qc_metricsCommand(BaseInterface):
         base=basename(path)
         param=base.split('_')[-1]
         param_type=base.split('_')[-2]
-
-        distance_metric_methods=distance_metrics.values()
-        distance_metric_names=distance_metrics.keys()
 
         df=pd.DataFrame(columns=metric_columns )
         

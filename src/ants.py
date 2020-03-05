@@ -9,6 +9,9 @@ from nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
 from nipype.interfaces.base import InputMultiPath
 from src.utils import splitext, cmd
 from scipy.io import loadmat
+from scipy.ndimage import center_of_mass
+import numpy as np
+import nibabel as nib
 import nipype.pipeline.engine as pe
 import SimpleITK as sitk
 import os
@@ -136,7 +139,9 @@ class APPIANRegistrationInputs(BaseInterfaceInputSpec):
     moving_image_space = traits.Str(desc="Name of coordinate space for moving image", usedefault=True, default_value="source")
     fixed_image_space = traits.Str(desc="Name of coordinate space for fixed image", usedefault=True, default_value="target")
     interpolation = traits.Str(desc="Type of registration: Linear, NearestNeighbor, MultiLabel[<sigma=imageSpacing>,<alpha=4.0>], Gaussian[<sigma=imageSpacing>,<alpha=1.0>], BSpline[<order=3>], CosineWindowedSinc, WelchWindowedSinc, HammingWindowedSinc, LanczosWindowedSinc, GenericLabel", usedefault=True, default_value="Linear")
-    misalign_matrix = traits.File(desc="Misalignment matrix")
+    #misalign_matrix = traits.Str(desc="Misalignment matrix", usedefault=True, default_value=" ")
+    rotation_error = traits.List( desc="Rotation Error")
+    translation_error = traits.List(desc="Translation Error"  )
     out_matrix = traits.File(desc="Composite transorfmation matrix")
     out_matrix_inverse = traits.File(desc="Composite transorfmation matrix")
 
@@ -218,12 +223,42 @@ class APPIANRegistration(BaseInterface):
 
         return cmdline 
 
+    def apply_misalignment(self) :
+        com = center_of_mass( nib.load(self.inputs.fixed_image).get_data() )
+        tfm = sitk.VersorRigid3DTransform()
+        rotations_radians = list(np.pi * np.array(self.inputs.rotation_error)/180.)
+        tfm.SetParameters(rotations_radians + [50,0,0]) # self.inputs.translation_error)
+        tfm.SetFixedParameters(com)
+        print('Center of Mass', com)
+        print(tfm.GetParameters())
+        print(tfm.GetFixedParameters())
+        misalign_matrix=os.getcwd()+os.sep+'misalignment_rot_x-{}_y-{}_z-{}_trans_x-{}_y-{}_z-{}.tfm'.format(*self.inputs.rotation_error,*self.inputs.translation_error)
+        sitk.WriteTransform(tfm, misalign_matrix)
+
+
+        print('Warning: misaligning PET to MRI alignment using file', misalign_matrix)
+        
+        cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+ misalign_matrix+" "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix+",0]"
+        print(cmdline)
+        cmd( cmdline  )
+
+        cmdline = "antsApplyTransforms -e 3 -d 3  -n Linear -i "+self.inputs.moving_image+" -t "+ misalign_matrix+" "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o Linear["+self.inputs.out_matrix_inverse+",1]"
+        print(cmdline)
+        cmd( cmdline  )
+        
+        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+        print(cmdline)
+        cmd( cmdline  )
+
+        cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.fixed_image+" -t "+self.inputs.out_matrix_inverse +" -r "+self.inputs.moving_image+" -o "+self.inputs.inverse_warped_image
+        print(cmdline)
+        cmd( cmdline  )
 
     def apply_linear_transforms(self):
         
         #Command line to 
         if not os.path.exists(self.inputs.warped_image) :
-            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+self.inputs.misalign_matrix +" "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
             print(cmdline)
             cmd( cmdline  )
 
@@ -232,11 +267,11 @@ class APPIANRegistration(BaseInterface):
             print(cmdline)
             cmd( cmdline  )
 
-    def mat2txt(self, ii_fn, oo_fn):
-        print(ii_fn, oo_fn)
-        tfm=sitk.ReadTransform(ii_fn)
-        sitk.WriteTransform( tfm, oo_fn  )
-        return 0 
+        def mat2txt(self, ii_fn, oo_fn):
+            print(ii_fn, oo_fn)
+            tfm=sitk.ReadTransform(ii_fn)
+            sitk.WriteTransform( tfm, oo_fn  )
+            return 0 
 
     def _run_interface(self, runtime):
         normalization_type = self.inputs.normalization_type
@@ -261,6 +296,10 @@ class APPIANRegistration(BaseInterface):
             #self.mat2txt(os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat', self.inputs.out_matrix_inverse)
             #If linear transform, then have to apply transformations to input image
             self.apply_linear_transforms()
+
+        if isdefined( self.inputs.rotation_error) or isdefined( self.inputs.translation_error ) : 
+            self.apply_misalignment()
+            
 
         return runtime
 

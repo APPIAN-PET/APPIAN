@@ -225,16 +225,22 @@ class APPIANRegistration(BaseInterface):
 
     def apply_misalignment(self) :
         com = center_of_mass( nib.load(self.inputs.fixed_image).get_data() )
+
+        img = nib.load(self.inputs.fixed_image)
+        com_world = [img.affine[0,3]+com[0] * img.affine[0,2],
+                    img.affine[1,3]+com[1] * img.affine[1,1],
+                    img.affine[2,3]+com[2] * img.affine[2,0]
+                    ]
+
         tfm = sitk.VersorRigid3DTransform()
         rotations_radians = list(np.pi * np.array(self.inputs.rotation_error)/180.)
-        tfm.SetParameters(rotations_radians + [50,0,0]) # self.inputs.translation_error)
-        tfm.SetFixedParameters(com)
-        print('Center of Mass', com)
+        tfm.SetParameters(rotations_radians + self.inputs.translation_error)
+        tfm.SetFixedParameters(com_world)
+        print('Center of Mass :', com_world)
         print(tfm.GetParameters())
         print(tfm.GetFixedParameters())
         misalign_matrix=os.getcwd()+os.sep+'misalignment_rot_x-{}_y-{}_z-{}_trans_x-{}_y-{}_z-{}.tfm'.format(*self.inputs.rotation_error,*self.inputs.translation_error)
         sitk.WriteTransform(tfm, misalign_matrix)
-
 
         print('Warning: misaligning PET to MRI alignment using file', misalign_matrix)
         

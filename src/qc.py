@@ -345,7 +345,7 @@ class coreg_qc_metricsCommand(BaseInterface):
         brain_mask_space_mri = self.inputs.brain_mask_space_mri
         pet_brain_mask = self.inputs.pet_brain_mask
 
-        coreg_metrics=['Demons', 'MattesMutualInformation', 'ANTsNeighborhoodCorrelation']
+        coreg_metrics=['MattesMutualInformation']
 
         path, ext = os.path.splitext(pet)
         base=basename(path)

@@ -36,6 +36,7 @@ import json
 def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     n_frames = len(time_frames)
     start_time = opts["quant_start_time"]
+    end_time = opts["quant_end_time"]
     dim = list(vol.shape)
 
     x = int_vol * (1./ vol)  
@@ -46,11 +47,12 @@ def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None )
     y[np.isnan(y) | np.isinf(y) ] = 0.
 
     regr_start = np.sum(start_time > np.array(time_frames)) 
-    x = x[:, regr_start:n_frames]
-    y = y[:, regr_start:n_frames]
+    regr_end = np.sum(end_time >= np.array(time_frames)) 
+    x = x[:, regr_start:regr_end]
+    y = y[:, regr_start:regr_end]
     del vol     
     del int_vol
-    n_frames -= regr_start
+    n_frames = regr_end - regr_start
 
     #ki = np.array(map(slope,x,y)) 
 
@@ -61,6 +63,7 @@ def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None )
 def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     n_frames = len(time_frames)
     start_time = opts["quant_start_time"]
+    end_time = opts["quant_end_time"]
     dim = list(vol.shape)
 
     x = int_ref * 1.0/vol #[brain_mask]    
@@ -71,12 +74,13 @@ def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
 
 
     regr_start = np.sum(start_time >= np.array(time_frames)) 
+    regr_end = np.sum(end_time >= np.array(time_frames)) 
     print("Start frame (counting from 0):", regr_start)
-    x = x[:, regr_start:]
-    y = y[:, regr_start:]
+    x = x[:, regr_start:regr_end]
+    y = y[:, regr_start:regr_end]
     del vol     
     del int_vol
-    n_frames -= regr_start
+    n_frames = regr_end - regr_start
 
     dvr = regr(x,y, dim[0],n_frames )
     #dvr = np.array(list(map(slope,x,y))) 
@@ -89,6 +93,11 @@ def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     return out
 
 def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
+    start_time = opts["quant_start_time"]
+    end_time = opts["quant_end_time"]
+    start_frame = np.sum(start_time >= np.array(time_frames)) 
+    end_frame = np.sum(end_time >= np.array(time_frames)) 
+
     num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
     bw=dose=0
 
@@ -109,8 +118,8 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
 def suvr(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
 
     start_time = opts["quant_start_time"]
-    if start_time == None :
-        start_time=time_frames[0]
+    end_time = opts["quant_end_time"]
+
 
     end_time = opts["quant_end_time"]
     if end_time == None :
@@ -130,6 +139,9 @@ global half_life_dict
 half_life_dict={"C11":20.364, "O15":61.12, "F18":109.771, "N13":9.97 }
 
 def srtm(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
+    '''
+    TODO: Add reference to author of code
+    '''
     try :
         isotope=header["Info"]["Tracer"]["Isotope"][0]
         print(isotope)
@@ -197,14 +209,15 @@ def slope(x,y):
 ### Helper functions 
 
 def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_fn) :
-    df = {"Time":time_frames, "ref":ref_tac[0,:], "int_ref":int_ref[0,:]}
-    df_tac = {"Time":time_frames, "ref":ref_tac[0,:]}
-    df_int = {"Time":time_frames, "int_ref":int_ref[0,:]}
+    n=len(time_frames)
+    df = {"Time":time_frames, "ref":ref_tac[0,0:n], "int_ref":int_ref[0,0:n]}
+    df_tac = {"Time":time_frames, "ref":ref_tac[0,0:n]}
+    df_int = {"Time":time_frames, "int_ref":int_ref[0,0:n]}
 
     for i in range(pet_roi.shape[0]) :
-        df.update({"roi-"+str(i):pet_roi[i,:],"int_roi-"+str(i):pet_roi[i,:] })
-        df_tac.update({"roi-"+str(i):pet_roi[i,:]})
-        df_int.update({"int_roi-"+str(i):pet_roi[i,:]})
+        df.update({"roi-"+str(i):pet_roi[i,0:n],"int_roi-"+str(i):pet_roi[i,0:n] })
+        df_tac.update({"roi-"+str(i):pet_roi[i,0:n]})
+        df_int.update({"int_roi-"+str(i):pet_roi[i,0:n]})
 
     df_tac = pd.DataFrame(df_tac)
     df_tac = pd.melt(df_tac,id_vars=['Time'])
@@ -251,29 +264,49 @@ def integrate_tac(vol, time_frames):
 def read_arterial_file(arterial_file) :
     ref_times = []
     ref_tac = []
+    unit_conversion = 1.
+
     with open(arterial_file, 'r') as f:
         for i, l in enumerate(f.readlines()) :
-            if i >= 4 :
-                lsplit = l.split(' ')
-                stime = float(lsplit[0])
-                etime = float(lsplit[1])
+            split =lambda string : [ x for x in re.split('\t| ', string) if x != '' ] 
+            lsplit = split(l.rstrip('\n'))
+            if len(lsplit) in [0,1] : continue
+            
+            if 'Time' in l or 'time' in l :
+                if 'Min' in l or 'min' in l :
+                    unit_conversion=60.
 
-                activity = float(lsplit[2])
-                ref_times += [ (stime + etime) / 2. ]
+            try : 
+                float(lsplit[0])
+                if len(lsplit) != 3 :
+                    print('Error: incorrectly formatted .dft file ', arterial_file) 
+                    print('Expected format: <start time>\t<end time>\t<radioactivity concentration>\nbut got:', l)
+                    #exit(1)
+                elif len(lsplit) == 3:
+                    stime = float(lsplit[0])
+                    etime = float(lsplit[1])
+                    activity = float(lsplit[2])
+                    print((stime+etime)/2*unit_conversion,activity)
+                    ref_times += [ (stime + etime)/ 2.0 * unit_conversion ] 
+                elif len(lsplit) == 2:
+                    ref_times += [ float(lsplit[0]) * unit_conversion ] 
+                    activity = float(lsplit[1])
+
                 ref_tac += [ activity ]
+            except ValueError : continue
+    return np.array(ref_times), np.array(ref_tac)
 
-    return ref_times, ref_tac
-
-def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file=None):
+def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames,  arterial_file=None):
     ref_tac = np.zeros([1,len(time_frames)])
     ref_times = np.zeros(len(time_frames))
-
+    time_frames = np.array(time_frames)
     if isdefined(arterial_file) and arterial_file != None : 
         '''read arterial input file'''
         art_times, art_tac = read_arterial_file(arterial_file)
-        vol_times = np.array([ (t[0]+t[1]) / 2.0 for f in time_frames ])
+        time_frames = time_frames[ time_frames <= max(art_times) ] #np.array([ (t[0]+t[1]) / 2.0 for t in time_frames ])
         f = interp1d(art_times, art_tac, kind='cubic')
-        ref_tac = f(vol_times)
+        ref_tac = f(time_frames)
+        ref_tac = ref_tac.reshape(1,-1)
 
     elif isdefined(ref_file) and  ref_file != None :
         ref_img = nib.load(ref_file)
@@ -288,7 +321,7 @@ def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file=
         print('Error: no arterial file or reference volume file')
         exit(1)
 
-    return  ref_tac
+    return  ref_tac, time_frames
 
 def get_roi_tac(roi_file,pet_vol,brain_mask_vol, time_frames ):
     roi_img = nib.load(roi_file)
@@ -388,21 +421,25 @@ class ApplyModel(BaseInterface) :
         n_frames=len(time_frames)
 
         #Calculate average TAC in Ref
-        ref_tac = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file)
+        ref_tac, modified_time_frames = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file)
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
-        #if  self.inputs.roi_based == True :
-        #    pet_vol = pet_roi
-        #else : 
-            #If doing voxel-wise analysis, still useful to calculate ROI averages to plot TAC for visual QC
-        int_roi = integrate_tac(pet_roi, time_frames)
 
-        int_vol = integrate_tac(pet_vol, time_frames)
-        int_ref = integrate_tac(ref_tac, time_frames)
+        #Set start and end times
+        if opts['quant_start_time'] == None :
+            opts['quant_start_time']=modified_vol_times[0]
+        if opts['quant_end_time'] == None :
+            opts['quant_end_time']=modified_vol_times[-1]
 
-        create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, self.inputs.out_df, self.inputs.out_plot)
+        pet_vol=pet_vol[:,0:len(modified_time_frames)]
+        pet_roi=pet_roi[:,0:len(modified_time_frames)]
+        
+        int_roi = integrate_tac(pet_roi, modified_time_frames)
+        int_vol = integrate_tac(pet_vol, modified_time_frames)
+        int_ref = integrate_tac(ref_tac, modified_time_frames)
 
+        create_tac_df(modified_time_frames, pet_roi, int_roi, ref_tac, int_ref, self.inputs.out_df, self.inputs.out_plot)
         quant_vol = model(pet_vol, int_vol, ref_tac, int_ref, time_frames, opts=opts, header=header)
 
         out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_file, brain_mask_vol )

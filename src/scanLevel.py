@@ -168,7 +168,6 @@ def gen_args(opts, subjects):
     
     opts.sub_valid_args = sub_ses_args
     opts.task_valid_args = task_args
-
     return sub_ses_args, task_args
 
 

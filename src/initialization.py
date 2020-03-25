@@ -49,7 +49,7 @@ class petBrainMask(BaseInterface):
         
         img = nib.load(self.inputs.in_file)
         vol = gaussian_filter( img.get_data(), 1 ) 
-        vol[ vol < threshold_otsu(vol) ] = 0 
+        vol[ vol < threshold_otsu(vol[vol>0]) ] = 0 
         vol[ vol > 0 ] = 1 
         nib.Nifti1Image(vol, img.affine, img.header).to_filename(self.inputs.out_file)
         return runtime

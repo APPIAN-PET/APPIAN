@@ -57,7 +57,7 @@ class Workflows:
         (self.set_quant, False, opts.quant_method ),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
-        (self.set_qc_metrics, False, not opts.no_qc), 
+        (self.set_qc_metrics, False, False) ,# not opts.no_qc), 
         (self.set_dashboard, False, True)
         )
 
@@ -696,7 +696,8 @@ class Workflows:
         label_str =re.sub('DIR', 'anat', base_label_template) #FIXME: not sure if BIDS derivatives go in anat
  
         self.datasourceAnat.inputs.field_template={
-                "mri":mri_str+"*_T1w.nii*"
+                "mri":mri_str+"*_T1w.nii.gz"
+                #"mri":mri_str+"*_T1w.nii*"
                 }
         self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 

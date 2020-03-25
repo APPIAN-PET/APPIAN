@@ -200,12 +200,16 @@ class APPIANRegistration(BaseInterface):
         # If user has not specified their own file with an ANTs command line argument
         # create a command line argument based on whether the normalization type is set to 
         # rigid, affine, or non-linear. 
-
+        mask_string=""
+        if isdefined(self.inputs.fixed_image_mask) and isdefined(self.inputs.moving_image_mask) :
+            if os.path.exists(self.inputs.fixed_image_mask) and os.path.exists(self.inputs.moving_image_mask) :
+                mask_string=" --masks ["+self.inputs.fixed_image_mask+","+self.inputs.moving_image_mask+"] "
+            
         ### Base Options
-        cmdline="antsRegistration --verbose 1 --float --collapse-output-transforms 1 --dimensionality 3 --initial-moving-transform [ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1 ] --initialize-transforms-per-stage 0 --interpolation "+self.inputs.interpolation+' '
+        cmdline="antsRegistration --verbose 1 --float --collapse-output-transforms 1 --dimensionality 3 "+mask_string+" --initial-moving-transform [ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1 ] --initialize-transforms-per-stage 0 --interpolation "+self.inputs.interpolation+' '
 
         ### Rigid
-        cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x250x200, 1e-08, 20 ] --smoothing-sigmas 8.0x4.0x2.0vox --shrink-factors 8x4x2 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
+        cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x250x200x100, 1e-08, 20 ] --smoothing-sigmas 8.0x4.0x2.0x1.0vox --shrink-factors 8x4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
         #output = " --output [ transform ] "
 
         ### Affine
@@ -296,15 +300,18 @@ class APPIANRegistration(BaseInterface):
         p = cmd(cmdline)	
          
         if self.inputs.normalization_type in ['rigid', 'affine']:
-            #Convet linear transforms from .mat to .txt. antsRegistration produces .mat file based on output
+            #Convert linear transforms from .mat to .txt. antsRegistration produces .mat file based on output
             #prefix, but this format seems to be harder to work with / lead to downstream errors
-            #self.mat2txt(os.getcwd()+os.sep+'transform0GenericAffine.mat', self.inputs.out_matrix)
-            #self.mat2txt(os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat', self.inputs.out_matrix_inverse)
             #If linear transform, then have to apply transformations to input image
             self.apply_linear_transforms()
 
         if isdefined( self.inputs.rotation_error) or isdefined( self.inputs.translation_error ) : 
-            self.apply_misalignment()
+            if self.inputs.rotation_error != [0,0,0] and self.inputs.translation_error != [0,0,0] : 
+                print('Warning: Applying misalignment')
+                print("\tRotation:",self.inputs.rotation_error)
+                print("\tTranslation:",self.inputs.translation_error)
+                exit(1)
+                self.apply_misalignment()
             
 
         return runtime

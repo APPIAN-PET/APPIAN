@@ -159,6 +159,7 @@ def get_parser():
     parser.add_argument("--coregistration-brain-mask",dest="coregistration_brain_mask",help="Target T1 mask for coregistration", action='store_false', default=True)
     parser.add_argument("--pet-coregistration-target",dest="pet_coregistration_target",type=str, help="Target for PET coregistration (t1, stx; Default=t1)", default='t1', choices=['t1','stx'])
     parser.add_argument("--no-pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_false', default=True)
+    parser.add_argument("--no-mri-mask",dest="pet2mri_mri_mask",help="Don't use MRI mask for PET to MRI  coregistration", action='store_false', default=True)
     parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
     parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
     parser.add_argument("--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type=float, default=0.333)

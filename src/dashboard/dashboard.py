@@ -194,7 +194,7 @@ class deployDashInput(BaseInterfaceInputSpec):
     analysis_space = traits.Str(desc="Analysis Space")
     pet = traits.File(exists=True, mandatory=True, desc="PET image")
     pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
-    pet_brain_mask_space_mri = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
+    #pet_brain_mask_space_mri = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
     mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
     mri_brain_mask = traits.File(exists=True, mandatory=True, desc="MRI brain mask (t1 native space)")
     t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")

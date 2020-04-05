@@ -23,6 +23,7 @@ import re
 import importlib
 import sys
 import json
+import pint
 
 """
 .. module:: quant
@@ -209,15 +210,14 @@ def slope(x,y):
 ### Helper functions 
 
 def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_fn) :
-    n=len(time_frames)
-    df = {"Time":time_frames, "ref":ref_tac[0,0:n], "int_ref":int_ref[0,0:n]}
-    df_tac = {"Time":time_frames, "ref":ref_tac[0,0:n]}
-    df_int = {"Time":time_frames, "int_ref":int_ref[0,0:n]}
+    df = {"Time":time_frames, "ref":ref_tac[0,:], "int_ref":int_ref[0,:]}
+    df_tac = {"Time":time_frames, "ref":ref_tac[0,:]}
+    df_int = {"Time":time_frames, "int_ref":int_ref[0,:]}
 
     for i in range(pet_roi.shape[0]) :
-        df.update({"roi-"+str(i):pet_roi[i,0:n],"int_roi-"+str(i):pet_roi[i,0:n] })
-        df_tac.update({"roi-"+str(i):pet_roi[i,0:n]})
-        df_int.update({"int_roi-"+str(i):pet_roi[i,0:n]})
+        df.update({"roi-"+str(i):pet_roi[i,:],"int_roi-"+str(i):pet_roi[i,:] })
+        df_tac.update({"roi-"+str(i):pet_roi[i,:]})
+        df_int.update({"int_roi-"+str(i):pet_roi[i,:]})
 
     df_tac = pd.DataFrame(df_tac)
     df_tac = pd.melt(df_tac,id_vars=['Time'])
@@ -233,6 +233,7 @@ def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_f
     df.to_csv(df_fn)
     
     #Plotting
+    plt.figure(dpi=150, figsize=(9, 9))
     sns.relplot(x="Time", y="Radio.Conc.", kind="line", hue="TAC", data=df_tac)
 
     plt.savefig(plot_fn)
@@ -261,51 +262,60 @@ def integrate_tac(vol, time_frames):
 
     return int_vol
 
-def read_arterial_file(arterial_file) :
+
+def read_arterial_file(arterial_file, header) :
     ref_times = []
     ref_tac = []
-    unit_conversion = 1.
+    time_unit_conversion = 1.
+    radio_unit_conversion = 1.
+    
+    ureg = pint.UnitRegistry()
+
+    try :
+        pet_radio_unit = header['Info']['Unit']
+    except KeyError :
+        print('Exit: Radioactivity units not set in PET json header in Info:Unit. Assuming same units for radioactivity cocnentrations in PET image and arterial input.')
+        exit(1)
 
     with open(arterial_file, 'r') as f:
         for i, l in enumerate(f.readlines()) :
-            split =lambda string : [ x for x in re.split('\t| ', string) if x != '' ] 
+            split =lambda string : [ x for x in re.split('\t| |,', string) if x != '' ] 
             lsplit = split(l.rstrip('\n'))
             if len(lsplit) in [0,1] : continue
-            
+
             if 'Time' in l or 'time' in l :
-                if 'Min' in l or 'min' in l :
-                    unit_conversion=60.
+                time_unit_conversion = ureg.Quantity(1*lsplit[-1]).to('sec').magnitude
+           
+            if 'Activity' in l or 'activity' in l :
+                radio_unit_conversion = ureg.Quantity(1*lsplit[-1]).to(pet_radio_unit).magnitude
+                print('Conversion from', lsplit[-1], 'to', pet_radio_unit,':',radio_unit_conversion)
 
             try : 
                 float(lsplit[0])
                 if len(lsplit) != 3 :
                     print('Error: incorrectly formatted .dft file ', arterial_file) 
                     print('Expected format: <start time>\t<end time>\t<radioactivity concentration>\nbut got:', l)
-                    #exit(1)
                 elif len(lsplit) == 3:
                     stime = float(lsplit[0])
                     etime = float(lsplit[1])
                     activity = float(lsplit[2])
-                    print((stime+etime)/2*unit_conversion,activity)
-                    ref_times += [ (stime + etime)/ 2.0 * unit_conversion ] 
+                    ref_times += [ (stime + etime)/ 2.0 * time_unit_conversion ] 
                 elif len(lsplit) == 2:
-                    ref_times += [ float(lsplit[0]) * unit_conversion ] 
+                    ref_times += [ float(lsplit[0]) * time_unit_conversion ] 
                     activity = float(lsplit[1])
-
-                ref_tac += [ activity ]
+                print(activity, activity * radio_unit_conversion )
+                ref_tac += [ activity * radio_unit_conversion ]
             except ValueError : continue
     return np.array(ref_times), np.array(ref_tac)
 
-def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames,  arterial_file=None):
+def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,  arterial_file=None):
     ref_tac = np.zeros([1,len(time_frames)])
-    ref_times = np.zeros(len(time_frames))
+    ref_times = time_frames
     time_frames = np.array(time_frames)
+    
     if isdefined(arterial_file) and arterial_file != None : 
         '''read arterial input file'''
-        art_times, art_tac = read_arterial_file(arterial_file)
-        time_frames = time_frames[ time_frames <= max(art_times) ] #np.array([ (t[0]+t[1]) / 2.0 for t in time_frames ])
-        f = interp1d(art_times, art_tac, kind='cubic')
-        ref_tac = f(time_frames)
+        ref_times, ref_tac = read_arterial_file(arterial_file, header)
         ref_tac = ref_tac.reshape(1,-1)
 
     elif isdefined(ref_file) and  ref_file != None :
@@ -321,7 +331,7 @@ def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames,  arterial_file
         print('Error: no arterial file or reference volume file')
         exit(1)
 
-    return  ref_tac, time_frames
+    return  ref_tac, ref_times
 
 def get_roi_tac(roi_file,pet_vol,brain_mask_vol, time_frames ):
     roi_img = nib.load(roi_file)
@@ -417,29 +427,36 @@ class ApplyModel(BaseInterface) :
 
         model = model_dict[self.inputs.quant_method]
         header = json.load(open(header_file, "r") )
-        time_frames = [ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ]
+        time_frames = np.array([ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ])
         n_frames=len(time_frames)
 
+    
+
         #Calculate average TAC in Ref
-        ref_tac, modified_time_frames = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, arterial_file)
+        ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file)
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
+        
+        int_roi = integrate_tac(pet_roi, time_frames)
+        int_vol = integrate_tac(pet_vol, time_frames)
+        int_ref = integrate_tac(ref_tac, ref_times)
 
         #Set start and end times
-        if opts['quant_start_time'] == None :
-            opts['quant_start_time']=modified_vol_times[0]
-        if opts['quant_end_time'] == None :
-            opts['quant_end_time']=modified_vol_times[-1]
+        if opts['quant_start_time'] == None or opts['quant_start_time'] < ref_times[0] :
+            print('Warning: Changing quantification start time to ', ref_times[0])
+            opts['quant_start_time'] = ref_times[0]
+        if opts['quant_end_time'] == None or  opts['quant_start_time'] > ref_times[1] :
+            print('Warning: Changing quantification end time to ', ref_times[-1])
+            opts['quant_end_time'] = ref_times[-1]
 
-        pet_vol=pet_vol[:,0:len(modified_time_frames)]
-        pet_roi=pet_roi[:,0:len(modified_time_frames)]
-        
-        int_roi = integrate_tac(pet_roi, modified_time_frames)
-        int_vol = integrate_tac(pet_vol, modified_time_frames)
-        int_ref = integrate_tac(ref_tac, modified_time_frames)
+        modified_time_frames = time_frames[ (time_frames >= min(ref_times)) & (time_frames <= max(ref_times)) ] 
+        f = interp1d(ref_times, ref_tac[0], kind='cubic', fill_value="extrapolate")
+        fint = interp1d(ref_times, int_ref[0], kind='cubic', fill_value="extrapolate")
+        ref_tac = f(time_frames).reshape(1,-1)
+        int_ref = fint(time_frames).reshape(1,-1)
 
-        create_tac_df(modified_time_frames, pet_roi, int_roi, ref_tac, int_ref, self.inputs.out_df, self.inputs.out_plot)
+        create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, self.inputs.out_df, self.inputs.out_plot)
         quant_vol = model(pet_vol, int_vol, ref_tac, int_ref, time_frames, opts=opts, header=header)
 
         out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_file, brain_mask_vol )

@@ -57,8 +57,8 @@ class Workflows:
         (self.set_quant, False, opts.quant_method ),
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
-        (self.set_qc_metrics, False, False) ,# not opts.no_qc), 
-        (self.set_dashboard, False, True)
+        (self.set_qc_metrics, False, not opts.no_qc), 
+        #temporarily removing dashboard #(self.set_dashboard, False, True)
         )
 
     def initialize(self, opts) :
@@ -231,13 +231,15 @@ class Workflows:
         
         if opts.pet_brain_mask:
             self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.pet2mri, 'moving_image_mask')
-        
+       
         if opts.pet_coregistration_target == "t1":
             self.workflow.connect(self.datasource, 'mri', self.pet2mri, 'fixed_image')
-            self.workflow.connect(self.mri_preprocess,self.brain_mask_space_mri_name, self.pet2mri, 'fixed_image_mask')
+            if opts.pet2mri_mri_mask : 
+                self.workflow.connect(self.mri_preprocess,self.brain_mask_space_mri_name, self.pet2mri, 'fixed_image_mask')
         elif opts.pet_coregistration_target == "stx":
             self.pet2mri.inputs.fixed_image =  opts.template
-            self.pet2mri.inputs.fixed_image_mask = opts.template_brain_mask
+            if opts.pet2mri_mri_mask : 
+                self.pet2mri.inputs.fixed_image_mask = opts.template_brain_mask
         else :
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
             
@@ -417,7 +419,6 @@ class Workflows:
         self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
         self.workflow.connect(self.quant, 'out_df', self.datasink, 'quant/csv') 
-        self.workflow.connect(self.quant, 'out_plot', self.datasink, 'quant/plot') 
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]
@@ -488,29 +489,6 @@ class Workflows:
             self.t1_analysis_space=pe.Node(niu.IdentityInterface(fields=["output_image"]),name="t1_analysis_space")
             self.workflow.connect(self.mri_preprocess, "outputnode.mri_space_stx", self.t1_analysis_space,"output_image")
         
-        self.dashboard=pe.Node(interface=dash.GenerateOutputImagesCSV(),name="output_images")
-        self.dashboard.inputs.targetDir = opts.targetDir;
-        self.dashboard.inputs.sourceDir = opts.sourceDir;
-        self.dashboard.inputs.analysis_space = opts.analysis_space
-        self.workflow.connect(self.infosource, 'sid', self.dashboard, "sid")
-        self.workflow.connect(self.infosource, 'ses', self.dashboard, "ses")
-        self.workflow.connect(self.infosource, 'task', self.dashboard, "task")
-        self.workflow.connect(self.infosource, 'run', self.dashboard, "run")
-        self.workflow.connect(self.infosource, 'cid', self.dashboard, "cid")
-        self.workflow.connect(self.pet2mri, 'warped_image',  self.dashboard, 'pet_space_mri')
-        self.workflow.connect(self.t1_analysis_space, 'output_image',  self.dashboard, 't1_analysis_space')
-        self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.dashboard,"mri_space_nat")
-        self.workflow.connect(self.mri_preprocess, 'outputnode.brain_mask_space_mri', self.dashboard,"mri_brain_mask")
-        self.workflow.connect(self.pet_input_node, self.pet_input_file, self.dashboard, "pet")
-        if opts.pvc_method != None :
-            self.dashboard.inputs.pvc_method = opts.pvc_method;
-            self.workflow.connect(self.pvc, 'outputnode.out_file',  self.dashboard, 'pvc')
-        if opts.quant_method != None:
-            self.dashboard.inputs.quant_method = opts.quant_method;
-            self.workflow.connect(self.quant, 'out_file',  self.dashboard, 'quant')
-        if opts.pet_brain_mask:
-            self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image', self.dashboard, 'pet_brain_mask_space_mri' )
-        self.workflow.connect(self.dashboard, 'out_file', self.datasink,'output_images')
     ############################
     # Subject-level QC Metrics #
     ############################
@@ -546,11 +524,31 @@ class Workflows:
                 self.workflow.connect(self.infosource, 'ses', self.pvc_qc_metricsNode, "ses")
                 self.workflow.connect(self.infosource, 'task', self.pvc_qc_metricsNode, "task")
 
-    #############
-    # Dashboard # 
-    #############
-    def set_dashboard(self, opts) : 
-        pass
+                
+            self.visual_qc=pe.Node(interface=qc.visual_qcCommand(),name="visual_qc")
+            self.visual_qc.inputs.targetDir = opts.targetDir;
+            self.visual_qc.inputs.sourceDir = opts.sourceDir;
+            self.visual_qc.inputs.analysis_space = opts.analysis_space
+            self.workflow.connect(self.infosource, 'sid', self.visual_qc, "sub")
+            self.workflow.connect(self.infosource, 'ses', self.visual_qc, "ses")
+            self.workflow.connect(self.infosource, 'task', self.visual_qc, "task")
+            self.workflow.connect(self.infosource, 'run', self.visual_qc, "run")
+            self.workflow.connect(self.pet_input_node, self.pet_input_file, self.visual_qc, "pet")
+            self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.visual_qc, "pet_3d")
+            self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.visual_qc, "pet_brain_mask")
+            self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
+            self.workflow.connect(self.t1_analysis_space, 'output_image',  self.visual_qc, 't1_analysis_space')
+            self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.visual_qc,"mri_space_nat")
+            self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
+            if opts.pvc_method != None :
+                self.visual_qc.inputs.pvc_method = opts.pvc_method;
+                self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')
+            if opts.quant_method != None:
+                self.visual_qc.inputs.quant_method = opts.quant_method;
+                self.workflow.connect(self.quant, 'out_file',  self.visual_qc, 'quant')
+
+
+
     #####################
     ### Preinfosource ###
     #####################

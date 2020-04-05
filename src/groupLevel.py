@@ -18,7 +18,7 @@ def run_group_level(opts,args):
     args_list=[
             #(qc, qc.group_level_qc, default, opts.group_qc, 1 ),
             (results,results.group_level_descriptive_statistics, default ,opts.group_stats, 1 ),
-            #(qc,dash.groupLevel_dashboard, default, opts.dashboard, 0)
+            (qc,qc.groupLevel_visual_qc, default, opts.dashboard, 0)
             ]
     
     for module, command, fargs, run_flag, min_args in args_list:

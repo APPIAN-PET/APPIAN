@@ -1,13 +1,16 @@
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 mouse=a
-import matplotlib
+import matplotlib 
+matplotlib.rcParams['figure.facecolor'] = '1.'
+matplotlib.use('Agg')
 import ants
 import numpy as np
 import pandas as pd
 import os
-matplotlib.use('Agg')
+import imageio
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu 
 import nibabel as nib
+import shutil
 import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
@@ -15,12 +18,18 @@ import nipype.interfaces.io as nio
 import matplotlib.pyplot as plt
 import seaborn as sns
 import inspect
+import json
+import re 
+import time
+#from medpy.filter.smoothing import anisotropic_diffusion
+from skimage.feature import canny
+from nibabel.processing import resample_to_output
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.svm import OneClassSVM
-
+from skimage.filters import threshold_otsu
 from math import sqrt, log, ceil
 from os import getcwd
 from os.path import basename
@@ -33,7 +42,18 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy.ndimage.filters import gaussian_filter
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
+import matplotlib.animation as animation
 
+def load_3d(fn):
+    img = nib.load(fn)
+    vol = img.get_data() 
+    hd  = img.header
+    vol = vol.reshape(vol.shape[0:3] )
+    img = nib.Nifti1Image(vol, img.affine)
+    return img, vol
+
+def get_spacing(aff, i) : 
+    return aff[i, np.argmax(np.abs(aff[i,0:3]))] 
 ######################
 #   Group-level QC   #
 ######################
@@ -230,11 +250,7 @@ global distance_metrics
 global outlier_measures
 global metric_columns  
 global outlier_columns
-#distance_metrics={'MI':mi, 'FSE':fse, 'CC':cc }  
-#pvc_metrics={'MSE':pvc_mse }
-#outlier_measures={"KDE":kde , 'LCF':lcf} 
 outlier_measures={"KDE":kde, "LOF": _LocalOutlierFactor, "IsolationForest":_IsolationForest, "MAD":MAD} #, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
-#outlier_measures={  "KDE":kde } #,"LOF":lof, "DBSCAN":_dbscan, "OneClassSVM":_OneClassSVM } 
 
 metric_columns  = ['analysis', 'sub','ses','task','run','acq','rec','roi','metric','value']
 outlier_columns = ['analysis', 'sub','ses','task','roi','metric','measure','value']
@@ -353,31 +369,28 @@ class coreg_qc_metricsCommand(BaseInterface):
         param_type=base.split('_')[-2]
 
         df=pd.DataFrame(columns=metric_columns )
+       
+
         
         def image_read(fn) : 
-            img = nib.load(fn)
-            vol = img.get_data() 
-            hd  = img.header
-            vol = vol.reshape(vol.shape[0:3] )
+            img, vol = load_3d(fn)
             aff = img.affine
-            #print(aff)
             origin = [ aff[0,3], aff[1,3], aff[2,3]]
-            get_spacing = lambda  i : aff[i, np.argmax(np.abs(aff[i,0:3]))] 
-            spacing = [ get_spacing(0), get_spacing(1), get_spacing(2) ]
-            #print(origin)
-            #print(spacing)
-            #exit(1)
+            spacing = [ get_spacing(aff, 0), get_spacing(aff, 1), get_spacing(aff, 2) ]
             return ants.from_numpy( vol, origin=origin, spacing=spacing )
 
         for metric in coreg_metrics :
             fixed = image_read( t1  )
             moving = image_read( pet )
-            metric_val = ants.create_ants_metric(    
+            try :
+                metric_val = ants.create_ants_metric(    
                                                 fixed = fixed, 
                                                 moving= moving,
                                                 fixed_mask=ants.image_read( brain_mask_space_mri  ),
                                                 moving_mask=ants.image_read( pet_brain_mask ),
                                                 metric_type=metric ).get_value()
+            except RuntimeError : 
+                metric_val = np.NaN
             temp = pd.DataFrame([['coreg',sid,ses,task,run,acq,rec,'01',metric,metric_val]],columns=df.columns  ) 
             sub_df = pd.concat([sub_df, temp])
 
@@ -408,9 +421,6 @@ class plot_qcCommand (BaseInterface):
     input_spec = plot_qcInput 
     output_spec = plot_qcOutput
 
-    #def _gen_output(self, fname ="metrics.png"):
-    #    dname = os.getcwd() + os.sep + fname
-    #    return dname
     def _gen_output(self, basefile="metrics.png"):
         fname = ntpath.basename(basefile)
         dname = os.getcwd() 
@@ -445,22 +455,17 @@ class plot_qcCommand (BaseInterface):
 
         unique_metric = np.unique(df.metric)
         nMetric = len(unique_metric)
-        #fig, axes = plt.subplots(nrows=nROI, ncols=nMetric)
         for roi, i in zip(np.unique(df.roi), range(nROI)):
             df0=df[ (df.roi==roi)  ]
             for metric in unique_metric :
                 x=df0.value[df.metric == metric]
-                #df0.value.loc[df.metric == metric]= (x-np.min(x))/(np.max(x)-np.min(x))
 
             if plot_type == "measure" : 
                 sns.factorplot(x="metric", col="measure", y="value", kind="swarm",  data=df0, legend=False, hue="sub")
-                #plt.title("Outlier Measure: "+df0.analysis.iloc[0] )
             else : 
                 sns.factorplot(x="metric", y="value",   data=df0,  kind="swarm",  hue="sub")
-                #plt.title("QC Metric: " + df0.analysis.iloc[0] )
             plt.ylabel('')
             plt.xlabel('')
-            #if nROI > 1 : plt.title("ROI Label: "+str(roi))
 
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -542,3 +547,351 @@ class outlier_measuresCommand(BaseInterface):
         return outputs
 
 
+#############
+# Visual QC #
+#############
+
+def groupLevel_visual_qc(opts, args):
+    #setup workflow
+    file_dir, fn =os.path.split( os.path.abspath(__file__) )
+    html_fn = file_dir + os.sep + 'qc.html' 
+
+    if not os.path.exists(opts.targetDir+'/html'):
+        os.makedirs(opts.targetDir+'/html')
+
+    os.chdir(opts.targetDir+'/html')
+    
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
+    fn_list = glob(opts.targetDir+os.sep+opts.preproc_dir+os.sep+'*/visual_qc/*_summary.json')
+    
+    for fn in fn_list :
+        html = QCHTML(opts.targetDir, fn,fn_list)
+        html.build()
+
+
+
+class visual_qcOutput(TraitedSpec):
+    pet_3d_gif = traits.File(desc="Output file")
+    pet_coreg_gif = traits.File(desc="Output file")
+    pet_coreg_edge_2_gif = traits.File(desc="Output file")
+    pvc_gif = traits.File(desc="Output file")
+    quant_gif = traits.File(desc="Output file")
+    out_json = traits.File(desc="Output file")
+
+class visual_qcInput(BaseInterfaceInputSpec):
+    targetDir = traits.File(mandatory=True, desc="Target directory")
+    sourceDir = traits.File(mandatory=True, desc="Source directory")
+    pvc_method = traits.Str(desc="PVC method")
+    quant_method = traits.Str(desc="TKA method")
+    analysis_space = traits.Str(desc="Analysis Space")
+    pet_3d = traits.File(exists=True, mandatory=True, desc="PET image")
+    pet = traits.File(exists=True, mandatory=True, desc="PET image")
+    pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
+    pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
+    mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
+    mri_brain_mask = traits.File(exists=True, mandatory=False, desc="MRI brain mask (t1 native space)")
+    t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
+    quant_plot = traits.File(exists=True, mandatory=False, desc="Quantification Plot")
+    pvc = traits.File(exists=True, desc="Output PVC image")
+    quant = traits.File(exists=True, desc="Output TKA image")
+    sub =traits.Str(default_value='NA', mandatory=True)
+    ses=traits.Str(default_value='NA',usedefault=True)
+    task=traits.Str(default_value='NA',usedefault=True)
+    run=traits.Str(default_value='NA',usedefault=True)
+    pet_3d_gif = traits.File(desc="Output file")
+    pet_coreg_edge_2_gif = traits.File(desc="Output file")
+    pet_coreg_gif = traits.File(desc="Output file")
+    pvc_gif = traits.File(desc="Output file")
+    quant_gif = traits.File(desc="Output file")
+    out_json = traits.File(desc="Output file")
+
+
+class visual_qcCommand(BaseInterface):
+    input_spec = visual_qcInput 
+    output_spec = visual_qcOutput
+
+    def _gen_output(self, fname):
+        out_str = 'sub-'+self.inputs.sub
+
+        if self.inputs.ses != 'NA' and self.inputs.ses != '' :
+            out_str += '_'+ 'ses-' + self.inputs.ses
+        if self.inputs.task != 'NA'  and self.inputs.task != ''  :
+            out_str += '_'+'task-' + self.inputs.task
+        if self.inputs.run != 'NA'  and self.inputs.run != ''  :
+            out_str +=  '_'+'run-' + self.inputs.run
+        dname = os.getcwd() + os.sep + out_str + fname
+        return dname
+
+    def _run_interface(self, runtime):
+        #Set outputs
+        self.inputs.pet_3d_gif = self._gen_output('_pet_3d.gif')
+        self.inputs.pet_coreg_gif = self._gen_output('_coreg.gif')
+        self.inputs.pet_coreg_edge_2_gif = self._gen_output('_coreg_edge_2.gif')
+        self.inputs.out_json = self._gen_output('_summary.json')
+       
+        d={'sub':self.inputs.sub, 'ses':self.inputs.ses, 
+            'task':self.inputs.task, 'run':self.inputs.run,
+            'base':self._gen_output('')}
+        d['pet_3d']=self.inputs.pet_3d_gif
+        d['coreg']=self.inputs.pet_coreg_gif
+        #d['coreg_edge_1']=self.inputs.pet_coreg_edge_1
+        d['coreg_edge_2']=self.inputs.pet_coreg_edge_2_gif
+
+
+        visual_qc_images=[  ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
+                            ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
+                            ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
+                        ]
+
+        if isdefined(self.inputs.pvc) :
+            self.inputs.pvc_gif = self._gen_output('_pvc.gif')
+            visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[1.25], duration=300   ))
+            d['pvc'] = self.inputs.pvc_gif
+
+        if isdefined(self.inputs.quant) :
+            self.inputs.quant_gif = self._gen_output('_quant.gif')
+            visual_qc_images.append( ImageParam(self.inputs.quant , self.inputs.quant_gif, self.inputs.t1_analysis_space, alpha=[1.35], duration=300, colorbar=True ))
+            d['quant'] = self.inputs.quant_gif
+            d['quant_plot'] = self.inputs.quant_plot
+       
+        for image in visual_qc_images :
+            image.volume2gif() 
+
+        json.dump( d, open(self.inputs.out_json,'w+'))
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["pet_3d_gif"] = self.inputs.pet_3d_gif
+        outputs["pet_coreg_gif"] = self.inputs.pet_coreg_gif
+        outputs["pet_coreg_edge_2_gif"] = self.inputs.pet_coreg_edge_2_gif
+        outputs["out_json"] = self.inputs.out_json
+        if isdefined(self.inputs.pvc) :
+            outputs["pvc_gif"] = self.inputs.pvc_gif
+
+        if isdefined(self.inputs.quant) :
+            outputs["quant_gif"] = self.inputs.quant_gif
+
+        return outputs
+
+def get_slices(vol,  dim, i) :
+
+    if dim == 0:
+        r = vol[i, :, : ]
+    elif dim == 1 :
+        r = vol[ :, i, : ]
+    else :
+        r = vol[ :, :, i ]
+    return r
+
+class ImageParam():
+    def __init__(self,in_fn,out_fn, overlay_fn=None, alpha=[1.], dpi=100, duration=100, cmap1=plt.cm.nipy_spectral, cmap2=plt.cm.gray, colorbar=False, edge_1=-1, edge_2=-1,nframes=45):
+        self.in_fn = in_fn
+        self.out_fn = out_fn
+        self.alpha = alpha
+        self.dpi = dpi
+        self.overlay_fn = overlay_fn
+        self.duration = duration
+        self.cmap1 = cmap1
+        self.cmap2 = cmap2
+        self.colorbar=colorbar
+        self.edge_1 = edge_1
+        self.edge_2 = edge_2
+        self.nframes = nframes
+
+    def load_isotropic(self,in_fn):
+        vol_img, vol = load_3d(in_fn)
+        sep =[ get_spacing(vol_img.affine, i) for i in range(3) ]
+        min_unit=np.min(np.abs(sep))
+        #new_units=[min_unit*np.sign(sep[0]), min_unit*np.sign(sep[1]), min_unit*np.sign(sep[2]) ] 
+        vol_img = resample_to_output(vol_img, [min_unit]*3,order=1 )
+        vol=vol_img.get_fdata()
+        return vol_img, vol
+
+    def volume2gif(self):
+        in_fn = self.in_fn
+        out_fn = self.out_fn
+        overlay_fn = self.overlay_fn
+        alpha  = self.alpha
+        dpi = self.dpi
+        duration  = self.duration
+        cmap1 = self.cmap1
+        cmap2 = self.cmap2
+
+        def apply_tfm(img, sigma):
+            if sigma >= 0  : 
+                #img = anisotropic_diffusion(img,kappa=100, niter=10) 
+                img = gaussian_filter(img, sigma)
+                img = np.sqrt(np.sum(np.abs(np.gradient(img)),axis=0)) 
+                img[ img < threshold_otsu(img) ] =0 
+            return img
+
+        vol_img, vol = self.load_isotropic(in_fn)
+        vol = apply_tfm(vol,self.edge_1)
+
+        if overlay_fn != None :
+            overlay_img, overlay_vol = self.load_isotropic(overlay_fn)
+            overlay_vol = apply_tfm(overlay_vol,self.edge_2)
+            omin, omax  = (np.min(overlay_vol), np.max(overlay_vol) )#np.percentile(vol, [1,99])
+
+        vmin, vmax  = (np.min(vol)*.02, np.max(vol)*0.98 )#np.percentile(vol, [1,99])
+
+        frames=[]
+        plt.clf()
+        fig = plt.figure()
+
+        axes=[fig.add_subplot(1, 3, ii) for ii in [1,2,3]]
+        axes[0].axis("off")
+        axes[1].axis("off")
+        axes[2].axis("off")
+   
+
+
+        frame=[ axes[ii].imshow(get_slices(vol,ii,0), cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' ) for ii in [0,1,2]]
+        nframes_per_alpha=self.nframes
+        total_frames=nframes_per_alpha * len(alpha) 
+        def animate(i):
+            alpha_level = int(i / nframes_per_alpha)
+            ii = i % nframes_per_alpha
+            for dim in [0,1,2] :
+                idx = np.round(vol.shape[dim] * ii / (self.nframes+0.0)).astype(int)
+                r = get_slices(vol, dim, idx)
+
+                frame[dim] = axes[dim].imshow(r.T, cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' )
+
+                if overlay_fn != None :
+                    m = get_slices(overlay_vol, dim, idx)
+                    frame[dim] = axes[dim].imshow(m.T,alpha=alpha[alpha_level], cmap=cmap2, vmin=omin, vmax=omax, interpolation='gaussian', origin='lower', animated=True)
+            return frame
+
+        if self.colorbar :
+            fig.colorbar(frame[2], shrink=0.35 )
+        plt.tight_layout()
+        stime=time.time()
+        ani = animation.FuncAnimation(fig, animate, frames=total_frames, interval=duration, blit=True, repeat_delay=1000)
+        ani.save(out_fn, dpi=self.dpi) #, writer='imagemagick')
+        print(time.time()-stime)  
+        print('Writing', out_fn)
+
+class QCHTML() :
+    def __init__(self, targetDir, d_fn, fn_list):
+        self.fn_list = fn_list
+        self.d = json.load(open(d_fn,'r'))
+        self.html_fn=targetDir + '/html/' + os.path.basename(self.d['base'])+'.html'
+        self.html_file = open(self.html_fn,'w+')
+    
+    def get_subject_list(self):
+        for i, fn in enumerate(self.fn_list) :
+            base = os.path.basename(self.d['base'])
+            if i == 0 :
+                sub_list = '<a class="active" href="#'+base+'">'+base+'</a>\n'
+            else : 
+                sub_list += '<a href="#'+base+'">'+base+'</a>\n'
+        return sub_list
+
+    def build(self) :
+        sub_list =self.get_subject_list() 
+        with open(self.html_fn,'r') as f:
+            self.start()
+            self.side_bar(sub_list)
+            self.vol('pet_3d', h1='Initialization',h2='3D Volume + Brain Mask')
+            self.vol('coreg', h1='Coregistration',h2='PET + MRI Overlap')
+            self.vol('coreg_edge_2', h2='PET + MRI Edge' )
+            self.vol('pvc', h1='Partial-volume Correction',h2='Volume' )
+            self.vol('quant', h1='Quantification',h2='Volume')
+            self.vol('quant_plot', h2='Time Activity Curves' )
+            self.end()
+
+    def start(self):
+        out_str='''<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <title>Page Title</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+        body {
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .sidebar {
+          margin: 0;
+          padding: 0;
+          width: 200px;
+          background-color: #f1f1f1;
+          position: fixed;
+          height: 100%;
+          overflow: auto;
+        }
+
+        .sidebar a {
+          display: block;
+          color: black;
+          padding: 16px;
+          text-decoration: none;
+        }
+         
+        .sidebar a.active {
+          background-color: #4CAF50;
+          color: white;
+        }
+
+        .sidebar a:hover:not(.active) {
+          background-color: #555;
+          color: white;
+        }
+
+        div.content {
+          margin-left: 200px;
+          padding: 1px 16px;
+          height: 1000px;
+        }
+
+        @media screen and (max-width: 700px) {
+          .sidebar {
+            width: 100%;
+            height: auto;
+            position: relative;
+          }
+          .sidebar a {float: left;}
+          div.content {margin-left: 0;}
+        }
+
+        @media screen and (max-width: 400px) {
+          .sidebar a {
+            text-align: center;
+            float: none;
+          }
+        }
+
+        </style>
+        </head>
+        <body>
+        '''
+        self.html_file.writelines(out_str)  
+        
+    def side_bar(self, sublist) :
+        out_str = '<div class="sidebar">\n' +sublist + '</div>\n<div class="content">\n'
+        self.html_file.writelines(out_str)  
+
+
+    def vol(self, src, h1=None, h2=None):
+        try :
+            out_str=''
+            if h1 != None : 
+                out_str+='<h1>'+h1+'</h1>\n'
+                out_str+='<hr class="dashed">\n'
+
+            if h2 != None : 
+                out_str+='<h2>'+h2+'</h2>\n'
+            
+            out_str+='<img src="'+'data/'+os.path.basename(self.d[src])+'" style="width:100%">'
+            shutil.copy(self.d[src], 'data/'+os.path.basename(self.d[src]))
+            self.html_file.writelines(out_str)  
+        except KeyError :
+            pass
+
+    def end(self):
+        out_str="</div>\n</body>\n</html>"
+        self.html_file.writelines(out_str)  

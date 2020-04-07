@@ -44,20 +44,21 @@ def group_level_descriptive_statistics(opts, args):
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
     
         #Datagrabber
-        scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv',
-                             output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
+        scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')#,
+                             #output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
 
         
-        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats','output_images'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
+        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
+        #datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats','output_images'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
         datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
         datasource.inputs.template = '*'
         datasource.inputs.field_template = scan_stats_dict
 
         #Concatenate output files
-        concat_outputfileNode=pe.Node(interface=concat_df(), name="concat_output_images")
-        concat_outputfileNode.inputs.out_file="output_images.csv"
-        workflow.connect(datasource, 'output_images', concat_outputfileNode, 'in_list')
-        workflow.connect(concat_outputfileNode, "out_file", datasink, 'output_images')
+        #concat_outputfileNode=pe.Node(interface=concat_df(), name="concat_output_images")
+        #concat_outputfileNode.inputs.out_file="output_images.csv"
+        #workflow.connect(datasource, 'output_images', concat_outputfileNode, 'in_list')
+        #workflow.connect(concat_outputfileNode, "out_file", datasink, 'output_images')
 
         #Concatenate scan-level statistics
         concat_statisticsNode=pe.Node(interface=concat_df(), name="statistics"+surf)

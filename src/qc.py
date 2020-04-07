@@ -21,7 +21,7 @@ import inspect
 import json
 import re 
 import time
-#from medpy.filter.smoothing import anisotropic_diffusion
+import matplotlib.animation as animation
 from skimage.feature import canny
 from nibabel.processing import resample_to_output
 from sklearn.metrics import normalized_mutual_info_score
@@ -42,7 +42,9 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy.ndimage.filters import gaussian_filter
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
-import matplotlib.animation as animation
+
+
+_file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
 def load_3d(fn):
     img = nib.load(fn)
@@ -226,7 +228,7 @@ def _LocalOutlierFactor(X):
     if len(X.shape) == 1 :
         X=X.reshape(-1,1)
     n=int(round(X.shape[0]*0.2))
-    
+
     clf = LocalOutlierFactor(n_neighbors=n)
 
     clf.fit_predict(X)
@@ -369,9 +371,9 @@ class coreg_qc_metricsCommand(BaseInterface):
         param_type=base.split('_')[-2]
 
         df=pd.DataFrame(columns=metric_columns )
-       
 
-        
+
+
         def image_read(fn) : 
             img, vol = load_3d(fn)
             aff = img.affine
@@ -384,11 +386,11 @@ class coreg_qc_metricsCommand(BaseInterface):
             moving = image_read( pet )
             try :
                 metric_val = ants.create_ants_metric(    
-                                                fixed = fixed, 
-                                                moving= moving,
-                                                fixed_mask=ants.image_read( brain_mask_space_mri  ),
-                                                moving_mask=ants.image_read( pet_brain_mask ),
-                                                metric_type=metric ).get_value()
+                        fixed = fixed, 
+                        moving= moving,
+                        fixed_mask=ants.image_read( brain_mask_space_mri  ),
+                        moving_mask=ants.image_read( pet_brain_mask ),
+                        metric_type=metric ).get_value()
             except RuntimeError : 
                 metric_val = np.NaN
             temp = pd.DataFrame([['coreg',sid,ses,task,run,acq,rec,'01',metric,metric_val]],columns=df.columns  ) 
@@ -560,15 +562,15 @@ def groupLevel_visual_qc(opts, args):
         os.makedirs(opts.targetDir+'/html')
 
     os.chdir(opts.targetDir+'/html')
-    
+
     if not os.path.exists('data'):
         os.makedirs('data')
 
     fn_list = glob(opts.targetDir+os.sep+opts.preproc_dir+os.sep+'*/visual_qc/*_summary.json')
-    
-    for fn in fn_list :
-        html = QCHTML(opts.targetDir, fn,fn_list)
-        html.build()
+
+    html = QCHTML(opts.targetDir, fn_list)
+
+    html.build()
 
 
 
@@ -630,10 +632,10 @@ class visual_qcCommand(BaseInterface):
         self.inputs.pet_coreg_gif = self._gen_output('_coreg.gif')
         self.inputs.pet_coreg_edge_2_gif = self._gen_output('_coreg_edge_2.gif')
         self.inputs.out_json = self._gen_output('_summary.json')
-       
+
         d={'sub':self.inputs.sub, 'ses':self.inputs.ses, 
-            'task':self.inputs.task, 'run':self.inputs.run,
-            'base':self._gen_output('')}
+                'task':self.inputs.task, 'run':self.inputs.run,
+                'base':self._gen_output('')}
         d['pet_3d']=self.inputs.pet_3d_gif
         d['coreg']=self.inputs.pet_coreg_gif
         #d['coreg_edge_1']=self.inputs.pet_coreg_edge_1
@@ -641,9 +643,9 @@ class visual_qcCommand(BaseInterface):
 
 
         visual_qc_images=[  ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
-                            ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
-                            ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
-                        ]
+                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
+                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
+                ]
 
         if isdefined(self.inputs.pvc) :
             self.inputs.pvc_gif = self._gen_output('_pvc.gif')
@@ -655,7 +657,7 @@ class visual_qcCommand(BaseInterface):
             visual_qc_images.append( ImageParam(self.inputs.quant , self.inputs.quant_gif, self.inputs.t1_analysis_space, alpha=[1.35], duration=300, colorbar=True ))
             d['quant'] = self.inputs.quant_gif
             d['quant_plot'] = self.inputs.quant_plot
-       
+
         for image in visual_qc_images :
             image.volume2gif() 
 
@@ -746,7 +748,7 @@ class ImageParam():
         axes[0].axis("off")
         axes[1].axis("off")
         axes[2].axis("off")
-   
+
 
 
         frame=[ axes[ii].imshow(get_slices(vol,ii,0), cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' ) for ii in [0,1,2]]
@@ -776,122 +778,108 @@ class ImageParam():
         print('Writing', out_fn)
 
 class QCHTML() :
-    def __init__(self, targetDir, d_fn, fn_list):
+    def __init__(self, targetDir, fn_list):
         self.fn_list = fn_list
-        self.d = json.load(open(d_fn,'r'))
-        self.html_fn=targetDir + '/html/' + os.path.basename(self.d['base'])+'.html'
-        self.html_file = open(self.html_fn,'w+')
-    
+        self.targetDir=targetDir
+        self.d = {}
+        for fn in fn_list :
+            self.d[fn] = json.load(open(fn,'r'))
+            self.d[fn]['html_fn'] = targetDir + '/html/' + os.path.basename(self.d[fn]['base'])+'.html' 
+
     def get_subject_list(self):
+        sub_list=''	
         for i, fn in enumerate(self.fn_list) :
-            base = os.path.basename(self.d['base'])
-            if i == 0 :
-                sub_list = '<a class="active" href="#'+base+'">'+base+'</a>\n'
-            else : 
-                sub_list += '<a href="#'+base+'">'+base+'</a>\n'
+            base = os.path.basename(self.d[fn]['base'])
+            print(i, base)
+            sub_list += '<a href="./%s.html" class="w3-bar-item w3-button w3-mobile">%s</a>' % (base, base)
+        sub_list += '\n</div>\n</div>\n'
+        return sub_list
+
+    def get_stage_list(self, vol_list):
+        sub_list=''
+        for i, (ID, H1, H2) in enumerate(vol_list) :
+            valid_id=False
+            for fn in self.fn_list :
+                try :
+                    self.d[fn][ID]
+                    valid_id=True
+                    break
+                except KeyError :
+                    continue
+            if valid_id and H1 != None :
+                sub_list += '<a href="#%s" class="w3-bar-item w3-button">%s</a>' % (H1, H1)
+        sub_list += '\n</div>\n</div>\n'
+        
         return sub_list
 
     def build(self) :
-        sub_list =self.get_subject_list() 
-        with open(self.html_fn,'r') as f:
-            self.start()
-            self.side_bar(sub_list)
-            self.vol('pet_3d', h1='Initialization',h2='3D Volume + Brain Mask')
-            self.vol('coreg', h1='Coregistration',h2='PET + MRI Overlap')
-            self.vol('coreg_edge_2', h2='PET + MRI Edge' )
-            self.vol('pvc', h1='Partial-volume Correction',h2='Volume' )
-            self.vol('quant', h1='Quantification',h2='Volume')
-            self.vol('quant_plot', h2='Time Activity Curves' )
-            self.end()
+        vol_list = (
+                ('pet_3d','Initialization','3D Volume + Brain Mask'), 
+                ('coreg', 'Coregistration', 'PET + MRI Overlap' ), 
+                ('coreg_edge_2', None, 'PET + MRI Edge' ),
+                ('pvc', 'Partial-volume Correction', 'Volume' ),
+                ('quant', 'Quantification', 'Volume'),
+                ('quant_plot', None, 'Time Activity Curves' ))
+        
+        shutil.copy(_file_dir+'/w3.css', self.targetDir+'/html/w3.css')
+        shutil.copy(_file_dir+'/font-awesome.min.css', self.targetDir+'/html/font-awesome.min.css')
 
-    def start(self):
+        for fn, scan_dict in self.d.items() :
+            with open(scan_dict['html_fn'],'w') as html_file:
+                print(scan_dict['html_fn'])
+                self.start(html_file)
+                html_file.writelines(self.get_subject_list())
+                html_file.writelines(self.get_stage_list(vol_list))
+                for ID, H1, H2 in  vol_list :
+                    self.vol(ID, scan_dict, html_file, h1=H1, h2=H2)
+                self.end(html_file)
+
+    def start(self, html_file):
         out_str='''<!DOCTYPE html>
         <html lang="en">
         <head>
         <title>Page Title</title>
-        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="w3.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+        <meta charset="UTF-8">
         <style>
         body {
           font-family: Arial, Helvetica, sans-serif;
         }
-        .sidebar {
-          margin: 0;
-          padding: 0;
-          width: 200px;
-          background-color: #f1f1f1;
-          position: fixed;
-          height: 100%;
-          overflow: auto;
-        }
-
-        .sidebar a {
-          display: block;
-          color: black;
-          padding: 16px;
-          text-decoration: none;
-        }
-         
-        .sidebar a.active {
-          background-color: #4CAF50;
-          color: white;
-        }
-
-        .sidebar a:hover:not(.active) {
-          background-color: #555;
-          color: white;
-        }
-
-        div.content {
-          margin-left: 200px;
-          padding: 1px 16px;
-          height: 1000px;
-        }
-
-        @media screen and (max-width: 700px) {
-          .sidebar {
-            width: 100%;
-            height: auto;
-            position: relative;
-          }
-          .sidebar a {float: left;}
-          div.content {margin-left: 0;}
-        }
-
-        @media screen and (max-width: 400px) {
-          .sidebar a {
-            text-align: center;
-            float: none;
-          }
-        }
+body {
+  padding-top: 50px; /*50px for the height of the navbar + 37px for the offset*/
+}
 
         </style>
         </head>
         <body>
-        '''
-        self.html_file.writelines(out_str)  
-        
-    def side_bar(self, sublist) :
-        out_str = '<div class="sidebar">\n' +sublist + '</div>\n<div class="content">\n'
-        self.html_file.writelines(out_str)  
+
+<div class="w3-top">
+	<div class="w3-bar w3-black">
+		<div class="w3-dropdown-hover">
+    	<button class="w3-button">Scans <i class="fa fa-caret-down"></i></button>
+    		<div class="w3-dropdown-content w3-bar-block w3-black">'''
 
 
-    def vol(self, src, h1=None, h2=None):
+        html_file.writelines(out_str)  
+    
+    def vol(self, src, d, html_file, h1=None, h2=None):
         try :
             out_str=''
             if h1 != None : 
-                out_str+='<h1>'+h1+'</h1>\n'
+                out_str+='<div id=%s> <h1>%s</h1>\n' % (h1, h1)
                 out_str+='<hr class="dashed">\n'
-
             if h2 != None : 
                 out_str+='<h2>'+h2+'</h2>\n'
-            
-            out_str+='<img src="'+'data/'+os.path.basename(self.d[src])+'" style="width:100%">'
-            shutil.copy(self.d[src], 'data/'+os.path.basename(self.d[src]))
-            self.html_file.writelines(out_str)  
+
+            out_str+='<img src="'+'data/'+os.path.basename(d[src])+'" style="width:100%">'
+            shutil.copy(d[src], 'data/'+os.path.basename(d[src]))
+            html_file.writelines(out_str)  
         except KeyError :
             pass
 
-    def end(self):
+    def end(self, html_file):
         out_str="</div>\n</body>\n</html>"
-        self.html_file.writelines(out_str)  
+        html_file.writelines(out_str)  

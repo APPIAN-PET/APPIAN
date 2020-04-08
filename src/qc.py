@@ -786,17 +786,26 @@ class QCHTML() :
             self.d[fn] = json.load(open(fn,'r'))
             self.d[fn]['html_fn'] = targetDir + '/html/' + os.path.basename(self.d[fn]['base'])+'.html' 
 
-    def get_subject_list(self):
-        sub_list=''	
+
+
+    def sidebar(self, vol_list):
+        out_str=''
+
         for i, fn in enumerate(self.fn_list) :
             base = os.path.basename(self.d[fn]['base'])
-            print(i, base)
-            sub_list += '<a href="./%s.html" class="w3-bar-item w3-button w3-mobile">%s</a>' % (base, base)
-        sub_list += '\n</div>\n</div>\n'
-        return sub_list
+            stage_string = self.get_stage_list(vol_list, base)
+            subject_string = re.sub( '_', ' ', re.sub('-',': ', base))
 
-    def get_stage_list(self, vol_list):
-        sub_list=''
+            out_str +='<div><buttonclass="w3-button w3-block w3-left-align" onclick="myAccFunc(\'accordion%d\')">%s </button>\n' % (i, subject_string)
+            out_str +='<div  id=\'accordion%d\'   class="w3-bar-block w3-hide w3-black w3-card-4">\n' % i
+            out_str +='%s\n' % stage_string
+
+            out_str +='\t\t\t</div>\n\t\t</div>\n' 
+        out_str+='\t</div>\n'
+        return out_str
+
+    def get_stage_list(self, vol_list,base):
+        stage_list=''
         for i, (ID, H1, H2) in enumerate(vol_list) :
             valid_id=False
             for fn in self.fn_list :
@@ -807,10 +816,10 @@ class QCHTML() :
                 except KeyError :
                     continue
             if valid_id and H1 != None :
-                sub_list += '<a href="#%s" class="w3-bar-item w3-button">%s</a>' % (H1, H1)
-        sub_list += '\n</div>\n</div>\n'
+                var = './'+base+'.html#'+H1
+                stage_list += '\t\t<a href="%s" class="w3-bar-item w3-button">%s</a>\n' % (var, H1)
         
-        return sub_list
+        return stage_list
 
     def build(self) :
         vol_list = (
@@ -826,44 +835,33 @@ class QCHTML() :
 
         for fn, scan_dict in self.d.items() :
             with open(scan_dict['html_fn'],'w') as html_file:
-                print(scan_dict['html_fn'])
-                self.start(html_file)
-                html_file.writelines(self.get_subject_list())
-                html_file.writelines(self.get_stage_list(vol_list))
+                html_file.writelines( self.start())
+
+                html_file.writelines(self.sidebar(vol_list))
+                html_file.writelines('<div style="margin-left:210px">\n')
                 for ID, H1, H2 in  vol_list :
                     self.vol(ID, scan_dict, html_file, h1=H1, h2=H2)
                 self.end(html_file)
 
-    def start(self, html_file):
+    def start(self):
         out_str='''<!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <title>Page Title</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="w3.css">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<html lang="en">
+<head>
+<title>APPIAN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="w3.css">
 
-        <meta charset="UTF-8">
-        <style>
-        body {
-          font-family: Arial, Helvetica, sans-serif;
-        }
-body {
-  padding-top: 50px; /*50px for the height of the navbar + 37px for the offset*/
-}
+<meta charset="UTF-8">
+<style>
+body { font-family: Verdana, Helvetica, sans-serif;  }
+.w3-button{white-space:normal; padding:4px 8px }
+</style>
+</head>
+<body>
 
-        </style>
-        </head>
-        <body>
-
-<div class="w3-top">
-	<div class="w3-bar w3-black">
-		<div class="w3-dropdown-hover">
-    	<button class="w3-button">Scans <i class="fa fa-caret-down"></i></button>
-    		<div class="w3-dropdown-content w3-bar-block w3-black">'''
-
-
-        html_file.writelines(out_str)  
+<div class="w3-sidebar w3-bar-block w3-collapse w3-card w3-animate-left w3-black" style="width:200px;" id="mySidebar">
+'''
+        return out_str
     
     def vol(self, src, d, html_file, h1=None, h2=None):
         try :
@@ -881,5 +879,28 @@ body {
             pass
 
     def end(self, html_file):
-        out_str="</div>\n</body>\n</html>"
+        out_str='''</div>
+<script>
+
+
+function myAccFunc(id) {
+  console.log(id)
+  var x = document.getElementById(id);
+  console.log(x)
+  console.log(x.className.indexOf("w3-show"))
+  
+  if (x.className.indexOf("w3-show") == -1) {
+    x.className += " w3-show";
+    x.previousElementSibling.className = 
+    x.previousElementSibling.className.replace("w3-black", "w3-red");
+  }
+   else { 
+    x.previousElementSibling.className = 
+    x.previousElementSibling.className.replace("w3-red", "w3-black");
+  }
+}
+
+</script>
+</body>
+</html>'''
         html_file.writelines(out_str)  

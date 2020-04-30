@@ -10,9 +10,9 @@ appian_path="/home/t/neuro/projects/APPIAN-PET/APPIAN/"
 #if [[ ! -f $container ]]; then
 #    singularity pull shub://APPIAN-PET/APPIAN:latest
 #fi
-
+ls -d  ds001705-download/
 if [[ ! -f ds001705-download/  ]]; then
-    aws s3 sync --no-sign-request s3://openneuro.org/ds001705 ds001705-download/
+    echo aws s3 sync --no-sign-request s3://openneuro.org/ds001705 ds001705-download/
 fi
 
 for method in $methods ; do
@@ -20,7 +20,8 @@ for method in $methods ; do
         ###
         ### RUN APPIAN
         ###
-        singularity exec -B `pwd`/../:`pwd`/../   $container bash -c  "python3 ${appian_path}/Launcher.py  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_affine.txt"
+        python3 ${appian_path}/Launcher.py  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_affine.txt
+        #singularity exec -B `pwd`/../:`pwd`/../   $container bash -c  "python3 ${appian_path}/Launcher.py  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_affine.txt"
         exit 0
         singularity exec -B `pwd`/../:`pwd`/../   $container bash -c  "python3 ${appian_path}/Launcher.py  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_affine.txt --quant-label 2 --quant-method $method --start-time 300 --$kind --quant-label-name "${method}${kind}" --quant-label 8 48 --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label-erosion 5 "
         exit 0

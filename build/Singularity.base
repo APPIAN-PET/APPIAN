@@ -24,11 +24,16 @@ echo "/opt/lib/" >> /etc/ld.so.conf.d/userLibraries.conf
 ldconfig
 
 ### Turku
-mkdir /opt/turku /opt/turku/build /opt/turku/src
-wget -O  /opt/turku/src.tar.gz https://www.dropbox.com/sh/l22cilo1ze25rj4/AAC96WoMUaigZk8DQJ9mZO1fa/tpcclib-0.7.1-Linux-x64.tar.gz?dl=1
-tar -zxf /opt/turku/src.tar.gz -C /opt/turku/src/
-mv  /opt/turku/src/bin/* /opt/bin/
-rm -rf /opt/turku
+#mkdir /opt/turku /opt/turku/build /opt/turku/src
+#wget -O  /opt/turku/src.tar.gz https://www.dropbox.com/sh/l22cilo1ze25rj4/AAC96WoMUaigZk8DQJ9mZO1fa/tpcclib-0.7.1-Linux-x64.tar.gz?dl=1
+#tar -zxf /opt/turku/src.tar.gz -C /opt/turku/src/
+#mv  /opt/turku/src/bin/* /opt/bin/
+#rm -rf /opt/turku
+
+# AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 
 ### Vim
 echo "syntax on" > /root/.vimrc

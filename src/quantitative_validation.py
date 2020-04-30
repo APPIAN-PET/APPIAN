@@ -27,8 +27,8 @@ nrm=version+"-download"
 # Default Settings #
 ####################
 appian_dir=SCRIPTPATH
-source_dir=SCRIPTPATH+"/temp/"+nrm
-target_dir=SCRIPTPATH+"/temp/out_"+nrm
+source_dir=nrm
+target_dir="out_"+nrm
 singularity_image="APPIAN-PET/APPIAN:latest"
 
 def useage():
@@ -60,7 +60,6 @@ if __name__ == '__main__' :
     ##########################################
     # Download data from Amazon Web Services #
     ##########################################
-    print(opts.source_dir)
     
     if not os.path.exists(opts.source_dir) :
         os.makedirs(opts.source_dir)
@@ -85,17 +84,19 @@ if __name__ == '__main__' :
 
     pvcMethods="idSURF VC"
     quantMethods="lp  srtm " #"lp lp-roi suv suvr srtm srtm-bf"
-
+    subs="000101 000102"
+    sess="baseline"
     #Run Quant
     #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
-    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + " --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
+    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
     cmd_quant=cmd_base + " --quant-method suvr "
     cmd_pvc=cmd_quant # --pvc-method VC "
 
     print(cmd_pvc)
 
-    cmd("singularity exec -B "+SCRIPTPATH+":"+SCRIPTPATH+ " " + opts.singularity_image +" bash -c \""+ cmd_pvc+"\"")
+    cmd(cmd_pvc)
+    #cmd("singularity exec -B "+SCRIPTPATH+":"+SCRIPTPATH+ " " + opts.singularity_image +" bash -c \""+ cmd_pvc+"\"")
 
 
     '''

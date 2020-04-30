@@ -6,7 +6,7 @@ From: ubuntu:18.04
 mkdir /opt/bin /opt/lib /opt/include /opt/share
 apt-get update
 
-apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-curses-gui vim python3.6 python3.6-dev python3-distutils python3-setuptools zlibc zlib1g-dev libssl-dev zlib1g-dev curl ants
+apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-curses-gui vim python3.6 python3.6-dev python3-distutils python3-setuptools zlibc zlib1g-dev libssl-dev zlib1g-dev curl ants unzip
 
 
 ### Python packages

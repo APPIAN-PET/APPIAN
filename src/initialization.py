@@ -224,7 +224,7 @@ class pet3DVolume(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
         infile = nib.load(self.inputs.in_file)
-        shape=infile.get_shape()
+        shape=infile.shape
 
         if len(shape) >= 4 :
             affine=infile.get_affine()

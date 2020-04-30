@@ -539,13 +539,13 @@ class Workflows:
             self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
             self.workflow.connect(self.t1_analysis_space, 'output_image',  self.visual_qc, 't1_analysis_space')
             self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.visual_qc,"mri_space_nat")
-            self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
             if opts.pvc_method != None :
                 self.visual_qc.inputs.pvc_method = opts.pvc_method;
                 self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')
             if opts.quant_method != None:
                 self.visual_qc.inputs.quant_method = opts.quant_method;
                 self.workflow.connect(self.quant, 'out_file',  self.visual_qc, 'quant')
+                self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
 
 
 

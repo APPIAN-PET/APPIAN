@@ -9,12 +9,11 @@ def cmd(command):
         while p.poll() is None:
             l = p.stdout.readline() # This blocks until it receives a newline.
             print(l,end="")
-        exit(1)
     except subprocess.CalledProcessError as exc:
         print("Status : FAIL", exc.returncode, exc.output)
-        exit(1)
     else:
-        print("Output: \n{}\n".format(output))
+        pass
+        #print("Output: \n{}\n".format(exc.output))
 
 
 file_dir, fn = os.path.split( os.path.abspath(__file__) )
@@ -90,13 +89,17 @@ if __name__ == '__main__' :
     #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
     cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
-    cmd_quant=cmd_base + " --quant-method suvr "
-    cmd_pvc=cmd_quant # --pvc-method VC "
-
-    print(cmd_pvc)
-
-    cmd(cmd_pvc)
-    #cmd("singularity exec -B "+SCRIPTPATH+":"+SCRIPTPATH+ " " + opts.singularity_image +" bash -c \""+ cmd_pvc+"\"")
+    for quant in ['--quant-method suvr', '--quant-method lp'] : #, '--quant-method srtm']:
+        cmd_quant=cmd_base + quant
+        print(cmd_quant)
+        #cmd(cmd_quant)
+        print("\n\n\n\n\n\n\n\n")
+        
+    for pvc in ['', '--pvc-method VC', '--pvc-method GTM'] :
+        cmd_pvc=cmd_base + ' --fwhm 2.5 2.5 2.5 --quant-method suvr ' + pvc
+        print(cmd_pvc)
+        cmd(cmd_pvc)
+        print("\n\n\n\n\n\n\n\n")
 
 
     '''

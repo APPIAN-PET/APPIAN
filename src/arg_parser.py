@@ -219,7 +219,7 @@ def get_parser():
     
 
     #Quality Control 
-    parser.add_argument("--no-dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=False, default=True)
+    parser.add_argument("--dashboard",dest="dashboard",help="Generate a dashboard.", action='store_const', const=True, default=False)
     parser.add_argument("--no-qc",dest="no_qc",help="Don't calculate quality control metrics.", action='store_const', const=False, default=False)  
     parser.add_argument("--translation-error",dest="translation_error",help="Misalign PET image by translation of [x,y,z] mm.",type=int, nargs='+', default=[0,0,0])
     parser.add_argument("--rotation-error",dest="rotation_error",help="Misalign PET image by rotation of [x,y,z] radians.",type=int, nargs='+', default=[0,0,0])

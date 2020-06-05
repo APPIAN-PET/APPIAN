@@ -300,7 +300,7 @@ class pvc_qc_metrics(BaseInterface):
         rec = self.inputs.rec
         acq = self.inputs.acq
         df = pd.DataFrame([], columns=metric_columns)
-
+        pvc_metrics={'mse':pvc_mse }
         for metric_name, metric_function in pvc_metrics.items():
             mse = pvc_mse(self.inputs.pvc, self.inputs.pve, fwhm)
             temp = pd.DataFrame([['pvc', sub,ses,task,run,acq,rec,'02',metric_name,mse]], columns=metric_columns)

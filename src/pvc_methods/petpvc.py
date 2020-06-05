@@ -59,7 +59,6 @@ class petpvcCommand(CommandLine):
     input_spec =  petpvcInput
     output_spec = petpvcOutput
     _cmd='petpvc'
-    roi=False 
 
 
 class petpvc4DCommand(BaseInterface):
@@ -68,6 +67,7 @@ class petpvc4DCommand(BaseInterface):
     #petpvc -i <PET> -m <MASK> -o <OUTPUT> --pvc IY -x 6.0 -y 6.0 -z 6.0 [--debug]
 
     def _run_interface(self, runtime) :
+        roi=False 
         
         in_file = self.inputs.in_file
         vol = nib.nifti1.load(in_file)
@@ -85,7 +85,7 @@ class petpvc4DCommand(BaseInterface):
                 temp_in_file = "tmp/pet_"+str(i)+".nii.gz"
 
                 temp_out_file = "tmp/pvc_"+str(i)+".nii"
-                if self.roi :
+                if roi :
                     pvc_out_file = "tmp/pvc_"+str(i)+".txt"
                 else :
                     pvc_out_file = "tmp/pvc_"+str(i)+".nii"
@@ -105,7 +105,7 @@ class petpvc4DCommand(BaseInterface):
                 print(petpvc4dNode.cmdline)
                 petpvc4dNode.run()
                 
-                if self.roi :
+                if roi :
                     print(temp_out_file)
                     txt2nii(pvc_out_file, temp_out_file,self.inputs.mask_file)
 

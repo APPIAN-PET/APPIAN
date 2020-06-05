@@ -49,7 +49,7 @@ RUN cd /opt &&\
     git clone https://github.com/APPIAN-PET/APPIAN
 
 
-RUN echo python3 /opt/APPIAN/Launcher.py > /opt/bin/appian.sh
+RUN echo python3 /opt/APPIAN/Launcher.py > /opt/bin/appian
 
 # ENVIRONMENT VARIABLES
 ENV PATH /opt/bin:$PATH

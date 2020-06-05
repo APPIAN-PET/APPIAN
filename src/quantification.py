@@ -67,30 +67,33 @@ def logan_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     end_time = opts["quant_end_time"]
     dim = list(vol.shape)
 
-    x = int_ref * 1.0/vol #[brain_mask]    
+    x = int_ref / vol #[brain_mask]    
     x[np.isnan(x) | np.isinf(x) ] = 0.
 
-    y = int_vol * 1.0/ vol # [brain_mask]
+    y = int_vol / vol # [brain_mask]
     y[np.isnan(y) | np.isinf(y) ] = 0.
 
-
+    #print(int_ref.shape)
+    #print(vol.shape)
+    #print(pd.DataFrame({'x':x[1],'y':y[1]}))
     regr_start = np.sum(start_time >= np.array(time_frames)) 
     regr_end = np.sum(end_time >= np.array(time_frames)) 
     print("Start frame (counting from 0):", regr_start)
     x = x[:, regr_start:regr_end]
     y = y[:, regr_start:regr_end]
+    #print(linregress(x[1],y[1]))
     del vol     
     del int_vol
     n_frames = regr_end - regr_start
-
     dvr = regr(x,y, dim[0],n_frames )
-    #dvr = np.array(list(map(slope,x,y))) 
 
     if opts["quant_DVR"] :
+        print('DVR')
         out = dvr
     else :
+        print('BPnd')
         out = dvr - 1 #BPnd
-    print(out)
+    print('Logan Plot:',out)
     return out
 
 def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
@@ -215,7 +218,7 @@ def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_f
     df_int = {"Time":time_frames, "int_ref":int_ref[0,:]}
 
     for i in range(pet_roi.shape[0]) :
-        df.update({"roi-"+str(i):pet_roi[i,:],"int_roi-"+str(i):pet_roi[i,:] })
+        df.update({"roi-"+str(i):pet_roi[i,:],"int_roi-"+str(i):int_roi[i,:] })
         df_tac.update({"roi-"+str(i):pet_roi[i,:]})
         df_int.update({"int_roi-"+str(i):pet_roi[i,:]})
 
@@ -228,8 +231,9 @@ def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_f
     df_int.columns = ['Time', 'TAC', 'Radio.Conc.']
     
     df = pd.DataFrame(df)
-    df = pd.melt(df,id_vars=['Time'])
-    df.columns = ['Time', 'TAC', 'Radio.Conc.']
+    #df = pd.melt(df,id_vars=['Time'])
+    #df.columns = ['Time', 'TAC', 'Radio.Conc.']
+
     df.to_csv(df_fn)
     
     #Plotting
@@ -257,9 +261,11 @@ def regr(x,y,tac_len, n_frames):
 def integrate_tac(vol, time_frames):
     int_vol = np.zeros(vol.shape).astype('f4')
     for t in range(1,len(time_frames)) :
-        integrated = simps( vol[:,0:t], time_frames[0:t], axis=1)
+        #print('vol',vol[:,0:(t+1)])
+        #print('time frames', time_frames[0:(t+1)])
+        integrated = simps( vol[:,0:(t+1)], time_frames[0:(t+1)], axis=1)
+        #print(integrated)
         int_vol[:,t] = integrated
-
     return int_vol
 
 
@@ -430,13 +436,15 @@ class ApplyModel(BaseInterface) :
         time_frames = np.array([ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ])
         n_frames=len(time_frames)
 
-    
-
         #Calculate average TAC in Ref
         ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file)
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
+
+        #If we are doing an ROI-based analysis switch from using entire voxel TAC volume to ROI TAC
+        if self.inputs.roi_based : 
+            pet_vol = pet_roi 
         
         int_roi = integrate_tac(pet_roi, time_frames)
         int_vol = integrate_tac(pet_vol, time_frames)

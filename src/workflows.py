@@ -524,28 +524,28 @@ class Workflows:
                 self.workflow.connect(self.infosource, 'ses', self.pvc_qc_metricsNode, "ses")
                 self.workflow.connect(self.infosource, 'task', self.pvc_qc_metricsNode, "task")
 
-                
-            self.visual_qc=pe.Node(interface=qc.visual_qcCommand(),name="visual_qc")
-            self.visual_qc.inputs.targetDir = opts.targetDir;
-            self.visual_qc.inputs.sourceDir = opts.sourceDir;
-            self.visual_qc.inputs.analysis_space = opts.analysis_space
-            self.workflow.connect(self.infosource, 'sid', self.visual_qc, "sub")
-            self.workflow.connect(self.infosource, 'ses', self.visual_qc, "ses")
-            self.workflow.connect(self.infosource, 'task', self.visual_qc, "task")
-            self.workflow.connect(self.infosource, 'run', self.visual_qc, "run")
-            self.workflow.connect(self.pet_input_node, self.pet_input_file, self.visual_qc, "pet")
-            self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.visual_qc, "pet_3d")
-            self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.visual_qc, "pet_brain_mask")
-            self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
-            self.workflow.connect(self.t1_analysis_space, 'output_image',  self.visual_qc, 't1_analysis_space')
-            self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.visual_qc,"mri_space_nat")
-            if opts.pvc_method != None :
-                self.visual_qc.inputs.pvc_method = opts.pvc_method;
-                self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')
-            if opts.quant_method != None:
-                self.visual_qc.inputs.quant_method = opts.quant_method;
-                self.workflow.connect(self.quant, 'out_file',  self.visual_qc, 'quant')
-                self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
+            if opts.dashboard:  
+                self.visual_qc=pe.Node(interface=qc.visual_qcCommand(),name="visual_qc")
+                self.visual_qc.inputs.targetDir = opts.targetDir;
+                self.visual_qc.inputs.sourceDir = opts.sourceDir;
+                self.visual_qc.inputs.analysis_space = opts.analysis_space
+                self.workflow.connect(self.infosource, 'sid', self.visual_qc, "sub")
+                self.workflow.connect(self.infosource, 'ses', self.visual_qc, "ses")
+                self.workflow.connect(self.infosource, 'task', self.visual_qc, "task")
+                self.workflow.connect(self.infosource, 'run', self.visual_qc, "run")
+                self.workflow.connect(self.pet_input_node, self.pet_input_file, self.visual_qc, "pet")
+                self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.visual_qc, "pet_3d")
+                self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.visual_qc, "pet_brain_mask")
+                self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
+                self.workflow.connect(self.t1_analysis_space, 'output_image',  self.visual_qc, 't1_analysis_space')
+                self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.visual_qc,"mri_space_nat")
+                if opts.pvc_method != None :
+                    self.visual_qc.inputs.pvc_method = opts.pvc_method;
+                    self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')
+                if opts.quant_method != None:
+                    self.visual_qc.inputs.quant_method = opts.quant_method;
+                    self.workflow.connect(self.quant, 'out_file',  self.visual_qc, 'quant')
+                    self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
 
 
 

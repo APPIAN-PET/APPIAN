@@ -3,7 +3,7 @@ dir=ds001705-download/
 out=out_ds001705-download/
 subs="000101 000102" # 000103 000104 000105"
 sess="baseline" # displaced"
-methods="lp pp srtm"
+methods="suv" #"lp pp srtm"
 #container=APPIAN-PET-APPIAN-master-latest.simg
 appian_path="/home/t/neuro/projects/APPIAN-PET/APPIAN/"
 

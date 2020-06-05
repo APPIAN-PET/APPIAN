@@ -112,7 +112,11 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
         exit(1)
 
     try :
-        dose=float(header["Info"]["InjectedRadioactivity"])
+        dose=float(header["RadioChem"]["InjectedRadioactivity"])
+        unit=header["RadioChem"]["InjectedRadioactivityUnits"]
+        ureg = pint.UnitRegistry()
+        radio_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
+        dose *= radio_unit_conversion
     except :
         print("Error : injected dose for scan not set in json header in entry [\"Info\"][\"InjectedRadioactivity\"]")
         exit(1)

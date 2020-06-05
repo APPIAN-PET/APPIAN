@@ -110,14 +110,15 @@ class validate_header(BaseInterface):
                 ["Time","FrameTimes","Values"],
                 ]
         if self.inputs.quant_method == "suv" :
-            fields.append([["Info","BodyWeight"],
+            fields += [["Info","BodyWeight"],
                     ["RadioChem", "InjectedRadioactivity"],
-                    ["InjectedRadioactivityUnits", "kBq"]])
-
+                    ["RadioChem","InjectedRadioactivityUnits"]]
+        print(fields)
         for f in fields :
             try :
                 test_dict=d
                 for key in f :
+                    print(key)
                     test_dict=test_dict[key]
             except ValueError :
                 pexit("Error: json header does not contain key: "+":".join(f)+"for file"+self.inputs.in_file)

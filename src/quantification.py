@@ -115,11 +115,22 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
         dose=float(header["RadioChem"]["InjectedRadioactivity"])
         unit=header["RadioChem"]["InjectedRadioactivityUnits"]
         ureg = pint.UnitRegistry()
-        radio_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
-        dose *= radio_unit_conversion
+        dose_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
+        print('Dose:', dose,'unit',unit, 'conversion',dose_unit_conversion)
+        dose *= dose_unit_conversion
+        
     except :
         print("Error : injected dose for scan not set in json header in entry [\"Info\"][\"InjectedRadioactivity\"]")
         exit(1)
+
+    try :
+        unit=header["Info"]["Unit"].split('/')[0]
+        print('PET unit:', unit)
+        pet_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
+    except KeyError:
+        pet_unit_conversion = 1
+    
+    num *= pet_unit_conversion
 
     return num / (dose/bw)
 

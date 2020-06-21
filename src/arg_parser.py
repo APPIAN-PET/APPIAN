@@ -66,7 +66,6 @@ def get_parser():
     # MRI Preprocessing Options #
     #############################
     #MRI N4 Correction
-    parser.add_argument("--no-mri-intensity-normalize",dest="mri_intensity_normalize",help="Do not perform MRI intensity normalization.", action='store_false', default=True)
     parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=0)
     parser.add_argument("--n4-bspline-order", dest="n4_bspline_order",type=int,help="Order of BSpline interpolation for N4 correction", default=None)
 

@@ -133,7 +133,7 @@ def get_workflow(name, opts):
     seg=None
 
     if opts.ants_atropos_priors == [] and opts.template == icbm_default_template :
-        opts.ants_atropos_priors = [ icbm_default_csf, icbm_default_gm, icbm_default_wm ]
+        opts.ants_atropos_priors =  file_dir+os.sep+"/atlas/MNI152/mni_icbm152_%02d_tal_nlin_asym_09c.nii.gz"
     if opts.ants_atropos_priors == [] :
         print("Warning : user did not provide alternative priors for template. This will affect your T1 MRI segmentation. Check this segmentation visually to make sure it is what you want ")
 
@@ -141,10 +141,10 @@ def get_workflow(name, opts):
         if  seg == None :
             seg = pe.Node(interface=Atropos(), name="segmentation_ants")
             seg.inputs.dimension=3
-            seg.inputs.number_of_tissue_classes=len(opts.ants_atropos_priors)
+            seg.inputs.number_of_tissue_classes=3 #len(opts.ants_atropos_priors)
             seg.inputs.initialization = 'PriorProbabilityImages'
             seg.inputs.prior_weighting = opts.ants_atropos_prior_weighting
-            seg.inputs.prior_probability_images = opts.ants_atropos_priors
+            seg.inputs.prior_image = opts.ants_atropos_priors
             seg.inputs.likelihood_model = 'Gaussian'
             seg.inputs.posterior_formulation = 'Socrates'
             seg.inputs.use_mixture_model_proportions = True
@@ -251,3 +251,10 @@ class SegmentationToBrainMask(BaseInterface):
         outputs = self.output_spec().get()
         outputs["output_image"] = self.inputs.output_image
         return outputs
+
+
+
+
+
+
+

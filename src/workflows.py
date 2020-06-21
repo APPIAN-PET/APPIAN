@@ -47,7 +47,7 @@ class Workflows:
         (self.set_datasource_anat, False, True),
         (self.set_datasource_surf, False, opts.use_surfaces),
         (self.set_datasource_base, opts.datasource_exit, True),
-        (self.set_datasink, False, True),
+        (self.init_datasink, False, True),
         (self.set_init_pet, opts.initialize_exit, True ),
         (self.set_mri_preprocess, opts.mri_preprocess_exit, True),
         (self.set_template_normalization, False, True),
@@ -58,6 +58,7 @@ class Workflows:
         (self.set_results_report, False, not opts.no_results_report ),
         (self.set_results_report_surf, False, opts.use_surfaces ),
         (self.set_qc_metrics, False, not opts.no_qc), 
+        (self.set_datasink, False, True),
         #temporarily removing dashboard #(self.set_dashboard, False, True)
         )
 
@@ -417,6 +418,7 @@ class Workflows:
         self.workflow.connect(self.quant_target_wf, self.quant_target_img, self.quant, "pet_file")
         self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask',self.quant, "brain_mask_file" )
         self.workflow.connect(self.datasource, 'arterial_file', self.quant, "arterial_file")
+        self.workflow.connect(self.datasource, 'arterial_header_file', self.quant, "arterial_header_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
         self.workflow.connect(self.quant, 'out_df', self.datasink, 'quant/csv') 
         #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
@@ -585,6 +587,7 @@ class Workflows:
         self.workflow.connect(self.datasourcePET, 'pet',self.datasource, 'pet' )
         if opts.arterial :
             self.workflow.connect(self.datasourcePET, 'arterial_file', self.datasource, 'arterial_file')
+            self.workflow.connect(self.datasourcePET, 'arterial_header_file', self.datasource, 'arterial_header_file')
 
         # connect datasourceAnat files
         if opts.user_mri_stx != '' :
@@ -616,7 +619,7 @@ class Workflows:
     # PET Datasource #
     ##################
     def set_datasource_pet(self, opts ):
-        self.base_pet_outputs = [ 'pet', "json_header", "arterial_file" ]
+        self.base_pet_outputs = [ 'pet', "json_header", "arterial_file", "arterial_header_file" ]
         self.datasourcePET = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_pet_outputs, raise_on_empty=True, sort_filelist=False), name="datasourcePET")
         self.datasourcePET.inputs.template = '*'
         self.datasourcePET.inputs.base_directory = '/' # opts.sourceDir
@@ -645,7 +648,7 @@ class Workflows:
             pet_str = pet_str + '*rec-%s'
             pet_list += ['rec']
 
-
+        arterial_str= pet_str +'*_blood.'
         pet_str = pet_str + '*_pet.'
 
         img_str = pet_str + opts.img_ext + '*'
@@ -654,8 +657,10 @@ class Workflows:
         template_args_pet =  dict( pet=[pet_list], json_header=[pet_list] )
 
         if opts.arterial : 
-            field_template_pet["arterial_file"] = pet_str + 'dft' 
+            field_template_pet["arterial_file"] = arterial_str + 'tsv' 
             template_args_pet["arterial_file"] = [pet_list]
+            field_template_pet["arterial_header_file"] = arterial_str + 'json' 
+            template_args_pet["arterial_header_file"] = [pet_list]
 
         self.datasourcePET.inputs.field_template.update(field_template_pet)
         self.datasourcePET.inputs.template_args.update(template_args_pet)
@@ -821,12 +826,16 @@ class Workflows:
     ##############
     ###Datasink###
     ##############
-    def set_datasink(self, opts) :
+    def init_datasink(self, opts) :
         self.datasink=pe.Node(interface=nio.DataSink(), name="output")
         self.datasink.inputs.base_directory= opts.targetDir + '/'
 
         self.datasink.inputs.substitutions = [('_args_',''), ('run',''), ('_cid_', ''),  ('sid-','sub-'), ('task','task-'), ('ses','ses')]
+        return 0
+
+    def set_datasink(self, opts) :
         for i, (node, img, dim, dir_name) in enumerate(zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.datasink_dir_name)):
+            print(img, dir_name)
             self.workflow.connect(node, img, self.datasink, dir_name) 
         return 0
 

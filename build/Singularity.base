@@ -12,7 +12,7 @@ apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-
 ### Python packages
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.6 get-pip.py
-pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image webcolors pint  
+pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib==3.3.0rc1 nibabel sklearn seaborn wget SimpleITK scikit-image webcolors pint  
 pip3 install --upgrade numpy
 
 ### ANTsPy
@@ -40,11 +40,8 @@ echo "syntax on" > /root/.vimrc
 echo "set tabstop=4 shiftwidth=4 expandtab smartindent hlsearch " >> /root/.vimrc
 echo set undofile undodir=~/.vim/undodir >> /root/.vimrc
 
-### ANTs Scripts
-cd /opt/
-git clone https://github.com/stnava/ANTs.git
-cp `find ANTs/ -name "*sh"` /opt/bin/
-rm -rf /opt/ANTs
+### Copy ANTs Scripts and N4 Bias 
+cp /usr/lib/ants/* /opt/bin
 
 ### PETPVC
 wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Linux.tar.gz
@@ -52,7 +49,8 @@ tar -zxvf PETPVC-1.2.4-Linux.tar.gz
 cp -r PETPVC-1.2.4/* /opt/
 rm -r PETPVC*
 
-echo python3 /opt/APPIAN/Launcher.py > /opt/bin/appian.sh
+echo python3 /opt/APPIAN/Launcher.py > /opt/bin/appian
+chmod 777 /opt/bin/appian
 
 %environment
 # ENVIRONMENT VARIABLES

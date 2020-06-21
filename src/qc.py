@@ -477,7 +477,7 @@ class plot_qcCommand (BaseInterface):
             self.inputs.out_file = self._gen_output()
         print('Out file:', self.inputs.out_file)
         #plt.tight_layout()
-        plt.savefig(self.inputs.out_file, bbox_inches="tight", dpi=1000, width=2000)
+        plt.savefig(self.inputs.out_file, bbox_inches="tight", dpi=300, width=2000)
         plt.clf()
         return runtime
 
@@ -749,8 +749,6 @@ class ImageParam():
         axes[1].axis("off")
         axes[2].axis("off")
 
-
-
         frame=[ axes[ii].imshow(get_slices(vol,ii,0), cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' ) for ii in [0,1,2]]
         nframes_per_alpha=self.nframes
         total_frames=nframes_per_alpha * len(alpha) 
@@ -772,6 +770,7 @@ class ImageParam():
             fig.colorbar(frame[2], shrink=0.35 )
         plt.tight_layout()
         stime=time.time()
+        print('Total Frames:', total_frames)
         ani = animation.FuncAnimation(fig, animate, frames=total_frames, interval=duration, blit=True, repeat_delay=1000)
         ani.save(out_fn, dpi=self.dpi) #, writer='imagemagick')
         print(time.time()-stime)  
@@ -838,7 +837,7 @@ class QCHTML() :
                 html_file.writelines( self.start())
 
                 html_file.writelines(self.sidebar(vol_list))
-                html_file.writelines('<div style="margin-left:210px">\n')
+                html_file.writelines('<div style="margin-left:260px">\n')
                 for ID, H1, H2 in  vol_list :
                     self.vol(ID, scan_dict, html_file, h1=H1, h2=H2)
                 self.end(html_file)

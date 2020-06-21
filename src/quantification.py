@@ -284,19 +284,10 @@ def integrate_tac(vol, time_frames):
     return int_vol
 
 
-def read_arterial_file(arterial_file, header) :
-    ref_times = []
-    ref_tac = []
-    time_unit_conversion = 1.
-    radio_unit_conversion = 1.
-    
-    ureg = pint.UnitRegistry()
-
-    try :
-        pet_radio_unit = header['Info']['Unit']
-    except KeyError :
-        print('Exit: Radioactivity units not set in PET json header in Info:Unit. Assuming same units for radioactivity cocnentrations in PET image and arterial input.')
-        exit(1)
+def read_dft(arterfial_file, pet_radio_unit, ureg):
+    '''
+        Read arterial data from .dft file
+    '''
 
     with open(arterial_file, 'r') as f:
         for i, l in enumerate(f.readlines()) :
@@ -329,14 +320,58 @@ def read_arterial_file(arterial_file, header) :
             except ValueError : continue
     return np.array(ref_times), np.array(ref_tac)
 
-def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,  arterial_file=None):
+
+
+def read_arterial_file(arterial_file,arterial_header_file, header) :
+    ref_times = []
+    ref_tac = []
+    time_unit_conversion = 1.
+    radio_unit_conversion = 1.
+    
+    ureg = pint.UnitRegistry()
+
+    split =lambda string : [ x for x in re.split('\t| |,', string) if x != '' ] 
+    
+    try :
+        pet_radio_unit = header['Info']['Unit']
+    except KeyError :
+        print('Error: Radioactivity units not set in PET json header in Info:Unit.')
+        exit(1)
+
+    
+    arterial_header =  json.load(open(arterial_header_file,"r"))
+    
+    try :
+        plasma_radio_unit = split(arterial_header['plasma_radioactivity']['Units'].rstrip('\n'))[0].split('/')[0]
+    except KeyError :
+        print('Error: Radioactivity units not set in arterial json header in plasma_radioactivity:Units.')
+        exit(1)
+
+    try :
+        time_unit = split(arterial_header['time']['Units'].rstrip('\n'))[0].split('/')[0]
+    except KeyError :
+        print('Error: Radioactivity units not set in arterial json header in plasma_radioactivity:Units.')
+        exit(1)
+
+    print('Conversions for arterial input file')
+    print('Plasma:', plasma_radio_unit, '-->', pet_radio_unit)
+    print('Time:', time_unit_conversion, '-->', 's')
+    radio_unit_conversion = ureg.Quantity(plasma_radio_unit).to(pet_radio_unit).magnitude
+    df = pd.read_csv(arterial_file,sep='\t')
+    print(df)
+    
+    time_unit_conversion = ureg.Quantity(time_unit).to('sec').magnitude
+    return df['time'].values*time_unit_conversion, df['plasma_radioactivity'].values * radio_unit_conversion
+
+
+def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,  arterial_file=None, arterial_header_file=None):
     ref_tac = np.zeros([1,len(time_frames)])
     ref_times = time_frames
     time_frames = np.array(time_frames)
     
     if isdefined(arterial_file) and arterial_file != None : 
         '''read arterial input file'''
-        ref_times, ref_tac = read_arterial_file(arterial_file, header)
+        ref_times, ref_tac = read_arterial_file(arterial_file, arterial_header_file, header)
         ref_tac = ref_tac.reshape(1,-1)
 
     elif isdefined(ref_file) and  ref_file != None :
@@ -406,7 +441,8 @@ class ApplyModelInput(TraitedSpec):
     brain_mask_file = File( desc=" .dft ROI values") #,default_value=None, usedefault=True)
     reference_file = File(mandatory=True, desc=" .dft ROI values") #, usedefault=True, default_value=None)
     roi_file = File( desc=" .dft ROI values") #, usedefault=True, default_value=None)
-    arterial_file = File( desc=" .dft ROI values")
+    arterial_file = File( desc=" .tsv ")
+    arterial_header_file = File( desc=" .json ")
     quant_method = traits.Str(mandatory=True)
     roi_based = traits.Bool(mandatory=False)
     opts = traits.Dict(mandatory=True)
@@ -422,6 +458,7 @@ class ApplyModel(BaseInterface) :
         ref_file = self.inputs.reference_file
         header_file = self.inputs.header_file
         arterial_file = self.inputs.arterial_file
+        arterial_header_file = self.inputs.arterial_header_file
         brain_mask_file = self.inputs.brain_mask_file
         roi_file = self.inputs.roi_file
         opts = self.inputs.opts
@@ -452,7 +489,7 @@ class ApplyModel(BaseInterface) :
         n_frames=len(time_frames)
 
         #Calculate average TAC in Ref
-        ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file)
+        ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file,arterial_header_file)
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )

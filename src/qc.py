@@ -46,10 +46,13 @@ from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_
 
 _file_dir, fn =os.path.split( os.path.abspath(__file__) )
 
-def load_3d(fn):
+def load_3d(fn, t=0):
+    print('Reading Frame %d'%t,'from', fn)
     img = nib.load(fn)
     vol = img.get_data() 
     hd  = img.header
+    if len(vol.shape) == 4 :
+        vol = vol[:,:,:,t]
     vol = vol.reshape(vol.shape[0:3] )
     img = nib.Nifti1Image(vol, img.affine)
     return img, vol
@@ -578,7 +581,7 @@ class visual_qcOutput(TraitedSpec):
     pet_3d_gif = traits.File(desc="Output file")
     pet_coreg_gif = traits.File(desc="Output file")
     pet_coreg_edge_2_gif = traits.File(desc="Output file")
-    pvc_gif = traits.File(desc="Output file")
+    pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
     out_json = traits.File(desc="Output file")
 
@@ -605,7 +608,7 @@ class visual_qcInput(BaseInterfaceInputSpec):
     pet_3d_gif = traits.File(desc="Output file")
     pet_coreg_edge_2_gif = traits.File(desc="Output file")
     pet_coreg_gif = traits.File(desc="Output file")
-    pvc_gif = traits.File(desc="Output file")
+    pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
     out_json = traits.File(desc="Output file")
 
@@ -625,7 +628,6 @@ class visual_qcCommand(BaseInterface):
             out_str +=  '_'+'run-' + self.inputs.run
         dname = os.getcwd() + os.sep + out_str + fname
         return dname
-
     def _run_interface(self, runtime):
         #Set outputs
         self.inputs.pet_3d_gif = self._gen_output('_pet_3d.gif')
@@ -648,8 +650,10 @@ class visual_qcCommand(BaseInterface):
                 ]
 
         if isdefined(self.inputs.pvc) :
-            self.inputs.pvc_gif = self._gen_output('_pvc.gif')
-            visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[1.25], duration=300   ))
+            dims = nib.load(self.inputs.pvc).shape
+            time_frames = 1 if len(dims) == 3 else dims[3]
+            self.inputs.pvc_gif = [ self._gen_output('_%d_pvc.gif'%f) for f in range(time_frames)]
+            visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[1.25], duration=300, time_frames=time_frames, ndim=len(dims), nframes=15,colorbar=True))
             d['pvc'] = self.inputs.pvc_gif
 
         if isdefined(self.inputs.quant) :
@@ -689,7 +693,7 @@ def get_slices(vol,  dim, i) :
     return r
 
 class ImageParam():
-    def __init__(self,in_fn,out_fn, overlay_fn=None, alpha=[1.], dpi=100, duration=100, cmap1=plt.cm.nipy_spectral, cmap2=plt.cm.gray, colorbar=False, edge_1=-1, edge_2=-1,nframes=45):
+    def __init__(self,in_fn,out_fn, overlay_fn=None, alpha=[1.], dpi=100, duration=100, cmap1=plt.cm.nipy_spectral, cmap2=plt.cm.gray, colorbar=False, edge_1=-1, edge_2=-1,nframes=15, time_frames=1, ndim=3):
         self.in_fn = in_fn
         self.out_fn = out_fn
         self.alpha = alpha
@@ -702,9 +706,11 @@ class ImageParam():
         self.edge_1 = edge_1
         self.edge_2 = edge_2
         self.nframes = nframes
+        self.ndim = ndim
+        self.time_frames=time_frames
 
-    def load_isotropic(self,in_fn):
-        vol_img, vol = load_3d(in_fn)
+    def load_isotropic(self,in_fn,t=0):
+        vol_img, vol = load_3d(in_fn,t)
         sep =[ get_spacing(vol_img.affine, i) for i in range(3) ]
         min_unit=np.min(np.abs(sep))
         #new_units=[min_unit*np.sign(sep[0]), min_unit*np.sign(sep[1]), min_unit*np.sign(sep[2]) ] 
@@ -724,57 +730,65 @@ class ImageParam():
 
         def apply_tfm(img, sigma):
             if sigma >= 0  : 
-                #img = anisotropic_diffusion(img,kappa=100, niter=10) 
                 img = gaussian_filter(img, sigma)
                 img = np.sqrt(np.sum(np.abs(np.gradient(img)),axis=0)) 
                 img[ img < threshold_otsu(img) ] =0 
             return img
+        img = nib.load(in_fn)
+        ndim=len(img.shape)
+        full_vol = img.get_data()
+        vmin, vmax  = (np.min(full_vol)*.02, np.max(full_vol)*0.98 )
+        tmax=1
+        if ndim == 4 :
+            tmax = nib.load(in_fn).shape[3]
+        for t in range(tmax) :
+            vol_img, vol = self.load_isotropic(in_fn,t)
+            vol = apply_tfm(vol,self.edge_1)
 
-        vol_img, vol = self.load_isotropic(in_fn)
-        vol = apply_tfm(vol,self.edge_1)
+            if overlay_fn != None :
+                overlay_img, overlay_vol = self.load_isotropic(overlay_fn)
+                overlay_vol = apply_tfm(overlay_vol,self.edge_2)
+                omin, omax  = (np.min(overlay_vol), np.max(overlay_vol) )#np.percentile(vol, [1,99])
 
-        if overlay_fn != None :
-            overlay_img, overlay_vol = self.load_isotropic(overlay_fn)
-            overlay_vol = apply_tfm(overlay_vol,self.edge_2)
-            omin, omax  = (np.min(overlay_vol), np.max(overlay_vol) )#np.percentile(vol, [1,99])
+            #np.percentile(vol, [1,99])
 
-        vmin, vmax  = (np.min(vol)*.02, np.max(vol)*0.98 )#np.percentile(vol, [1,99])
+            frames=[]
+            plt.clf()
+            fig = plt.figure()
 
-        frames=[]
-        plt.clf()
-        fig = plt.figure()
+            axes=[fig.add_subplot(1, 3, ii) for ii in [1,2,3]]
+            axes[0].axis("off")
+            axes[1].axis("off")
+            axes[2].axis("off")
 
-        axes=[fig.add_subplot(1, 3, ii) for ii in [1,2,3]]
-        axes[0].axis("off")
-        axes[1].axis("off")
-        axes[2].axis("off")
+            frame=[ axes[ii].imshow(get_slices(vol,ii,0), cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' ) for ii in [0,1,2]]
+            nframes_per_alpha= self.nframes
+            total_frames=nframes_per_alpha * len(alpha) 
+            def animate(i):
+                alpha_level = int(i / nframes_per_alpha)
+                ii = i % nframes_per_alpha
+                for dim in [0,1,2] :
+                    idx = np.round(vol.shape[dim] * ii / (self.nframes+0.0)).astype(int)
+                    r = get_slices(vol, dim, idx)
 
-        frame=[ axes[ii].imshow(get_slices(vol,ii,0), cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' ) for ii in [0,1,2]]
-        nframes_per_alpha=self.nframes
-        total_frames=nframes_per_alpha * len(alpha) 
-        def animate(i):
-            alpha_level = int(i / nframes_per_alpha)
-            ii = i % nframes_per_alpha
-            for dim in [0,1,2] :
-                idx = np.round(vol.shape[dim] * ii / (self.nframes+0.0)).astype(int)
-                r = get_slices(vol, dim, idx)
+                    frame[dim] = axes[dim].imshow(r.T, cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' )
 
-                frame[dim] = axes[dim].imshow(r.T, cmap=cmap1, animated=True,origin='lower', vmin=vmin, vmax=vmax, interpolation='gaussian' )
+                    if overlay_fn != None :
+                        m = get_slices(overlay_vol, dim, idx)
+                        frame[dim] = axes[dim].imshow(m.T,alpha=alpha[alpha_level], cmap=cmap2, vmin=omin, vmax=omax, interpolation='gaussian', origin='lower', animated=True)
+                return frame
 
-                if overlay_fn != None :
-                    m = get_slices(overlay_vol, dim, idx)
-                    frame[dim] = axes[dim].imshow(m.T,alpha=alpha[alpha_level], cmap=cmap2, vmin=omin, vmax=omax, interpolation='gaussian', origin='lower', animated=True)
-            return frame
-
-        if self.colorbar :
-            fig.colorbar(frame[2], shrink=0.35 )
-        plt.tight_layout()
-        stime=time.time()
-        print('Total Frames:', total_frames)
-        ani = animation.FuncAnimation(fig, animate, frames=total_frames, interval=duration, blit=True, repeat_delay=1000)
-        ani.save(out_fn, dpi=self.dpi) #, writer='imagemagick')
-        print(time.time()-stime)  
-        print('Writing', out_fn)
+            if self.colorbar :
+                fig.colorbar(frame[2], shrink=0.35 )
+            plt.tight_layout()
+            stime=time.time()
+            print('Total Frames:', total_frames)
+            ani = animation.FuncAnimation(fig, animate, frames=total_frames, interval=duration, blit=True, repeat_delay=1000)
+            if ndim == 4 :
+                out_fn = self.out_fn[t] 
+            ani.save(out_fn, dpi=self.dpi) #, writer='imagemagick')
+            print(time.time()-stime)  
+            print('Writing', out_fn)
 
 class QCHTML() :
     def __init__(self, targetDir, fn_list):
@@ -854,6 +868,7 @@ class QCHTML() :
 <style>
 body { font-family: Verdana, Helvetica, sans-serif;  }
 .w3-button{white-space:normal; padding:4px 8px }
+.mySlides {display:none;}
 </style>
 </head>
 <body>
@@ -871,8 +886,19 @@ body { font-family: Verdana, Helvetica, sans-serif;  }
             if h2 != None : 
                 out_str+='<h2>'+h2+'</h2>\n'
 
-            out_str+='<img src="'+'data/'+os.path.basename(d[src])+'" style="width:100%">'
-            shutil.copy(d[src], 'data/'+os.path.basename(d[src]))
+            #QC gifs can either be a filepath or a list of filepaths
+            #Lists of file paths are used for displaying volumes with multiple frames
+            if not type(d[src]) == list :
+                out_str+='<img src="'+'data/'+os.path.basename(d[src])+'" style="width:50%">\n'
+                shutil.copy(d[src], 'data/'+os.path.basename(d[src]))
+            else : 
+                out_str += '<div class="w3-content w3-display-container">\n'
+                for fn in d[src] : 
+                    shutil.copy(fn, 'data/'+os.path.basename(fn))
+                    out_str += '<img class=mySlides src=\"data/%s\" style="width:100">\n'%os.path.basename(fn)
+                out_str+='<button class="w3-button w3-black w3-display-left" onclick="plusDivs(-1)">&#10094;</button>\n'
+                out_str+='<button class=\"w3-button w3-black w3-display-right\" onclick=\"plusDivs(1)\">&#10095;</button>\n'
+                out_str+='</div>'
             html_file.writelines(out_str)  
         except KeyError :
             pass
@@ -898,6 +924,25 @@ function myAccFunc(id) {
     x.previousElementSibling.className.replace("w3-red", "w3-black");
   }
 }
+
+var slideIndex = 1;
+showDivs(slideIndex);
+
+function plusDivs(n) {
+  showDivs(slideIndex += n);
+}
+
+function showDivs(n) {
+  var i;
+  var x = document.getElementsByClassName("mySlides");
+  if (n > x.length) {slideIndex = 1}
+  if (n < 1) {slideIndex = x.length} ;
+  for (i = 0; i < x.length; i++) {
+    x[i].style.display = "none";
+  }
+  x[slideIndex-1].style.display = "block";
+}
+
 
 </script>
 </body>

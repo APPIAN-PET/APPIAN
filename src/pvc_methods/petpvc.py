@@ -27,7 +27,7 @@ def txt2nii(in_file, out_file, mask_file) :
     out = nib.Nifti1Image(out_data, ref.get_affine())
     out.to_filename(out_file )
 
-def concatenate_volumes(tmax, temp_string="tmp/pvc_<frame>.nii" ) : 
+def concatenate_volumes(tmax, temp_string="tmp/pvc_<frame>.nii.gz" ) : 
     for i in range(tmax) :
         temp_out_file = re.sub("<frame>", str(i), temp_string)
         temp_vol =  nib.load(temp_out_file)
@@ -67,7 +67,11 @@ class petpvc4DCommand(BaseInterface):
     #petpvc -i <PET> -m <MASK> -o <OUTPUT> --pvc IY -x 6.0 -y 6.0 -z 6.0 [--debug]
 
     def _run_interface(self, runtime) :
-        roi=False 
+        roi = False
+        # Check if ROI-based PVC method. Just GTM so far.
+        
+        if self._suffix in ['GTM'] : 
+            roi=True
         
         in_file = self.inputs.in_file
         vol = nib.nifti1.load(in_file)
@@ -84,7 +88,7 @@ class petpvc4DCommand(BaseInterface):
                 temp_vol = vol.dataobj[:, :, :, i ]
                 temp_in_file = "tmp/pet_"+str(i)+".nii.gz"
 
-                temp_out_file = "tmp/pvc_"+str(i)+".nii"
+                temp_out_file = "tmp/pvc_"+str(i)+".nii.gz"
                 if roi :
                     pvc_out_file = "tmp/pvc_"+str(i)+".txt"
                 else :
@@ -106,7 +110,7 @@ class petpvc4DCommand(BaseInterface):
                 petpvc4dNode.run()
                 
                 if roi :
-                    print(temp_out_file)
+                    print('Converting from txt to volume')
                     txt2nii(pvc_out_file, temp_out_file,self.inputs.mask_file)
 
             print(self.inputs.out_file)

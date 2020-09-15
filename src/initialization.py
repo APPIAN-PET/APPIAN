@@ -48,8 +48,15 @@ class petBrainMask(BaseInterface):
             #Load PET 3D volume
         
         img = nib.load(self.inputs.in_file)
-        vol = gaussian_filter( img.get_data(), 1 ) 
-        vol[ vol < threshold_otsu(vol[vol>0]) ] = 0 
+        vol = gaussian_filter( img.get_fdata(), 1 ) 
+
+        if vol.max() == vol.min() : 
+            print('Error: PET image appears to be empty',self.inputs.in_file)
+            exit(1)
+        non_zero_idx = vol>0
+        non_zero_vxl = vol[non_zero_idx]
+        otsu_voxel_threshold = threshold_otsu(non_zero_vxl)
+        vol[ vol < otsu_voxel_threshold  ] = 0 
         vol[ vol > 0 ] = 1 
         nib.Nifti1Image(vol, img.affine, img.header).to_filename(self.inputs.out_file)
         return runtime

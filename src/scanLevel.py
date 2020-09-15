@@ -134,16 +134,19 @@ def gen_args(opts, subjects):
 
                     if not os.path.exists(pet_fn):
                         report_row['PET Volume']=pet_string
+                        print('Warning: could not find PET file', pet_string)
                     else :
                         report_row['PET Volume']='OK'
 
                     if not os.path.exists(pet_header_fn):
                         report_row['PET Header']=pet_header_string
+                        print('Warning: could not find PET header file', pet_header_fn)
                     else : 
                         report_row['PET Header']='OK'
 
                     if not os.path.exists(mri_fn):
                         report_row['MRI Volume']=mri_string
+                        print('Warning: could not find MRI', mri_fn)
                     else : 
                         report_row['MRI Volume']='OK'
 

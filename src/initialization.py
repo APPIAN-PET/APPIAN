@@ -48,11 +48,14 @@ class petBrainMask(BaseInterface):
             #Load PET 3D volume
         
         img = nib.load(self.inputs.in_file)
-        vol = gaussian_filter( img.get_fdata(), 1 ) 
+        vol = img.get_fdata()
 
         if vol.max() == vol.min() : 
             print('Error: PET image appears to be empty',self.inputs.in_file)
+            print('\tMin: {}, Mean: {}, Max: {}', vol.min(), vol.mean(), vol.max())
             exit(1)
+        vol_smooth = gaussian_filter( vol, 1 ) 
+
         non_zero_idx = vol>0
         non_zero_vxl = vol[non_zero_idx]
         otsu_voxel_threshold = threshold_otsu(non_zero_vxl)
@@ -236,7 +239,7 @@ class pet3DVolume(BaseInterface):
 
         if len(shape) >= 4 :
             affine=infile.get_affine()
-            data = infile.get_data()
+            data = infile.get_fdata()
             ti=np.argmin(data.shape)
             dims = list(data.shape) 
             dims.remove(dims[ti])
@@ -246,12 +249,7 @@ class pet3DVolume(BaseInterface):
 
             first=int(floor(nFrames*rank))
             last=nFrames
-            #print(self.inputs.in_file)
-            #for t in range(data.shape[3]) :
-            #    print(np.sum(data[:,:,:,t]))
-            #volume_subsets=np.split(data, [first,last], axis=ti) 
             volume_subset=data[:,:,:,first:last] #volume_subsets[1]
-            #print(np.sum(volume_subset))
             volume_src=np.mean(volume_subset, axis=ti)
             print("Frames to concatenate -- First:", first, "Last:", last) 
             outfile = nib.Nifti1Image(volume_src, affine, infile.header)

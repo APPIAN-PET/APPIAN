@@ -40,19 +40,13 @@ class petBrainMask(BaseInterface):
     output_spec = pet_brain_maskOutput
     _suffix = "_brain_mask"
 
-    def _run_interface(self, runtime):
-        if not isdefined(self.inputs.out_file):
-            base = os.path.basename(self.inputs.in_file)
-            split = splitext(base)
-            self.inputs.out_file = os.getcwd() +os.sep + split[0] + self._suffix + split[1]
-            #Load PET 3D volume
-        
-        img = nib.load(self.inputs.in_file)
+    def _pet_brain_mask(self, in_file, out_file,verbose=True):
+        img = nib.load(in_file)
         vol = img.get_fdata()
 
         if vol.max() == vol.min() : 
-            print('Error: PET image appears to be empty',self.inputs.in_file)
-            print('\tMin: {}, Mean: {}, Max: {}', vol.min(), vol.mean(), vol.max())
+            print('\nError: PET image appears to be empty',in_file)
+            print('\tMin: {}, Mean: {}, Max: {}\n'.format(vol.min(), vol.mean(), vol.max()))
             exit(1)
         vol_smooth = gaussian_filter( vol, 1 ) 
 
@@ -61,7 +55,17 @@ class petBrainMask(BaseInterface):
         otsu_voxel_threshold = threshold_otsu(non_zero_vxl)
         vol[ vol < otsu_voxel_threshold  ] = 0 
         vol[ vol > 0 ] = 1 
-        nib.Nifti1Image(vol, img.affine, img.header).to_filename(self.inputs.out_file)
+        nib.Nifti1Image(vol, img.affine, img.header).to_filename(out_file)
+        return 0
+
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            base = os.path.basename(self.inputs.in_file)
+            split = splitext(base)
+            self.inputs.out_file = os.getcwd() +os.sep + split[0] + self._suffix + split[1]
+            #Load PET 3D volume
+
+        self._pet_brain_mask( self.inputs.in_file, self.inputs.out_file)
         return runtime
 
     def _list_outputs(self):
@@ -220,6 +224,8 @@ class pet3DVolumeInput(BaseInterfaceInputSpec):
     out_file = File(argstr="%s", desc="Image after centering")
     verbose = traits.Int(argstr="-verbose", usedefault=True, default_value=True, desc="Write messages indicating progress")
 
+
+
 class pet3DVolume(BaseInterface):
     input_spec = pet3DVolumeInput
     output_spec = pet3DVolumeOutput
@@ -231,15 +237,23 @@ class pet3DVolume(BaseInterface):
         dname = os.getcwd()
         return dname+ os.sep+fname_list[0] + _suffix + fname_list[1]
 
-    def _run_interface(self, runtime):
-        if not isdefined(self.inputs.out_file):
-            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
-        infile = nib.load(self.inputs.in_file)
+    def _pet_3D_volume(self,in_file, out_file,verbose=True):
+        infile = nib.load(in_file)
         shape=infile.shape
 
+        if verbose :
+            print('\tCreate 3D PET volume')
+            print('\t\tInput file', in_file )
+            print('\t\tOutput file', out_file )
+
         if len(shape) >= 4 :
-            affine=infile.get_affine()
+            affine=infile.affine
             data = infile.get_fdata()
+
+
+            if data.max() == data.min() : 
+                print('\nError: PET image appears to be empty',in_file)
+                print('\tMin: {}, Mean: {}, Max: {}\n'.format(vol.min(), vol.mean(), vol.max()))
             ti=np.argmin(data.shape)
             dims = list(data.shape) 
             dims.remove(dims[ti])
@@ -251,13 +265,26 @@ class pet3DVolume(BaseInterface):
             last=nFrames
             volume_subset=data[:,:,:,first:last] #volume_subsets[1]
             volume_src=np.mean(volume_subset, axis=ti)
-            print("Frames to concatenate -- First:", first, "Last:", last) 
+            if verbose :
+                print("\t\tFrames to concatenate -- First:", first, "Last:", last) 
             outfile = nib.Nifti1Image(volume_src, affine, infile.header)
             outfile.set_qform(affine)
-            nib.save(outfile, self.inputs.out_file)
+            nib.save(outfile, out_file)
         else :
             #If there is no "time" dimension (i.e., in 3D file), just copy the PET file
-            shutil.copy(self.inputs.in_file, self.inputs.out_file)
+            shutil.copy(in_file, out_file)
+        if verbose :
+            print('\tDone.')
+
+        return 0
+
+
+    def _run_interface(self, runtime):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+
+        self._pet_3D_volume(self.in_file, self.inputs.out_file)
+
         return runtime
 
     def _list_outputs(self):

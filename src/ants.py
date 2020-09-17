@@ -160,7 +160,7 @@ class APPIANRegistration(BaseInterface):
     def read_user_command_line(self) :
         cmdline=''
         if not os.path.exists(self.inputs.user_ants_command) :
-            print("Error : could not read --user-ants-normalization file specified by user ", self.inputs.user_ants_command)
+            print("Error : could not read --user-ants-command file specified by user ", self.inputs.user_ants_command)
             exit(1)
         else :
             with open(self.inputs.user_ants_command) as f:

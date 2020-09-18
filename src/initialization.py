@@ -283,7 +283,7 @@ class pet3DVolume(BaseInterface):
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
 
-        self._pet_3D_volume(self.in_file, self.inputs.out_file)
+        self._pet_3D_volume(self.inputs.in_file, self.inputs.out_file)
 
         return runtime
 

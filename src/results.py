@@ -131,6 +131,13 @@ class resultsCommand( BaseInterface):
         
         #Load PET image
         image = nib.load(self.inputs.in_file).get_data()
+
+        print('-->', image.shape[-1], len(frames))
+        if len(image.shape) == 4 and image.shape[-1] != len(frames) :
+            print('Error: Length of PET time dimension and frames specified in header do not match')
+            print(self.inputs.in_file, image.shape[-1])
+            print(self.inputs.pet_header_json, len(frames))
+            exit(1)
         
         #Load Label image
         labels_all = np.round(nib.load(self.inputs.mask).get_data()).astype(int).reshape(-1,)

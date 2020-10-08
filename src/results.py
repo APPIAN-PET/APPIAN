@@ -172,6 +172,10 @@ class resultsCommand( BaseInterface):
             nFrames=int(image.shape[3])
         else :
             nFrames=1
+
+        if nFrames != len(frames) : 
+            print('Error: frames in json header = {} but frames in PET volume is {}'.format(nFrames,len(nframes)))
+            exit(1)
         
         df_list=[]
         for f in range(nFrames) :

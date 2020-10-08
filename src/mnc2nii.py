@@ -1,4 +1,5 @@
 import os
+import re
 import nibabel as nib
 import numpy as np
 from glob import glob
@@ -22,7 +23,7 @@ print('%s .mnc and .mnc.gz files found'%(len(all_mncs)))
 already_done = []
 for mnc in all_mncs:
     print(mnc)
-    flnm = os.path.splitext('.')[0]
+    flnm = re.sub('.mnc.gz', '', re.sub('.mnc', '', mnc))
     print(flnm)
     ni = glob('%s.ni*'%flnm)
     if len(ni) > 0:
@@ -36,7 +37,7 @@ print('the following files will be converted:')
 
 ### TRANSFORM FILES
 for mnc in all_mncs:
-    flnm = os.path.splitext(mnc)[0]
+    flnm = re.sub('.mnc', '', re.sub('.mnc.gz', '', mnc))
     if mnc[-1] == 'z':
         new_nm = '%s.nii.gz'%flnm
     else:

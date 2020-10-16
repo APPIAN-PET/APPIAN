@@ -35,16 +35,22 @@ import pint
 
 
 def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
+    #
+    # ROI / Cp = K x Cp_Int / Cp + V0
+    #
+    # vol / ref = K x int_ref / ref + V0
+    #
+    
     n_frames = len(time_frames)
     start_time = opts["quant_start_time"]
     end_time = opts["quant_end_time"]
     dim = list(vol.shape)
 
-    x = int_vol * (1./ vol)  
+    x = int_ref * (1./ ref)  
     x[np.isnan(x) | np.isinf(x) ] = 0.
     del int_ref
 
-    y = ref * (1./ vol)
+    y = vol * (1./ ref)
     y[np.isnan(y) | np.isinf(y) ] = 0.
 
     regr_start = np.sum(start_time > np.array(time_frames)) 

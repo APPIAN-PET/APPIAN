@@ -379,12 +379,14 @@ class coreg_qc_metricsCommand(BaseInterface):
 
         def image_read(fn) : 
             img, vol = load_3d(fn)
+            vol = vol.astype(float)
             aff = img.affine
             origin = [ aff[0,3], aff[1,3], aff[2,3]]
             spacing = [ get_spacing(aff, 0), get_spacing(aff, 1), get_spacing(aff, 2) ]
             return ants.from_numpy( vol, origin=origin, spacing=spacing )
 
         for metric in coreg_metrics :
+            print("t1 ",t1)
             fixed = image_read( t1  )
             moving = image_read( pet )
             try :

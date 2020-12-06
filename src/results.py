@@ -67,6 +67,7 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'all')
        
         #Calculate descriptive statistics
+        '''
         descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
         workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
         workflow.connect(descriptive_statisticsNode, "sub", datasink, 'stats/sub')
@@ -74,6 +75,7 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(descriptive_statisticsNode, "task", datasink, 'stats/task')
         workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'stats/sub_task')
         workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'stats/sub_ses')
+        '''
         workflow.run() 
 
 def set_roi_labels(unique_labels, roi_labels_file) :
@@ -173,9 +175,10 @@ class resultsCommand( BaseInterface):
         else :
             nFrames=1
 
-        if nFrames != len(frames) : 
-            print('Error: frames in json header = {} but frames in PET volume is {}'.format(nFrames,len(nframes)))
-            exit(1)
+        #if nFrames != len(frames) : 
+        #    print('Error: frames in json header = {} but frames in PET volume is {}'.format(nFrames,len(frames)))
+        #    print("\tVolume file that was read:",self.inputs.in_file)
+        #    exit(1)
         
         df_list=[]
         for f in range(nFrames) :
@@ -192,9 +195,9 @@ class resultsCommand( BaseInterface):
             #Calculate srcs from weighted sum and count
             srcs = sums / counts
 
-
             #Calculate mid frame
             mid_frame = (float(frames[f][0])+float(frames[f][1]))/2.
+
             #Create frame
             frame_df=pd.DataFrame({
                 'analysis': [self.inputs.node] * n,
@@ -213,6 +216,7 @@ class resultsCommand( BaseInterface):
         df=pd.concat(df_list)
         df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
         print(df)
+        print('results filename:',self.inputs.out_file)
         df.to_csv(self.inputs.out_file,index=False)
 
         return runtime
@@ -310,7 +314,9 @@ class integrate_TACCommand( BaseInterface):
         return out_file 
 
     def _run_interface(self, runtime):
-        header = json.load(open( self.inputs.header ,"rb"))
+        print("\nhello!\n")
+        exit(0)
+        header = json.load(open( self.inputs.header ,"r"))
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1

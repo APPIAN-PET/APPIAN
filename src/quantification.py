@@ -45,8 +45,8 @@ def patlak_plot(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None )
     start_time = opts["quant_start_time"]
     end_time = opts["quant_end_time"]
     dim = list(vol.shape)
-
     x = int_ref * (1./ ref)  
+    #x = np.repeat(x,dim[0],axis=0)
     x[np.isnan(x) | np.isinf(x) ] = 0.
     del int_ref
 

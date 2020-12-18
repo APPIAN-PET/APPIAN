@@ -24,59 +24,13 @@
 ## 1. Quick Start
 
 ### Download CIMBI Open Data  <a name="quickstart"></a>
-Download the data from https://openneuro.org/datasets/ds001421/versions/00002 or using the Amazon web service command line interface (AWS CLI):
+Download the data from https://openneuro.org/datasets/ds001705/versions/1.0.0 or using the Amazon web service command line interface (AWS CLI):
 
 ```
 apt install awscli
-aws s3 sync --no-sign-request s3://openneuro.org/ds001421 ds001421-download/
+aws s3 sync --no-sign-request s3://openneuro.org/ds001705 ds001705-download/
 ```
  
-### Format data
-The data may need to be reformatted slightly to have the following structure. 
-As of version 00002 of the Cimbi data set, you can fix it using the following commands: 
-```
-	find -iregex '.*\.\(json\|mnc\|nii\|nii.gz\)$'   -exec sh -c 'x="{}"; f2=`echo $x | sed 's/ses_/ses-/g'`;  mv $x $f2  ' \;
-```
-
-The .json headers also need to be corrected by removing the "," at the end of the following lines
-
-Line 10: 
-
-	"Name": ["[C-11]SB"], -->  "Name": ["[C-11]SB"]
-
-Line 26: 
-	
-	"EffectiveResolutionAxial": [1.218750e-01], --> "EffectiveResolutionAxial": [1.218750e-01]
-
-Line 33: 
-	
-	"Values": [16, 10], --> "Values": [16, 10]
-
-
-A comma needs to be added to line 27,
-
-	Line 27: }, --> }
-
-
-Here is the file structure that you should end up with:
-
-	cimbi/
-		sub-01/
-			_ses-01/
-				anat/
-					sub-01_ses-01_T1w.json  
-					sub-01_ses-01_T1w.nii
-				pet/
-					sub-01_ses-01_pet.json  
-					sub-01_ses-01_pet.nii.gz
-			_ses-02/
-				anat/
-					sub-01_ses-02_T1w.json  
-					sub-01_ses-02_T1w.nii
-				pet/
-					sub-01_ses-02_pet.json 
-					sub-01_ses-02_pet.nii.gz
-
 ### Run Examples
 
 You can run the following examples to see some of the basic functionality of APPIAN. Remember to mount your "cimbi" directory by changing </path/to/cimbi/dir> to the actual path to your directory. Likewise, mount your "out_cimbi" directory by changing </path/to/cimbi/dir/out_cimbi> to the actual path to your directory.  

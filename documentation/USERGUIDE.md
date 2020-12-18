@@ -38,13 +38,13 @@ You can run the following examples to see some of the basic functionality of APP
 
 #### Minimal Inputs
 ##### Default: Coregistration + MRI Preprocessing + Results Report
-	docker run -v  </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi" ";
+	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ ";
 
 #### PVC
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s /path/to/cimbi/dir -t "/path/to/cimbi/dir/out_cimbi" --sessions 01  01";
+	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ --fwhm 3 3 3 --pvc-method 'GTM' ";
 
 #### PVC + Quantification
-	docker run -v </path/to/cimbi/dir>:"/path/to/cimbi/dir" -v </path/to/cimbi/dir/out_cimbi>:"/path/to/cimbi/dir/out_cimbi" tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --tka-method lp --tka-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM' --no-results-report -s "/path/to/cimbi/dir" -t "/path/to/cimbi/dir/out_cimbi"  ";
+	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/--quant-method lp --quant-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM'  ";
 
 ## 2. File Formats  <a name="fileformat"></a>
 
@@ -87,13 +87,8 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 `sub-<participant_label>/[_ses-<session_label>/]pet/sub-<participant_label>[_ses-<session_label>]_task-<task_label>[_acq-<label>][_rec-<label>][_run-<index>]_pet.json`
 
 ##### T1w (native T1 space) :
-`sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.mnc`
+`sub-%s/_ses-%s/anat/sub-%s_ses-%s*T1w.nii.gz`
 
-##### Brain mask (stereotaxic space): 
-`sub-%s/_ses-%s/anat/sub-%s_ses-%s*_T1w_space-mni_brainmask.mnc`
-
-##### T1 Segmentation: 
-`sub-<participant-label>/_ses-<session-label>/mask/sub-<participant-label>_ses-<session-label>_space-mni_variant-seg_dtissue.mnc`
 
 Although BIDS is based on the Nifti file format, APPIAN will accept both MINC and Nifti inputs. All Nifti files are converted to MINC for further processing. 
 

@@ -2,22 +2,19 @@
 
 # Table of Contents
 1. [Quick Start](#quickstart)
-2. [File Formats](#fileformat) \
-	2.1 [Nifti](#nifti) \
-	2.2 [MINC](#minc) 
+2. [File Formats](#fileformat) 
 3. [Useage](#useage) 
-4. [Overview](#overview) \
-	4.1 [Base Options](#options) \
-	4.2 [MRI Preprocessing](#mri) \
-	4.3 [Coregistration](#coregistration) \
-	4.4 [Masking](#masking) \
-	4.5 [Partial-Volume Correction](#pvc) \
-	4.6 [Quantification](#quantification) \
-	4.7 [Reporting of Results](#results) \
-	4.8 [Quality Control](#qc) \
-	4.9 [Dashboard GUI](#gui) 
-5. [Atlases](#atlasses) 
-6. [Examples](#example) 
+4. [Base Options](#options) 
+5. [MRI Preprocessing](#mri) 
+6. [Coregistration](#coregistration) 
+7. [Masking](#masking) 
+8. [Partial-Volume Correction](#pvc) 
+9. [Quantification](#quantification) 
+10.	[Reporting of Results](#results) 
+11. [Quality Control](#qc) 
+12. [Dashboard GUI](#gui) 
+13. [Atlases](#atlasses) 
+14. [Examples](#example) 
 
 
 
@@ -161,9 +158,8 @@ docker run /path/to/your/data:/path/to/your/data tffunck/appian:latest /path/to/
 ```
 Either method will give you the same results, it’s up to you and what you find more convenient. 
 
-## 4. Pipeline Overview  <a name="overview"></a>
 
-### 4.1 Base User Options  <a name="options"></a>
+## 4.1 Base User Options  <a name="options"></a>
 APPIAN has lots of options, mostly concerned with the types of masks you want to use, and the parameters to pass to the PVC and quantification algorithms. The only mandatory options are a source directory with PET images (`-s`), a target directory where the outputs will be stored (`-t`). 
 
 #####  Mandatory arguments:
@@ -242,7 +238,7 @@ Nipype allows multithreading and therefore allows APPIAN to run multiple scans i
                         Number of threads to use. (defult=1)
 
 
-### 4.2 MRI Preprocessing <a name="mri"></a>
+## 4.2 MRI Preprocessing <a name="mri"></a>
 Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.
 
 Prior to performing PET processing, T1 structural preprocessing can be performed if the user does not provide a binary brain mask volume and a transformation file that maps the T1 MR image into stereotaxic space. If these inputs are not provided, APPIAN will automatically coregister the T1 MR image to stereotaxic space. By default, the stereotaxic space is defined on the ICBM 152 6th generation non-linear brain atlas (Mazziotta et al., 2001), but users can provide their own stereotaxic template if desired. Coregistration is performed using an iterative implementation of minctracc (Collins et al., 1994). 
@@ -322,7 +318,7 @@ Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANT
 Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANTS). Insight j, 2, pp.1-35.
 
 
-### 4.3 Coregistration <a name="coregistration"></a> 
+## 4.3 Coregistration <a name="coregistration"></a> 
 Rigid coregistration of PET image to T1 MRI. 
 
 ## PET-MRI Coregistration
@@ -361,8 +357,7 @@ In order for APPIAN to know how to "fill in" the appropriate file names and para
 ##### Please cite the following paper for the coregistration stage
 Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANTS). Insight j, 2, pp.1-35.
 
-### 4.4 Masking<a name="masking"></a>
-
+## 4.4 Masking<a name="masking"></a>
 Create ROI mask volumes for partial-volume correction, quantification (tracer-kinetic analysis), and reporting of results.
 
 The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
@@ -435,13 +430,25 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         Flag to signal threshold so that label image is only 1s and 0s
 
 
-### 4.5 Partial-Volume Correction <a name="pvc"></a>
+## 4.5 Partial-Volume Correction <a name="pvc"></a>
 Partial-volume correction of point-spread function of PET scanner.
 
 Partial-volume correction (PVC) is often necessary to account for the loss of resolution in the image due to the point-spread function of the PET scanner and the fact that multiple tissue types may contribute to a single PET voxel. While performing PVC is generally a good idea, this is especially true if the user is interested in regions that are less than approximately 2.5 times the full-width at half-maximum (FWHM) resolution of the scanner. 
 
-## Options
+To use partial-volume correction (PVC), you must also specify the FWHM of the scanner you are using. The PVC method is specified with the "--pvc-method <PVC Method>" option. APPIAN will use the string you specify for <PVC Method> to find a correspdoning python module in "Partial_Volume_Correction/methods/pvc_method_<PVC Method>.py". 
+	
+Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
+	
+```
+python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --pvc-label-img <label image> <label template> --pvc-label <list of labels> --fwhm <Z FWHM> <Y FWHM> <X FWHM> --pvc-method <PVC Method> 
+```
+For instance, let's say your images were acquired using the HR+ scanner (which has a FWHM of about 6.5 6.5 6.5) and you want to use the Geometric Transfer Matrix method (GTM). Let's say you want to use a predefined labeled image in the /anat directory of your source directory of the form sub-<subject>/ses-<session>/anat/sub-<subject>_ses-<session>_variant-segmentation_dseg.mnc. You would use : 
 
+```
+python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
+```
+
+## Options
     --no-pvc            Don't run PVC.
     --pvc-method=PVC_METHOD
                         Method for PVC.
@@ -490,71 +497,6 @@ Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., 
 ### 4.6 [Quantification]
 Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
 
-### 4.7 [Reporting of Results]
-Regional mean values for each ROI of results mask volumes are saved to .csv files.
-
-### 4.8 [Quality Control]
-Quality control metrics are calculated for each image volume and each processing stage.
-
-### 4.9 [Dashboard GUI] 
-Web browser-based graphical-user interface for visualizing results.
-
-
-## 5. [APPIAN Outputs]
-APPIAN will create the target directory you specify with the "-t" or "--target" option. 
-
-Within the target directory you will find a subdirectory called "preproc". This contains all of the intermediate files produced by APPIAN. APPIAN is built using Nipype, which defines a network of nodes (also called a workflow). The ouputs of upstream nodes are passed as inputs to downstream nodes. A directory within preproc/ is created for each node that is run as a part of the workflow. Given that the nodes that APPIAN will run will change as a function of user inputs, the outputs you find in preproc will change accordingly. 
-
-For all nodes that are responsible for running a command in the terminal, there will be a text file called "command.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
-
-Within preproc you will find directories named after each scan APPIAN has processed, with the form: _args_run<run>.task<task>.ses<ses>.sid<sub>. This will contain a variety of results including the results report, automated QC, dashboard xml for that particular scan. 
-
-You will also find several other important subdirectories in preproc/. In particular: 
-```
-	initialization --> centered version of initial PET image, 3D contatenated version of initial PET 
-	masking --> contains the labelled images used for the PVC, quantification, and results report stages, respectively
-	pet-coregistration --> transformation file from PET to MRI, and vice versa. 3D PET image in MRI space
-	mri --> mri normalized into icbm152 space, brain mask in stereotaxic and MRI native space, MRI segmentation
-	quantification  --> parametric image produced by quantification stage
-```
-
-The reason why there APPIAN stores the outputs in these two ways is a bit complicated and has to do with how Nipype works. Basically, the results that are stored in a subdirectory name after a processing stage, e.g., "pet-coregistration" or "quantification", are part of a sub-workflow within the larger APPIAN workflow and get their own subdirectory named after the sub-workflow.
-	
-When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
-
-
-## 6 [Atlases]
-Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
-
-## 7. Examples  <a name="example"></a>
-
-### Running APPIAN on subset of scans
-By default, APPIAN will run on all the scans it can identify in the source directory. However, you may want to run APPIAN on a subset of your scans. You can do this by setting which subjects, sessions, tasks, and runs you wish to process with APPIAN.
-
-For example, if your study contains 3 sessions "baseline", "treatment", "follow-up". You can then run APPIAN only on the, for example, "treatment" and "follow-up" images :
-
-```
-python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions baseline follow-up
-```
-
-The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
-
-
-### [Partial-volume Correction]
-To use partial-volume correction (PVC), you must also specify the FWHM of the scanner you are using. The PVC method is specified with the "--pvc-method <PVC Method>" option. APPIAN will use the string you specify for <PVC Method> to find a correspdoning python module in "Partial_Volume_Correction/methods/pvc_method_<PVC Method>.py". 
-	
-Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
-	
-```
-python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --threads <N Threads> --pvc-label-img <label image> <label template> --pvc-label <list of labels> --fwhm <Z FWHM> <Y FWHM> <X FWHM> --pvc-method <PVC Method> 
-```
-For instance, let's say your images were acquired using the HR+ scanner (which has a FWHM of about 6.5 6.5 6.5) and you want to use the Geometric Transfer Matrix method (GTM). Let's say you want to use a predefined labeled image in the /anat directory of your source directory of the form sub-<subject>/ses-<session>/anat/sub-<subject>_ses-<session>_variant-segmentation_dseg.mnc. You would use : 
-
-```
-python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
-```
-
-### [Quantification]
 To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
 
 Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 
@@ -652,7 +594,7 @@ Similarly, if you want to create the results report with an atlas that is not in
 ```
 python3 /opt/APPIAN/Launcher.py -s <SOURCE DIR> -t <TARGET DIR> --results-label-img /path/to/atlas.mnc /path/to/template.mnc --results-label 4
 ```
-The ROI masks described [here](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 
+The ROI masks  are applied on all images output from the pipeline to extract descriptive statistics for each of these regions in each of the output images. The descriptive statistics for each region and image pair are written to .csv files. The .csv file format was selected because it is easy to import into statistical packages (particularly R and Python) for further statistical analysis. 
 
 You can find the results stored in the target directory in "results/". Here you will see multiple sub-directories that are named "results_<processing stage><_4d>". The directories with <_4d> have the TACs, while those without contain only 3D results (e.g., parametric values derived with tracer-kinetic analysis). In each of these there will be another subdirctory for each PET scan that was processed and these in turn contain a .csv with the mean regional values.
 
@@ -681,72 +623,48 @@ The .csv files in these subdirectories will have the following format :
     --no-group-stats    Don't calculate quantitative group-wise descriptive
                         statistics.
 
-# Masking <a name="masking"></a>
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+## 5. APPIAN Outputs
+APPIAN will create the target directory you specify with the "-t" or "--target" option. 
 
-  #### Masking options: PVC
+Within the target directory you will find a subdirectory called "preproc". This contains all of the intermediate files produced by APPIAN. APPIAN is built using Nipype, which defines a network of nodes (also called a workflow). The ouputs of upstream nodes are passed as inputs to downstream nodes. A directory within preproc/ is created for each node that is run as a part of the workflow. Given that the nodes that APPIAN will run will change as a function of user inputs, the outputs you find in preproc will change accordingly. 
 
-    --pvc-label-space=PVC_LABEL_SPACE
-                        Coordinate space of labeled image to use for quant.
-                        Options: [pet/t1/stereo]
-    --pvc-label-img=PVC_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --pvc-label=PVC_LABELS
-                        List of label values to use for pvc
-    --pvc-label-erosion=PVC_ERODE_TIMES
-                        Number of times to erode label
-    --pvc-labels-brain-only
-                        Mask pvc labels with brain mask
-    --pvc-labels-ones-only
-                        Flag to signal threshold so that label image is only
-                        1s and 0s
+For all nodes that are responsible for running a command in the terminal, there will be a text file called "command.txt" in the node's output directory It is also useful to note that Nipype will always create a "\_report" subdirectory within a particular node's output directory. In this "\_report" directory, you will find a text file called "report.rst". This text file describes the inputs and outputs to this node. This can help you debug APPIAN if for some reason a node fails to run. 
 
-  #### Masking options: Quantification
+Within preproc you will find directories named after each scan APPIAN has processed, with the form: _args_run<run>.task<task>.ses<ses>.sid<sub>. This will contain a variety of results including the results report, automated QC, dashboard xml for that particular scan. 
 
-    --tka-label-space=quant_LABEL_SPACE
-                        Coordinate space of labeled image to use for quant.
-                        Options: [pet/t1/stereo]
-    --tka-label-img=quant_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --tka-label=quant_LABELS
-                        List of label values to use for quant
-    --tka-label-erosion=quant_ERODE_TIMES
-                        Number of times to erode label
-    --tka-labels-brain-only
-                        Mask tka labels with brain mask
-    --tka-labels-ones-only
-                        Flag to signal threshold so that label image is only
-                        1s and 0s
+You will also find several other important subdirectories in preproc/. In particular: 
+```
+	initialization --> centered version of initial PET image, 3D contatenated version of initial PET 
+	masking --> contains the labelled images used for the PVC, quantification, and results report stages, respectively
+	pet-coregistration --> transformation file from PET to MRI, and vice versa. 3D PET image in MRI space
+	mri --> mri normalized into icbm152 space, brain mask in stereotaxic and MRI native space, MRI segmentation
+	quantification  --> parametric image produced by quantification stage
+```
 
- #### Masking options: Results
+The reason why there APPIAN stores the outputs in these two ways is a bit complicated and has to do with how Nipype works. Basically, the results that are stored in a subdirectory name after a processing stage, e.g., "pet-coregistration" or "quantification", are part of a sub-workflow within the larger APPIAN workflow and get their own subdirectory named after the sub-workflow.
+	
+When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
 
-    --no-results-report
-                        Don't calculate descriptive stats for results ROI.
-    --results-label-space=RESULTS_LABEL_SPACE
-                        Coordinate space of labeled image to use for quant.
-                        Options: [pet/t1/stereo]
-    --results-label-img=RESULTS_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --results-label=RESULTS_LABELS
-                        List of label values to use for results
-    --results-label-erosion=RESULTS_ERODE_TIMES
-                        Number of times to erode label
-    --results-labels-brain-only
-                        Mask results labels with brain mask
-    --results-labels-ones-only
-                        Flag to signal threshold so that label image is only 1s and 0s
+## 4.8 Quality Control
+Quality control metrics are calculated for each image volume and each processing stage.
+
+### 4.9 Dashboard GUI 
+Web browser-based graphical-user interface for visualizing results.
+
+## 6 Atlases
+Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
+
+## 7. Examples  <a name="example"></a>
+
+### Running APPIAN on subset of scans
+By default, APPIAN will run on all the scans it can identify in the source directory. However, you may want to run APPIAN on a subset of your scans. You can do this by setting which subjects, sessions, tasks, and runs you wish to process with APPIAN.
+
+For example, if your study contains 3 sessions "baseline", "treatment", "follow-up". You can then run APPIAN only on the, for example, "treatment" and "follow-up" images :
+
+```
+python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions baseline follow-up
+```
+
+The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
+
+

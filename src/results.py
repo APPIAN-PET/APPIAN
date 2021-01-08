@@ -67,7 +67,6 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'all')
        
         #Calculate descriptive statistics
-        '''
         descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
         workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
         workflow.connect(descriptive_statisticsNode, "sub", datasink, 'stats/sub')
@@ -75,7 +74,6 @@ def group_level_descriptive_statistics(opts, args):
         workflow.connect(descriptive_statisticsNode, "task", datasink, 'stats/task')
         workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'stats/sub_task')
         workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'stats/sub_ses')
-        '''
         workflow.run() 
 
 def set_roi_labels(unique_labels, roi_labels_file) :
@@ -125,6 +123,7 @@ class resultsCommand( BaseInterface):
         return out_file
 
     def _run_interface(self, runtime):
+        print('1',os.stat(self.inputs.pet_header_json))
         header = json.load(open(self.inputs.pet_header_json, 'r'))
         frames = header['Time']['FrameTimes']['Values']
 
@@ -215,9 +214,9 @@ class resultsCommand( BaseInterface):
             df_list.append(frame_df)
         df=pd.concat(df_list)
         df.sort_values(['analysis','sub','ses','task','run','roi','frame'],inplace=True)
-        print(df)
-        print('results filename:',self.inputs.out_file)
+        #print(df)
         df.to_csv(self.inputs.out_file,index=False)
+        print('2',os.stat(self.inputs.pet_header_json))
 
         return runtime
 
@@ -314,9 +313,9 @@ class integrate_TACCommand( BaseInterface):
         return out_file 
 
     def _run_interface(self, runtime):
-        print("\nhello!\n")
-        exit(0)
         header = json.load(open( self.inputs.header ,"r"))
+
+        
         df = pd.read_csv( self.inputs.in_file )
         #if time frames is not a list of numbers, .e.g., "unknown",
         #then set time frames to 1

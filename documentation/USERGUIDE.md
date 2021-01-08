@@ -242,7 +242,7 @@ Nipype allows multithreading and therefore allows APPIAN to run multiple scans i
                         Number of threads to use. (defult=1)
 
 
-### 4.2 [MRI Preprocessing]<a name="mri"></a>
+### 4.2 MRI Preprocessing <a name="mri"></a>
 Processing of T1 MRI for spatial normalization to stereotaxic space, intensity non-uniformity correction, brain masking, and segementation.
 
 Prior to performing PET processing, T1 structural preprocessing can be performed if the user does not provide a binary brain mask volume and a transformation file that maps the T1 MR image into stereotaxic space. If these inputs are not provided, APPIAN will automatically coregister the T1 MR image to stereotaxic space. By default, the stereotaxic space is defined on the ICBM 152 6th generation non-linear brain atlas (Mazziotta et al., 2001), but users can provide their own stereotaxic template if desired. Coregistration is performed using an iterative implementation of minctracc (Collins et al., 1994). 
@@ -322,7 +322,7 @@ Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANT
 Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANTS). Insight j, 2, pp.1-35.
 
 
-### 4.3 [Coregistration]<a name="coregistration"></a> 
+### 4.3 Coregistration <a name="coregistration"></a> 
 Rigid coregistration of PET image to T1 MRI. 
 
 ## PET-MRI Coregistration
@@ -361,7 +361,7 @@ In order for APPIAN to know how to "fill in" the appropriate file names and para
 ##### Please cite the following paper for the coregistration stage
 Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANTS). Insight j, 2, pp.1-35.
 
-### 4.4 [Masking]<a name="masking"></a>
+### 4.4 Masking<a name="masking"></a>
 
 Create ROI mask volumes for partial-volume correction, quantification (tracer-kinetic analysis), and reporting of results.
 
@@ -435,7 +435,7 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         Flag to signal threshold so that label image is only 1s and 0s
 
 
-### 4.5 [Partial-Volume Correction]<a name="pvc"></a>
+### 4.5 Partial-Volume Correction <a name="pvc"></a>
 Partial-volume correction of point-spread function of PET scanner.
 
 Partial-volume correction (PVC) is often necessary to account for the loss of resolution in the image due to the point-spread function of the PET scanner and the fact that multiple tissue types may contribute to a single PET voxel. While performing PVC is generally a good idea, this is especially true if the user is interested in regions that are less than approximately 2.5 times the full-width at half-maximum (FWHM) resolution of the scanner. 
@@ -487,16 +487,16 @@ Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J.
 
 Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
 
-### 4.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) 
+### 4.6 [Quantification]
 Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
 
-### 4.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) 
+### 4.7 [Reporting of Results]
 Regional mean values for each ROI of results mask volumes are saved to .csv files.
 
-### 4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+### 4.8 [Quality Control]
 Quality control metrics are calculated for each image volume and each processing stage.
 
-### 4.9 [Dashboard GUI](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
+### 4.9 [Dashboard GUI] 
 Web browser-based graphical-user interface for visualizing results.
 
 
@@ -523,7 +523,7 @@ The reason why there APPIAN stores the outputs in these two ways is a bit compli
 When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
 
 
-## 6 [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md)
+## 6 [Atlases]
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
 
 ## 7. Examples  <a name="example"></a>
@@ -540,7 +540,7 @@ python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions b
 The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
 
 
-### [Partial-volume Correction]<a name="pvc"></a>
+### [Partial-volume Correction]
 To use partial-volume correction (PVC), you must also specify the FWHM of the scanner you are using. The PVC method is specified with the "--pvc-method <PVC Method>" option. APPIAN will use the string you specify for <PVC Method> to find a correspdoning python module in "Partial_Volume_Correction/methods/pvc_method_<PVC Method>.py". 
 	
 Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
@@ -554,7 +554,7 @@ For instance, let's say your images were acquired using the HR+ scanner (which h
 python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
 ```
 
-### [Quantification]<a name="quantification"></a>
+### [Quantification]
 To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
 
 Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 

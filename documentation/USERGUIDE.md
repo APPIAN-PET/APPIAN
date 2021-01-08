@@ -8,15 +8,15 @@
 3. [Useage](#useage) 
 4. [Overview](#overview) \
 	4.1 [Base Options](#options) \
-	4.2 [MRI Preprocessing](https://github.com/APPIAN-PET/APPIAN/blob/master/MRI/README.md) \
-	4.3 [Coregistration](https://github.com/APPIAN-PET/APPIAN/blob/master/Registration/README.md) \
-	4.4 [Masking](https://github.com/APPIAN-PET/APPIAN/blob/master/Masking/README.md) \
-	4.5 [Partial-Volume Correction](https://github.com/APPIAN-PET/APPIAN/blob/master/Partial_Volume_Correction/README.md) \
-	4.6 [Quantification](https://github.com/APPIAN-PET/APPIAN/blob/master/Tracer_Kinetic/README.md) \
-	4.7 [Reporting of Results](https://github.com/APPIAN-PET/APPIAN/blob/master/Results_Report/README.md) \
-	4.8 [Quality Control](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) \
-	4.9 [Dashboard GUI](https://github.com/APPIAN-PET/APPIAN/blob/master/Quality_Control/README.md) 
-5. [Atlases](https://github.com/APPIAN-PET/APPIAN/blob/master/Atlas/README.md) 
+	4.2 [MRI Preprocessing](#mri) \
+	4.3 [Coregistration](#coregistration) \
+	4.4 [Masking](#masking) \
+	4.5 [Partial-Volume Correction](#pvc) \
+	4.6 [Quantification](#quantification) \
+	4.7 [Reporting of Results](#results) \
+	4.8 [Quality Control](#qc) \
+	4.9 [Dashboard GUI](#gui) 
+5. [Atlases](#atlasses) 
 6. [Examples](#example) 
 
 
@@ -540,7 +540,7 @@ python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --sessions b
 The same can be done for : subjects using the "--subjects <subject to process>" flag, tasks with "--tasks <tasks to process>", and run with "--runs <runs to process>".
 
 
-### Partial-volume correction
+### [Partial-volume Correction]<a name="pvc"></a>
 To use partial-volume correction (PVC), you must also specify the FWHM of the scanner you are using. The PVC method is specified with the "--pvc-method <PVC Method>" option. APPIAN will use the string you specify for <PVC Method> to find a correspdoning python module in "Partial_Volume_Correction/methods/pvc_method_<PVC Method>.py". 
 	
 Moreover, you may wish to use a specific labeled image to contstrain the PVC algorithm. There are multiple types of labeled images that you can select with the "--pvc-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use a GM/WM/CSF segmentation of the input T1 MRI.
@@ -554,7 +554,7 @@ For instance, let's say your images were acquired using the HR+ scanner (which h
 python3 /opt/APPIAN/Launcher.py -s /path/to/data -t /path/to/output --threads 2 --pvc-label-img variant-segmentation --fwhm 6.5 6.5 6.5 --pvc-method GTM
 ```
 
-### Quantification
+### [Quantification]<a name="quantification"></a>
 To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
 
 Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 
@@ -639,7 +639,7 @@ Gjedde, A. (1982). Calculation of cerebral glucose phosphorylation from brain up
 ###### Simplified Reference Tissue Model (srtm)
 Gunn, R.N., Lammertsma, A.A., Hume S.P., Cunningham, V.J. 1997. Parametric Imaging of Ligand-Receptor Binding in PET Using a Simplified Reference Region Model. Neuroimage. 6(4), 279-287.
 
-### Results report
+### Results report <a name="results"></a>
 APPIAN produces a .csv file with mean regional values for the results labels. If you will not use the results report produced by APPIAN, you can use the "--no-results-report".
 
 As with PVC and quantification, the results labels are defined using the option "--results-label-img". By default, APPIAN will use all of the integer values in the label image.

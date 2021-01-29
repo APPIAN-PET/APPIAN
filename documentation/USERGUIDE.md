@@ -10,10 +10,10 @@
 7. [Masking](#masking) 
 8. [Partial-Volume Correction](#pvc) 
 9. [Quantification](#quantification) 
-10.	[Reporting of Results](#results) 
+10. [Reporting of Results](#results) 
 11. [Quality Control](#qc) 
-12. [Dashboard GUI](#gui) 
-13. [Atlases](#atlasses) 
+12. [Dashboard GUI](#dashboard) 
+13. [Atlases](#atlases) 
 14. [Examples](#example) 
 
 
@@ -77,8 +77,10 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 ### JSON
 For each PET image, there should be a corresponding JSON file. The JSON file should have the same name as the PET file but with the .json extension. 
 
+<pre><code>
 {
     "Info": {
+    
         "Tracer": {
             "Isotope": ["C-11"],
             "Halflife" : 123
@@ -128,7 +130,7 @@ For each PET image, there should be a corresponding JSON file. The JSON file sho
         }
     }
 }
-
+</code></pre>
 
 #### Required
 ##### PET (native PET space)
@@ -548,7 +550,7 @@ Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J.
 
 Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
 
-### 4.6 [Quantification]
+### 4.6 [Quantification] <a name="quantification"></a>
 Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
 
 To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
@@ -699,13 +701,13 @@ The reason why there APPIAN stores the outputs in these two ways is a bit compli
 	
 When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
 
-## 4.8 Quality Control
+## 4.8 Quality Control <a name="qc"></a>
 Quality control metrics are calculated for each image volume and each processing stage.
 
-### 4.9 Dashboard GUI 
+### 4.9 Dashboard GUI  <a name="dashboard"></a>
 Web browser-based graphical-user interface for visualizing results.
 
-## 6 Atlases
+## 6 Atlases  <a name="atlases"></a>
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
 
 ## 7. Examples  <a name="example"></a>

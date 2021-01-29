@@ -74,6 +74,60 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 	  	sub-02_ses-01_T1w.nii
         _ses-02/
              ...
+### JSON
+For each PET image, there should be a corresponding JSON file. The JSON file should have the same name as the PET file but with the .json extension. 
+
+{
+    "Info": {
+        "Tracer": {
+            "Isotope": ["C-11"],
+            "Halflife" : 123
+        },
+        "Tomograph": "Siemens Biograph mMr PET/MR",
+        "BodyWeight": 76.0,
+        "Unit": "Bq"
+    },
+    "RadioChem":{
+        "InjectedRadioactivity": 180.2,
+        "InjectedRadioactivityUnits": "MBq"
+    },
+    "Time" : {
+        "FrameTimes": {
+                "Units": ["s", "s"],
+                "Values":[[0.0,15.0],
+                          [15.0,30.0],
+                          [30.0,45.0],
+                          [45.0, 60.0],
+                          [60.0, 120.0],
+                          [120.0,180.0],
+                          [180.0, 240.0],
+                          [240.0, 300.0],
+                          [300.0, 450.0],
+                          [450.0, 600.0],
+                          [600.0, 900.0],
+                          [900.0, 1200.0],
+                          [1200.0, 1500.0],
+                          [1500.0, 1800.0],
+                          [1800.0, 2100.0],
+                          [2100.0, 2400.0],
+                          [2400.0, 2700.0],
+                          [2700.0, 3000.0],
+                          [3000.0, 3300.0],
+                          [3300.0, 3600.0],
+                          [3600.0, 4200.0],
+                          [4200.0, 4800.0],
+                          [4800.0, 5400.0]
+                ]
+        }
+    },
+    "Recon": {
+        "Method": {
+            "Name" : "MLEM",
+            "Labels" : ["iterations"],
+            "Values" : [100]
+        }
+    }
+}
 
 
 #### Required

@@ -264,12 +264,25 @@ def create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, df_fn, plot_f
     plt.savefig(plot_fn)
 
 def regr(x,y,tac_len, n_frames):
+    '''
+    Perform regression, vectorized over rows of x and y
+    '''
+    print(x.shape)
+    print(y.shape)
     x_mean = np.mean( x, axis=1)
+    print('x_mean',x_mean.shape)
     y_mean = np.mean( y, axis=1)
-    x_mean = np.repeat(x_mean, n_frames).reshape( [tac_len]+[-1] )
-    y_mean = np.repeat(y_mean, n_frames).reshape( [tac_len]+[-1] )
-    #return (n_frames * np.sum(x*y,axis=1) - np.sum(x,axis=1)*np.sum(y,axis=1)) /  (n_frames * np.sum(x**2,axis=1) - np.sum(x,axis=1)**2)
+    print('y_mean', y_mean.shape)
+    print(tac_len, n_frames)
+    x_tac_len = tac_len
+    if x.shape[0] == 1: x_tac_len = 1
 
+    x_mean = np.repeat(x_mean, n_frames).reshape( [x_tac_len, -1] )
+    y_mean = np.repeat(y_mean, n_frames).reshape( [tac_len, -1] )
+    
+    #return (n_frames * np.sum(x*y,axis=1) - np.sum(x,axis=1)*np.sum(y,axis=1)) /  (n_frames * np.sum(x**2,axis=1) - np.sum(x,axis=1)**2)
+    print(x_mean.shape)
+    print(y_mean.shape)
     xx = x - x_mean 
     del x
     del x_mean
@@ -378,6 +391,8 @@ def get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,  arter
     if isdefined(arterial_file) and arterial_file != None : 
         '''read arterial input file'''
         ref_times, ref_tac = read_arterial_file(arterial_file, arterial_header_file, header)
+        #f = interp1d(ref_times, ref_tac)
+        #rec_tac = f(frame_times)
         ref_tac = ref_tac.reshape(1,-1)
 
     elif isdefined(ref_file) and  ref_file != None :
@@ -480,6 +495,8 @@ class ApplyModel(BaseInterface) :
 
         pet_img = nib.load(pet_file)
         pet_vol = pet_img.get_data().astype('f4')
+        print('pet img shape', pet_img.shape)
+        print('pet vol shape', pet_vol.shape)
         dims = pet_vol.shape
         n3d=np.product(pet_vol.shape[0:3])
         pet_vol = pet_vol.reshape([n3d]+[pet_vol.shape[3]])
@@ -496,6 +513,8 @@ class ApplyModel(BaseInterface) :
 
         #Calculate average TAC in Ref
         ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file,arterial_header_file)
+        print('ref_tac', ref_tac.shape)
+        print('ref_times', ref_times.shape)
 
         #Calculate average TAC in ROI
         pet_roi = get_roi_tac(roi_file, pet_vol, brain_mask_vol, time_frames )
@@ -519,11 +538,13 @@ class ApplyModel(BaseInterface) :
         modified_time_frames = time_frames[ (time_frames >= min(ref_times)) & (time_frames <= max(ref_times)) ] 
         f = interp1d(ref_times, ref_tac[0], kind='cubic', fill_value="extrapolate")
         fint = interp1d(ref_times, int_ref[0], kind='cubic', fill_value="extrapolate")
-        ref_tac = f(time_frames).reshape(1,-1)
-        int_ref = fint(time_frames).reshape(1,-1)
-
-        create_tac_df(time_frames, pet_roi, int_roi, ref_tac, int_ref, self.inputs.out_df, self.inputs.out_plot)
-        quant_vol = model(pet_vol, int_vol, ref_tac, int_ref, time_frames, opts=opts, header=header)
+        ref_tac_rsl = f(time_frames).reshape(1,-1)
+        int_ref_rsl = fint(time_frames).reshape(1,-1)
+        print('tac times',time_frames.shape)
+        print('ref_tac_rsl',ref_tac_rsl.shape)
+        print('int_ref_rsl',int_ref_rsl.shape)
+        create_tac_df(time_frames, pet_roi, int_roi, ref_tac_rsl, int_ref, self.inputs.out_df, self.inputs.out_plot)
+        quant_vol = model(pet_vol, int_vol, ref_tac_rsl, int_ref, time_frames, opts=opts, header=header)
 
         out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_file, brain_mask_vol )
 

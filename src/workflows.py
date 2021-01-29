@@ -724,7 +724,7 @@ class Workflows:
         #Create connections bettween infosource and datasourceAnat
         self.workflow.connect([
             (self.infosource,self.datasourceAnat, [('sid', 'sid')]),
-            (self.infosource,self.datasourceAnat, [('ses', 'ses')]),
+            (self.infosource,self.datasourceAnat, [('t1_ses', 'ses')]),
             ])
     #
     # Set Labels for datasourceAnat

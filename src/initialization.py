@@ -152,6 +152,7 @@ class SplitArgsOutput(TraitedSpec):
     sid = traits.Str(mandatory=True, desc="Subject ID")
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
+    t1_ses = traits.Str(desc="Session ID")
     run = traits.Str(desc="Run ID")
     #compression = traits.Str(desc="Compression")
     RoiSuffix = traits.Str(desc="Suffix for subject ROI")
@@ -159,6 +160,7 @@ class SplitArgsOutput(TraitedSpec):
 class SplitArgsInput(BaseInterfaceInputSpec):
     task = traits.Str(desc="Task ID")
     ses = traits.Str(desc="Session ID")
+    t1_ses = traits.Str(desc="Session ID for T1 MRI")
     sid = traits.Str(desc="Subject ID")
     cid = traits.Str(desc="Condition ID")
     run = traits.Str(desc="Run ID")
@@ -172,6 +174,9 @@ class SplitArgsRunning(BaseInterface):
     
     def _run_interface(self, runtime):
         cid=''
+        if not isdefined(self.inputs.t1_ses) :
+            self.inputs.t1_ses=self.inputs.args['t1_ses']
+
         if not isdefined(self.inputs.ses) :
             self.inputs.ses=self.inputs.args['ses']
             cid = cid + '_' +self.inputs.args['ses']
@@ -205,7 +210,12 @@ class SplitArgsRunning(BaseInterface):
 
         if isdefined(self.inputs.ses):
             outputs["ses"] = self.inputs.ses
+            outputs["t1_ses"] = self.inputs.ses
 
+        if isdefined(self.inputs.t1_ses):
+            outputs["t1_ses"] = self.inputs.t1_ses
+            print('hello')
+        
         if isdefined(self.inputs.task):
             outputs["task"] = self.inputs.task
 

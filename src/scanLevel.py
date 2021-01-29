@@ -21,7 +21,8 @@ def run_scan_level(opts,args):
         os.makedirs(opts.targetDir)
 
     sub_valid_args, task_valid_args=gen_args(opts, args)
-    
+    print(task_valid_args)
+    print('tasl')
     scan_level_workflow = Workflows(opts)
 
     scan_level_workflow.initialize(opts) 
@@ -37,6 +38,10 @@ def run_scan_level(opts,args):
 
 
 def gen_args(opts, subjects):
+    '''
+    Generate arguments for preinfosource
+    '''
+
     session_ids = opts.sessionList 
     task_ids = opts.taskList 
     run_ids = opts.runList
@@ -99,7 +104,11 @@ def gen_args(opts, subjects):
 
                     if not ses == '' :
                         arg_list += ['ses-'+ses]
-                        mri_arg_list += ['ses-'+ses]
+                        if opts.t1_ses == '' :
+                            mri_arg_list += ['ses-'+ses]
+                        else :
+                            mri_arg_list += ['ses-'+opts.t1_ses]
+
                     if not task == '': arg_list += ['task-'+task]
                     if not acq == '': arg_list += ['acq-'+acq]
                     if not rec == '': arg_list += ['rec-'+rec]
@@ -114,6 +123,9 @@ def gen_args(opts, subjects):
                     if "Ses" in report_columns.keys() :
                         report_row['Ses']=ses
                         d['ses']=ses
+                        d['t1_ses']=opts.t1_ses
+
+                    if opts.t1_ses != '' : d['t1_ses']=opts.t1_ses
 
                     if "Task" in report_columns.keys():
                         report_row['Task']=task
@@ -130,7 +142,6 @@ def gen_args(opts, subjects):
                     if "Run" in report_columns.keys() :
                         report_row['Run']=run
                         d['run']=run
-
 
                     if not os.path.exists(pet_fn):
                         report_row['PET Volume']=pet_string
@@ -153,7 +164,7 @@ def gen_args(opts, subjects):
                     if os.path.exists(pet_fn) and os.path.exists(pet_header_fn) and os.path.exists(mri_fn):
 
 
-                        d={'task':task, 'ses':ses, 'sid':sub, 'run':run} 
+                        d={'task':task, 'ses':ses, 't1_ses':opts.t1_ses, 'sid':sub, 'run':run} 
                         sub_ses_dict[sub]=ses
                         task_args.append(d)
                     
@@ -163,7 +174,7 @@ def gen_args(opts, subjects):
     report.to_csv(opts.targetDir+os.sep+'input_file_report.csv',index=False)
 
     for key, val in sub_ses_dict.items() :
-        sub_ses_args.append({"sid":key,"ses":ses})
+        sub_ses_args.append({"sid":key,"ses":ses,'t1_ses':ses})
 
     if opts.verbose >= 2:
         print("Scans on which APPIAN will be run")

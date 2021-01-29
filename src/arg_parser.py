@@ -58,6 +58,7 @@ def get_parser():
     parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
     parser.add_argument("-r","--rec",dest="rec",type=str, default='', help="Reconstruction algorithm")
     parser.add_argument("--sessions",dest="sessionList",default=[],help="List of conditions or scans",nargs='+')
+    parser.add_argument("--t1-session",dest="t1_ses",default='',type=str,help="Session to use for the T1w MRI. Use if you only have T1w MRI for one session and want to use that one for all processing.")
     parser.add_argument("--subjects",dest="args",default=[], help="List of subjects",nargs='+')
     parser.add_argument("--tasks",dest="taskList",default=[],help="List of conditions or scans",nargs='+')
     parser.add_argument("--runs",dest="runList",default=[],help="List of runs",nargs='+')
@@ -180,7 +181,7 @@ def get_parser():
     
 
     #Quantification Options
-    parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (Quantification): lp, pp, srtm.",type=str, default=None)
+    parser.add_argument("--quant-method",dest="quant_method",help="Method for performing tracer kinetic analysis (Quantification): lp, pp, srtm, suv, suvr.",type=str, default=None)
     parser.add_argument("--quant-roi",dest="quant_roi",help="Use ROI-based quantification (default is voxelwise).",action='store_true', default=False)
     parser.add_argument("--quant-voxel",dest="quant_roi",help="Use voxel-based quantification (default is voxelwise).",action='store_false', default=False)
     parser.add_argument("--quant-label-name","-quant-label-name",dest="quant_label_name",help="Extra label string that is used to create the directory with quantification results: /<quant_method>_<quant_label>. Allows you to run same quantification node multiple times without overwriting previous results.",type=str, default=None)

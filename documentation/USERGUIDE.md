@@ -10,10 +10,10 @@
 7. [Masking](#masking) 
 8. [Partial-Volume Correction](#pvc) 
 9. [Quantification](#quantification) 
-10.	[Reporting of Results](#results) 
+10. [Reporting of Results](#results) 
 11. [Quality Control](#qc) 
-12. [Dashboard GUI](#gui) 
-13. [Atlases](#atlasses) 
+12. [Dashboard GUI](#dashboard) 
+13. [Atlases](#atlases) 
 14. [Examples](#example) 
 
 
@@ -74,7 +74,63 @@ APPIAN uses the [BIDS][link_bidsio] file format specification for PET:
 	  	sub-02_ses-01_T1w.nii
         _ses-02/
              ...
+### JSON
+For each PET image, there should be a corresponding JSON file. The JSON file should have the same name as the PET file but with the .json extension. 
 
+<pre><code>
+{
+    "Info": {
+    
+        "Tracer": {
+            "Isotope": ["C-11"],
+            "Halflife" : 123
+        },
+        "Tomograph": "Siemens Biograph mMr PET/MR",
+        "BodyWeight": 76.0,
+        "Unit": "Bq"
+    },
+    "RadioChem":{
+        "InjectedRadioactivity": 180.2,
+        "InjectedRadioactivityUnits": "MBq"
+    },
+    "Time" : {
+        "FrameTimes": {
+                "Units": ["s", "s"],
+                "Values":[[0.0,15.0],
+                          [15.0,30.0],
+                          [30.0,45.0],
+                          [45.0, 60.0],
+                          [60.0, 120.0],
+                          [120.0,180.0],
+                          [180.0, 240.0],
+                          [240.0, 300.0],
+                          [300.0, 450.0],
+                          [450.0, 600.0],
+                          [600.0, 900.0],
+                          [900.0, 1200.0],
+                          [1200.0, 1500.0],
+                          [1500.0, 1800.0],
+                          [1800.0, 2100.0],
+                          [2100.0, 2400.0],
+                          [2400.0, 2700.0],
+                          [2700.0, 3000.0],
+                          [3000.0, 3300.0],
+                          [3300.0, 3600.0],
+                          [3600.0, 4200.0],
+                          [4200.0, 4800.0],
+                          [4800.0, 5400.0]
+                ]
+        }
+    },
+    "Recon": {
+        "Method": {
+            "Name" : "MLEM",
+            "Labels" : ["iterations"],
+            "Values" : [100]
+        }
+    }
+}
+</code></pre>
 
 #### Required
 ##### PET (native PET space)
@@ -494,14 +550,14 @@ Richardson, W.H., 1972. Bayesian-Based Iterative Method of Image Restoration. J.
 
 Thomas, B.A., Cuplov, V., Bousse, A., Mendes, A., Thielemans, K., Hutton, B.F., Erlandsson, K., 2016. PETPVC: a toolbox for performing partial volume correction techniques in positron emission tomography. Phys. Med. Biol. 61, 7975–7993. doi:10.1088/0031-9155/61/22/7975
 
-### 4.6 [Quantification]
+### 4.6 [Quantification] <a name="quantification"></a>
 Create quantificative (or pseudo-quantitative) parametric images with tracer-kinetic analysis, SUV, or SUVR methods. 
 
 To use a quantification method (e.g., tracer-kinetic analysis), you use the option --quant-method <Quantification Method>. You can also use the "--tka-method" flag, but this flag is gradually being depreated in favor of "--quant-method".
 
 Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 
 	
-You may also need to either define a reference region or use arterial sampling. To use arterial sampling, you must set the flag "--arterial" and have a arterial inputs files in the [dft](http://www.turkupetcentre.net/formats/format_dft_1_0_0.pdf) file format. 
+You may also need to either define a reference region or use arterial sampling. To use arterial sampling, you must set the flag "--arterial" and have a arterial inputs files in a .tsv (tab separated text file) file specified according to the BIDS specification (https://bids-specification.readthedocs.io/en/bep-009/04-modality-specific-files/09-positron-emission-tomography.html#blood-recording-data). 
 On the other hand, you can use a labeled image to define a reference region. There are multiple types of labeled images that you can select with the "--tka-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use the WM mask from a GM/WM/CSF segmentation of the input T1 MRI. Additionally, the "--quant-labels-ones-only" is useful because it will set all of the labels you set with "--quant-label <list of labels>" to 1. 
 	
 ```
@@ -525,7 +581,7 @@ Quantification [usuallly with tracer kinetic analysis (quant)] allows for the qu
 #### Quantification options:
     --tka-method=quant_METHOD
                         Method for performing tracer kinetic analysis (quant):
-                        lp, pp, srtm.
+                        lp, pp, suv, suvr.
     --k2=quant_K2         With reference region input it may be necessary to
                         specify also the population average for regerence
                         region k2
@@ -645,13 +701,13 @@ The reason why there APPIAN stores the outputs in these two ways is a bit compli
 	
 When APPIAN has finished running it copies the most important outputs from preproc/ into your target directory. To save space, it may be helpful to delete the files in preproc/. However, if you decide to do so, it you should only delete the actual brain image files, while keeping all the directories and text files. This will keep the documentation about exactly what was run to generate your data.   
 
-## 4.8 Quality Control
+## 4.8 Quality Control <a name="qc"></a>
 Quality control metrics are calculated for each image volume and each processing stage.
 
-### 4.9 Dashboard GUI 
+### 4.9 Dashboard GUI  <a name="dashboard"></a>
 Web browser-based graphical-user interface for visualizing results.
 
-## 6 Atlases
+## 6 Atlases  <a name="atlases"></a>
 Atlases in stereotaxic space can be used to define ROI mask volumes. Atlases are assumed to be defined on MNI152 template. However, users can also use atlases specified on other templates (e.g., Colin27) by specifying both atlas volume and the template volume on which this atlas is defined. 
 
 ## 7. Examples  <a name="example"></a>

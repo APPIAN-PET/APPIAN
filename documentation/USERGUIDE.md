@@ -557,7 +557,7 @@ To use a quantification method (e.g., tracer-kinetic analysis), you use the opti
 
 Quantification methods may require additional options, such as "--start-time <start time>" for graphical tracer-kinetic analysis methods. 
 	
-You may also need to either define a reference region or use arterial sampling. To use arterial sampling, you must set the flag "--arterial" and have a arterial inputs files in the [dft](http://www.turkupetcentre.net/formats/format_dft_1_0_0.pdf) file format. 
+You may also need to either define a reference region or use arterial sampling. To use arterial sampling, you must set the flag "--arterial" and have a arterial inputs files in a .json file specified according to the BIDS specification (https://bids-specification.readthedocs.io/en/bep-009/04-modality-specific-files/09-positron-emission-tomography.html#blood-recording-data). 
 On the other hand, you can use a labeled image to define a reference region. There are multiple types of labeled images that you can select with the "--tka-label-img" option (see the [masking](#masking) section for more information). If no such label is specified by the user, then APPIAN will by default use the WM mask from a GM/WM/CSF segmentation of the input T1 MRI. Additionally, the "--quant-labels-ones-only" is useful because it will set all of the labels you set with "--quant-label <list of labels>" to 1. 
 	
 ```
@@ -581,7 +581,7 @@ Quantification [usuallly with tracer kinetic analysis (quant)] allows for the qu
 #### Quantification options:
     --tka-method=quant_METHOD
                         Method for performing tracer kinetic analysis (quant):
-                        lp, pp, srtm.
+                        lp, pp, suv, suvr.
     --k2=quant_K2         With reference region input it may be necessary to
                         specify also the population average for regerence
                         region k2

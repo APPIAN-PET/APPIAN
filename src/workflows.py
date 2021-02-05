@@ -536,6 +536,7 @@ class Workflows:
                 self.workflow.connect(self.infosource, 'task', self.visual_qc, "task")
                 self.workflow.connect(self.infosource, 'run', self.visual_qc, "run")
                 self.workflow.connect(self.pet_input_node, self.pet_input_file, self.visual_qc, "pet")
+                self.workflow.connect(self.masking, "resultsLabels.out_file", self.visual_qc, "results_labels")
                 self.workflow.connect(self.init_pet, 'outputnode.pet_volume', self.visual_qc, "pet_3d")
                 self.workflow.connect(self.init_pet, 'outputnode.pet_brain_mask', self.visual_qc, "pet_brain_mask")
                 self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
@@ -544,10 +545,12 @@ class Workflows:
                 if opts.pvc_method != None :
                     self.visual_qc.inputs.pvc_method = opts.pvc_method;
                     self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')
+                    self.workflow.connect(self.masking, "pvcLabels.out_file", self.visual_qc, "pvc_labels")
                 if opts.quant_method != None:
                     self.visual_qc.inputs.quant_method = opts.quant_method;
                     self.workflow.connect(self.quant, 'out_file',  self.visual_qc, 'quant')
                     self.workflow.connect(self.quant, 'out_plot', self.visual_qc, 'quant_plot') 
+                    self.workflow.connect(self.masking, "quantLabels.out_file", self.visual_qc, "quant_labels")
 
 
 

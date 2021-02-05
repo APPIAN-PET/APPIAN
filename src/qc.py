@@ -49,7 +49,7 @@ _file_dir, fn =os.path.split( os.path.abspath(__file__) )
 def load_3d(fn, t=0):
     print('Reading Frame %d'%t,'from', fn)
     img = nib.load(fn)
-    vol = img.get_data() 
+    vol = img.get_fdata() 
     hd  = img.header
     if len(vol.shape) == 4 :
         vol = vol[:,:,:,t]
@@ -375,8 +375,6 @@ class coreg_qc_metricsCommand(BaseInterface):
 
         df=pd.DataFrame(columns=metric_columns )
 
-
-
         def image_read(fn) : 
             img, vol = load_3d(fn)
             vol = vol.astype(float)
@@ -567,15 +565,14 @@ def groupLevel_visual_qc(opts, args):
         os.makedirs(opts.targetDir+'/html')
 
     os.chdir(opts.targetDir+'/html')
-
+    print('Writing html dashboard',opts.targetDir+'/html')
     if not os.path.exists('data'):
         os.makedirs('data')
 
     fn_list = glob(opts.targetDir+os.sep+opts.preproc_dir+os.sep+'*/visual_qc/*_summary.json')
 
-    html = QCHTML(opts.targetDir, fn_list)
-
-    html.build()
+    #initialize and run class for building html dashboard
+    QCHTML(opts.targetDir, fn_list).build()
 
 
 
@@ -583,6 +580,9 @@ class visual_qcOutput(TraitedSpec):
     pet_3d_gif = traits.File(desc="Output file")
     pet_coreg_gif = traits.File(desc="Output file")
     pet_coreg_edge_2_gif = traits.File(desc="Output file")
+    quant_labels_gif = traits.File( desc="Output File")
+    results_labels_gif = traits.File(exists=True, mandatory=False, desc="Output File")
+    pvc_labels_gif = traits.File( desc="Output File")
     pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
     out_json = traits.File(desc="Output file")
@@ -599,6 +599,11 @@ class visual_qcInput(BaseInterfaceInputSpec):
     pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
     mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
     mri_brain_mask = traits.File(exists=True, mandatory=False, desc="MRI brain mask (t1 native space)")
+
+    results_labels = traits.File(exists=True, mandatory=False, desc="Label volume used for results stage")
+    quant_labels = traits.File( desc="Label volume used for quant stage")
+    pvc_labels = traits.File( desc="Label volume used for pvc stage")
+
     t1_analysis_space = traits.File(exists=True, mandatory=True, desc="Output T1 in analysis space image")
     quant_plot = traits.File(exists=True, mandatory=False, desc="Quantification Plot")
     pvc = traits.File(exists=True, desc="Output PVC image")
@@ -612,6 +617,11 @@ class visual_qcInput(BaseInterfaceInputSpec):
     pet_coreg_gif = traits.File(desc="Output file")
     pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
+
+    quant_labels_gif = traits.File(desc="Output File")
+    results_labels_gif = traits.File(desc="Output File")
+    pvc_labels_gif = traits.File(desc="Output File")
+
     out_json = traits.File(desc="Output file")
 
 
@@ -635,35 +645,53 @@ class visual_qcCommand(BaseInterface):
         self.inputs.pet_3d_gif = self._gen_output('_pet_3d.gif')
         self.inputs.pet_coreg_gif = self._gen_output('_coreg.gif')
         self.inputs.pet_coreg_edge_2_gif = self._gen_output('_coreg_edge_2.gif')
+        self.inputs.results_labels_gif = self._gen_output('_results_labels.gif')
         self.inputs.out_json = self._gen_output('_summary.json')
 
         d={'sub':self.inputs.sub, 'ses':self.inputs.ses, 
                 'task':self.inputs.task, 'run':self.inputs.run,
                 'base':self._gen_output('')}
         d['pet_3d']=self.inputs.pet_3d_gif
+        d['results_labels_gif']=self.inputs.results_labels_gif
         d['coreg']=self.inputs.pet_coreg_gif
-        #d['coreg_edge_1']=self.inputs.pet_coreg_edge_1
         d['coreg_edge_2']=self.inputs.pet_coreg_edge_2_gif
 
 
         visual_qc_images=[  ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
                 ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
-                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
+                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds ),
+                # Results Labels
+                ImageParam(self.inputs.t1_analysis_space, self.inputs.results_labels_gif, self.inputs.results_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral )
                 ]
 
         if isdefined(self.inputs.pvc) :
             dims = nib.load(self.inputs.pvc).shape
             time_frames = 1 if len(dims) == 3 else dims[3]
+            #
             self.inputs.pvc_gif = [ self._gen_output('_%d_pvc.gif'%f) for f in range(time_frames)]
             visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[1.25], duration=300, time_frames=time_frames, ndim=len(dims), nframes=15,colorbar=True))
             d['pvc'] = self.inputs.pvc_gif
 
+            # PVC Labels
+            self.inputs.pvc_labels_gif = self._gen_output('_pvc_labels.gif')
+            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.pvc_labels_gif, self.inputs.pvc_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
+            d['pvc_labels_gif']=self.inputs.pvc_labels_gif
+
         if isdefined(self.inputs.quant) :
+            #
             self.inputs.quant_gif = self._gen_output('_quant.gif')
             visual_qc_images.append( ImageParam(self.inputs.quant , self.inputs.quant_gif, self.inputs.t1_analysis_space, alpha=[1.35], duration=300, colorbar=True ))
             d['quant'] = self.inputs.quant_gif
             d['quant_plot'] = self.inputs.quant_plot
 
+            # Quant Labels
+            print('\n\n\nQUANT LABELS\n\n\n')
+            self.inputs.quant_labels_gif = self._gen_output('_quant_labels.gif')
+            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.quant_labels_gif, self.inputs.quant_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
+            print(self.inputs.quant_labels_gif)
+            print(os.path.exists(self.inputs.quant_labels_gif))
+            d['quant_labels_gif']=self.inputs.quant_labels_gif
+            
         for image in visual_qc_images :
             image.volume2gif() 
 
@@ -675,6 +703,11 @@ class visual_qcCommand(BaseInterface):
         outputs["pet_3d_gif"] = self.inputs.pet_3d_gif
         outputs["pet_coreg_gif"] = self.inputs.pet_coreg_gif
         outputs["pet_coreg_edge_2_gif"] = self.inputs.pet_coreg_edge_2_gif
+
+        outputs["results_labels_gif"] = self.inputs.results_labels_gif
+        outputs["pvc_labels_gif"] = self.inputs.pvc_labels_gif
+        outputs["quant_labels_gif"] = self.inputs.quant_labels_gif
+
         outputs["out_json"] = self.inputs.out_json
         if isdefined(self.inputs.pvc) :
             outputs["pvc_gif"] = self.inputs.pvc_gif
@@ -784,26 +817,36 @@ class ImageParam():
                 fig.colorbar(frame[2], shrink=0.35 )
             plt.tight_layout()
             stime=time.time()
-            print('Total Frames:', total_frames)
             ani = animation.FuncAnimation(fig, animate, frames=total_frames, interval=duration, blit=True, repeat_delay=1000)
             if ndim == 4 :
                 out_fn = self.out_fn[t] 
             ani.save(out_fn, dpi=self.dpi) #, writer='imagemagick')
-            print(time.time()-stime)  
+            #print(time.time()-stime)  
             print('Writing', out_fn)
 
 class QCHTML() :
+    '''
+    This class serves to create an html file with visual qc. It requires extracting images and gifs from the output data produced by a run of APPIAN.
+
+    Inputs:
+        fn_list :   list of json files that contains paths to images/gifs used for qc
+        targetDir : output directory where html files will be saved 
+    '''
+
     def __init__(self, targetDir, fn_list):
         self.fn_list = fn_list
         self.targetDir=targetDir
-        self.d = {}
+        self.d = {} #dictionary that keeps track of html files that are created for each of the scans in fn_list
         for fn in fn_list :
+            #populate dictionary with name of scan
             self.d[fn] = json.load(open(fn,'r'))
+            #set the html filename for this scan
             self.d[fn]['html_fn'] = targetDir + '/html/' + os.path.basename(self.d[fn]['base'])+'.html' 
 
-
-
     def sidebar(self, vol_list):
+        '''
+        Create a sidebar with the names of the subjects. Allows user to switch between subjects.
+        '''
         out_str=''
 
         for i, fn in enumerate(self.fn_list) :
@@ -820,12 +863,13 @@ class QCHTML() :
         return out_str
 
     def get_stage_list(self, vol_list,base):
+        'read list of stages that were run based on vol_list'
         stage_list=''
         for i, (ID, H1, H2) in enumerate(vol_list) :
             valid_id=False
             for fn in self.fn_list :
                 try :
-                    self.d[fn][ID]
+                    self.d[fn][ID] #check if valid entry in dictionary
                     valid_id=True
                     break
                 except KeyError :
@@ -837,24 +881,40 @@ class QCHTML() :
         return stage_list
 
     def build(self) :
-        vol_list = (
+        '''
+            This method creates an html file for each scan in self.d. To do this it looks at which qc images/gifs
+            are defined for this scan. 
+
+        '''
+        #qc_stages contains the qc stages. for each stage there is an ID for the stage, a header H1, and a subheader H2 
+        qc_stages = (
                 ('pet_3d','Initialization','3D Volume + Brain Mask'), 
                 ('coreg', 'Coregistration', 'PET + MRI Overlap' ), 
                 ('coreg_edge_2', None, 'PET + MRI Edge' ),
+                ('results_labels_gif', 'Labels','Results'),
+                ('pvc_labels_gif', None,'PVC'),
+                ('quant_labels_gif', None, 'Reference Region'),
                 ('pvc', 'Partial-volume Correction', 'Volume' ),
                 ('quant', 'Quantification', 'Volume'),
                 ('quant_plot', None, 'Time Activity Curves' ))
-        
+
+        #copy some cores css files to target directory so that we can use their formatting 
         shutil.copy(_file_dir+'/w3.css', self.targetDir+'/html/w3.css')
         shutil.copy(_file_dir+'/font-awesome.min.css', self.targetDir+'/html/font-awesome.min.css')
 
+        #for each scan in the dictionary
         for fn, scan_dict in self.d.items() :
+            #here we create the output html file
             with open(scan_dict['html_fn'],'w') as html_file:
+                #write some standard output to the html file that is common to all scans
                 html_file.writelines( self.start())
-
-                html_file.writelines(self.sidebar(vol_list))
+                #write the sidebar to the html file. 
+                #the sidebar contains information about which scans and stages were run
+                html_file.writelines(self.sidebar(qc_stages))
+                #single line that is common to all html files
                 html_file.writelines('<div style="margin-left:260px">\n')
-                for ID, H1, H2 in  vol_list :
+                #for each qc stages, write the html to include it in dashboard
+                for ID, H1, H2 in  qc_stages :
                     self.vol(ID, scan_dict, html_file, h1=H1, h2=H2)
                 self.end(html_file)
 

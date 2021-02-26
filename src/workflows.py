@@ -5,7 +5,6 @@ import src.initialization as init
 import src.pvc as pvc 
 import src.results as results
 import src.quantification as quant
-import src.qc as qc
 import src.dashboard.dashboard as dash
 import nipype.interfaces.utility as niu
 import nipype.pipeline.engine as pe
@@ -505,6 +504,7 @@ class Workflows:
 
 
         if not opts.no_qc :
+            import src.qc as qc
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name=qc_err+"_coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
@@ -542,6 +542,8 @@ class Workflows:
                 self.workflow.connect(self.pet2mri, 'warped_image',  self.visual_qc, 'pet_space_mri')
                 self.workflow.connect(self.t1_analysis_space, 'output_image',  self.visual_qc, 't1_analysis_space')
                 self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name , self.visual_qc,"mri_space_nat")
+                self.workflow.connect(self.mri_preprocess, 'outputnode.template_space_mri', self.visual_qc,"template_space_mri")
+
                 if opts.pvc_method != None :
                     self.visual_qc.inputs.pvc_method = opts.pvc_method;
                     self.workflow.connect(self.pvc, 'outputnode.out_file',  self.visual_qc, 'pvc')

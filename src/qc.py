@@ -586,6 +586,7 @@ class visual_qcOutput(TraitedSpec):
     pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
     out_json = traits.File(desc="Output file")
+    template_alignment_gif = traits.File(desc="Output file")
 
 class visual_qcInput(BaseInterfaceInputSpec):
     targetDir = traits.File(mandatory=True, desc="Target directory")
@@ -598,6 +599,7 @@ class visual_qcInput(BaseInterfaceInputSpec):
     pet_space_mri = traits.File(exists=True, mandatory=True, desc="Output PETMRI image")
     pet_brain_mask = traits.File(exists=True, mandatory=True, desc="Output PET Brain Mask")
     mri_space_nat = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
+    template_space_mri = traits.File(exists=True, mandatory=True, desc="Output T1 native space image")
     mri_brain_mask = traits.File(exists=True, mandatory=False, desc="MRI brain mask (t1 native space)")
 
     results_labels = traits.File(exists=True, mandatory=False, desc="Label volume used for results stage")
@@ -617,6 +619,7 @@ class visual_qcInput(BaseInterfaceInputSpec):
     pet_coreg_gif = traits.File(desc="Output file")
     pvc_gif = traits.List(desc="Output file")
     quant_gif = traits.File(desc="Output file")
+    template_alignment_gif = traits.File(desc="Output file")
 
     quant_labels_gif = traits.File(desc="Output File")
     results_labels_gif = traits.File(desc="Output File")
@@ -640,12 +643,14 @@ class visual_qcCommand(BaseInterface):
             out_str +=  '_'+'run-' + self.inputs.run
         dname = os.getcwd() + os.sep + out_str + fname
         return dname
+
     def _run_interface(self, runtime):
         #Set outputs
         self.inputs.pet_3d_gif = self._gen_output('_pet_3d.gif')
         self.inputs.pet_coreg_gif = self._gen_output('_coreg.gif')
         self.inputs.pet_coreg_edge_2_gif = self._gen_output('_coreg_edge_2.gif')
         self.inputs.results_labels_gif = self._gen_output('_results_labels.gif')
+        self.inputs.template_alignment_gif = self._gen_output('_template_alignment.gif')
         self.inputs.out_json = self._gen_output('_summary.json')
 
         d={'sub':self.inputs.sub, 'ses':self.inputs.ses, 
@@ -657,11 +662,13 @@ class visual_qcCommand(BaseInterface):
         d['coreg_edge_2']=self.inputs.pet_coreg_edge_2_gif
 
 
-        visual_qc_images=[  ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
+        visual_qc_images=[  
+                ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
                 ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
                 ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds ),
                 # Results Labels
-                ImageParam(self.inputs.t1_analysis_space, self.inputs.results_labels_gif, self.inputs.results_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral )
+                ImageParam(self.inputs.t1_analysis_space, self.inputs.results_labels_gif, self.inputs.results_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ),
+                ImageParam(self.inputs.mri_space_nat, self.inputs.template_alignment_gif, self.inputs.template_space_mri, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
                 ]
 
         if isdefined(self.inputs.pvc) :
@@ -703,6 +710,7 @@ class visual_qcCommand(BaseInterface):
         outputs["pet_3d_gif"] = self.inputs.pet_3d_gif
         outputs["pet_coreg_gif"] = self.inputs.pet_coreg_gif
         outputs["pet_coreg_edge_2_gif"] = self.inputs.pet_coreg_edge_2_gif
+        outputs["template_alignment_gif"] = self.inputs.template_alignment_gif
 
         outputs["results_labels_gif"] = self.inputs.results_labels_gif
         outputs["pvc_labels_gif"] = self.inputs.pvc_labels_gif
@@ -889,6 +897,7 @@ class QCHTML() :
         #qc_stages contains the qc stages. for each stage there is an ID for the stage, a header H1, and a subheader H2 
         qc_stages = (
                 ('pet_3d','Initialization','3D Volume + Brain Mask'), 
+                ('template_alignment_gif','Template Alignment','MRI Vs aligned template'), 
                 ('coreg', 'Coregistration', 'PET + MRI Overlap' ), 
                 ('coreg_edge_2', None, 'PET + MRI Edge' ),
                 ('results_labels_gif', 'Labels','Results'),

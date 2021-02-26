@@ -58,7 +58,7 @@ def get_workflow(name, opts):
 
     inputnode = pe.Node(niu.IdentityInterface(fields=in_fields), name="inputnode")
 
-    out_fields=['tfm_stx_mri', 'tfm_mri_stx', 'brain_mask_space_stx', 'brain_mask_space_mri', 'mri_space_stx', 'mri_space_nat' ]
+    out_fields=['tfm_stx_mri', 'tfm_mri_stx', 'brain_mask_space_stx', 'brain_mask_space_mri', 'mri_space_stx', 'mri_space_nat', 'template_space_mri' ]
     for stage, label_type in zip(stages, label_types):
         if 'internal_cls' == label_type :
             out_fields += [ stage+'_label_img']
@@ -94,6 +94,7 @@ def get_workflow(name, opts):
 
         mri_stx_file = 'warped_image'
         mri_stx_node = mri2template
+        template_nat_file = 'inverse_warped_image'
 
         tfm_node= mri2template
         tfm_inv_node= mri2template
@@ -115,6 +116,7 @@ def get_workflow(name, opts):
 
         mri_stx_node = transform_mri
         mri_stx_file = 'output_image'
+        template_nat_file = 'output_image_inverse'
         tfm_node = inputnode
         tfm_file = 'tfm_mri_stx'
         tfm_inv_node=inputnode
@@ -211,6 +213,8 @@ def get_workflow(name, opts):
     workflow.connect(transform_brain_mask, 'output_image', outputnode, 'brain_mask_space_mri')
     #workflow.connect(mri_stx_node, mri_stx_file, outputnode, 'mri_space_stx')
     workflow.connect(copy_mri_nat, 'output_file', outputnode, 'mri_space_nat')
+    
+    workflow.connect(tfm_node, template_nat_file, outputnode, 'template_space_mri')
     return(workflow)
 
 

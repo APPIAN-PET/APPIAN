@@ -67,18 +67,31 @@ class APPIANApplyTransforms(BaseInterface):
         if isdefined(self.inputs.transform_3) :
             transforms.append(self.inputs.transform_3)
             invert_transform_flags.append(self.inputs.invert_3)
-        
-        #output file
+       
+        flip  = lambda x : 0 if x == 1 else 1
+        flipped_invert_transform_flags = map(flip, invert_transform_flags)
+
+        #output files
         split =splitext(os.path.basename( self.inputs.input_image))
         self.inputs.output_image =os.getcwd() + os.sep + split[0] + split[1] 
         if '_space-' in self.inputs.output_image :
             self.inputs.output_image = re.sub('_space-[A-z]*_',"_space-"+self.inputs.target_space+"_", self.inputs.output_image)
+            self.inputs.output_image_inverse = re.sub('_space-[A-z]*_',"_space-"+self.inputs.source_space+"_", self.inputs.output_image)
         
         #combine transformation files and output flags
         transforms_zip = zip(transforms, invert_transform_flags)
+        flipped_transforms_zip = zip(transforms, flipped_invert_transform_flags)
+
         transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in transforms_zip  if t != None ]) 
+        flipped_transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in flipped_transforms_zip  if t != None ])
+       
+        # apply forward transform
         cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
         
+        cmd(cmdline)
+        
+        # apply inverse transform
+        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
         cmd(cmdline)
 
         return runtime
@@ -86,6 +99,8 @@ class APPIANApplyTransforms(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["output_image"] =  self.inputs.output_image
+        outputs["inverse_output_image"] =  self.inputs.output_image_inverse
+
         return outputs
 
     def _parse_inputs(self, skip=None):

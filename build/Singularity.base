@@ -1,22 +1,28 @@
-Bootstrap: docker
-From: ubuntu:18.04
+Bootstrap: shub
+From: APPIAN-PET/APPIAN:ants
+
 
 %post
 
-mkdir /opt/bin /opt/lib /opt/include /opt/share
+mkdir -p /opt/bin /opt/lib /opt/include /opt/share
 apt-get update
 
-apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-curses-gui vim python3.6 python3.6-dev python3-distutils python3-setuptools zlibc zlib1g-dev libssl-dev zlib1g-dev curl ants unzip
+apt-get install -y g++ build-essential liblapack* git  wget openssl cmake cmake-curses-gui vim python3 python3-dev python3-distutils python3-setuptools zlibc zlib1g-dev libssl-dev zlib1g-dev curl unzip #itk3 itk3-dev
 
 
 ### Python packages
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.6 get-pip.py
+python3 get-pip.py
 pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib==3.3.0rc1 nibabel sklearn seaborn wget SimpleITK scikit-image webcolors pint  
 pip3 install --upgrade numpy
 
 ### ANTsPy
-pip3 install https://github.com/ANTsX/ANTsPy/releases/download/v0.1.4/antspy-0.1.4-cp36-cp36m-linux_x86_64.whl
+wget https://github.com/ANTsX/ANTsPy/archive/v0.2.0.tar.gz
+tar -zxvf v0.2.0.tar.gz
+cd ANTsPy-0.2.0/
+python3 setup.py install
+cd ..
+
 pip3 install webcolors
 
 ### Add /opt/lib to library path
@@ -39,9 +45,6 @@ unzip awscliv2.zip
 echo "syntax on" > /root/.vimrc
 echo "set tabstop=4 shiftwidth=4 expandtab smartindent hlsearch " >> /root/.vimrc
 echo set undofile undodir=~/.vim/undodir >> /root/.vimrc
-
-### Copy ANTs Scripts and N4 Bias 
-cp /usr/lib/ants/* /opt/bin
 
 ### PETPVC
 wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Linux.tar.gz

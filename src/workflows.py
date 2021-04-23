@@ -508,8 +508,7 @@ class Workflows:
             #Automated QC: PET to MRI linear coregistration 
             self.distance_metricNode=pe.Node(interface=qc.coreg_qc_metricsCommand(),name=qc_err+"_coreg_qc_metrics")
             self.workflow.connect(self.pet2mri, 'warped_image',  self.distance_metricNode, 'pet')
-            if opts.pet_brain_mask:
-                self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image',  self.distance_metricNode, 'pet_brain_mask' )
+            self.workflow.connect(self.pet_brain_mask_mri_space, 'output_image',  self.distance_metricNode, 'pet_brain_mask' )
             self.workflow.connect(self.mri_preprocess, self.brain_mask_space_mri_name, self.distance_metricNode, 'brain_mask_space_mri')
             self.workflow.connect(self.mri_preprocess, self.mri_space_nat_name,  self.distance_metricNode, 't1')
             self.workflow.connect(self.infosource, 'ses', self.distance_metricNode, 'ses')
@@ -727,10 +726,11 @@ class Workflows:
             self.set_brain_mask(opts, mri_str, base_template_args)
         
         #Create connections bettween infosource and datasourceAnat
-        self.workflow.connect([
-            (self.infosource,self.datasourceAnat, [('sid', 'sid')]),
-            (self.infosource,self.datasourceAnat, [('t1_ses', 'ses')]),
-            ])
+        self.workflow.connect( self.infosource,'sid',self.datasourceAnat, 'sid')
+        if len(opts.sessionList) != 0 and opts.t1_ses == '': 
+            self.workflow.connect(self.infosource,'ses', self.datasourceAnat,'ses')
+        elif len(opts.sessionList) != 0 and opts.t1_ses != '': 
+            self.workflow.connect(self.infosource,'t1_ses', self.datasourceAnat,'ses')
     #
     # Set Labels for datasourceAnat
     #

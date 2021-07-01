@@ -11,5 +11,5 @@ before_script :
     - sudo pip3 install awscli
 script:
     - ls
-    - singularity exec appian.simg bash -c "python3 src/quantitative_validation.py"
+    - singularity exec appian.simg bash -c "src/validate_quantification.sh"
 

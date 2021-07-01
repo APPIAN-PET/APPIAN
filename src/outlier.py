@@ -6,9 +6,14 @@ from math import ceil
 import matplotlib.pyplot as plt
 from sys import exit
 from scipy.stats import gaussian_kde
-from sklearn.neighbors.kde import KernelDensity
+import sklearn
 import pandas as pd
 from scipy.integrate import simps
+sklearn_major_version = float(sklearn.__version__.split('.')[1])
+if sklearn_major_version < 24 :
+    from sklearn.neighbors.kde import KernelDensity
+else :
+    from sklearn.neighbors import KernelDensity
 
 def kde(z, cdf=False, bandwidth=0.3):
     #print(z)

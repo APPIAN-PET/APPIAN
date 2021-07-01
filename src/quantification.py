@@ -499,7 +499,12 @@ class ApplyModel(BaseInterface) :
         print('pet vol shape', pet_vol.shape)
         dims = pet_vol.shape
         n3d=np.product(pet_vol.shape[0:3])
-        pet_vol = pet_vol.reshape([n3d]+[pet_vol.shape[3]])
+        if len(dims) == 3 :
+            n_vol_frames=1
+        else :
+            n_vol_frames=pet_vol.shape[4]
+
+        pet_vol = pet_vol.reshape([n3d]+[n_vol_frames])
 
         brain_mask_img = nib.load(brain_mask_file)
         brain_mask_vol = brain_mask_img.get_data().astype(bool)
@@ -510,6 +515,9 @@ class ApplyModel(BaseInterface) :
         header = json.load(open(header_file, "r") )
         time_frames = np.array([ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ])
         n_frames=len(time_frames)
+
+        assert n_frames == n_vol_frames, f'Error: number of frames of in volume ({n_vol_frames}) and header are not equal ({n_frames}) ' 
+
 
         #Calculate average TAC in Ref
         ref_tac, ref_times = get_reference(pet_vol, brain_mask_vol, ref_file, time_frames, header,arterial_file,arterial_header_file)

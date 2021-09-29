@@ -21,8 +21,7 @@ def run_scan_level(opts,args):
         os.makedirs(opts.targetDir)
 
     sub_valid_args, task_valid_args=gen_args(opts, args)
-    print(task_valid_args)
-    print('tasl')
+    
     scan_level_workflow = Workflows(opts)
 
     scan_level_workflow.initialize(opts) 

@@ -52,11 +52,7 @@ RUN cd /opt &&\
 RUN echo "python3 /opt/APPIAN/Launcher.py" > /opt/bin/appian
 
 RUN useradd -ms /bin/bash user
-
 RUN chown -R user:user /opt/bin/ && chmod 733 /opt/bin/*
-
-USER user
 # ENVIRONMENT VARIABLES
 ENV PATH /opt/bin:$PATH
 ENV ANTSPATH /opt/bin
-

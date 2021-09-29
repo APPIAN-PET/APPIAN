@@ -4,14 +4,14 @@ out=test #out_ds001705-download/
 subs="000101" # 000103 000104 000105"
 sess="baseline" # displaced"
 methods="lp pp suv suvr" # srtm"
-#container=APPIAN-PET-APPIAN-master-latest.simg
-appian_path="/home/t/neuro/projects/APPIAN-PET/APPIAN/"
+appian_path=${1:-"/opt/APPIAN/"}
+echo $appian_path ; exit 0
 
 if [[  -f "ds001705-download"  ]]; then
     echo aws s3 sync --no-sign-request s3://openneuro.org/ds001705 ds001705-download/
 fi
 
-python3 ${appian_path}/Launcher.py --dashboard  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_quick.txt  --t1-session displaced
+python3 appian --dashboard  -s $dir -t $out --subjects $subs --sessions $sess  --no-qc --user-ants-command ${appian_path}/src/ants_command_quick.txt  --t1-session displaced
 
 for method in $methods ; do
     for kind in  quant-roi quant-voxel ; do

@@ -106,7 +106,7 @@ class resultsInput(TraitedSpec):
     task = traits.Str(default_value='NA',usedefault=True)
     ses = traits.Str(desc="Ses",usedefault=True,default_value="NA")
     run = traits.Str(desc="Run",usedefault=True,default_value="NA")
-    acq = traits.Str(desc="Acquisition",usedefault=True,default_value="NA")
+    trc = traits.Str(desc="Acquisition",usedefault=True,default_value="NA")
     rec = traits.Str(desc="Reconstruction",usedefault=True,default_value="NA")
     node  = traits.Str(mandatory=True, desc="Node name")
 
@@ -204,7 +204,7 @@ class resultsCommand( BaseInterface):
                 'ses': [self.inputs.ses] * n,
                 'task': [self.inputs.task] * n,
                 'run': [self.inputs.run] * n,
-                'acq': [self.inputs.acq] * n,
+                'trc': [self.inputs.trc] * n,
                 'rec': [self.inputs.rec] * n,
                 'roi': roi_labels,
                 'metric': ['mean'] * n,
@@ -333,7 +333,7 @@ class integrate_TACCommand( BaseInterface):
    
         if time_frames == [] : time_frames = [1.]
         value_cols=['metric','value']
-        groups=list(df.columns.values) #["analysis", "sub", "ses", "task","run", "acq", "rec", "roi"]
+        groups=list(df.columns.values) #["analysis", "sub", "ses", "task","run", "trc", "rec", "roi"]
         groups = [ i for i in groups if not i in value_cols+['frame'] ] 
         #out_df = pd.DataFrame( columns=metric_columns)
         df.fillna("NA", inplace=True )

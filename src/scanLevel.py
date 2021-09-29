@@ -44,7 +44,7 @@ def gen_args(opts, subjects):
     session_ids = opts.sessionList 
     task_ids = opts.taskList 
     run_ids = opts.runList
-    acq = opts.acq 
+    trc = opts.trc 
     rec = opts.rec
     
     task_args=[]
@@ -69,9 +69,9 @@ def gen_args(opts, subjects):
     else :
         report_columns['Run']=[]
 
-    rec_arg=acq_arg=""
-    if  not acq == '': 
-        acq_arg='acq-'+acq
+    rec_arg=trc_arg=""
+    if  not trc == '': 
+        trc_arg='trc-'+trc
         report_columns['Acq']=[]
 
     if  not rec == '': 
@@ -109,7 +109,7 @@ def gen_args(opts, subjects):
                             mri_arg_list += ['ses-'+opts.t1_ses]
 
                     if not task == '': arg_list += ['task-'+task]
-                    if not acq == '': arg_list += ['acq-'+acq]
+                    if not trc == '': arg_list += ['trc-'+trc]
                     if not rec == '': arg_list += ['rec-'+rec]
                     if not run == '': arg_list += ['run-'+run]
                      
@@ -131,8 +131,8 @@ def gen_args(opts, subjects):
                         d['task']=task
 
                     if "Acq" in report_columns.keys() :
-                        report_row['Acq']=acq
-                        d['acq']=acq
+                        report_row['Acq']=trc
+                        d['trc']=trc
 
                     if "Rec" in report_columns.keys() :
                         report_row['Rec']=rec

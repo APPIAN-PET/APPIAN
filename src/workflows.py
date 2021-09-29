@@ -460,7 +460,7 @@ class Workflows:
             self.resultsReport = pe.Node(interface=results.resultsCommand(), name=node_name)
             self.resultsReport.inputs.dim = dim
             self.resultsReport.inputs.node = node.name
-            self.resultsReport.inputs.acq = opts.acq
+            self.resultsReport.inputs.trc = opts.trc
             self.resultsReport.inputs.roi_labels_file = opts.roi_labels_file
             self.workflow.connect(self.infosource, 'sid', self.resultsReport, "sub")
             self.workflow.connect(self.infosource, 'ses', self.resultsReport, "ses")
@@ -627,7 +627,7 @@ class Workflows:
         self.datasourcePET = pe.Node( interface=nio.DataGrabber(infields=[], outfields=self.base_pet_outputs, raise_on_empty=True, sort_filelist=False), name="datasourcePET")
         self.datasourcePET.inputs.template = '*'
         self.datasourcePET.inputs.base_directory = '/' # opts.sourceDir
-        self.datasourcePET.inputs.acq=opts.acq
+        self.datasourcePET.inputs.trc=opts.trc
         self.datasourcePET.inputs.rec=opts.rec  
         self.datasourcePET.inputs.field_template = {}
         self.datasourcePET.inputs.template_args = {}
@@ -647,9 +647,9 @@ class Workflows:
             pet_str = pet_str + '*task-%s'
             pet_list += ['task'] 
 
-        if opts.acq != '' :
-            pet_str = pet_str + '*acq-%s'
-            pet_list += ['acq']  
+        if opts.trc != '' :
+            pet_str = pet_str + '*trc-%s'
+            pet_list += ['trc']  
         if opts.rec != '':
             pet_str = pet_str + '*rec-%s'
             pet_list += ['rec']
@@ -807,10 +807,10 @@ class Workflows:
     ###########################
     def set_datasource_surf(self, opts):
         ### Use DataGrabber to get sufraces
-        self.datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'acq', 'rec', 'label'], outfields=['surf_left','mask_left', 'surf_right', 'mask_right'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
+        self.datasourceSurf = pe.Node( interface=nio.DataGrabber(infields=['sid', 'ses', 'task', 'trc', 'rec', 'label'], outfields=['surf_left','mask_left', 'surf_right', 'mask_right'], raise_on_empty=True, sort_filelist=False), name="datasourceSurf")
         self.datasourceSurf.inputs.base_directory = opts.sourceDir
         self.datasourceSurf.inputs.template = '*'
-        self.datasourceSurf.inputs.acq=opts.acq
+        self.datasourceSurf.inputs.trc=opts.trc
         self.datasourceSurf.inputs.rec=opts.rec
         self.datasourceSurf.inputs.label=opts.surface_label
         self.datasourceSurf.inputs.field_template =dict(

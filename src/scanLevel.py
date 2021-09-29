@@ -90,13 +90,13 @@ def gen_args(opts, subjects):
 
 
                     if ses == '' :
-                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.nii*'
-                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep + 'pet/*_pet.json'
+                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep + f'pet/*{rec_arg}*_pet.nii*'
+                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep + f'pet/*{rec_arg}*_pet.json'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + 'anat/*_T1w.nii*'
                     else :
                         ses_arg='ses-'+ses
-                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.nii*'
-                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ 'pet/*_pet.json'
+                        pet_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ f'pet/*{rec_arg}*_pet.nii*'
+                        pet_header_string=opts.sourceDir+os.sep+ sub_arg + os.sep+ '*'+ ses_arg + os.sep+ f'pet/*{rec_arg}*_pet.json'
                         mri_string=opts.sourceDir + os.sep + sub_arg + os.sep + '*/anat/*_T1w.nii*'
                     mri_arg_list = ['sub-'+sub]
                     arg_list = ['sub-'+sub ]

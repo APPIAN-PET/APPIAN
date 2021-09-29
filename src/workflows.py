@@ -634,6 +634,10 @@ class Workflows:
 
         pet_str = opts.sourceDir+os.sep+'sub-%s/pet/sub-%s' 
         pet_list = ['sid', 'sid' ]
+
+        # Label order for PET BIDS naming convention:
+        #sub-<label>[_ses-<label>][_task-<label>][_trc-<label>][_rec-<label>][_run-<index>]_pet.
+
         if len(opts.sessionList) != 0: 
             pet_str = pet_str + '*ses-%s'
             pet_str=re.sub('/pet/','/*ses-%s/pet/',pet_str)
@@ -642,9 +646,7 @@ class Workflows:
         if len(opts.taskList) != 0: 
             pet_str = pet_str + '*task-%s'
             pet_list += ['task'] 
-        if len(opts.runList) != 0: 
-            pet_str = pet_str + '*run-%s'
-            pet_list += ['run']
+
         if opts.acq != '' :
             pet_str = pet_str + '*acq-%s'
             pet_list += ['acq']  
@@ -652,9 +654,13 @@ class Workflows:
             pet_str = pet_str + '*rec-%s'
             pet_list += ['rec']
 
+        if len(opts.runList) != 0: 
+            pet_str = pet_str + '*run-%s'
+            pet_list += ['run']
+
         arterial_str= pet_str +'*_blood.'
         pet_str = pet_str + '*_pet.'
-
+        print(pet_str); exit(0)
         img_str = pet_str + opts.img_ext + '*'
         header_str = pet_str + 'json'
         field_template_pet = dict( pet=img_str, json_header=header_str )

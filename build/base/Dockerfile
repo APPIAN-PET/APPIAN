@@ -49,10 +49,10 @@ RUN wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Lin
 RUN cd /opt &&\
     git clone https://github.com/APPIAN-PET/APPIAN
 
-RUN echo "python3 /opt/APPIAN/Launcher.py" > /opt/bin/appian
 
 RUN useradd -ms /bin/bash user
 RUN chown -R user:user /opt/bin/ && chmod 733 /opt/bin/*
 # ENVIRONMENT VARIABLES
+ENV APPIAN "python3 /opt/APPIAN/Launcher.py "
 ENV PATH /opt/bin:$PATH
 ENV ANTSPATH /opt/bin

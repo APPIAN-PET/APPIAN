@@ -8,6 +8,20 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y
 RUN apt-get install -y  g++ curl build-essential liblapack* git  wget openssl cmake cmake-curses-gui vim python3 python3-dev python3-distutils python3-setuptools zlibc zlib1g-dev libssl-dev zlib1g-dev unzip
 
+RUN git clone https://github.com/ANTsX/ANTs.git \
+	&&  mkdir antsbuild \
+	&&  cd antsbuild/ \
+	&&  cmake -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local/ ../ANTs/ \
+	&&   make -j $(( $(nproc) )) 2>&1 | tee build.log \
+	&&   cd ANTS-build/ \
+	&&   make install 2>&1 | tee install.log  \
+	&&   cd /ANTs \
+	&&   git rev-parse HEAD > /usr/local/commit.log \
+	&&   cp /antsbuild/build.log /usr/local/ \
+	&&   cp /antsbuild/ANTS-build/install.log /usr/local/bin \ 
+	&&  rm -r /ANTs /antsbuild 
+
+
 # Add /opt/lib to library path
 RUN echo "/opt/lib/" >> /etc/ld.so.conf.d/userLibraries.conf
 RUN ldconfig

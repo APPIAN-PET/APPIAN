@@ -88,7 +88,7 @@ if __name__ == '__main__' :
     #Run Quant
     #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
-    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
+    cmd_base="python3 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
     for quant in ['--quant-method suvr', '--quant-method lp'] : #, '--quant-method srtm']:
         cmd_quant=cmd_base + quant
         print(cmd_quant)

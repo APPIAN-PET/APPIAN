@@ -115,13 +115,14 @@ class Workflows:
                 print(label_name, label_type, moving_image)
                 node.inputs.fixed_image_space='stx'
                 node.inputs.moving_image_space='template'
-                node.inputs.interpolation='Linear'
-                node.inputs.normalization_type = 'lin' #opts.normalization_type
+                #node.inputs.interpolation='Linear'
+                node.inputs.type_of_transform = opts.type_of_transform
                 node.inputs.moving_image = moving_image
                 node.inputs.fixed_image = opts.template 
-                node.inputs.fixed_image_mask = opts.template_brain_mask 
-                if opts.user_ants_command != None :
-                    node.inputs.user_ants_command = opts.user_ants_command
+                node.inputs.fixed_image_mask = opts.template_brain_mask
+
+                #if opts.user_ants_command != None :
+                #    node.inputs.user_ants_command = opts.user_ants_command
 
                 self.out_node_list += [node]
                 self.out_img_list += ['warped_image']
@@ -222,10 +223,10 @@ class Workflows:
         self.pet2mri.inputs.moving_image_space='pet'
         if opts.pet_coregistration_target == "t1":
             self.pet2mri.inputs.fixed_image_space='T1w'
-            self.pet2mri.inputs.normalization_type='rigid'
+            self.pet2mri.inputs.type_of_transform='DenseRigid'
         elif opts.pet_coregistration_target == "stx":
             self.pet2mri.inputs.fixed_image_space='stx'
-            self.pet2mri.inputs.normalization_type='affine'
+            self.pet2mri.inputs.type_of_transform='Affine'
         else :
             pexit("Error: PET coregistration target not implemented "+opts.pet_coregistration_target+"\nMust be either \'t1\' or \'stx\'")
         
@@ -639,28 +640,26 @@ class Workflows:
         #sub-<label>[_ses-<label>][_task-<label>][_trc-<label>][_rec-<label>][_run-<index>]_pet.
 
         if len(opts.sessionList) != 0: 
-            pet_str = pet_str + '*ses-%s'
+            pet_str = pet_str + '_ses-%s'
             pet_str=re.sub('/pet/','/*ses-%s/pet/',pet_str)
             pet_list.insert(1, 'ses')
             pet_list += ['ses'] 
         if len(opts.taskList) != 0: 
-            pet_str = pet_str + '*task-%s'
+            pet_str = pet_str + '_task-%s'
             pet_list += ['task'] 
-
         if opts.trc != '' :
-            pet_str = pet_str + '*trc-%s'
+            pet_str = pet_str + '_trc-%s'
             pet_list += ['trc']  
         if opts.rec != '':
-            pet_str = pet_str + '*rec-%s'
+            pet_str = pet_str + '_rec-%s'
             pet_list += ['rec']
-
         if len(opts.runList) != 0: 
-            pet_str = pet_str + '*run-%s'
+            pet_str = pet_str + '_run-%s'
             pet_list += ['run']
 
-        arterial_str= pet_str +'*_blood.'
-        pet_str = pet_str + '*_pet.'
-        print(pet_str); exit(0)
+        arterial_str= pet_str +'_blood.'
+        pet_str = pet_str + '_pet.'
+        
         img_str = pet_str + opts.img_ext + '*'
         header_str = pet_str + 'json'
         field_template_pet = dict( pet=img_str, json_header=header_str )
@@ -709,8 +708,8 @@ class Workflows:
         label_str =re.sub('DIR', 'anat', base_label_template) #FIXME: not sure if BIDS derivatives go in anat
  
         self.datasourceAnat.inputs.field_template={
-                "mri":mri_str+"*_T1w.nii.gz"
-                #"mri":mri_str+"*_T1w.nii*"
+                #"mri":mri_str+"*_T1w.nii.gz"
+                "mri":mri_str+"*_T1w.nii*"
                 }
         self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 

@@ -1,8 +1,6 @@
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.ants import registration, segmentation
-from nipype.interfaces.ants.segmentation import Atropos
-from nipype.interfaces.ants import Registration, ApplyTransforms
 from nipype.interfaces.utility import Rename
 from nipype.interfaces.ants.registration import CompositeTransformUtil, CompositeTransformUtilInputSpec
 from nipype.interfaces.ants.resampling import ApplyTransformsInputSpec
@@ -10,13 +8,73 @@ from nipype.interfaces.base import InputMultiPath
 from src.utils import splitext, cmd
 from scipy.io import loadmat
 from scipy.ndimage import center_of_mass
+from sklearn.cluster import KMeans
 import numpy as np
 import nibabel as nib
 import nipype.pipeline.engine as pe
 import SimpleITK as sitk
 import os
 import re
+import ants
 
+
+class AtroposInputs(BaseInterfaceInputSpec):
+    input_image = traits.File(mandatory=True, exits=True, desc="Input Image")
+    mask_image = traits.File(mandatory=True, exits=True, desc="Input Image")
+    prior_weighting = traits.Float(usedefault=True, default_value=0.5) 
+    prior_images =  traits.List()
+    classified_image = traits.File(desc="Output Image")
+
+class AtroposOutputs(TraitedSpec):
+    classified_image = traits.File(desc="Output Image")
+
+class Atropos(BaseInterface):
+    input_spec = AtroposInputs
+    output_spec= AtroposOutputs
+
+    def _run_interface(self, runtime):
+        self._set_outputs()
+
+    
+        print(self.inputs.prior_images)
+        print('input image', self.inputs.input_image)
+        print('mask image',self.inputs.mask_image)
+        print('classified image', self.inputs.classified_image)
+        print()
+        
+        img  = nib.load(self.inputs.input_image)
+        intensity_vol = img.get_fdata()
+
+        centroids=[0]
+        for fn in self.inputs.prior_images :
+            mask_vol = nib.load(fn).get_fdata()
+            centroids.append( np.mean( intensity_vol[ mask_vol > 0.5 ]))
+
+        cls = KMeans(4, np.array(centroids).reshape(-1,1) ).fit_predict(intensity_vol.reshape(-1,1)).reshape(intensity_vol.shape)
+
+        mask_vol = nib.load(self.inputs.mask_image)
+        cls[ mask_vol == 0 ] = 0
+
+        nib.Nifti1Image(cls, img.affine).to_filename(self.inputs.classified_image)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["classified_image"] = self.inputs.classified_image
+        return outputs
+
+    def _set_outputs(self):
+        base_filename = os.path.basename( splitext(self.inputs.input_image)[0] )
+        self.inputs.classified_image = os.getcwd() +'/'+ base_filename +'_atropos-seg.nii.gz'
+
+
+    def _parse_inputs(self, skip=None):
+        if skip is None:
+            skip = []
+        return super(Atropos, self)._parse_inputs(skip=skip)
+
+########################
 
 class APPIANCompositeTransformUtilInputSpec(CompositeTransformUtilInputSpec) :
     in_file_1 = traits.File()
@@ -43,8 +101,9 @@ class APPIANApplyTransformsInputSpec(BaseInterfaceInputSpec) :
     reference_image=traits.File(mandatory=True, exists=True)
     input_image=traits.File(mandatory=True, exists=True)
     output_image = traits.File()
+    output_image_inverse = traits.File()
     target_space=traits.Str(default_value="undefined", usedefault=True)
-    interpolation = traits.Str(usedefault=True, default_value='BSpline')
+    interpolation = traits.Str(usedefault=True, default_value='linear')
 
 class APPIANApplyTransformsOutputSpec(TraitedSpec) :
     output_image = traits.File(exists=True)
@@ -68,31 +127,46 @@ class APPIANApplyTransforms(BaseInterface):
             transforms.append(self.inputs.transform_3)
             invert_transform_flags.append(self.inputs.invert_3)
        
-        flip  = lambda x : 0 if x == 1 else 1
-        flipped_invert_transform_flags = map(flip, invert_transform_flags)
+        flipped_invert_transform_flags = [ not flag for flag in invert_transform_flags ]
 
         #output files
         split =splitext(os.path.basename( self.inputs.input_image))
         self.inputs.output_image =os.getcwd() + os.sep + split[0] + split[1] 
-        if '_space-' in self.inputs.output_image :
-            self.inputs.output_image = re.sub('_space-[A-z]*_',"_space-"+self.inputs.target_space+"_", self.inputs.output_image)
-            self.inputs.output_image_inverse = re.sub('_space-[A-z]*_',"_space-"+self.inputs.source_space+"_", self.inputs.output_image)
+        source_space='rsl'
+        target_space='rsl'
+        print('Input image', self.inputs.input_image)
+        print('Reference image', self.inputs.reference_image)
+        if '_space-' in self.inputs.input_image :
+            get_space = lambda filename : [ re.sub('space-','',s)  for s in filename.split('_') if 'space-' in s ][0]
+            source_space = get_space(self.inputs.input_image)
+            target_space = get_space(self.inputs.reference_image)
+            print('\tsource space',source_space)
+            print('\ttarget space',target_space)
+        print('Interpolation:', self.inputs.interpolation)
+        self.inputs.output_image = re.sub('_space-[A-z]*_',f'_space-{target_space}_', self.inputs.output_image)
+        self.inputs.output_image_inverse = re.sub('_space-[A-z]*_',f'_space-{source_space}_', self.inputs.output_image)
         
-        #combine transformation files and output flags
-        transforms_zip = zip(transforms, invert_transform_flags)
-        flipped_transforms_zip = zip(transforms, flipped_invert_transform_flags)
-
-        transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in transforms_zip  if t != None ]) 
-        flipped_transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in flipped_transforms_zip  if t != None ])
-       
         # apply forward transform
-        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
-        
-        cmd(cmdline)
+        vol = ants.apply_transforms(  
+                                    fixed=self.inputs.reference_image,
+                                    moving=self.inputs.input_image,
+                                    transformlist=transforms, 
+                                    interpolator=self.inputs.interpolation,
+                                    whichtoinvert=invert_transform_flags)
+        nib.Nifti1Image(vol, nib.load(self.inputs.reference_image).affine ).to_filename(self.inputs.output_image)
+        #cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+  + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
         
         # apply inverse transform
-        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
-        cmd(cmdline)
+        vol = ants.apply_transforms(  fixed=self.inputs.input_image,
+                                moving=self.inputs.reference_image,
+                                transformlist=transforms, 
+                                interpolator=self.inputs.interpolation,
+                                whichtoinvert=flipped_invert_transform_flags)
+
+        nib.Nifti1Image(vol, nib.load(self.inputs.input_image).affine ).to_filename(self.inputs.output_image)
+
+        #cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
+        #cmd(cmdline)
 
         return runtime
 
@@ -142,19 +216,43 @@ class APPIANConcatenateTransforms(BaseInterface):
 
 class APPIANRegistrationInputs(BaseInterfaceInputSpec):
     fixed_image = traits.File(mandatory=True, exits=True, desc="Fixed Image")
-    fixed_image_mask = traits.File(desc="Mask for fixed image")
     moving_image = traits.File(mandatory=True, exits=True, desc="Moving Image")
-    moving_image_mask = traits.File(desc="Mask for moving image")
+
+    type_of_transform = traits.Str(usedefault=True, default_value='SyN')
+    initial_transform = traits.File()
+    outprefix = traits.Str()
+
+    fixed_image_mask = traits.File(desc='fixed mask')
+    moving_image_mask = traits.File( desc='moving mask')
+
+    grad_step = traits.Float(usedefault=True, default_value=0.2)
+    flow_sigma = traits.Float(usedefault=True, default_value=3)
+    total_sigma = traits.Float(usedefault=True, default_value=9)
+    
+    aff_metric = traits.Str(usedefault=True, default_value='mattes')
+    aff_sampling = traits.Int(usedefault=True, default_value=32)
+    aff_random_sampling_rate =traits.Float(usedefault=True, default_value=0.2)
+
+    syn_metric = traits.Str(usedefault=True, default_value='mattes')
+    syn_sampling = traits.Int(usedefault=True, default_value=32) 
+    
+    reg_iterations = traits.List()
+    aff_iterations = traits.List()
+    aff_shrink_factors = traits.List()
+    aff_smoothing_sigmas = traits.List()
+
+
+
+    write_composite_transform  = traits.Bool(usedefault=True, default_value=True)
+
     warped_image = traits.File(desc="Warped image")
     inverse_warped_image = traits.File(desc="Inverse warped image")
     composite_transform = traits.File(desc="Composite transorfmation matrix")
     inverse_composite_transform = traits.File(desc="Inverse composite transorfmation matrix")
-    user_ants_command = traits.File(desc="User provided normalization file")
-    normalization_type = traits.Str(desc="Type of registration: rigid, affine, nl", usedefault=True, default_value="nl")
+    
     moving_image_space = traits.Str(desc="Name of coordinate space for moving image", usedefault=True, default_value="source")
     fixed_image_space = traits.Str(desc="Name of coordinate space for fixed image", usedefault=True, default_value="target")
-    interpolation = traits.Str(desc="Type of registration: Linear, NearestNeighbor, MultiLabel[<sigma=imageSpacing>,<alpha=4.0>], Gaussian[<sigma=imageSpacing>,<alpha=1.0>], BSpline[<order=3>], CosineWindowedSinc, WelchWindowedSinc, HammingWindowedSinc, LanczosWindowedSinc, GenericLabel", usedefault=True, default_value="Linear")
-    #misalign_matrix = traits.Str(desc="Misalignment matrix", usedefault=True, default_value=" ")
+    
     rotation_error = traits.List( desc="Rotation Error")
     translation_error = traits.List(desc="Translation Error"  )
     out_matrix = traits.File(desc="Composite transorfmation matrix")
@@ -172,75 +270,79 @@ class APPIANRegistration(BaseInterface):
     input_spec = APPIANRegistrationInputs
     output_spec= APPIANRegistrationOutputs
 
-    def read_user_command_line(self) :
-        cmdline=''
-        if not os.path.exists(self.inputs.user_ants_command) :
-            print("Error : could not read --user-ants-command file specified by user ", self.inputs.user_ants_command)
-            exit(1)
+
+    def _run_interface(self, runtime):
+        self._set_outputs()
+
+        if not isdefined(self.inputs.reg_iterations) : self.inputs.reg_iterations = [40,20,1]
+        if not isdefined(self.inputs.aff_iterations) : self.inputs.aff_iterations = [2100,1200,1200,10]
+        if not isdefined(self.inputs.aff_shrink_factors) : self.inputs.aff_shrink_factors = [6,4,2,1]
+        if not isdefined(self.inputs.aff_smoothing_sigmas) : self.inputs.aff_smoothing_sigmas = [3,2,1,0]
+        if not isdefined(self.inputs.initial_transform): initial_transform = None
+        else : initial_transform = self.inputs.initial_transform
+
+        if isdefined(self.inputs.fixed_image_mask) :
+            mask = self.inputs.fixed_image_mask
+        elif isdefined(self.inputs.fixed_image_mask) and isdefined(self.inputs.moving_image_mask) :
+            mask = [ self.inputs.fixed_image_mask, self.inputs.moving_image_mask ]
         else :
-            with open(self.inputs.user_ants_command) as f:
-                for l in f.readlines():
-                    print('read', l)
-                    cmdline += ' ' + l.rstrip("\n")  
+            mask = None
 
-        if 'SyN' in cmdline : 
-            normalization_type = 'nl' 
-        elif 'Affine' in cmdline :
-            normalization_type = 'affine' 
-        else  :
-            normalization_type = 'rigid' 
+        if not isdefined(self.inputs.outprefix) :
+            self.inputs.outprefix = os.getcwd() +'./'+ os.path.basename(splitext(self.inputs.moving_image)[0])+'_'+self.inputs.type_of_transform
 
-        return cmdline, normalization_type
-        
-    def replace_user_command_line(self, cmdline): 
-        replacement=[   ['fixed_image',self.inputs.fixed_image], 
-                        ['moving_image',self.inputs.moving_image],
-                        ['fixed_image_mask', self.inputs.fixed_image_mask], 
-                        ['moving_image_mask', self.inputs.moving_image_mask], 
-                        ['composite_transform', self.inputs.composite_transform], 
-                        ['inverse_composite_transform', self.inputs.inverse_composite_transform],
-                        ['inverse_warped_image', self.inputs.inverse_warped_image], 
-                        #Warning, inverse_warped_image must come before warped_image
-                        ['warped_image', self.inputs.warped_image],
-                        ['interpolation_method', self.inputs.interpolation]
-                        ]
-        for string, variable in replacement :
-            if isdefined(variable) :
-                cmdline = re.sub(string, variable, cmdline) 
-        
-        print("User provided ANTs command line")
-        return cmdline
-
-    def default_command_line(self):
-        # If user has not specified their own file with an ANTs command line argument
-        # create a command line argument based on whether the normalization type is set to 
-        # rigid, affine, or non-linear. 
-        mask_string=""
-        if isdefined(self.inputs.fixed_image_mask) and isdefined(self.inputs.moving_image_mask) :
-            if os.path.exists(self.inputs.fixed_image_mask) and os.path.exists(self.inputs.moving_image_mask) :
-                mask_string=" --masks ["+self.inputs.fixed_image_mask+","+self.inputs.moving_image_mask+"] "
-            
-        ### Base Options
-        cmdline="antsRegistration --verbose 1 --float --collapse-output-transforms 1 --dimensionality 3 "+mask_string+" --initial-moving-transform [ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1 ] --initialize-transforms-per-stage 0 --interpolation "+self.inputs.interpolation+' '
-
-        ### Rigid
-        cmdline+=" --transform Rigid[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x250x200x100, 1e-08, 20 ] --smoothing-sigmas 8.0x4.0x2.0x1.0vox --shrink-factors 8x4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
-        #output = " --output [ transform ] "
-
-        ### Affine
-        if self.inputs.normalization_type == 'affine' or self.inputs.normalization_type == 'nl':
-            cmdline += " --transform Affine[ 0.1 ] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 1, 32, Regular, 0.3 ] --convergence [ 500x400x300 , 1e-08, 20 ] --smoothing-sigmas 4.0x2.0x1.0vox --shrink-factors 4x2x1 --use-estimate-learning-rate-once 1 --use-histogram-matching 0 " 
+        fixed_image_ants = ants.image_read(self.inputs.fixed_image)
+        moving_image_ants =ants.image_read(self.inputs.moving_image)
+        if mask != None :
+            mask_ants = ants.image_read(mask)
+        else :
+            mask_ants = None
+        print('type of transform', self.inputs.type_of_transform)
+        reg = ants.registration( fixed_image_ants ,
+                            moving_image_ants,
+                            type_of_transform = self.inputs.type_of_transform,
+                            mask = mask_ants,
+                            initial_transform=initial_transform,
+                            grad_step = self.inputs.grad_step,
+                            flow_sigma = self.inputs.flow_sigma, 
+                            total_sigma = self.inputs.total_sigma,
+                            aff_metric = self.inputs.aff_metric,
+                            aff_sampling = self.inputs.aff_sampling,
+                            aff_random_sampling_rate = self.inputs.aff_random_sampling_rate,
+                            syn_metric = self.inputs.syn_metric,
+                            syn_sampling = self.inputs.syn_sampling,
+                            reg_iterations = self.inputs.reg_iterations,
+                            aff_iterations = self.inputs.aff_iterations,
+                            aff_shrink_factors = tuple(self.inputs.aff_shrink_factors),
+                            aff_smoothing_sigmas = self.inputs.aff_smoothing_sigmas,
+                            write_composite_transform  = self.inputs.write_composite_transform
+                            )
        
-        ### Non-linear
-        if  self.inputs.normalization_type == 'nl':
-            #cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 100x100x100x100, 1e-6,10 ] --smoothing-sigmas 4.0x2.0x1.0x0.0vox --shrink-factors 4x2x1x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
-            cmdline += " --transform SyN[ 0.1, 3.0, 0.0] --metric Mattes[ "+self.inputs.fixed_image+", "+self.inputs.moving_image+", 0.5, 64, None ]  --convergence [ 500x400x300x200, 1e-6,10 ] --smoothing-sigmas 4.0x2.0x1.0x0.0vox --shrink-factors 4x2x1x1  --winsorize-image-intensities [ 0.005, 0.995 ]  --write-composite-transform 1 "
-        
-        output = " --output [ transform, "+self.inputs.warped_image+", "+self.inputs.inverse_warped_image+" ] "
-        
-        cmdline += output
+        fixed_img = nib.load(self.inputs.fixed_image)
+        moving_img = nib.load(self.inputs.moving_image)
+        nib.Nifti1Image(reg['warpedmovout'].numpy(), moving_img.affine).to_filename(self.inputs.warped_image) 
 
-        return cmdline 
+        nib.Nifti1Image(reg['warpedfixout'].numpy(), fixed_img.affine).to_filename(self.inputs.inverse_warped_image)
+        assert os.path.exists(self.inputs.warped_image), 'Error: file does not exist ' + self.input.warped_image
+        assert os.path.exists(self.inputs.inverse_warped_image), 'Error: file does not exist ' + self.input.inverse_warped_image
+
+        #linear_transforms = [ 'Translation', 'Rigid', 'Similarity', 'Affine' ]
+        #if True in [ transform in self.inputs.type_of_transform  for transform in linear_transforms ]:
+            #Convert linear transforms from .mat to .txt. antsRegistration produces .mat file based on output
+            #prefix, but this format seems to be harder to work with / lead to downstream errors
+            #If linear transform, then have to apply transformations to input image
+            #self.apply_linear_transforms()
+
+        #if isdefined( self.inputs.rotation_error) or isdefined( self.inputs.translation_error ) : 
+            #if self.inputs.rotation_error != [0,0,0] and self.inputs.translation_error != [0,0,0] : 
+                #print('Warning: Applying misalignment')
+                #print("\tRotation:",self.inputs.rotation_error)
+                #print("\tTranslation:",self.inputs.translation_error)
+                #exit(1)
+                #self.apply_misalignment()
+            
+
+        return runtime
 
     def apply_misalignment(self) :
         com = center_of_mass( nib.load(self.inputs.fixed_image).get_data() )
@@ -283,7 +385,7 @@ class APPIANRegistration(BaseInterface):
         
         #Command line to 
         if not os.path.exists(self.inputs.warped_image) :
-            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i "+self.inputs.moving_image+" -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
+            cmdline = "antsApplyTransforms -e 3 -d 3 -n Linear  -i " + self.inputs.moving_image + " -t "+ self.inputs.out_matrix +" -r "+self.inputs.fixed_image+" -o "+self.inputs.warped_image
             print(cmdline)
             cmd( cmdline  )
 
@@ -298,40 +400,7 @@ class APPIANRegistration(BaseInterface):
             sitk.WriteTransform( tfm, oo_fn  )
             return 0 
 
-    def _run_interface(self, runtime):
-        normalization_type = self.inputs.normalization_type
-
-        #Setup ANTs command line arguments
-        if isdefined(self.inputs.user_ants_command):
-            cmdline, self.inputs.normalization_type = self.read_user_command_line()
-            self._set_outputs()
-            cmdline = self.replace_user_command_line(cmdline)
-        else :
-            self._set_outputs()
-            cmdline = self.default_command_line()
-        print(self.inputs); 
-        #Run antsRegistration on command line
-        print("Ants command line:\n", cmdline)
-        p = cmd(cmdline)	
-         
-        if self.inputs.normalization_type in ['rigid', 'affine']:
-            #Convert linear transforms from .mat to .txt. antsRegistration produces .mat file based on output
-            #prefix, but this format seems to be harder to work with / lead to downstream errors
-            #If linear transform, then have to apply transformations to input image
-            self.apply_linear_transforms()
-
-        if isdefined( self.inputs.rotation_error) or isdefined( self.inputs.translation_error ) : 
-            if self.inputs.rotation_error != [0,0,0] and self.inputs.translation_error != [0,0,0] : 
-                print('Warning: Applying misalignment')
-                print("\tRotation:",self.inputs.rotation_error)
-                print("\tTranslation:",self.inputs.translation_error)
-                exit(1)
-                self.apply_misalignment()
-            
-
-        return runtime
-
-    def _create_output_file(self, fn, space):
+    def _create_output_prefix(self, fn, space):
         basefn = os.path.basename(fn) 
         if not '_space-' in basefn :
             basefn_split = splitext(basefn)
@@ -340,18 +409,22 @@ class APPIANRegistration(BaseInterface):
             return '_'.join( [ f  if not 'space-' in f else 'space-'+space for f in basefn.split('_') ] )
 
     def _set_outputs(self):
-        self.inputs.warped_image=os.getcwd()+os.sep+ self._create_output_file(self.inputs.moving_image,self.inputs.fixed_image_space )
-        self.inputs.inverse_warped_image=os.getcwd()+os.sep+self._create_output_file(self.inputs.fixed_image, self.inputs.moving_image_space )
-        if self.inputs.normalization_type == 'nl' :
-            self.inputs.composite_transform=os.getcwd()+os.sep+'transformComposite.h5'
-            self.inputs.inverse_composite_transform=os.getcwd()+os.sep+'transformInverseComposite.h5'
-        else :
-            self.inputs.out_matrix=os.getcwd()+os.sep+'transform0GenericAffine.mat'
-            self.inputs.out_matrix_inverse=os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat'
+        outprefix = self.inputs.outprefix 
+        moving_prefix=splitext(os.path.basename(self.inputs.moving_image))[0]
+        fixed_prefix =splitext(os.path.basename(self.inputs.fixed_image))[0]
+        self.inputs.warped_image = f'{os.getcwd()}/{moving_prefix}_space-{self.inputs.fixed_image_space}_{self.inputs.type_of_transform}.nii.gz'
+        self.inputs.inverse_warped_image = f'{os.getcwd()}/{fixed_prefix}_space-{self.inputs.moving_image_space}_{self.inputs.type_of_transform}.nii.gz'
+
+        #if self.inputs.normalization_type == 'nl' :
+        self.inputs.composite_transform = f'{outprefix}Composite.h5'
+        self.inputs.inverse_composite_transform = f'{outprefix}InverseComposite.h5'
+        #else :
+        #    self.inputs.out_matrix=os.getcwd()+os.sep+'transform0GenericAffine.mat'
+        #    self.inputs.out_matrix_inverse=os.getcwd()+os.sep+'transform0GenericAffine_inverse.mat'
 
     def _list_outputs(self):
-        outputs = self.output_spec().get()
         self._set_outputs()
+        outputs = self.output_spec().get()
         if isdefined(self.inputs.warped_image):
             outputs["warped_image"] = self.inputs.warped_image
         if isdefined(self.inputs.inverse_warped_image):

@@ -6,10 +6,9 @@ from nipype.interfaces.base import CommandLine, CommandLineInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, 
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.interfaces.ants import registration, segmentation
-from nipype.interfaces.ants.segmentation import Atropos
 from nipype.interfaces.ants import Registration, ApplyTransforms
 from src.utils import copyCommand
-from src.ants import APPIANRegistration, APPIANApplyTransforms
+from src.ants import APPIANRegistration, APPIANApplyTransforms, Atropos
 from nipype.interfaces.utility import Rename
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
@@ -89,8 +88,8 @@ def get_workflow(name, opts):
         workflow.connect(n4, 'output_image', mri2template, 'moving_image')
         if opts.user_ants_command != None :
             mri2template.inputs.user_ants_command = opts.user_ants_command
-        if opts.normalization_type :
-            mri2template.inputs.normalization_type = opts.normalization_type
+        if opts.type_of_transform :
+            mri2template.inputs.type_of_transform = opts.type_of_transform
 
         mri_stx_file = 'warped_image'
         mri_stx_node = mri2template
@@ -98,10 +97,10 @@ def get_workflow(name, opts):
 
         tfm_node= mri2template
         tfm_inv_node= mri2template
-        if opts.normalization_type == 'nl' :
+        if opts.type_of_transform in ['SyN', 'Elastic', 'ElasticSyn', 'SynAggro'] + ['Affine', 'Rigid', 'AffineFast', 'DenseRigid'] :
             tfm_file='composite_transform'
             tfm_inv_file='inverse_composite_transform'
-        elif opts.normalization_type == 'affine' or opts.normalization_type == 'rigid' :
+        elif opts.type_of_transform in ['Affine', 'Rigid', 'AffineFast', 'DenseRigid'] :
             tfm_file='out_matrix'
             tfm_inv_file='out_matrix_inverse'
         else :
@@ -142,18 +141,17 @@ def get_workflow(name, opts):
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
         if  seg == None :
             seg = pe.Node(interface=Atropos(), name="segmentation_ants")
-            seg.inputs.dimension=3
-            seg.inputs.number_of_tissue_classes=3 #len(opts.ants_atropos_priors)
-            seg.inputs.initialization = 'PriorProbabilityImages'
-            seg.inputs.prior_weighting = opts.ants_atropos_prior_weighting
-            seg.inputs.prior_image = opts.ants_atropos_priors
-            seg.inputs.likelihood_model = 'Gaussian'
-            seg.inputs.posterior_formulation = 'Socrates'
-            seg.inputs.use_mixture_model_proportions = True
-            seg.inputs.args="-v 1"
-            workflow.connect(mri_stx_node, mri_stx_file,  seg, 'intensity_images' )
+            #seg.inputs.dimension=3
+            #seg.inputs.number_of_tissue_classes=3 #len(opts.ants_atropos_priors)
+            #seg.inputs.initialization = 'PriorProbabilityImages'
+            #seg.inputs.prior_weighting = opts.ants_atropos_prior_weighting
+            seg.inputs.prior_images = [ icbm_default_wm, icbm_default_gm, icbm_default_csf ]
+            #seg.inputs.likelihood_model = 'Gaussian'
+            #seg.inputs.posterior_formulation = 'Socrates'
+            #seg.inputs.use_mixture_model_proportions = True
+            #seg.inputs.args="-v 1"
+            workflow.connect(mri_stx_node, mri_stx_file,  seg, 'input_image' )
             seg.inputs.mask_image = icbm_default_brain
-            #workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
         print(stage, img) 
         if 'antsAtropos' == img :
             workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
@@ -198,7 +196,7 @@ def get_workflow(name, opts):
     # Transform brain mask from stereotaxic to T1 native space
     #
     transform_brain_mask = pe.Node(interface=APPIANApplyTransforms(),name="transform_brain_mask")
-    transform_brain_mask.inputs.interpolation = 'NearestNeighbor'
+    transform_brain_mask.inputs.interpolation = 'nearestNeighbor'
     transform_brain_mask.inputs.target_space = 't1'
     workflow.connect(brain_mask_node, brain_mask_file, transform_brain_mask, 'input_image')
     workflow.connect(tfm_node, tfm_inv_file, transform_brain_mask, 'transform_1')

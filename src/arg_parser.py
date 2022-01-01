@@ -74,7 +74,7 @@ def get_parser():
     parser.add_argument("--n4-shrink-factor", dest="n4_shrink_factor",type=int,help="Order of BSpline interpolation for N4 correction", default=2)
     parser.add_argument("--n4-convergence-threshold", dest="n4_convergence_threshold",type=float,help="Convergence threshold for N4 correction", default=1e-6)
 
-    parser.add_argument("--normalization-type", dest="normalization_type",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='nl')
+    parser.add_argument("--normalization-type", dest="type_of_transform",type=str,help="Type of registration to use for T1 MRI normalization, rigid, linear, non-linear: rigid, affine, nl. (Default=nl)", default='SyN')
     parser.add_argument("--user-ants-command", dest="user_ants_command",type=str,help="User specified command for normalization. See \"Registration/user_ants_example.txt\" for an example", default=None)
     parser.add_argument("--user-t1mni","--user-mri-to-stereo", dest="user_mri_stx", default='', type=str, help="User provided transform from to and from MRI & MNI space. Options: lin, nl. If 'lin' transformation files must end with '_affine.h6'. If 'nl', files must be a compressed nifti file that ends with '_warp.nii.gz'. Transformation files must indicate the target coordinate space of the transform: '_target-<T1/MNI>_<affine/warp>.<h5/nii.gz>' " ) 
     parser.add_argument("--user-brainmask", dest="user_brainmask", default=False, action='store_true', help="Use user provided brain mask" ) 
@@ -160,9 +160,6 @@ def get_parser():
     parser.add_argument("--pet-coregistration-target",dest="pet_coregistration_target",type=str, help="Target for PET coregistration (t1, stx; Default=t1)", default='t1', choices=['t1','stx'])
     parser.add_argument("--no-pet-brain-mask",dest="pet_brain_mask",help="Create PET mask for coregistration", action='store_false', default=True)
     parser.add_argument("--no-mri-mask",dest="pet2mri_mri_mask",help="Don't use MRI mask for PET to MRI  coregistration", action='store_false', default=True)
-    parser.add_argument("--second-pass-no-mask",dest="no_mask",help="Do a second pass of coregistration without masks.", action='store_false', default=True)
-    parser.add_argument("--slice-factor",dest="slice_factor",help="Value (between 0. to 1.) that is multiplied by the maximum of the slices of the PET image. Used to threshold slices. Lower value means larger mask.", type=float, default=0.25)
-    parser.add_argument("--total-factor",dest="total_factor",help="Value (between 0. to 1.) that is multiplied by the thresholded means of each slice.",type=float, default=0.333)
     
 
     ###############
@@ -237,21 +234,6 @@ def get_parser():
 def modify_opts(opts) :
     opts.targetDir = os.path.abspath(os.path.normpath(opts.targetDir))
     opts.sourceDir = os.path.abspath(os.path.normpath(opts.sourceDir))
-
-    #If user ants command is set, modify normalization type according to user ants command
-    if opts.user_ants_command != None :
-        if os.path.exists(opts.user_ants_command ) :
-            file_text = open(opts.user_ants_command).read()
-            print(file_text)
-            if 'SyN' in file_text:
-                opts.normalization_type = 'nl'
-            elif 'Affine' in file_text : 
-                opts.normalization_type = 'affine' 
-            elif 'Rigid' in file_text : 
-                opts.normalization_type = 'rigid' 
-            else :
-                print("Error: User ANTs command should contain SyN, Affine, or Rigid")
-                exit(1)
 
     #
     # If pet_coregistration_target != t1, then APPIAN will skip using the T1 MRI and use the

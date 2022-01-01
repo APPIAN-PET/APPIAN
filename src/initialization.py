@@ -87,32 +87,12 @@ class validate_header(BaseInterface):
     output_spec = header_output
     
     def _set_duration(self, d):
-        frame_times=[]
         try :
-            frame_times = d["Time"]["FrameTimes"]["Values"]
+            d['FrameTimes'] =[ [s,s+d] for s,d in zip(d["FrameTimesStart"],d["FrameTimesStart"]) ]
         except KeyError :
             print("\nError Could not find Time:FrameTimes:Values in header\n")
             exit(1)
-        FrameLengths=[]
-
-        c0=c1=1 #Time unit conversion variables. Time should be in seconds
-        try :
-            if d["Time"]["FrameTimes"]["Units"][0] == 'm' :
-                c0=60
-            elif d["Time"]["FrameTimes"]["Units"][0] == 'h' :
-                c0=60*60
-            if d["Time"]["FrameTimes"]["Units"][1] == 'm' :
-                c1=60
-            elif d["Time"]["FrameTimes"]["Units"][1] == 'h' :
-                c1=60*60
-        except KeyError :
-            print("\nError Could not find Time:FrameTimes:Units in header\n")
-            exit(1)
-
-        for s, e in frame_times :
-            FrameLengths.append(c1*e - c0*s)
-
-        d["Time"]["FrameTimes"]["Duration"] = FrameLengths
+        
         return d
 
     def _run_interface(self, runtime):
@@ -120,21 +100,20 @@ class validate_header(BaseInterface):
             self.inputs.out_file=os.getcwd() +os.sep+ os.path.basename(self.inputs.in_file)
         d=json.load(open(self.inputs.in_file,'r')) 
         
-        fields=[["Time","FrameTimes","Units"],
-                ["Time","FrameTimes","Values"],
+        fields=[["FrameTimesStart"],
+                ["FrameDuration"],
                 ]
         if self.inputs.quant_method == "suv" :
             fields += [["Info","BodyWeight"],
                     ["RadioChem", "InjectedRadioactivity"],
                     ["RadioChem","InjectedRadioactivityUnits"]]
-        print(fields)
+        
         for f in fields :
             try :
                 test_dict=d
                 for key in f :
-                    print(key)
                     test_dict=test_dict[key]
-            except ValueError :
+            except KeyError :
                 pexit("Error: json header does not contain key: "+":".join(f)+"for file"+self.inputs.in_file)
         d=self._set_duration(d)
         json.dump(d,open(self.inputs.out_file,'w+'))

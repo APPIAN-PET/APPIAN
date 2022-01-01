@@ -60,11 +60,12 @@ if __name__ == '__main__' :
     # Download data from Amazon Web Services #
     ##########################################
     
+    print(opts.source_dir, os.path.exists(opts.source_dir))
     if not os.path.exists(opts.source_dir) :
         os.makedirs(opts.source_dir)
         #cmd('pip3 install awscli --user') #> /dev/null && export PATH="${PATH}:/root/.local/bin/" > /dev/null]))
         cmd(' '.join(['aws s3 sync --no-sign-request s3://openneuro.org/'+version,opts.source_dir]) )
-    
+
     ##################
     # Run validation #
     ##################
@@ -88,9 +89,10 @@ if __name__ == '__main__' :
     #Run Quant
     #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
-    cmd_base="python3.6 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
+    cmd_base="python3 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 "
+
     for quant in ['--quant-method suvr', '--quant-method lp'] : #, '--quant-method srtm']:
-        cmd_quant=cmd_base + quant
+        cmd_quant = cmd_base + quant
         print(cmd_quant)
         #cmd(cmd_quant)
         print("\n\n\n\n\n\n\n\n")

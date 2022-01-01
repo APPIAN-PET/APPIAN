@@ -26,7 +26,7 @@ icbm_default_atlas = file_dir+os.sep+"/atlas/MNI152/dka.nii.gz"
 #Default FWHM for PET scanners
 pet_scanners={"HRRT":[2.5,2.5,2.5],"HR+":[6.5,6.5,6.5]} #FIXME should be read from a separate .json file and include lists for non-isotropic fwhm
 
-def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
+def printOptions(opts,subject_ids,session_ids,task_list, run_list, trc, rec):
     """
     Print basic options input by user
 
@@ -46,7 +46,7 @@ def printOptions(opts,subject_ids,session_ids,task_list, run_list, acq, rec):
     print("* Sessions : ", session_ids, "\n")
     print("* Tasks : " , task_list , "\n")
     print("* Runs : " , run_list , "\n")
-    print("* Acquisition : " , acq , "\n")
+    print("* Acquisition : " , trc , "\n")
     print("* Reconstruction : " , rec , "\n")
 
 def get_parser():
@@ -55,7 +55,7 @@ def get_parser():
     parser.add_argument("-t","--target","--targetdir",dest="targetDir",type=str, help="Path for directory where output data will be saved in", required=True)
     parser.add_argument("--preprocdir",dest="preproc_dir",type=str, default='preproc', help="Relative path (relative to targetDir) to preprocessing directory for intermediate files")
 
-    parser.add_argument("--radiotracer","--acq",dest="acq",type=str, default='', help="Radiotracer")
+    parser.add_argument("--radiotracer","--trc",dest="trc",type=str, default='', help="Radiotracer")
     parser.add_argument("-r","--rec",dest="rec",type=str, default='', help="Reconstruction algorithm")
     parser.add_argument("--sessions",dest="sessionList",default=[],help="List of conditions or scans",nargs='+')
     parser.add_argument("--t1-session",dest="t1_ses",default='',type=str,help="Session to use for the T1w MRI. Use if you only have T1w MRI for one session and want to use that one for all processing.")
@@ -361,7 +361,7 @@ def modify_opts(opts) :
                 exit(1)
 
 
-    printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.acq, opts.rec)
+    printOptions(opts,opts.args,opts.sessionList,opts.taskList, opts.runList, opts.trc, opts.rec)
     #FIXME Depreceating quant_method in favor of quant_method
     #Creating the opts.quant_method to start transition away from using quant_method
     opts.quant_method = opts.quant_method

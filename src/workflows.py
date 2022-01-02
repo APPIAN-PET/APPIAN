@@ -660,7 +660,6 @@ class Workflows:
 
         arterial_str= pet_str +'*_blood.'
         pet_str = pet_str + '*_pet.'
-        print(pet_str); exit(0)
         img_str = pet_str + opts.img_ext + '*'
         header_str = pet_str + 'json'
         field_template_pet = dict( pet=img_str, json_header=header_str )
@@ -709,8 +708,8 @@ class Workflows:
         label_str =re.sub('DIR', 'anat', base_label_template) #FIXME: not sure if BIDS derivatives go in anat
  
         self.datasourceAnat.inputs.field_template={
-                "mri":mri_str+"*_T1w.nii.gz"
-                #"mri":mri_str+"*_T1w.nii*"
+                #"mri":mri_str+"*_T1w.nii.gz"
+                "mri":mri_str+"*_T1w.nii*"
                 }
         self.datasourceAnat.inputs.template_args = {"mri":[mri_list]}
 

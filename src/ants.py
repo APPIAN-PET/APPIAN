@@ -74,9 +74,11 @@ class APPIANApplyTransforms(BaseInterface):
         #output files
         split =splitext(os.path.basename( self.inputs.input_image))
         self.inputs.output_image =os.getcwd() + os.sep + split[0] + split[1] 
+        print(self.inputs.output_image); exit(0)
         if '_space-' in self.inputs.output_image :
             self.inputs.output_image = re.sub('_space-[A-z]*_',"_space-"+self.inputs.target_space+"_", self.inputs.output_image)
             self.inputs.output_image_inverse = re.sub('_space-[A-z]*_',"_space-"+self.inputs.source_space+"_", self.inputs.output_image)
+
         
         #combine transformation files and output flags
         transforms_zip = zip(transforms, invert_transform_flags)

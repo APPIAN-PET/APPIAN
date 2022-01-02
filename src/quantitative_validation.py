@@ -26,7 +26,7 @@ nrm=version+"-download"
 # Default Settings #
 ####################
 appian_dir=SCRIPTPATH
-source_dir=nrm
+source_dir=SCRIPTPATH+'/'+nrm
 target_dir="out_"+nrm
 singularity_image="APPIAN-PET/APPIAN:latest"
 
@@ -63,7 +63,9 @@ if __name__ == '__main__' :
     if not os.path.exists(opts.source_dir) :
         os.makedirs(opts.source_dir)
         #cmd('pip3 install awscli --user') #> /dev/null && export PATH="${PATH}:/root/.local/bin/" > /dev/null]))
-        cmd(' '.join(['aws s3 sync --no-sign-request s3://openneuro.org/'+version,opts.source_dir]) )
+        aws_cmd=' '.join(['aws s3 sync --no-sign-request s3://openneuro.org/'+version,opts.source_dir])
+        print(aws_cmd)
+        cmd( aws_cmd )
     
     ##################
     # Run validation #
@@ -99,6 +101,7 @@ if __name__ == '__main__' :
         cmd_pvc=cmd_base + ' --fwhm 2.5 2.5 2.5 --quant-method suvr ' + pvc
         print(cmd_pvc)
         cmd(cmd_pvc)
+        exit(0)
         print("\n\n\n\n\n\n\n\n")
 
 

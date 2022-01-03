@@ -180,7 +180,7 @@ def srtm(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
             exit(1)
 
     decayConstant = np.log(2) / half_life 
-    time_widths = np.array(header["Time"]["FrameTimes"]["Duration"]).reshape(-1,) / 50.
+    time_widths = np.array(header["FrameTimes"]).reshape(-1,) / 50.
     time_frames = np.array(time_frames).reshape(-1,) / 60.
     pet_sum = np.sum(vol,axis=0)
     weights = time_widths / (pet_sum * np.exp(decayConstant * time_frames))
@@ -501,8 +501,10 @@ class ApplyModel(BaseInterface) :
         n3d=np.product(pet_vol.shape[0:3])
         if len(dims) == 3 :
             n_vol_frames=1
+        elif len(dims) == 4 :
+            n_vol_frames=pet_vol.shape[3]
         else :
-            n_vol_frames=pet_vol.shape[4]
+            print(f'Error: incorrect number of dimensions, {len(dims)}, in {pet_file}')
 
         pet_vol = pet_vol.reshape([n3d]+[n_vol_frames])
 
@@ -513,10 +515,10 @@ class ApplyModel(BaseInterface) :
 
         model = model_dict[self.inputs.quant_method]
         header = json.load(open(header_file, "r") )
-        time_frames = np.array([ (float(s) + float(e)) / 2. for s,e in  header['Time']["FrameTimes"]["Values"] ])
+        time_frames = np.array([ (float(s) + float(e)) / 2. for s,e in  header["FrameTimes"] ])
         n_frames=len(time_frames)
 
-        assert n_frames == n_vol_frames, f'Error: number of frames of in volume ({n_vol_frames}) and header are not equal ({n_frames}) ' 
+        assert n_frames == n_vol_frames, f'Error: number of frames of in volume ({n_vol_frames}) and header are not equal ({n_frames})\n{pet_file}' 
 
 
         #Calculate average TAC in Ref

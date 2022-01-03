@@ -17,6 +17,11 @@ import SimpleITK as sitk
 import os
 import re
 
+def get_space(filename, default) : 
+    if '_space-' in filename :
+        return [ re.sub('space-','',s)  for s in filename.split('_') if 'space-' in s ][0]
+    else : 
+        return default 
 
 class APPIANCompositeTransformUtilInputSpec(CompositeTransformUtilInputSpec) :
     in_file_1 = traits.File()
@@ -40,18 +45,32 @@ class APPIANApplyTransformsInputSpec(BaseInterfaceInputSpec) :
     invert_1 = traits.Bool(default_value=False, usedefault=True)
     invert_2 = traits.Bool(default_value=False, usedefault=True)
     invert_3 = traits.Bool(default_value=False, usedefault=True)
+    source_space = traits.Str(default_value='src', usedefault=True)
+    target_space = traits.Str(default_value='tgt', usedefault=True)
     reference_image=traits.File(mandatory=True, exists=True)
     input_image=traits.File(mandatory=True, exists=True)
     output_image = traits.File()
+    output_image_inverse = traits.File()
     target_space=traits.Str(default_value="undefined", usedefault=True)
     interpolation = traits.Str(usedefault=True, default_value='BSpline')
 
 class APPIANApplyTransformsOutputSpec(TraitedSpec) :
     output_image = traits.File(exists=True)
+    output_image_inverse = traits.File()
 
 class APPIANApplyTransforms(BaseInterface):
     input_spec = APPIANApplyTransformsInputSpec
     output_spec = APPIANApplyTransformsOutputSpec
+
+    def gen_output_filename(self, filename, default):
+        space = get_space(filename, default)
+        print('---> filename ',filename)
+        if '_space-' in filename :
+            output_image = re.sub('_space-[A-z]*_',f'_space-{space}_', filename)
+        else :
+            output_image = re.sub('.nii',f'_space-{space}.nii',filename)
+
+        return output_image
 
     def _run_interface(self, runtime):
         transforms = [] 
@@ -71,15 +90,18 @@ class APPIANApplyTransforms(BaseInterface):
         flip  = lambda x : 0 if x == 1 else 1
         flipped_invert_transform_flags = map(flip, invert_transform_flags)
 
-        #output files
-        split =splitext(os.path.basename( self.inputs.input_image))
-        self.inputs.output_image =os.getcwd() + os.sep + split[0] + split[1] 
-        print(self.inputs.output_image); exit(0)
-        if '_space-' in self.inputs.output_image :
-            self.inputs.output_image = re.sub('_space-[A-z]*_',"_space-"+self.inputs.target_space+"_", self.inputs.output_image)
-            self.inputs.output_image_inverse = re.sub('_space-[A-z]*_',"_space-"+self.inputs.source_space+"_", self.inputs.output_image)
+        src_dims=nib.load(self.inputs.input_image).shape
+        tgt_dims=nib.load(self.inputs.reference_image).shape
+        get_ndim = lambda dims : 0 if len(dims)==3 or (len(dims) == 4 and dims[-1] == 1) else 3
+        src_ndim= get_ndim(src_dims)
+        tgt_ndim= get_ndim(tgt_dims)
 
-        
+        #output files
+        self.inputs.output_image = self.gen_output_filename(self.inputs.input_image, self.inputs.source_space)
+        self.inputs.output_image_inverse = self.gen_output_filename(self.inputs.reference_image, self.inputs.target_space)
+
+        print('1',self.inputs.output_image_inverse)
+        print('2', self.inputs.output_image)
         #combine transformation files and output flags
         transforms_zip = zip(transforms, invert_transform_flags)
         flipped_transforms_zip = zip(transforms, flipped_invert_transform_flags)
@@ -88,20 +110,22 @@ class APPIANApplyTransforms(BaseInterface):
         flipped_transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in flipped_transforms_zip  if t != None ])
        
         # apply forward transform
-        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
-        
+        cmdline = f'antsApplyTransforms --float -v 1 -d 3 -e {src_ndim} -n '+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
+        print(cmdline) 
         cmd(cmdline)
         
         # apply inverse transform
-        cmdline = "antsApplyTransforms --float -v 1 -e 3 -d 3 -n "+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
+        cmdline = f'antsApplyTransforms --float -v 1 -d 3 -e {tgt_ndim} -n '+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
         cmd(cmdline)
+        print('hello hello')
+        print( nib.load(self.inputs.output_image).shape); 
 
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["output_image"] =  self.inputs.output_image
-        outputs["inverse_output_image"] =  self.inputs.output_image_inverse
+        outputs["output_image_inverse"] =  self.inputs.output_image_inverse
 
         return outputs
 

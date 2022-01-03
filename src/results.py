@@ -125,7 +125,7 @@ class resultsCommand( BaseInterface):
     def _run_interface(self, runtime):
         print('1',os.stat(self.inputs.pet_header_json))
         header = json.load(open(self.inputs.pet_header_json, 'r'))
-        frames = header['Time']['FrameTimes']['Values']
+        frames = header['FrameTimes']
 
         if not isdefined(self.inputs.out_file) :
             self.inputs.out_file=self._gen_output(self.inputs.in_file, '_results')
@@ -323,8 +323,8 @@ class integrate_TACCommand( BaseInterface):
        
         if time_frames == [] :
             try :
-                header['Time']['FrameTimes']['Values']
-                time_frames = [ float(s) for s,e in  header['Time']["FrameTimes"]["Values"] ]
+                header['FrameTimes']
+                time_frames = [ float(s) for s,e in  header["FrameTimes"] ]
                 #for i in range(1, len(time_frames)) :
                 #    time_frames[i] = time_frames[i] + time_frames[i-1]
                     

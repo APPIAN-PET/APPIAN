@@ -27,7 +27,7 @@ nrm=version+"-download"
 ####################
 appian_dir=SCRIPTPATH
 source_dir=SCRIPTPATH+'/'+nrm
-target_dir="out_"+nrm
+target_dir=SCRIPTPATH+"/out_"+nrm
 singularity_image="APPIAN-PET/APPIAN:latest"
 
 def useage():

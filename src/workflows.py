@@ -259,7 +259,9 @@ class Workflows:
 
         #If analysis_space != pet, then resample 4d PET image to T1 or stereotaxic space
         if opts.analysis_space in ['t1', 'stereo'] :
-            pet_analysis_space = pe.Node(interface=APPIANApplyTransforms(), name='pet_space_mri')
+            pet_analysis_space = pe.Node(APPIANApplyTransforms(), name='pet_space_mri')
+
+            pet_analysis_space.inputs.source_space="pet"
             pet_analysis_space.inputs.target_space="t1"
             self.workflow.connect(self.datasource, 'pet', pet_analysis_space, 'input_image')
             self.pet_input_node=pet_analysis_space
@@ -639,27 +641,27 @@ class Workflows:
         #sub-<label>[_ses-<label>][_task-<label>][_trc-<label>][_rec-<label>][_run-<index>]_pet.
 
         if len(opts.sessionList) != 0: 
-            pet_str = pet_str + '*ses-%s'
+            pet_str = pet_str + '_ses-%s'
             pet_str=re.sub('/pet/','/*ses-%s/pet/',pet_str)
             pet_list.insert(1, 'ses')
             pet_list += ['ses'] 
         if len(opts.taskList) != 0: 
-            pet_str = pet_str + '*task-%s'
+            pet_str = pet_str + '_task-%s'
             pet_list += ['task'] 
 
         if opts.trc != '' :
-            pet_str = pet_str + '*trc-%s'
+            pet_str = pet_str + '_trc-%s'
             pet_list += ['trc']  
         if opts.rec != '':
-            pet_str = pet_str + '*rec-%s'
+            pet_str = pet_str + '_rec-%s'
             pet_list += ['rec']
 
         if len(opts.runList) != 0: 
-            pet_str = pet_str + '*run-%s'
+            pet_str = pet_str + '_run-%s'
             pet_list += ['run']
 
-        arterial_str= pet_str +'*_blood.'
-        pet_str = pet_str + '*_pet.'
+        arterial_str= pet_str +'_blood.'
+        pet_str = pet_str + '_pet.'
         img_str = pet_str + opts.img_ext + '*'
         header_str = pet_str + 'json'
         field_template_pet = dict( pet=img_str, json_header=header_str )

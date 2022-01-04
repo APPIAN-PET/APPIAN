@@ -108,7 +108,10 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     start_frame = np.sum(start_time >= np.array(time_frames)) 
     end_frame = np.sum(end_time >= np.array(time_frames)) 
 
-    num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    if len(time_frames) > 1 :
+        num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    else :
+        num = vol
     bw=dose=0
 
     try :
@@ -154,9 +157,13 @@ def suvr(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     end_frame = np.sum(end_time >= np.array(time_frames)) 
     print(start_time, end_time)
     print(start_frame, end_frame)
-
-    num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
-    den = simps( ref[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    print(time_frames)
+    if len(time_frames) > 1 :
+        num = simps( vol[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+        den = simps( ref[:,start_frame:end_frame], time_frames[start_frame:end_frame], axis=1)
+    else : 
+        num = vol[:,]
+        den = ref[:,]
     print(num.shape, den.shape)
     return num / den
 
@@ -431,10 +438,16 @@ def create_output_array(dims,  roi_based, quant_vol, roi_file, brain_mask_vol ):
     roi_img = nib.load(roi_file)
     roi_vol = roi_img.get_data().reshape(-1,)
     n3d=np.product(dims[0:3]) 
-    n_frames=dims[3]
+    n_frames=1 
+    if len(dims) == 4 : n_frames=dims[3]
+
     unique_roi=np.unique(roi_vol)[1:]
 
     ar = np.zeros([n3d] )
+    print(brain_mask_vol.shape)
+    print(ar.shape)
+    print(np.sum(brain_mask_vol))
+    print(quant_vol.shape)
 
     if  roi_based == True :
         for t in range(n_frames) :
@@ -442,9 +455,19 @@ def create_output_array(dims,  roi_based, quant_vol, roi_file, brain_mask_vol ):
                 ar[ roi_vol == value ] = quant_vol[label]
 
     else : 
-        ar[ brain_mask_vol ] = quant_vol
+        ar[ brain_mask_vol ] = quant_vol.reshape(-1,)
     ar = ar.reshape(dims[0:3])
     return ar
+
+def get_resampled_tac(tac, ref_times, time_frames, ndims): 
+    if ndims == 4 :
+        # interpolate tac values onto frame times in header or arterial input file 
+        f = interp1d(ref_times, tac[0], kind='cubic', fill_value="extrapolate")
+        tac_rsl = f(time_frames).reshape(1,-1)
+    else :
+        tac_rsl = tac
+
+    return  tac_rsl
 
 ### Class Node for doing quantification
 
@@ -540,20 +563,26 @@ class ApplyModel(BaseInterface) :
         #Set start and end times
         if opts['quant_start_time'] == None or opts['quant_start_time'] < ref_times[0] :
             print('Warning: Changing quantification start time to ', ref_times[0])
-            opts['quant_start_time'] = ref_times[0]
+            if n_frames > 1 :
+                opts['quant_start_time'] = ref_times[0]
+            else :
+                opts['quant_start_time'] = 0
+
         if opts['quant_end_time'] == None or  opts['quant_start_time'] > ref_times[1] :
             print('Warning: Changing quantification end time to ', ref_times[-1])
-            opts['quant_end_time'] = ref_times[-1]
+            if n_frames > 1 :
+                opts['quant_end_time'] = ref_times[-1]
+            else :
+                opts['quant_start_time'] = 1
 
-        modified_time_frames = time_frames[ (time_frames >= min(ref_times)) & (time_frames <= max(ref_times)) ] 
-        f = interp1d(ref_times, ref_tac[0], kind='cubic', fill_value="extrapolate")
-        fint = interp1d(ref_times, int_ref[0], kind='cubic', fill_value="extrapolate")
-        ref_tac_rsl = f(time_frames).reshape(1,-1)
-        int_ref_rsl = fint(time_frames).reshape(1,-1)
+        ref_tac_rsl = get_resampled_tac(ref_tac, ref_times, time_frames, n_frames) 
+        int_ref_rsl = get_resampled_tac(int_ref, ref_times, time_frames, n_frames)
+
         print('tac times',time_frames.shape)
         print('ref_tac_rsl',ref_tac_rsl.shape)
         print('int_ref_rsl',int_ref_rsl.shape)
         create_tac_df(time_frames, pet_roi, int_roi, ref_tac_rsl, int_ref, self.inputs.out_df, self.inputs.out_plot)
+
         quant_vol = model(pet_vol, int_vol, ref_tac_rsl, int_ref, time_frames, opts=opts, header=header)
 
         out_ar = create_output_array(dims, self.inputs.roi_based, quant_vol, roi_file, brain_mask_vol )

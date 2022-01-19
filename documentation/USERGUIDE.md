@@ -34,14 +34,17 @@ You can run the following examples to see some of the basic functionality of APP
 
 
 #### Minimal Inputs
+
+	docker run --rm -it -v `pwd`:`pwd` tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py -s `pwd`/ds001705-download -t `pwd`/out_ds001705-download/"
+
 ##### Default: Coregistration + MRI Preprocessing + Results Report
-	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ ";
+	docker run --rm -it -v `pwd`:`pwd` tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ ";
 
 #### PVC
-	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ --fwhm 3 3 3 --pvc-method 'GTM' ";
+	docker run --rm -it -v `pwd`:`pwd` tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/ --fwhm 3 3 3 --pvc-method 'GTM' ";
 
 #### PVC + Quantification
-	singularity exec APPIAN-PET-APPIAN-master-latest.simg bash -c "python3 /opt/APPIAN/Launcher.py --sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/--quant-method lp --quant-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM'  ";
+	docker run --rm -it -v `pwd`:`pwd` tffunck/appian:latest bash -c "python3 /opt/APPIAN/Launcher.py--sub 00101 --ses baseline --user-ants-command /opt/APPIAN/src/ants_command_quick.txt -s ds001705-download/ -t out_ds001705-download/--quant-method lp --quant-label 3 --results-label-erosion 5 --fwhm 3 3 3 --pvc-method 'GTM'  ";
 
 ## 2. File Formats  <a name="fileformat"></a>
 
@@ -79,56 +82,89 @@ For each PET image, there should be a corresponding JSON file. The JSON file sho
 
 <pre><code>
 {
-    "Info": {
-    
-        "Tracer": {
-            "Isotope": ["C-11"],
-            "Halflife" : 123
-        },
-        "Tomograph": "Siemens Biograph mMr PET/MR",
-        "BodyWeight": 76.0,
-        "Unit": "Bq"
-    },
-    "RadioChem":{
-        "InjectedRadioactivity": 180.2,
-        "InjectedRadioactivityUnits": "MBq"
-    },
-    "Time" : {
-        "FrameTimes": {
-                "Units": ["s", "s"],
-                "Values":[[0.0,15.0],
-                          [15.0,30.0],
-                          [30.0,45.0],
-                          [45.0, 60.0],
-                          [60.0, 120.0],
-                          [120.0,180.0],
-                          [180.0, 240.0],
-                          [240.0, 300.0],
-                          [300.0, 450.0],
-                          [450.0, 600.0],
-                          [600.0, 900.0],
-                          [900.0, 1200.0],
-                          [1200.0, 1500.0],
-                          [1500.0, 1800.0],
-                          [1800.0, 2100.0],
-                          [2100.0, 2400.0],
-                          [2400.0, 2700.0],
-                          [2700.0, 3000.0],
-                          [3000.0, 3300.0],
-                          [3300.0, 3600.0],
-                          [3600.0, 4200.0],
-                          [4200.0, 4800.0],
-                          [4800.0, 5400.0]
-                ]
-        }
-    },
-    "Recon": {
-        "Method": {
-            "Name" : "MLEM",
-            "Labels" : ["iterations"],
-            "Values" : [100]
-        }
-    }
+    "Manufacturer": "Siemens",
+    "ManufacturersModelName": "Biograph mMr",
+    "Units": "kBq/mL",
+    "TracerName": "LondonPride",
+    "TracerRadionuclide": "C11",
+    "BodyPart": "brain",
+    "InjectedRadioactivity": 400.0,
+    "InjectedRadioactivityUnits": "MBq",
+    "InjectedMass": 5.0,
+    "InjectedMassUnits": "ug",
+    "SpecificRadioactivity": 35.0,
+    "SpecificRadioactivityUnits": "GBq/ug",
+    "ModeOfAdministration": "bolus",
+    "TimeZero": "09:45:00",
+    "ScanStart": 0,
+    "InjectionStart": 0,
+    "FrameTimesStart": [
+        0,
+        15,
+        30,
+        45,
+        60,
+        120,
+        180,
+        240,
+        300,
+        450,
+        600,
+        900,
+        1200,
+        1500,
+        1800,
+        2100,
+        2400,
+        2700,
+        3000,
+        3300,
+        3600,
+        4200,
+        4800
+    ],
+    "FrameDuration": [
+        15,
+        15,
+        15,
+        15,
+        60,
+        60,
+        60,
+        60,
+        150,
+        150,
+        300,
+        300,
+        300,
+        300,
+        300,
+        300,
+        300,
+        300,
+        300,
+        300,
+        600,
+        600,
+        600
+    ],
+    "InjectionEnd": 30,
+    "AcquisitionMode": "3D",
+    "ImageDecayCorrected": true,
+    "ImageDecayCorrectionTime": 0,
+    "ReconMethodName": "MLEM",
+    "ReconMethodParameterLabels": [
+        "iterations"
+    ],
+    "ReconMethodParameterUnits": [
+        "none"
+    ],
+    "ReconMethodParameterValues": [
+        100
+    ],
+    "ReconFilterType": "PSF",
+    "ReconFilterSize": 2.5,
+    "AttenuationCorrection": "Activity decay corrected"
 }
 </code></pre>
 

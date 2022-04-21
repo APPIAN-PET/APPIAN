@@ -21,15 +21,13 @@ APPIAN is 100% free and open-source, but in exchange we would greatly appreciate
 
 ## Installation 
 
-``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Singularity or Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide on how to install Docker on Ubuntu, Debian, Mac, Windows, or other operating system, please [visit this link][link_dockerinstall] and [Singularity][link_singularityinstall].  
+``APPIAN`` is currently only available through [Docker][link_dockerhome]. Docker is a platform for creating containers that package a given software in a complete filesystem that contains everything it needs to run, and ensures that the software can always be run in the same environment. This means that all of the dependencies required by ``APPIAN`` are within its Docker container (no need to fumble about trying to compile obscure libraries). However, it also means that you will need to install Singularity or Docker before proceeding. Don’t worry it’s very easy (except maybe for Windows). For a guide on how to install Docker on Ubuntu, Debian, Mac, Windows, or other operating system, please [visit this link][link_dockerinstall] a.  
 
 The pipeline is implemented in Python using the [Nipype][link_nipypertd] library. Although the core is coded in Python, the pipeline can use tools or incorporate modules written in any programming language. The only condition is that these tools must be run from a command line, with well-defined inputs and outputs. In this sense, ``APPIAN`` is  language agnostic.
 Once Docker or Singularity is installed, simply run the following command line on your terminal:
 
 ```
-docker pull tffunck/appian:latest-dev
-
-singularity pull shub://APPIAN-PET/APPIAN:latest
+docker pull tffunck/appian:latest
 ```
 
 That’s it, ``APPIAN`` is installed on your computer. 
@@ -64,13 +62,7 @@ For those interested in extending or contributing to APPIAN please check out our
 
 ## Getting help
 
-If you get stuck or don't know how to get started please send a mail to the APPIAN mailing list :
-https://groups.google.com/forum/#!forum/appian-users
-
-For bugs, please post [here](#https://github.com/APPIAN-PET/APPIAN/issues) on the Github repository.
-
-To join the discussion for APPIAN development, join our developers mailing list : 
-https://groups.google.com/forum/#!forum/appian-dev
+If you get stuck or don't know how to get started please send a mail to t.funck@fz-juelich.de :
 
 
 

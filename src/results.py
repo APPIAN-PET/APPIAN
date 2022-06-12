@@ -29,11 +29,12 @@ final_dir="stats"
 ######################################
 def group_level_descriptive_statistics(opts, args):
     vol_surf_list = ['']
+    #if using surfaces, add an extra set of outputs to iterate over
     if opts.use_surfaces : 
         vol_surf_list += ['_surf']
-    print('1', vol_surf_list)
+    print('Hello') 
     for surf in vol_surf_list:
-        print('2')
+        print('Hello Again')
         #Setup workflow
         workflow = pe.Workflow(name=opts.preproc_dir)
         workflow.base_dir = opts.targetDir
@@ -44,15 +45,20 @@ def group_level_descriptive_statistics(opts, args):
         datasink.inputs.substitutions = [('_cid_', ''), ('sid_', '')]
     
         #Datagrabber
-        scan_stats_dict = dict(scan_stats='*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv')#,
-                             #output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
-
+        scan_stats = '/*'+os.sep+'results'+surf+'*'+os.sep+'*_results.csv'
+        scan_stats_dict = dict(scan_stats=scan_stats)
+        from glob import glob
+        in_list = glob( opts.targetDir + os.sep +opts.preproc_dir + os.sep+scan_stats) 
         
-        datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
+
+        #output_images='*'+os.sep+'output_images'+os.sep+'*output_images.csv')
+
+        #datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
         #datasource = pe.Node( interface=nio.DataGrabber( outfields=['scan_stats','output_images'], raise_on_empty=True, sort_filelist=False), name="datasource"+surf)
-        datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir
-        datasource.inputs.template = '*'
-        datasource.inputs.field_template = scan_stats_dict
+        #datasource.inputs.base_directory = opts.targetDir + os.sep +opts.preproc_dir + os.sep
+        #datasource.inputs.template = '*'
+        #datasource.inputs.field_template = scan_stats_dict
+
 
         #Concatenate output files
         #concat_outputfileNode=pe.Node(interface=concat_df(), name="concat_output_images")
@@ -61,20 +67,28 @@ def group_level_descriptive_statistics(opts, args):
         #workflow.connect(concat_outputfileNode, "out_file", datasink, 'output_images')
 
         #Concatenate scan-level statistics
+        os.makedirs(opts.targetDir+'/stats/',exist_ok=True)
         concat_statisticsNode=pe.Node(interface=concat_df(), name="statistics"+surf)
-        concat_statisticsNode.inputs.out_file="descriptive_statistics"+surf+".csv"
-        workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
-        workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'all')
-       
-        #Calculate descriptive statistics
-        descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
-        workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
-        workflow.connect(descriptive_statisticsNode, "sub", datasink, 'stats/sub')
-        workflow.connect(descriptive_statisticsNode, "ses", datasink, 'stats/ses')
-        workflow.connect(descriptive_statisticsNode, "task", datasink, 'stats/task')
-        workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'stats/sub_task')
-        workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'stats/sub_ses')
-        workflow.run() 
+        concat_statisticsNode.inputs.in_list=in_list
+        concat_statisticsNode.inputs.out_file=opts.targetDir+'/stats/descriptive_statistics'+surf+".csv"
+        concat_statisticsNode.run()
+        #workflow.connect(datasource, 'scan_stats', concat_statisticsNode, 'in_list')
+        #workflow.connect(concat_statisticsNode, "out_file", datasink, 'stats/' +surf+'all')
+    
+        
+        if len(args) > 1 :
+            print('Calculating descriptive statistics')
+            #Calculate descriptive statistics
+            descriptive_statisticsNode = pe.Node(interface=descriptive_statisticsCommand(),name="descriptive_statistics"+surf)
+            workflow.connect(concat_statisticsNode, 'out_file', descriptive_statisticsNode, 'in_file')
+            workflow.connect(descriptive_statisticsNode, "sub", datasink, 'stats/sub')
+            workflow.connect(descriptive_statisticsNode, "ses", datasink, 'stats/ses')
+            workflow.connect(descriptive_statisticsNode, "task", datasink, 'stats/task')
+            workflow.connect(descriptive_statisticsNode, "sub_task", datasink, 'stats/sub_task')
+            workflow.connect(descriptive_statisticsNode, "sub_ses", datasink, 'stats/sub_ses')
+            workflow.run() 
+        else :
+            print('Not calculating descriptive statistics because only 1 scan')
 
 def set_roi_labels(unique_labels, roi_labels_file) :
     roi_labels = []

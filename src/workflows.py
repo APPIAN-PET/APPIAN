@@ -422,7 +422,7 @@ class Workflows:
         self.workflow.connect(self.datasource, 'arterial_header_file', self.quant, "arterial_header_file")
         self.workflow.connect(self.masking, 'quantLabels.out_file', self.quant, "reference_file")
         self.workflow.connect(self.quant, 'out_df', self.datasink, 'quant/csv') 
-        #Add the outputs of TKA (Quuantification) to list that keeps track of the outputnodes, images, 
+        #Add the outputs of Quantification to list that keeps track of the outputnodes, images, 
         # and the number of dimensions of these images       
         self.out_node_list += [self.quant]
         self.out_img_list += ['out_file']
@@ -445,9 +445,10 @@ class Workflows:
         surf_dir=''
         if surf != '' :
             surf_dir=surf+'_'
-
+        
         for node, img, dim, extract in zip(self.out_node_list, self.out_img_list, self.out_img_dim, self.extract_values):
             print(node.name, extract, img, dim)
+
             if not extract : continue
             node_name="results_"+surf+ node.name
             dir_name = 'stats/'+ surf_dir+ node.name

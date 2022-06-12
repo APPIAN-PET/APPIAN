@@ -26,8 +26,8 @@ nrm=version+"-download"
 # Default Settings #
 ####################
 appian_dir=SCRIPTPATH
-source_dir=SCRIPTPATH+'/'+nrm
-target_dir=SCRIPTPATH+"/out_"+nrm
+source_dir = os.getcwd() + '/' + nrm
+target_dir = os.getcwd() + '/' +"out_"+nrm
 singularity_image="APPIAN-PET/APPIAN:latest"
 
 def useage():
@@ -55,7 +55,7 @@ if __name__ == '__main__' :
     parser.add_argument("-i","--singularity-image",dest="singularity_image",  help="Path for target directory file directory", default="APPIAN-PET-APPIAN-master-latest.simg")
     parser.add_argument("-r","--threads",dest="threads", default="1", type=str, help="Number of threads." )
     opts = parser.parse_args() 
-
+    
     ##########################################
     # Download data from Amazon Web Services #
     ##########################################
@@ -83,50 +83,26 @@ if __name__ == '__main__' :
     else :
         print(" Threads : " + opts.threads)
 
-    pvcMethods="idSURF VC"
-    quantMethods="lp  srtm " #"lp lp-roi suv suvr srtm srtm-bf"
+    pvc_methods = ['--pvc-method VC', '--pvc-method GTM']
+    quand_methods=['--quant-method suvr', '--quant-method lp', '--quant-method lp-roi',
+                    '--quant-method pp', '--quant-method pp-roi']
     subs="000101 000102"
     sess="baseline"
-    #Run Quant
-    #cmd_base="python3.6 ${appian_dir}/Launcher.py -s ${source_dir} -t ${target_dir} --start-time 7 --threads $threads --quant-label-img /opt/APPIAN/atlas/MNI152/dka.nii.gz --quant-label 8 47 --quant-labels-ones-only --quant-label-erosion 3 --pvc-fwhm 2.5 2.5 2.5 "
 
+    #Run Quant
     cmd_base="python3 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --no-qc --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt "
-    for quant in ['--quant-method suvr', '--quant-method lp'] : #, '--quant-method srtm']:
+    for quant in quand_methods :
         cmd_quant=cmd_base + quant
         print(cmd_quant)
-        #cmd(cmd_quant)
+        cmd(cmd_quant)
         print("\n\n\n\n\n\n\n\n")
         
-    for pvc in ['', '--pvc-method VC', '--pvc-method GTM'] :
-        cmd_pvc=cmd_base + ' --fwhm 2.5 2.5 2.5 --quant-method suvr ' + pvc
+    for pvc in pvc_methods :
+        cmd_pvc = f'{cmd_base} --fwhm 2.5 2.5 2.5 --quant-method suvr {pvc}'
         print(cmd_pvc)
         cmd(cmd_pvc)
-        exit(0)
         print("\n\n\n\n\n\n\n\n")
 
+    cmd_qc="python3 "+opts.appian_dir+"/Launcher.py  -s "+opts.source_dir+" -t "+opts.target_dir + "  --subjects "+subs+" --sessions "+ sess +" --user-ants-command "+appian_dir+"/src/ants_command_affine.txt  --start-time 5 --threads "+ opts.threads+ " --analysis-space t1 --quant-label 2 --user-ants-command "+SCRIPTPATH+"/src/ants_command_quick.txt --pvc-method VC --quant-method lp "
+    cmd(cmd_qc)
 
-    '''
-    for quant in $quantMethods; do
-            cmd_quant="$cmd_base --quant-method $quant "
-            if [[ $opts.use_singularity != 0 ]]; then
-                    singularity exec -B "$SCRIPTPATH":"/APPIAN" $singularity_image bash -c "$cmd_quant"
-            else
-                    bash -c "$cmd"
-            fi 
-            
-            #Run PVC 
-            for pvc in $pvcMethods; do
-                    echo srcing $pvc $quant	
-                    # Setup command to run APPIAN
-                    cmd_pvc="$cmd_quant --pvc-method $pvc "
-                    
-                    if [[ $opts.use_singularity != 0 ]]; then
-                            # Run command in singularity container
-                            singularity exec -B "$SCRIPTPATH":"/APPIAN"  $singularity_image bash -c "$cmd_pvc"
-                    else
-                            # Assumes you are already in an environment that can run APPIAN
-                            bash -c "$cmd_pvc"
-                    fi 
-            done
-    done
-    '''

@@ -121,6 +121,7 @@ class concat_dfInput(BaseInterfaceInputSpec):
     out_file = traits.File(mandatory=True, desc="Output file")
     test = traits.Bool(default=False, usedefault=True, desc="Flag for if df is part of test run of pipeline")
 
+
 class concat_df(BaseInterface):
     input_spec =  concat_dfInput 
     output_spec = concat_dfOutput 
@@ -128,12 +129,13 @@ class concat_df(BaseInterface):
     def _run_interface(self, runtime):
         df=pd.DataFrame([])
         test = self.inputs.test
-
+        print('in_list:', self.inputs.in_list)
         for f in self.inputs.in_list:
             dft = pd.read_csv(f)
             df = pd.concat([df, dft], axis=0)
         #if test : print df
         df.to_csv(self.inputs.out_file, index=False)
+        print('\tWriting', self.inputs.out_file)
         return(runtime)
 
     def _list_outputs(self):

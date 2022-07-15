@@ -80,6 +80,7 @@ def get_workflow(name, opts):
         n4 = pe.Node(niu.IdentityInterface(fields=["output_image"]), name='mri_no_intensity_normalization')
         workflow.connect(inputnode, 'mri', n4, 'output_image')
 
+    # If the use does not provide a transformation file to align the MRI to the stereotaxic template, then use ants to do the registration
     if opts.user_mri_stx == '':
         mri2template = pe.Node(interface=APPIANRegistration(), name="mri_spatial_normalized")
         mri2template.inputs.moving_image_space="T1w"
@@ -113,6 +114,7 @@ def get_workflow(name, opts):
         workflow.connect(inputnode, 'mri', transform_mri, 'input_image')
         workflow.connect(inputnode, 'tfm_mri_stx', transform_mri, 'transform_1')
         transform_mri.inputs.reference_image = opts.template
+        transform_mri.inputs.create_inverse_image = True
 
         mri_stx_node = transform_mri
         mri_stx_file = 'output_image'

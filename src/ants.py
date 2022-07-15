@@ -86,10 +86,7 @@ class APPIANApplyTransforms(BaseInterface):
         if isdefined(self.inputs.transform_3) :
             transforms.append(self.inputs.transform_3)
             invert_transform_flags.append(self.inputs.invert_3)
-       
-        flip  = lambda x : 0 if x == 1 else 1
-        flipped_invert_transform_flags = map(flip, invert_transform_flags)
-
+      
         src_dims=nib.load(self.inputs.input_image).shape
         tgt_dims=nib.load(self.inputs.reference_image).shape
         get_ndim = lambda dims : 0 if len(dims)==3 or (len(dims) == 4 and dims[-1] == 1) else 3
@@ -98,27 +95,26 @@ class APPIANApplyTransforms(BaseInterface):
 
         #output files
         self.inputs.output_image = self.gen_output_filename(self.inputs.input_image, self.inputs.source_space)
-        self.inputs.output_image_inverse = self.gen_output_filename(self.inputs.reference_image, self.inputs.target_space)
 
-        print('1',self.inputs.output_image_inverse)
-        print('2', self.inputs.output_image)
         #combine transformation files and output flags
         transforms_zip = zip(transforms, invert_transform_flags)
-        flipped_transforms_zip = zip(transforms, flipped_invert_transform_flags)
 
         transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in transforms_zip  if t != None ]) 
-        flipped_transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in flipped_transforms_zip  if t != None ])
        
         # apply forward transform
         cmdline = f'antsApplyTransforms --float -v 1 -d 3 -e {src_ndim} -n '+ self.inputs.interpolation + " -i "+self.inputs.input_image+" "+ transform_string +" -r "+self.inputs.reference_image+" -o "+self.inputs.output_image
         print(cmdline) 
         cmd(cmdline)
-        
+       
         # apply inverse transform
-        cmdline = f'antsApplyTransforms --float -v 1 -d 3 -e {tgt_ndim} -n '+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
-        cmd(cmdline)
-        print('hello hello')
-        print( nib.load(self.inputs.output_image).shape); 
+        if self.inputs.create_inverse_image:
+            flip  = lambda x : 0 if x == 1 else 1
+            flipped_invert_transform_flags = map(flip, invert_transform_flags)
+            flipped_transforms_zip = zip(transforms, flipped_invert_transform_flags)
+            flipped_transform_string = ' '.join( [ '-t [ '+str(t)+' , '+str(int(f))+' ]' for t, f in flipped_transforms_zip  if t != None ])
+            self.inputs.output_image_inverse = self.gen_output_filename(self.inputs.reference_image, self.inputs.target_space)
+            cmdline = f'antsApplyTransforms --float -v 1 -d 3 -e {tgt_ndim} -n '+ self.inputs.interpolation + " -r "+self.inputs.input_image+" "+ flipped_transform_string +" -i "+self.inputs.reference_image+" -o "+self.inputs.output_image_inverse
+            cmd(cmdline)
 
         return runtime
 
@@ -172,6 +168,7 @@ class APPIANRegistrationInputs(BaseInterfaceInputSpec):
     moving_image = traits.File(mandatory=True, exits=True, desc="Moving Image")
     moving_image_mask = traits.File(desc="Mask for moving image")
     warped_image = traits.File(desc="Warped image")
+    create_inverse_image = traits.Bool(desc="Create an inverse warped image (Default=False)", usedefault=True, default_value=False)
     inverse_warped_image = traits.File(desc="Inverse warped image")
     composite_transform = traits.File(desc="Composite transorfmation matrix")
     inverse_composite_transform = traits.File(desc="Inverse composite transorfmation matrix")

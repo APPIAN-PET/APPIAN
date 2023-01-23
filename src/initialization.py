@@ -24,11 +24,11 @@ def pexit(pstring="Error", exitcode=1):
 
 
 class pet_brain_maskOutput(TraitedSpec):
-    out_file  = File(desc="Headmask from PET volume")
+    out_file  = traits.File(desc="Headmask from PET volume")
 
 class pet_brain_maskInput(BaseInterfaceInputSpec):
-    in_file = File(exists=True, mandatory=True, desc="PET volume")
-    out_file = File(desc="Head mask")
+    in_file = traits.File( desc="PET volume")
+    out_file = traits.File(desc="Head mask")
 
 
 import nibabel as nib 

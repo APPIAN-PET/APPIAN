@@ -36,7 +36,7 @@ class Workflows:
 
         #Tuples of 3 elements represent 
         # 1) function to initialize a workflow 
-        # 2) possible flag to start running APPIAN after workflow, ignoring the rest
+        # 2) possible flag to stop running APPIAN after workflow, ignoring the rest
         # 3) flag that signals whether to run workflow
 
         # ___WARNING___: Do not change order of this tuple! Workflows must be initialized in specific sequence

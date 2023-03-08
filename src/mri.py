@@ -17,7 +17,7 @@ import nipype.interfaces.utility as util
 import src.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
-import nibabel as nib
+import src.ants_nibabel as nib
 import numpy as np
 import ntpath
 import os
@@ -134,7 +134,7 @@ def get_workflow(name, opts):
     ###################################
     # Segment T1 in Stereotaxic space #
     ###################################
-    seg=None
+    atropos = None
 
     if opts.ants_atropos_priors == [] and opts.template == icbm_default_template :
         opts.ants_atropos_priors =  file_dir+os.sep+"/atlas/MNI152/mni_icbm152_%02d_tal_nlin_asym_09c.nii.gz"
@@ -142,20 +142,25 @@ def get_workflow(name, opts):
         print("Warning : user did not provide alternative priors for template. This will affect your T1 MRI segmentation. Check this segmentation visually to make sure it is what you want ")
 
     for stage, label_type, img in zip(stages, label_types, label_imgs) :
-        if  seg == None :
-            seg = pe.Node(interface=Atropos(), name="segmentation_ants")
-            seg.inputs.dimension=3
-            seg.inputs.number_of_tissue_classes=3 #len(opts.ants_atropos_priors)
-            seg.inputs.initialization = 'PriorProbabilityImages'
-            seg.inputs.prior_weighting = opts.ants_atropos_prior_weighting
-            seg.inputs.prior_image = opts.ants_atropos_priors
-            seg.inputs.likelihood_model = 'Gaussian'
-            seg.inputs.posterior_formulation = 'Socrates'
-            seg.inputs.use_mixture_model_proportions = True
-            seg.inputs.args="-v 1"
-            workflow.connect(mri_stx_node, mri_stx_file,  seg, 'intensity_images' )
-            seg.inputs.mask_image = icbm_default_brain
+        if  atropos == None :
+            atropos = pe.Node(interface=Atropos(), name='atropos')
+            atropos.inputs.dimension=3
+            atropos.inputs.number_of_tissue_classes=3 #len(opts.ants_atropos_priors)
+            atropos.inputs.initialization = 'PriorProbabilityImages'
+            atropos.inputs.prior_weighting = opts.ants_atropos_prior_weighting
+            atropos.inputs.prior_image = opts.ants_atropos_priors
+            atropos.inputs.likelihood_model = 'Gaussian'
+            atropos.inputs.posterior_formulation = 'Socrates'
+            atropos.inputs.use_mixture_model_proportions = True
+            atropos.inputs.args="-v 1"
+            workflow.connect(mri_stx_node, mri_stx_file,  atropos, 'intensity_images' )
+            atropos.inputs.mask_image = icbm_default_brain
+
+            seg = pe.Node(interface=fix_nifti(), name='segmentation_ants' ) 
+
             #workflow.connect(brain_mask_node, brain_mask_file,  seg, 'mask_image' )
+
+            workflow.connect(atropos, 'classified_image',  seg, 'input_image' )
         print(stage, img) 
         if 'antsAtropos' == img :
             workflow.connect(seg, 'classified_image', outputnode, stage+'_label_img')
@@ -240,7 +245,7 @@ class SegmentationToBrainMask(BaseInterface):
         img = nib.load(self.inputs.seg_file)
         data = img.get_data()
         data[ data > 1 ] = 1
-        out = nib.Nifti1Image(data.astype(np.int16), img.get_affine(), img.header )
+        out = nib.Nifti1Image(data.astype(np.int16), img.get_affine())
         out.to_filename (self.inputs.output_image)
 
         return runtime
@@ -260,7 +265,29 @@ class SegmentationToBrainMask(BaseInterface):
 
 
 
+class fix_niftiOutput(TraitedSpec):
+    classified_image = File(argstr="%s",  desc="Brain Mask")
 
+class fix_niftiInput(CommandLineInputSpec):
+    input_image = File(argstr="%s",  desc="Brain Mask", position=-1)
+    classified_image = File(argstr="%s",  desc="Brain Mask", position=-1)
 
+class fix_nifti(BaseInterface):
+    input_spec = fix_niftiInput 
+    output_spec = fix_niftiOutput 
+
+    def _run_interface(self, runtime) :
+        if not isdefined(self.inputs.classified_image):
+            self.inputs.classified_image = os.getcwd() + os.sep + os.path.basename(self.inputs.input_image)
+        print('Fixing nifti file')
+        print(self.inputs.classified_image)
+        nib.load(self.inputs.input_image).to_filename(self.inputs.classified_image)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["classified_image"] = self.inputs.classified_image
+        return outputs
 
 

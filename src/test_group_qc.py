@@ -16,7 +16,7 @@ import seaborn as sns
 import nipype.interfaces.io as nio
 import SimpleITK as sitk
 import numpy as np
-import nibabel as nib
+import src.ants_nibabel as nib
 from scipy.ndimage.measurements import center_of_mass 
 from src.ants import APPIANApplyTransforms
 from sklearn.metrics import roc_curve, auc

@@ -12,7 +12,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
-import nibabel as nib
+import src.ants_nibabel as nib
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -115,25 +115,25 @@ def suv(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     bw=dose=0
 
     try :
-        bw=float(header["Info"]["BodyWeight"])
+        bw=float(header["BodyWeight"])
     except KeyError :
-        print("Error : body weight of subject not set in json header in entry [\"Info\"][\"BodyWeight\"]")
+        print("Error : body weight of subject not set in json header in entry BodyWeight")
         exit(1)
 
     try :
-        dose=float(header["RadioChem"]["InjectedRadioactivity"])
-        unit=header["RadioChem"]["InjectedRadioactivityUnits"]
+        dose=float(header["InjectedRadioactivity"])
+        unit=header["InjectedRadioactivityUnits"]
         ureg = pint.UnitRegistry()
         dose_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
         print('Dose:', dose,'unit',unit, 'conversion',dose_unit_conversion)
         dose *= dose_unit_conversion
         
     except :
-        print("Error : injected dose for scan not set in json header in entry [\"Info\"][\"InjectedRadioactivity\"]")
+        print("Error : injected dose for scan not set in json header in entry InjectedRadioactivity]")
         exit(1)
 
     try :
-        unit=header["Info"]["Unit"].split('/')[0]
+        unit=header["InjectedRadioActivityUnits"].split('/')[0]
         print('PET unit:', unit)
         pet_unit_conversion = ureg.Quantity(unit).to('MBq').magnitude
     except KeyError:
@@ -175,7 +175,7 @@ def srtm(vol,  int_vol, ref, int_ref, time_frames, opts={}, header=None ):
     TODO: Add reference to author of code
     '''
     try :
-        isotope=header["Info"]["Tracer"]["Isotope"][0]
+        isotope=header["TracerRadionuclide"][0]
         print(isotope)
         isotope=re.sub('-', '', isotope)
         print(isotope)
@@ -359,9 +359,9 @@ def read_arterial_file(arterial_file,arterial_header_file, header) :
     split =lambda string : [ x for x in re.split('\t| |,', string) if x != '' ] 
     
     try :
-        pet_radio_unit = header['Info']['Unit']
+        pet_radio_unit = header['InjectedRadioActivityUnits']
     except KeyError :
-        print('Error: Radioactivity units not set in PET json header in Info:Unit.')
+        print('Error: Radioactivity units not set in PET json header in InjectedRadioActivityUnits .')
         exit(1)
 
     

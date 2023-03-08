@@ -12,7 +12,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
-import nibabel as nib
+import src.ants_nibabel as nib
 
 
 results_columns = metric_columns + ['frame']

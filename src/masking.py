@@ -7,7 +7,7 @@ import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.minc as minc
-import nibabel as nib
+import src.ants_nibabel as nib
 from nibabel.processing import resample_from_to
 import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
@@ -137,7 +137,7 @@ class Labels(BaseInterface):
             label_img[ brain_mask == 0 ] = 0
             print(np.sum(label_img))
 
-        tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine(), img.header)
+        tmp_label_img  = nib.Nifti1Image(label_img, img.get_affine())
         tmp_label_img.to_filename("tmp_label_img.nii")
 
         #6. Apply transformation

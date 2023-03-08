@@ -9,7 +9,7 @@ import os
 import imageio
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu 
-import nibabel as nib
+import src.ants_nibabel as nib
 import shutil
 import ntpath
 import nipype.pipeline.engine as pe
@@ -23,7 +23,7 @@ import re
 import time
 import matplotlib.animation as animation
 from skimage.feature import canny
-from nibabel.processing import resample_to_output
+from src.ants_nibabel import resample_to_output
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
@@ -50,7 +50,6 @@ def load_3d(fn, t=0):
     print('Reading Frame %d'%t,'from', fn)
     img = nib.load(fn)
     vol = img.get_fdata() 
-    hd  = img.header
     if len(vol.shape) == 4 :
         vol = vol[:,:,:,t]
     vol = vol.reshape(vol.shape[0:3] )
@@ -663,12 +662,12 @@ class visual_qcCommand(BaseInterface):
 
 
         visual_qc_images=[  
-                ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[1.3], duration=300),
-                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[1.55,1.70,1.85], duration=400,  nframes=15 ),
-                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[1.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds ),
+                ImageParam(self.inputs.pet_3d , self.inputs.pet_3d_gif, self.inputs.pet_brain_mask, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds, alpha=[0.3], duration=300),
+                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_gif, self.inputs.mri_space_nat, alpha=[0.55,0.70,0.85], duration=400,  nframes=15 ),
+                ImageParam(self.inputs.pet_space_mri , self.inputs.pet_coreg_edge_2_gif, self.inputs.mri_space_nat, alpha=[0.4], duration=300, edge_2=1, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds ),
                 # Results Labels
-                ImageParam(self.inputs.t1_analysis_space, self.inputs.results_labels_gif, self.inputs.results_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ),
-                ImageParam(self.inputs.mri_space_nat, self.inputs.template_alignment_gif, self.inputs.template_space_mri, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
+                ImageParam(self.inputs.t1_analysis_space, self.inputs.results_labels_gif, self.inputs.results_labels, alpha=[0.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ),
+                ImageParam(self.inputs.mri_space_nat, self.inputs.template_alignment_gif, self.inputs.template_space_mri, alpha=[0.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.Reds )
                 ]
 
         if isdefined(self.inputs.pvc) :
@@ -676,25 +675,25 @@ class visual_qcCommand(BaseInterface):
             time_frames = 1 if len(dims) == 3 else dims[3]
             #
             self.inputs.pvc_gif = [ self._gen_output('_%d_pvc.gif'%f) for f in range(time_frames)]
-            visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[1.25], duration=300, time_frames=time_frames, ndim=len(dims), nframes=15,colorbar=True))
+            visual_qc_images.append( ImageParam(self.inputs.pvc , self.inputs.pvc_gif, self.inputs.t1_analysis_space, alpha=[0.25], duration=300, time_frames=time_frames, ndim=len(dims), nframes=15,colorbar=True))
             d['pvc'] = self.inputs.pvc_gif
 
             # PVC Labels
             self.inputs.pvc_labels_gif = self._gen_output('_pvc_labels.gif')
-            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.pvc_labels_gif, self.inputs.pvc_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
+            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.pvc_labels_gif, self.inputs.pvc_labels, alpha=[0.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
             d['pvc_labels_gif']=self.inputs.pvc_labels_gif
 
         if isdefined(self.inputs.quant) :
             #
             self.inputs.quant_gif = self._gen_output('_quant.gif')
-            visual_qc_images.append( ImageParam(self.inputs.quant , self.inputs.quant_gif, self.inputs.t1_analysis_space, alpha=[1.35], duration=300, colorbar=True ))
+            visual_qc_images.append( ImageParam(self.inputs.quant , self.inputs.quant_gif, self.inputs.t1_analysis_space, alpha=[0.35], duration=300, colorbar=True ))
             d['quant'] = self.inputs.quant_gif
             d['quant_plot'] = self.inputs.quant_plot
 
             # Quant Labels
             print('\n\n\nQUANT LABELS\n\n\n')
             self.inputs.quant_labels_gif = self._gen_output('_quant_labels.gif')
-            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.quant_labels_gif, self.inputs.quant_labels, alpha=[1.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
+            visual_qc_images.append(ImageParam(self.inputs.t1_analysis_space, self.inputs.quant_labels_gif, self.inputs.quant_labels, alpha=[0.4], duration=300, cmap1=plt.cm.Greys, cmap2=plt.cm.nipy_spectral ))
             print(self.inputs.quant_labels_gif)
             print(os.path.exists(self.inputs.quant_labels_gif))
             d['quant_labels_gif']=self.inputs.quant_labels_gif
@@ -753,11 +752,12 @@ class ImageParam():
         self.time_frames=time_frames
 
     def load_isotropic(self,in_fn,t=0):
+        aff = nib.load(in_fn).affine
         vol_img, vol = load_3d(in_fn,t)
         sep =[ get_spacing(vol_img.affine, i) for i in range(3) ]
         min_unit=np.min(np.abs(sep))
         #new_units=[min_unit*np.sign(sep[0]), min_unit*np.sign(sep[1]), min_unit*np.sign(sep[2]) ] 
-        vol_img = resample_to_output(vol_img, [min_unit]*3,order=1 )
+        vol_img = resample_to_output(vol, aff, [min_unit]*3,order=1 )
         vol=vol_img.get_fdata()
         return vol_img, vol
 

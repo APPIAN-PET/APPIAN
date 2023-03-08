@@ -1,6 +1,6 @@
 import os
 import re
-import nibabel as nib
+import src.ants_nibabel as nib
 import numpy as np
 from glob import glob
 from sys import argv

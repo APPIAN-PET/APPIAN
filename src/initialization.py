@@ -5,7 +5,7 @@ import shutil
 import json
 import ntpath
 import shutil
-import nibabel as nib
+import src.ants_nibabel as nib
 import re
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
@@ -31,7 +31,7 @@ class pet_brain_maskInput(BaseInterfaceInputSpec):
     out_file = traits.File(desc="Head mask")
 
 
-import nibabel as nib 
+import src.ants_nibabel as nib 
 from skimage.filters import threshold_otsu 
 import numpy as np 
 from scipy.ndimage import gaussian_filter 
@@ -55,7 +55,7 @@ class petBrainMask(BaseInterface):
         otsu_voxel_threshold = threshold_otsu(non_zero_vxl)
         vol[ vol < otsu_voxel_threshold  ] = 0 
         vol[ vol > 0 ] = 1 
-        nib.Nifti1Image(vol, img.affine, img.header).to_filename(out_file)
+        nib.Nifti1Image(vol, img.affine).to_filename(out_file)
         return 0
 
     def _run_interface(self, runtime):
@@ -104,9 +104,9 @@ class validate_header(BaseInterface):
                 ]
 
         if self.inputs.quant_method == "suv" :
-            fields += [["Info","BodyWeight"],
-                    ["RadioChem", "InjectedRadioactivity"],
-                    ["RadioChem","InjectedRadioactivityUnits"]]
+            fields += [["BodyWeight"],
+                    ["InjectedRadioactivity"],
+                    ["InjectedRadioactivityUnits"]]
         print(fields)
         for f in fields :
             try :
@@ -257,8 +257,8 @@ class pet3DVolume(BaseInterface):
             volume_src=np.mean(volume_subset, axis=ti)
             if verbose :
                 print("\t\tFrames to concatenate -- First:", first, "Last:", last) 
-            outfile = nib.Nifti1Image(volume_src, affine, infile.header)
-            outfile.set_qform(affine)
+            outfile = nib.Nifti1Image(volume_src, affine)
+            #outfile.set_qform(affine)
             nib.save(outfile, out_file)
         else :
             #If there is no "time" dimension (i.e., in 3D file), just copy the PET file

@@ -4,12 +4,12 @@ import gzip
 import shutil
 import gzip
 import subprocess
-import nibabel as nib
+import src.ants_nibabel as nib
 import ntpath
 import pandas as pd
 import numpy as np 
 import tempfile
-import nibabel as nib
+import src.ants_nibabel as nib
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 
@@ -96,7 +96,7 @@ class separate_mask_labelsCommand(BaseInterface ):
                 print(t-1, i )
                 out[ data == i, t-1 ] = 1 
 
-        out_file=nib.Nifti1Image(out, vol.get_affine(), vol.header)
+        out_file=nib.Nifti1Image(out, vol.get_affine())
         out_file.to_filename(self.inputs.out_file)
         return(runtime)
 

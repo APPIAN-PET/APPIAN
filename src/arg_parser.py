@@ -3,7 +3,7 @@ import os
 import numpy as np
 import time
 import sys
-import nibabel as nib
+import src.ants_nibabel as nib
 from nibabel.filebasedimages import ImageFileError
 from argparse import ArgumentParser
 from glob import glob
@@ -67,6 +67,7 @@ def get_parser():
     # MRI Preprocessing Options #
     #############################
     #MRI N4 Correction
+    parser.add_argument("--no-mri",dest="use_mri",action='store_false', default=True,help="Run APPIAN without MRI")
     parser.add_argument("--n4-bspline-fitting-distance", dest="n4_bspline_fitting_distance",type=float,help="Distances for T1 MRI intensity non-uniformity correction with N4 (1.5T ~ 200, 3T ~ ). (Default=0, skip this step)", default=0)
     parser.add_argument("--n4-bspline-order", dest="n4_bspline_order",type=int,help="Order of BSpline interpolation for N4 correction", default=None)
 
@@ -380,13 +381,13 @@ def check_masking_options(opts, label_img, label_template, label_space):
     '''
     try :
         nib.load(label_img)
-    # 1) atlas 
+        # 1) atlas 
         label_type ="atlas"
         #if os.path.exists(opts.sourceDir + os.sep + label_img[1]) : 
         if label_template != None :
             if os.path.exists(label_template) : 
                 label_type="atlas-template"
-    except (FileNotFoundError, ImageFileError)  :
+    except (FileNotFoundError, ImageFileError, ValueError)  :
         if label_img in internal_cls_methods :
         # 2) Internal classification metion
             label_type = 'internal_cls'

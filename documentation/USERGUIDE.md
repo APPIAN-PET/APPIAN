@@ -478,23 +478,23 @@ The pipeline uses up to three different types of masks: a reference region mask 
 
   #### Masking options: Quantification
 
-    --tka-label-space=quant_LABEL_SPACE
+    --quant-label-space=quant_LABEL_SPACE
                         Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
-    --tka-label-img=quant_LABEL_IMG
+    --quant-label-img=quant_LABEL_IMG
                         Options: 1. ICBM MNI 152 atlas:
                         <path/to/labeled/atlas>, 2. Stereotaxic atlas and
                         template: path/to/labeled/atlas
                         /path/to/atlas/template 3. Internal classification
                         method (antsAtropos) 4. String that identifies labels
                         in anat/ directory to be used as mask
-    --tka-label=quant_LABELS
+    --quant-label=quant_LABELS
                         List of label values to use for quant
-    --tka-label-erosion=quant_ERODE_TIMES
+    --quant-label-erosion=quant_ERODE_TIMES
                         Number of times to erode label
-    --tka-labels-brain-only
-                        Mask tka labels with brain mask
-    --tka-labels-ones-only
+    --quant-labels-brain-only
+                        Mask for quantification labels with brain mask
+    --quant-labels-ones-only
                         Flag to signal threshold so that label image is only
                         1s and 0s
 

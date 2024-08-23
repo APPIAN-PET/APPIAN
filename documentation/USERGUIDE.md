@@ -452,23 +452,32 @@ Avants, B.B., Tustison, N. and Song, G., 2009. Advanced normalization tools (ANT
 ## 4.4 Masking<a name="masking"></a>
 Create ROI mask volumes for partial-volume correction, quantification (tracer-kinetic analysis), and reporting of results.
 
-The pipeline uses up to three different types of masks: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis, masks for the PVC algorithms, masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.). Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
+The pipeline uses up to three different types of masks: 
+
+* **quant**: a reference region mask to define a region of non-specific radiotracer binding for tracer kinetic analysis,
+  
+* **pvc**: masks for the PVC algorithms,
+  
+* **results**: masks to define the regions from which the user wishes to extract quantitative values (kBq/ml, BPnd, Ki, etc.).
+  
+
+Moreover, these masks can be derived from multiple sources: manually drawn ROI for each T1 MRI, classification produced by CIVET/ANIMAL, stereotaxic atlas, user-defined regions in native PET space (e.g., region of infarcted tissue from ischemic stroke).
 
   #### Masking options: PVC
 
-    --pvc-label-space=PVC_LABEL_SPACE
+    --pvc-label-space
                         Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
-    --pvc-label-img=PVC_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --pvc-label=PVC_LABELS
+    --pvc-label-img <optional> 
+                        Options: 1. Internal classification method (antsAtropos).
+                        	 2. Absolute path to stereotaxic label volume, <path/to/labeled/atlas>;  
+			 	 3. String that identifies labels in anat/ directory to be used as mask
+    --pvc-label-template <optional>
+    			Default: Path to ICBM MNI 152 (2009c) template
+       			Absolute path to stereotaxic template that corresponds to specifiec 
+    --pvc-label
                         List of label values to use for pvc
-    --pvc-label-erosion=PVC_ERODE_TIMES
+    --pvc-label-erosion
                         Number of times to erode label
     --pvc-labels-brain-only
                         Mask pvc labels with brain mask
@@ -477,20 +486,19 @@ The pipeline uses up to three different types of masks: a reference region mask 
                         1s and 0s
 
   #### Masking options: Quantification
-
-    --quant-label-space=quant_LABEL_SPACE
+    --quant-label-space
                         Coordinate space of labeled image to use for quant.
                         Options: [pet/t1/stereo]
-    --quant-label-img=quant_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --quant-label=quant_LABELS
+    --quant-label-img <optional> 
+                        Options: 1. Internal classification method (antsAtropos).
+                        	 2. Absolute path to stereotaxic label volume, <path/to/labeled/atlas>;  
+			 	 3. String that identifies labels in anat/ directory to be used as mask
+    --pvc-label-template <optional>
+    			Default: Path to ICBM MNI 152 (2009c) template
+       			Absolute path to stereotaxic template that corresponds to specifiec 
+    --quant-label
                         List of label values to use for quant
-    --quant-label-erosion=quant_ERODE_TIMES
+    --quant-label-erosion
                         Number of times to erode label
     --quant-labels-brain-only
                         Mask for quantification labels with brain mask
@@ -502,19 +510,16 @@ The pipeline uses up to three different types of masks: a reference region mask 
 
     --no-results-report
                         Don't calculate descriptive stats for results ROI.
-    --results-label-space=RESULTS_LABEL_SPACE
-                        Coordinate space of labeled image to use for quant.
-                        Options: [pet/t1/stereo]
-    --results-label-img=RESULTS_LABEL_IMG
-                        Options: 1. ICBM MNI 152 atlas:
-                        <path/to/labeled/atlas>, 2. Stereotaxic atlas and
-                        template: path/to/labeled/atlas
-                        /path/to/atlas/template 3. Internal classification
-                        method (antsAtropos) 4. String that identifies labels
-                        in anat/ directory to be used as mask
-    --results-label=RESULTS_LABELS
+    --results-label-img <optional> 
+                        Options: 1. Internal classification method (antsAtropos).
+                        	 2. Absolute path to stereotaxic label volume, <path/to/labeled/atlas>;  
+			 	 3. String that identifies labels in anat/ directory to be used as mask
+    --results-label-template <optional>
+    			Default: Path to ICBM MNI 152 (2009c) template
+       			Absolute path to stereotaxic template that corresponds to specifiec 
+    --results-label
                         List of label values to use for results
-    --results-label-erosion=RESULTS_ERODE_TIMES
+    --results-label-erosion
                         Number of times to erode label
     --results-labels-brain-only
                         Mask results labels with brain mask
@@ -640,23 +645,23 @@ Quantification [usuallly with tracer kinetic analysis (quant)] allows for the qu
     --Ca=quant_CA         Concentration of native substrate in arterial plasma
                         (mM).
     --LC=quant_LC         Lumped constant in MR calculation; default is 1.0.
-    --density=quant_DENSITY
+    --density
                         Tissue density in MR calculation; default is 1.0 g/ml.
     --arterial          Use arterial input input.
-    --start-time=quant_START_TIME
+    --start-time
                         Start time of either regression in MTGA or averaging
                         time for SUV.
-    --end-time=quant_END_TIME
+    --end-time
                         End time for SUV average.
-    --body-weight=BODY_WEIGHT
+    --body-weight
                         Either name of subject body weight (kg) in header or
                         path to .csv file containing subject names and body
                         weight (separated by comma).
-    --radiotracer-dose=RADIOTRACER_DOSE
+    --radiotracer-dose
                         Either name of subject's injected radiotracer dose
                         (MBq) in header or path to .csv file containing
                         subject names and injected radiotracer dose (MBq).
-    --tka-type=quant_TYPE
+    --tka-type
                         Type of tka analysis: voxel or roi.
 
 ##### References

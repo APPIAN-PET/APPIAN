@@ -136,6 +136,8 @@ class Workflows:
         self.init_pet=init.get_workflow("initialization", self.infosource, opts)
         self.workflow.connect(self.datasource, 'pet', self.init_pet, "inputnode.pet")
         self.workflow.connect(self.datasource, 'json_header', self.init_pet, "inputnode.pet_header_json")
+        if opts.pet_fwhm:
+            self.workflow.connect(self.init_pet, 'outputnode.pet_smoothing',self.datasource, 'pet' )
     
     #####################
     # MRI Preprocessing # 

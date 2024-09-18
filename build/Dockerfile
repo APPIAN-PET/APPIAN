@@ -15,7 +15,7 @@ RUN ldconfig
 # Python packages
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py &&\
     python3 get-pip.py &&\
-    pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel sklearn seaborn wget SimpleITK scikit-image pint webcolors &&\
+    pip3  install  networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel scikit-learn seaborn wget SimpleITK scikit-image pint webcolors &&\
     pip3 install --upgrade numpy
 
 # Vim
@@ -45,9 +45,13 @@ RUN wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Lin
     cp -r PETPVC-1.2.4/* /opt/ &&\
     rm -r PETPVC* 
 
+# Dynamic PET
+RUN git clone https://github.com/bilgelm/dynamicpet.git &&\
+    pip install -e dynamicpet
+
 #APPIAN
 RUN cd /opt &&\
-    git clone https://github.com/APPIAN-PET/APPIAN
+    git clone -b dynamic-pet-integration https://github.com/cepa995/APPIAN.git
 
 RUN echo "python3 /opt/APPIAN/Launcher.py" > /opt/bin/appian
 

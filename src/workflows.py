@@ -134,8 +134,48 @@ class Workflows:
     ######################
     def set_init_pet(self, opts):
         self.init_pet=init.get_workflow("initialization", self.infosource, opts)
+        # Is it even possible from here to check if pet_fwhm exists and then return new smoothed version of 
+        # self.datasource? Because line below connects self.datasource (4D input) to the init workflows
+        # inpu node's pet attribute. Meaning, nothing is yet ran here, we are JUST DEFINING INPUTS to the workflow
+        #
+        # As far as I understand, here, we are passing self.datasource (4D image) to self.init_pet.infputnode.pet
+        # attribute and then initialization workflow should run, and create 3D volumes, etc.
+        #
+        # if opts.pet_fwhm:
+        #   self.pet_input_node = self.datasource
+        # Not sure what the above will do for us, as far as I cans ee self,datasource is mentioned 34 timesin the 
+        # workflow.py, so this means we would have to replace it everywhere with smoothed version, correct?
+        # That makes no sense, we should set self.datasource to be that smoothed version, somehow 
+        # functioins where elf.datasource is mentioned:
+        # set_masking
+        # set_pet2mri
+        # set_mri_processing
+        # set_quant
+        #
+        """
+        inside set_datasource_base it says
+        <datasource> is just an identity interface that doesn't actually do anything. Files from nodes from 
+        datasourcePET and datasourceAnat are linked to it. This makes it easier to refer to an input file without
+        having to remember if it came from datasourcePET or datasourceAnat. Also makes it possible to eventually 
+        have a version of APPIAN that only uses PET input.
+
+        this mean datasource will refer to the input path (datasourceAnat or datasourcePet), that further means we have to
+        re-link datasource to the smoothed version. Basically, should we do something like this
+
+        if opts.pet_fwhm:
+            self.workflow.connect(self.init_pet, 'outputnode.pet_smoothing',self.datasource, 'pet' )
+
+        (self.set_infosource, False, True),
+        (self.set_datasource_pet, False, True),
+        (self.set_datasource_anat, False, True),
+        (self.set_datasource_surf, False, opts.use_surfaces),
+        (self.set_datasource_base, opts.datasource_exit, True),
+        (self.init_datasink, False, True),
+        (self.set_init_pet, opts.initialize_exit, True ),"""
         self.workflow.connect(self.datasource, 'pet', self.init_pet, "inputnode.pet")
         self.workflow.connect(self.datasource, 'json_header', self.init_pet, "inputnode.pet_header_json")
+        if opts.pet_fwhm:
+            self.workflow.connect(self.init_pet, 'outputnode.pet_smoothing',self.datasource, 'pet' )
     
     #####################
     # MRI Preprocessing # 

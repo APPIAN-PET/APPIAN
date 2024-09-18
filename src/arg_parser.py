@@ -192,6 +192,8 @@ def get_parser():
     parser.add_argument("--k2s",dest="quant_k2s",help="With reference region input it may be necessary to specify also the population src for regerence region k2",type=float, default=None)
     parser.add_argument("--thr",dest="quant_thr",help="Pixels with AUC less than (threshold/100 x max AUC) are set to zero. Default is 0%",type=float, default=None)
     parser.add_argument("--max",dest="quant_max",help="Upper limit for Vt or DVR values; by default max is set pixel-wise to 10 times the AUC ratio.",type=float, default=None)
+    parser.add_argument("--pet-fwhm","--pet-fwhm",dest="pet_fwhm",help="FWHM of smoothing filter for original 4D Pet image.",type=float, nargs=3, default=None)
+    
     
     parser.add_argument("--R1",dest="quant_R1",help="Program computes also an R1 image.",type=str, default=None)
     parser.add_argument("--rp",dest="quant_rp",help="Program writes regression parameters in the specified image file.",type=str, default=None)

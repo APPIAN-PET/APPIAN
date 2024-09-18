@@ -13,6 +13,7 @@ from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from nipype.utils.filemanip import (load_json, save_json, split_filename, fname_presuffix, copyfile)
 from math import *
+from nilearn.image import smooth_img
 from time import gmtime, strftime
 from glob import glob
 from os.path import basename
@@ -240,8 +241,9 @@ class pet3DVolume(BaseInterface):
             affine=infile.affine
             data = infile.get_fdata()
 
-
             if data.max() == data.min() : 
+                # TODO: Potential bug? variable with the name "vol" does not exist in this scope! 
+                # Replace "vol" with "data"
                 print('\nError: PET image appears to be empty',in_file)
                 print('\tMin: {}, Mean: {}, Max: {}\n'.format(vol.min(), vol.mean(), vol.max()))
             ti=np.argmin(data.shape)
@@ -265,9 +267,7 @@ class pet3DVolume(BaseInterface):
             shutil.copy(in_file, out_file)
         if verbose :
             print('\tDone.')
-
         return 0
-
 
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.out_file):
@@ -278,6 +278,48 @@ class pet3DVolume(BaseInterface):
         return runtime
 
     def _list_outputs(self):
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+
+        outputs = self.output_spec().get()
+        outputs["out_file"] = self.inputs.out_file
+
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = fname_presuffix(self.inputs.in_file, suffix=self._suffix)
+        return outputs
+
+class petSmoothing(BaseInterface):
+    def _pet_4D_smoothing(self, in_file, out_file, verbose=True):
+        """
+        Runs Gaussian Smoothing over the original 4D PET image
+
+        :param in_file - input 4D PET image
+        :param out_file - smoothed 4D PET image
+        :param verbose - whether or not to show additional logs
+        """
+        pet_4d = nib.load(in_file)
+        if len(pet_4d.shape) >= 4 :
+            data = pet_4d.get_fdata()
+            if data.max() == data.min() : 
+                print('\nError: PET image appears to be empty',in_file)
+                print('\tMin: {}, Mean: {}, Max: {}\n'.format(data.min(), data.mean(), data.max()))
+            # Gaussian Smoothing
+            smoothed_img = smooth_img(pet_4d, fwhm=self.fwhm)
+            # Save result in the out_file
+            nib.save(smoothed_img, out_file)
+        if verbose :
+            print('\Successfully Excecuted Gaussian Smoothing over the original 4D Pet input image.')
+
+    def _run_interface(self, runtime):
+        """ Defines the execution logic for a given interface when the node is run """
+        if not isdefined(self.inputs.out_file):
+            self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
+        # Perform Gaussian Smoothing
+        self._pet_4D_smoothing(self.inputs.in_file, self.inputs.out_file, verbose=True)
+        return runtime
+
+    def _list_outputs(self):
+        """ Defines and returns  a dictionary of the expected outputs after the interface has been executed. """
         if not isdefined(self.inputs.out_file):
             self.inputs.out_file = self._gen_output(self.inputs.in_file, self._suffix)
 
@@ -300,41 +342,62 @@ def get_workflow(name, infosource, opts):
     Nipype workflow that initializes the PET images by
         1. Average 4D PET image into 3D image: petVolume
         2. Extract information from header
+    
+    - Input Node (inputnode)
+        * Provides pet and pet_header_json.
+    - PET Smoothing Node (petSmoothingNode)
+        * Takes pet from inputnode if smoothing is enabled.
+        * Outputs smoothed pet_smoothing.
+    - PET Volume Node (petVolume)
+        * Takes either the original pet or pet_smoothing (if smoothing was applied).
+        * Outputs pet_volume.
+    - PET Header Node (petHeader)
+        * Takes pet_header_json from inputnode.
+        * Outputs validated pet_header_json.
+    - PET Brain Mask Node (petBrainMaskNode)
+        * Takes pet_volume as input if brain mask generation is enabled.
+        * Outputs pet_brain_mask.
+    - Output Node (outputnode)
+        * Collects pet_smoothing, pet_volume, pet_header_json, and pet_brain_mask as outputs.
 
     :param name: Name of workflow
     :param infosource: Infosource for basic variables like subject id (sid) and condition id (cid)
-    :param datasink: Node in which output data is sent
     :param opts: User options
-
     :returns: workflow
     '''
     workflow = pe.Workflow(name=name)
-
-    #Define input node that will receive input from outside of workflow
+    # STEP 0.1 Define input node that will receive input from outside of workflow which includes PET 4D Image and PET Header JSON file
     default_field=["pet","pet_header_json"]
     inputnode = pe.Node(niu.IdentityInterface(fields=default_field), name='inputnode')
-
-    #Define empty node for output
-    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_volume","pet_header_json","pet_brain_mask"]), name='outputnode')
-
+    # STEP 0.2 Define empty node for output
+    outputnode = pe.Node(niu.IdentityInterface(fields=["pet_smoothing", "pet_volume", "pet_header_json", "pet_brain_mask"]), name='outputnode')
+    # STEP 1. Define 3D Volume Node that will derive PET 3D volumes from original 4D Image
     petVolume = pe.Node(interface=pet3DVolume(), name="petVolume")
     petVolume.inputs.verbose = opts.verbose
-    
-    
+    # STEP 2. Check if SMOOTHING needs to be performed over the original 4D PET input image
+    if opts.pet_fwhm:
+        # Gassian Smoothing over the input 4D PET Image
+        petSmoothingNode = pe.Node(interface=petSmoothing(), name="pet_smoothing")
+        petSmoothingNode.fwhm = list(opts.pet_fwhm)
+        workflow.connect(inputnode, 'pet', petSmoothingNode, 'in_file')
+        workflow.connect(petSmoothingNode, 'out_file', outputnode, 'pet_smoothing')
+        # Create 3D Volumes from the original 4D Pet image (or smoothed version, depending on whether or not the flag was set)
+        workflow.connect(petSmoothingNode, 'out_file', petVolume, 'in_file')
+        workflow.connect(petVolume, 'out_file', outputnode, 'pet_volume')
+    else:
+        # If smoothing should not be applied, then just create 3D volumes
+        workflow.connect(inputnode, 'pet', petVolume, 'in_file')
+        workflow.connect(petVolume, 'out_file', outputnode, 'pet_volume')
+    # STEP 3. Validate the header
     petHeader=pe.Node(interface=validate_header(), name="petHeader")
     if opts.quant_method != None :
         petHeader.inputs.quant_method=opts.quant_method
-    
     workflow.connect(inputnode, 'pet_header_json', petHeader, 'in_file')
-    
-    workflow.connect(inputnode, 'pet', petVolume, 'in_file')
-   
+    workflow.connect(petHeader, 'out_file', outputnode, 'pet_header_json')
+    # STEP 4. Create PET Brain Mask if the flag is set to True
     if  opts.pet_brain_mask :
         petBrainMaskNode=pe.Node(interface=petBrainMask(), name="pet_brain_mask")
         workflow.connect(petVolume, 'out_file', petBrainMaskNode, 'in_file')
         workflow.connect(petBrainMaskNode, 'out_file', outputnode, 'pet_brain_mask')
-
-    workflow.connect(petVolume, 'out_file', outputnode, 'pet_volume')
-    workflow.connect(petHeader, 'out_file', outputnode, 'pet_header_json')
 
     return(workflow)

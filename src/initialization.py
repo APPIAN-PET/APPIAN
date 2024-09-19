@@ -32,7 +32,7 @@ class pet_brain_maskInput(BaseInterfaceInputSpec):
     out_file = traits.File(desc="Head mask")
 
 
-import src.ants_nibabel as nib 
+import nibabel as nib 
 from skimage.filters import threshold_otsu 
 import numpy as np 
 from scipy.ndimage import gaussian_filter 

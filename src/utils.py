@@ -4,12 +4,12 @@ import gzip
 import shutil
 import gzip
 import subprocess
-import src.ants_nibabel as nib
+import nibabel as nib
 import ntpath
 import pandas as pd
 import numpy as np 
 import tempfile
-import src.ants_nibabel as nib
+import nibabel as nib
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec,
         BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 

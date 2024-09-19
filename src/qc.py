@@ -9,7 +9,7 @@ import os
 import imageio
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu 
-import src.ants_nibabel as nib
+import nibabel as nib
 import shutil
 import ntpath
 import nipype.pipeline.engine as pe
@@ -23,7 +23,7 @@ import re
 import time
 import matplotlib.animation as animation
 from skimage.feature import canny
-from src.ants_nibabel import resample_to_output
+from nibabel import resample_to_output
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN

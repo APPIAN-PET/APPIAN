@@ -17,7 +17,7 @@ import nipype.interfaces.utility as util
 import src.initialization as init
 import nipype.interfaces.io as nio
 import nipype.interfaces.minc as minc
-import src.ants_nibabel as nib
+import nibabel as nib
 import numpy as np
 import ntpath
 import os

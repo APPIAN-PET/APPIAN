@@ -11,7 +11,7 @@ from src.utils import splitext, cmd
 from scipy.io import loadmat
 from scipy.ndimage import center_of_mass
 import numpy as np
-import src.ants_nibabel as nib
+import nibabel as nib
 import nipype.pipeline.engine as pe
 import SimpleITK as sitk
 import os

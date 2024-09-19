@@ -12,7 +12,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as niu
 import nipype.algorithms.misc as misc
-import src.ants_nibabel as nib
+import nibabel as nib
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd

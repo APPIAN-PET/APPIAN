@@ -3,7 +3,7 @@ import os
 import numpy as np
 import time
 import sys
-import src.ants_nibabel as nib
+import nibabel as nib
 from nibabel.filebasedimages import ImageFileError
 from argparse import ArgumentParser
 from glob import glob

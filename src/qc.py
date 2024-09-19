@@ -23,7 +23,7 @@ import re
 import time
 import matplotlib.animation as animation
 from skimage.feature import canny
-from nibabel import resample_to_output
+from nibabel.processing import resample_to_output
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN

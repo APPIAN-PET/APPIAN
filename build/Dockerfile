@@ -25,6 +25,10 @@ RUN ldconfig
 RUN pip3 install setuptools networkx nilearn nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel scikit-learn seaborn wget SimpleITK scikit-image pint webcolors && \
     pip3 install --upgrade numpy
 
+# Clean up after installing packages
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+    
 # Vim configuration
 RUN echo "syntax on" > /root/.vimrc && \
     echo "set tabstop=4 shiftwidth=4 expandtab smartindent hlsearch " >> /root/.vimrc && \
@@ -69,3 +73,11 @@ USER user
 # ENVIRONMENT VARIABLES
 ENV PATH /opt/bin:$PATH
 ENV ANTSPATH /opt/bin
+
+# OSError: Matplotlib requires access to a writable cache directory
+# Create a writable directory for Matplotlib
+RUN mkdir -p /tmp/.matplotlib && \
+    chown -R user:user /tmp/.matplotlib
+
+# Set the MPLCONFIGDIR environment variable
+ENV MPLCONFIGDIR=/tmp/.matplotlib

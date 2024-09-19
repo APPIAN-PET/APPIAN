@@ -3,7 +3,7 @@ import re
 import nipype
 import json
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from src.utils import concat_df, splitext
 from src.qc import metric_columns
 import pandas as pd

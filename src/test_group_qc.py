@@ -20,7 +20,7 @@ import nibabel as nib
 from scipy.ndimage.measurements import center_of_mass 
 from src.ants import APPIANApplyTransforms
 from sklearn.metrics import roc_curve, auc
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,  BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
 from scipy import stats
 from math import sqrt, floor, ceil

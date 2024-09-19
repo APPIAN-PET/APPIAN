@@ -1,7 +1,7 @@
 from pyminc.volumes.factory import volumeLikeFile, volumeFromFile
 import numpy as np
 from quantification_template import *
-from scipy.integrate import simps
+from scipy.integrate import simpson
 import json
 
 in_file_format="NIFTI"

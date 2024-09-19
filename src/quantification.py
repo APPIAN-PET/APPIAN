@@ -2,7 +2,7 @@ from nipype.interfaces.utility import Function
 from nipype.interfaces.base import TraitedSpec, File, traits, InputMultiPath, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined
 from nipype.utils.filemanip import load_json, save_json, split_filename, fname_presuffix, copyfile
 from scipy.interpolate import interp1d
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from src.utils import splitext
 from scipy.stats import linregress
 from scipy.linalg import solve

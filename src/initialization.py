@@ -5,7 +5,7 @@ import shutil
 import json
 import ntpath
 import shutil
-import src.ants_nibabel as nib
+import nibabel as nib
 import re
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu

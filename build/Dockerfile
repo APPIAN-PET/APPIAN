@@ -22,7 +22,7 @@ RUN echo "/opt/lib/" >> /etc/ld.so.conf.d/userLibraries.conf
 RUN ldconfig
 
 # Install Python packages
-RUN pip3 install setuptools networkx nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel scikit-learn seaborn wget SimpleITK scikit-image pint webcolors && \
+RUN pip3 install setuptools networkx nilearn nipype keras nibabel pydot h5py numpy scipy configparser pandas matplotlib nibabel scikit-learn seaborn wget SimpleITK scikit-image pint webcolors && \
     pip3 install --upgrade numpy
 
 # Vim configuration

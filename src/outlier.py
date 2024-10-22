@@ -8,7 +8,7 @@ from sys import exit
 from scipy.stats import gaussian_kde
 import sklearn
 import pandas as pd
-from scipy.integrate import simps
+from scipy.integrate import simpson
 sklearn_major_version = float(sklearn.__version__.split('.')[1])
 from sklearn.neighbors import KernelDensity
 

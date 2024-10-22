@@ -78,7 +78,8 @@ def gen_args(opts, subjects):
         rec_arg='rec-'+rec
         report_columns['Rec']=[]
 
-    report = pd.DataFrame(report_columns)
+    # report = pd.DataFrame(report_columns)
+    report_rows = []
     for sub in subjects:
         if opts.verbose >= 2: print("Sub:", sub)
         for ses in session_ids:
@@ -167,10 +168,11 @@ def gen_args(opts, subjects):
                         sub_ses_dict[sub]=ses
                         task_args.append(d)
                     
-                    report=report.append(report_row,ignore_index=True)
+                    report_rows.append(report_row)
+    report = pd.DataFrame.from_records(report_rows)
+    report.to_csv(opts.targetDir+os.sep+'input_file_report.csv',index=False)
     if opts.verbose >= 1 : 
         print(report)
-    report.to_csv(opts.targetDir+os.sep+'input_file_report.csv',index=False)
 
     for key, val in sub_ses_dict.items() :
         sub_ses_args.append({"sid":key,"ses":ses,'t1_ses':ses})

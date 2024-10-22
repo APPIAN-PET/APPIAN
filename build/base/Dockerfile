@@ -59,10 +59,13 @@ RUN wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Lin
     cp -r PETPVC-1.2.4/* /opt/ &&\
     rm -r PETPVC* 
 
+# Dynamic PET
+RUN git clone https://github.com/bilgelm/dynamicpet.git &&\
+    pip install -e dynamicpet
+
 #APPIAN
 RUN cd /opt &&\
-    git clone https://github.com/APPIAN-PET/APPIAN
-
+    git clone -b dynamic-pet-integration https://github.com/cepa995/APPIAN.git
 
 RUN useradd -ms /bin/bash user
 RUN chown -R user:user /opt/bin/ && chmod 733 /opt/bin/*

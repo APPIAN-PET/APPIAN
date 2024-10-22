@@ -3,7 +3,7 @@ import re
 import nipype
 import json
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath, CommandLine, CommandLineInputSpec, BaseInterface, OutputMultiPath, BaseInterfaceInputSpec, isdefined)
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from src.utils import concat_df, splitext
 from src.qc import metric_columns
 import pandas as pd
@@ -12,7 +12,7 @@ import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
 import nipype.interfaces.utility as util
 import nipype.interfaces.utility as niu
-import src.ants_nibabel as nib
+import nibabel as nib
 
 
 results_columns = metric_columns + ['frame']

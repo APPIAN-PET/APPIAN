@@ -3,7 +3,7 @@ import json
 import nibabel as nib
 from src.utils import splitext
 from quantification_template import *
-from scipy.integrate import simps
+from scipy.integrate import simpson
 ### Required for a quantification node:
 in_file_format="NIFTI"
 ### Required for a quantification node:

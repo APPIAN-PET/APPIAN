@@ -7,7 +7,7 @@ import ntpath
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as niu
 import nipype.interfaces.minc as minc
-import src.ants_nibabel as nib
+import nibabel as nib
 from nibabel.processing import resample_from_to
 import SimpleITK as sitk
 from nipype.interfaces.base import (TraitedSpec, File, traits, InputMultiPath,
